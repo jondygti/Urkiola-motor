@@ -53,6 +53,54 @@ El campo `id` de cada comando es único: el servidor debe **ignorar
 comandos repetidos** (idempotencia) para que un reintento tras un fallo de
 red no duplique un movimiento.
 
+## Trabajo sin cobertura: lo que el servidor tiene que cumplir
+
+La app ya está construida para funcionar en sótanos y zonas sin señal, así
+que esto **no es opcional**, es parte del contrato:
+
+1. **Idempotencia por `command.id`.** Si llega dos veces el mismo `id`, la
+   segunda se responde `200` sin volver a aplicar nada. La app reintenta
+   cuando vuelve la cobertura y puede repetir un envío del que nunca supo
+   si llegó. Sin esto se duplican movimientos y comprobaciones.
+
+2. **Los comandos llegan en orden, uno a uno.** La app no envía el
+   siguiente hasta que el anterior se ha confirmado, porque se construyen
+   unos sobre otros (crear la preparación antes de marcar un requisito).
+   El servidor no debe procesarlos en paralelo para un mismo vehículo.
+
+3. **Pueden llegar tarde.** Un comando registrado a las 9:05 en un sótano
+   puede llegar a las 11:30. Por eso cada comando lleva su propio `at`:
+   **usa esa fecha, no la de recepción**, para el histórico y la
+   trazabilidad.
+
+4. **Los códigos de error significan cosas distintas para la app:**
+
+   | Respuesta | Qué hace la app |
+   |---|---|
+   | `2xx` | Lo da por subido y sigue con el siguiente |
+   | `5xx`, `408`, `429` | Lo mantiene en cola y reintenta más tarde |
+   | Resto de `4xx` | Lo aparta, avisa por pantalla y sigue con el siguiente |
+   | Sin respuesta (timeout, sin red) | Lo mantiene en cola y reintenta |
+
+   Es decir: **devolver `4xx` descarta el trabajo del operario**. Úsalo
+   solo cuando el comando es realmente inválido y reintentarlo nunca va a
+   funcionar. Ante la duda, `5xx`.
+
+5. **`GET /state` debe poder llamarse en cualquier momento.** La app lo usa
+   al arrancar y, si tiene cosas pendientes, las vuelve a aplicar encima de
+   lo que devuelve el servidor para que no desaparezcan de la pantalla.
+
+### Cómo lo hace la app
+
+- Guarda el estado completo en el dispositivo, así que arranca y es usable
+  sin conexión con los últimos datos conocidos.
+- Guarda la cola de comandos pendientes, que sobrevive a cerrar la app.
+- Reintenta al recuperar cobertura, al volver a primer plano y cada 30 s.
+- Nunca da por bueno que hay conexión porque lo diga el sistema operativo:
+  lo comprueba intentando llegar al servidor. Las sondas de conectividad
+  del móvil fallan tras un proxy o con portales cautivos, que es justo
+  donde tiene que funcionar.
+
 ## Catálogo de comandos
 
 | Tipo | Qué hace |

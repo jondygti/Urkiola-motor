@@ -3,15 +3,18 @@
 Aplicación de gestión logística de flota para Urkiola Car Service, hecha a
 partir del mockup `Urkiola_Car_Service_V18_ABRIBLE.html`.
 
-**Un solo código, tres destinos:**
+**Un solo código, dos destinos:**
 
 | Destino | Para quién | Cómo se distribuye |
 |---|---|---|
 | Web | Gestión y control (oficina) | Página estática en cualquier hosting |
-| Android | Campa, transporte y preparación | Google Play |
-| iOS | Campa, transporte y preparación | App Store |
+| Android | Campa, transporte y preparación | APK propio, sin pasar por Google Play |
 
-No son tres aplicaciones: es la misma, escrita con Expo y React Native, que
+El proyecto también compila para iOS y la configuración está escrita, pero
+queda fuera de alcance: Apple exige 99 US$/año para instalar en un iPhone.
+Quien use iPhone entra al panel web desde el navegador.
+
+No son dos aplicaciones: es la misma, escrita con Expo y React Native, que
 se adapta a la pantalla. En escritorio muestra el menú lateral y las tablas
 del mockup; en el móvil, barra inferior, menú deslizante y fichas.
 
@@ -56,16 +59,16 @@ src/
     commands.ts           TODA la lógica de negocio, en funciones puras
     seed.ts               Parque de ejemplo
     selectors.ts          Cálculos derivados (KPI, SLA, ocupación…)
-    store.tsx             Estado, persistencia y envío al backend
+    store.tsx             Estado, persistencia y cola de subida sin cobertura
     api.ts                Cliente HTTP
     push.ts               Notificaciones push
     format.ts             Fechas, duraciones, nombres
   ui/                     Sistema de diseño (colores del mockup + modo oscuro)
   features/
-    shell/                Menú lateral, barra móvil, pestañas
+    shell/                Menú lateral, pestañas y estado de sincronización
     actions/              Modales de movimiento, solicitud, incidencia, aviso
     prep/                 Panel de preparación con cronómetros y checklist
-    scan/                 Lectura de códigos (cámara en Android/iOS)
+    scan/                 Lectura de códigos (cámara en Android)
     common/               Píldoras de estado y celdas reutilizables
 deploy/                   Caddy y variables para el servidor
 docs/                     Documentación
@@ -81,8 +84,8 @@ negocio se escriben una sola vez.
 
 - [`docs/DESPLIEGUE.md`](docs/DESPLIEGUE.md) — **dónde alojarlo**: AWS
   frente a alternativas, con costes reales y recomendación.
-- [`docs/PUBLICACION-TIENDAS.md`](docs/PUBLICACION-TIENDAS.md) — pasos,
-  cuentas, costes y plazos para Google Play y App Store.
+- [`docs/DISTRIBUCION.md`](docs/DISTRIBUCION.md) — cómo se compila y se
+  reparte el APK de Android sin usar tiendas, y qué se pierde por ello.
 - [`docs/BACKEND-API.md`](docs/BACKEND-API.md) — contrato de la API,
   tablas de PostgreSQL e integración con Quiter.
 - [`docs/MANTENIMIENTO.md`](docs/MANTENIMIENTO.md) — **cómo se sigue
@@ -99,6 +102,25 @@ npm run typecheck     # TypeScript en modo estricto
 npm run build:web     # genera dist/ listo para publicar
 npm run icons         # regenera los iconos de assets/
 ```
+
+## Funciona sin cobertura
+
+En campa y en sótanos no siempre hay señal, así que la app está pensada
+para eso:
+
+- guarda todos los datos en el dispositivo y arranca aunque no haya red;
+- lo que se registra sin conexión se guarda en una cola que sobrevive a
+  cerrar la app;
+- se sube solo al recuperar cobertura, al volver a primer plano o cada
+  30 segundos;
+- una barra arriba dice cuántos cambios quedan por subir;
+- no se fía de lo que diga el móvil sobre si hay red: lo comprueba contra
+  el servidor, porque las sondas de conectividad fallan justo detrás de un
+  proxy o un portal cautivo.
+
+El servidor tiene que ser idempotente por `command.id` para que un
+reintento no duplique un movimiento. Está detallado en
+[`docs/BACKEND-API.md`](docs/BACKEND-API.md).
 
 ## Reglas de negocio implementadas
 

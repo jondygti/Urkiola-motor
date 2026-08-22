@@ -23,7 +23,7 @@ import { formatDateTime, formatShortDuration, vehicleTitle } from '@/data/format
 
 export default function DashboardScreen() {
   const state = useAppState();
-  const { user, mode, syncError, state: s } = useStore();
+  const { user, mode, state: s } = useStore();
   const router = useRouter();
   const now = useTicker(15_000);
   const { c } = useTheme();
@@ -40,15 +40,6 @@ export default function DashboardScreen() {
         Vista global de flota, logística y preparación. Sondika almacena; Leioa, Galdakao, Anoeta e Irun
         preparan.
       </Muted>
-
-      {syncError ? (
-        <Notice tone="danger">
-          <Text style={{ fontSize: 12, color: c.text }}>
-            <Text style={{ fontWeight: '800' }}>Sin conexión con el servidor. </Text>
-            {syncError}. Los cambios se guardan en el dispositivo y se reintentan al recuperar la conexión.
-          </Text>
-        </Notice>
-      ) : null}
 
       <Spacer />
 

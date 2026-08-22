@@ -27,6 +27,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   primaryColor: BRAND_DARK,
   assetBundlePatterns: ['**/*'],
 
+  // iOS queda configurado pero fuera de alcance: se distribuye solo Android
+  // (ver docs/DISTRIBUCION.md). Si algún día se contrata el programa de
+  // desarrollador de Apple, esta parte ya está lista.
   ios: {
     bundleIdentifier: BUNDLE_ID,
     buildNumber: '1',

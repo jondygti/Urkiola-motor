@@ -12,7 +12,7 @@ claras para marcar expectativas con el equipo.
 |---|---|---|
 | Configuración (checklists, sedes, objetivos…) | Un administrador, desde la app | Al instante |
 | Pantallas, filtros, correcciones | Programador | Web: al recargar · Móvil: al abrir la app |
-| Dependencias nativas, versión del SDK, permisos | Programador | 1-3 días (revisión de las tiendas) |
+| Dependencias nativas, versión del SDK, permisos | Programador | Hay que repartir un APK nuevo |
 | Base de datos y API | Programador | Según despliegue, con cuidado |
 
 ---
@@ -60,6 +60,9 @@ El operario lo tiene la próxima vez que abre la app. Sin revisión de Apple
 ni de Google, sin que nadie tenga que actualizar nada a mano. Esto permite
 corregir un fallo el mismo día que aparece.
 
+Esto funciona igual aunque el APK se haya instalado a mano, sin Google
+Play: no dependemos de la tienda para actualizar.
+
 > **Pendiente de activar.** `expo-updates` está instalado y los canales
 > (`development`, `preview`, `production`) están definidos en `eas.json`,
 > pero las actualizaciones OTA todavía no funcionan: falta ejecutar
@@ -87,14 +90,13 @@ actualicen desde la tienda.
 ## 3 · Cambios nativos
 
 ```bash
-eas build --profile production --platform all
-eas submit --profile production --platform all
+eas build --profile production --platform android
 ```
 
-Revisión: horas normalmente, 1-3 días la primera vez. No bloquea el trabajo
-diario, simplemente no es inmediato. Conviene agruparlos: en lugar de subir
-una versión por cada cambio nativo, juntarlos y hacer una entrega cada
-pocas semanas.
+Al no publicar en Google Play no hay revisión que esperar, pero sí hay que
+**repartir el APK nuevo** a todos los móviles (ver `docs/DISTRIBUCION.md`).
+Como eso implica molestar al equipo, conviene agrupar los cambios nativos y
+hacer una entrega cada pocos meses en lugar de una por cada cambio.
 
 ---
 
@@ -144,13 +146,18 @@ Tres, y ya están previstos en `eas.json`:
 | Pruebas | `api-pre.urkiolacarservice.com` | `preview` | Probar antes de tocar lo real |
 | Producción | `api.urkiolacarservice.com` | `production` | El sistema que usa el equipo |
 
+> La dirección del servidor se incrusta al compilar y **Metro la cachea**.
+> Si la cambias, compila con `--clear` o el APK seguirá apuntando a la
+> anterior. Es un fallo silencioso y desconcertante: la app parece
+> funcionar pero habla con el servidor equivocado.
+
 El entorno de pruebas debe tener **su propia base de datos**, nunca la de
 producción. Lo más práctico es cargarla con una copia reciente de los datos
 reales, para probar contra volúmenes y casos de verdad.
 
-La app de pruebas se instala por enlace (`distribution: internal`), sin
-pasar por las tiendas. Conviene que una o dos personas del equipo la tengan
-en el móvil y prueben los cambios antes de que lleguen a todos.
+La app de pruebas se instala por enlace, igual que la de producción.
+Conviene que una o dos personas del equipo la tengan en el móvil y prueben
+los cambios antes de que lleguen a todos.
 
 ---
 
@@ -196,6 +203,7 @@ pierden con él.
 |---|---|
 | La web | Volver a copiar el `dist/` anterior |
 | Una OTA del móvil | `eas update:republish` apuntando a la versión buena |
+| Un APK con un fallo nativo | Repartir el APK anterior |
 | El backend | Volver al contenedor de la versión anterior |
 | Los datos | Restaurar la copia (y avisar de lo que se pierda) |
 
@@ -229,13 +237,16 @@ arrancar.
 | Semana | Mirar los errores del backend y los avisos que no se están entregando |
 | Mes | Restaurar una copia en pruebas y comprobar que arranca |
 | Trimestre | Actualizar dependencias menores; revisar espacio en disco y tamaño de la base de datos |
-| Semestre | Subir de versión el SDK de Expo (Expo saca dos al año); compilar y subir a las tiendas |
-| Año | Renovar el Apple Developer Program (99 US$); revisar la política de privacidad y los cuestionarios de las tiendas |
+| Semestre | Subir de versión el SDK de Expo (Expo saca dos al año) y repartir APK nuevo |
+| Año | Revisar que la clave de firma sigue guardada y accesible |
 
-Lo del SDK de Expo no es opcional a largo plazo: Apple y Google exigen
-periódicamente compilar contra versiones recientes de sus sistemas, y
-mantenerse al día en saltos pequeños es mucho más barato que hacer tres
-saltos de golpe dentro de dos años.
+Lo del SDK de Expo no es opcional a largo plazo: Android va exigiendo
+versiones mínimas y mantenerse al día en saltos pequeños es mucho más
+barato que hacer tres saltos de golpe dentro de dos años.
+
+Y ojo con la **clave de firma del APK**: si se pierde, los móviles rechazan
+la actualización y hay que desinstalar y reinstalar en todos. Descárgala
+con `eas credentials` y guárdala fuera del equipo de quien compila.
 
 ---
 
@@ -253,18 +264,19 @@ saltos de golpe dentro de dos años.
 
 ---
 
-## 11 · Lo único irreversible
+## 11 · Lo difícil de cambiar
 
-Casi todo se puede cambiar después. La excepción práctica es el
-**identificador de la app**: ahora mismo `com.urkiolamotor.carservice`, en
-`app.config.ts` (`ios.bundleIdentifier` y `android.package`).
+Al no publicar en tiendas, casi nada es irreversible. Las dos cosas que
+más cuestan:
 
-Una vez subida la primera versión a las tiendas, **no se puede cambiar**
-sin publicar una app nueva desde cero, perdiendo instalaciones y reseñas.
-Es el momento de decidirlo, no después.
+- **El identificador de la app** (`android.package`, hoy
+  `com.urkiolamotor.carservice`). Cambiarlo obliga a desinstalar y
+  reinstalar en todos los móviles: Android lo trata como otra aplicación
+  distinta.
+- **La clave de firma.** Perderla tiene el mismo efecto. Guárdala bien.
 
-Lo mismo, en menor medida, con el nombre público de la app: se puede
-cambiar, pero confunde a quien ya la tiene instalada.
+Si algún día se publica en Google Play, el identificador pasa a ser
+definitivo de verdad: a partir de ahí ya no se puede cambiar.
 
 ---
 
@@ -289,6 +301,8 @@ Lista corta para no dejarse nada:
 
 - [ ] `eas init` y `eas update:configure` (activar las actualizaciones OTA)
 - [ ] Decidir el identificador definitivo de la app
+- [ ] Descargar y guardar la clave de firma (`eas credentials`)
+- [ ] Publicar el APK en una URL fija de la intranet o la web
 - [ ] Migraciones de base de datos desde la primera tabla
 - [ ] Entorno de pruebas con su propia base de datos
 - [ ] Copias de seguridad fuera del servidor

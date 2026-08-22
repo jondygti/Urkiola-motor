@@ -7,6 +7,7 @@ import { useStore } from '@/data/store';
 import { unreadCount } from '@/data/selectors';
 import { ROLE_LABEL } from '@/data/types';
 import { TABS, titleForPath, visibleNav } from './nav';
+import { SyncBar } from './SyncBar';
 
 const SIDEBAR_WIDTH = 245;
 const DRAWER_WIDTH = 285;
@@ -30,7 +31,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <View style={{ width: SIDEBAR_WIDTH }}>
           <SideMenu unread={unread} />
         </View>
-        <View style={{ flex: 1, minWidth: 0 }}>{children}</View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <SyncBar />
+          <View style={{ flex: 1 }}>{children}</View>
+        </View>
       </View>
     );
   }
@@ -43,6 +47,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         onMenu={() => setDrawerOpen(true)}
         topInset={insets.top}
       />
+      <SyncBar />
       <View style={{ flex: 1 }}>{children}</View>
       <BottomTabs bottomInset={insets.bottom} onMore={() => setDrawerOpen(true)} />
       <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} unread={unread} />
