@@ -12,8 +12,13 @@ export const vehicleById = (s: AppState, id: Id | undefined): Vehicle | undefine
 /** Busca por matrícula o por los 8 últimos del bastidor. */
 export const vehicleByRef = (s: AppState, ref: string): Vehicle | undefined => {
   const norm = ref.trim().toUpperCase().replace(/\s+/g, '');
+  // Sin texto no hay coincidencia: si no, los vehículos sin matrícula
+  // (que son la mayoría de los VN) casarían con la cadena vacía.
+  if (!norm) return undefined;
   return s.vehicles.find(
-    (v) => v.vin8.toUpperCase() === norm || (v.plate ?? '').toUpperCase().replace(/\s+/g, '') === norm
+    (v) =>
+      v.vin8.toUpperCase() === norm ||
+      (v.plate ? v.plate.toUpperCase().replace(/\s+/g, '') === norm : false)
   );
 };
 
