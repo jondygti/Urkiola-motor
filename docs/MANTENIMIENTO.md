@@ -12,7 +12,7 @@ claras para marcar expectativas con el equipo.
 |---|---|---|
 | Configuración (checklists, sedes, objetivos…) | Un administrador, desde la app | Al instante |
 | Pantallas, filtros, correcciones | Programador | Web: al recargar · Móvil: al abrir la app |
-| Dependencias nativas, versión del SDK, permisos | Programador | Hay que repartir un APK nuevo |
+| Dependencias nativas, versión del SDK, permisos | Programador | Minutos (prueba interna de Play) |
 | Base de datos y API | Programador | Según despliegue, con cuidado |
 
 ---
@@ -60,8 +60,8 @@ El operario lo tiene la próxima vez que abre la app. Sin revisión de Apple
 ni de Google, sin que nadie tenga que actualizar nada a mano. Esto permite
 corregir un fallo el mismo día que aparece.
 
-Esto funciona igual aunque el APK se haya instalado a mano, sin Google
-Play: no dependemos de la tienda para actualizar.
+Esto no pasa por Google Play: no hay revisión que esperar ni versión nueva
+que subir.
 
 > **Pendiente de activar.** `expo-updates` está instalado y los canales
 > (`development`, `preview`, `production`) están definidos en `eas.json`,
@@ -91,12 +91,16 @@ actualicen desde la tienda.
 
 ```bash
 eas build --profile production --platform android
+eas submit --profile production --platform android
 ```
 
-Al no publicar en Google Play no hay revisión que esperar, pero sí hay que
-**repartir el APK nuevo** a todos los móviles (ver `docs/DISTRIBUCION.md`).
-Como eso implica molestar al equipo, conviene agrupar los cambios nativos y
-hacer una entrega cada pocos meses en lugar de una por cada cambio.
+En el canal de **prueba interna** de Play la versión está disponible en
+minutos, sin revisión completa. Si algún día la app pasa a producción
+pública, la revisión son horas.
+
+Los móviles se actualizan solos, como cualquier app de Play. Aun así
+conviene agrupar los cambios nativos: cada uno consume una versión y obliga
+a que todo el mundo descargue.
 
 ---
 
@@ -147,7 +151,7 @@ Tres, y ya están previstos en `eas.json`:
 | Producción | `api.urkiolacarservice.com` | `production` | El sistema que usa el equipo |
 
 > La dirección del servidor se incrusta al compilar y **Metro la cachea**.
-> Si la cambias, compila con `--clear` o el APK seguirá apuntando a la
+> Si la cambias, compila con `--clear` o la app seguirá apuntando a la
 > anterior. Es un fallo silencioso y desconcertante: la app parece
 > funcionar pero habla con el servidor equivocado.
 
@@ -155,9 +159,9 @@ El entorno de pruebas debe tener **su propia base de datos**, nunca la de
 producción. Lo más práctico es cargarla con una copia reciente de los datos
 reales, para probar contra volúmenes y casos de verdad.
 
-La app de pruebas se instala por enlace, igual que la de producción.
-Conviene que una o dos personas del equipo la tengan en el móvil y prueben
-los cambios antes de que lleguen a todos.
+La app de pruebas se instala por enlace (APK del perfil `preview`), sin
+pasar por Play. Conviene que una o dos personas del equipo la tengan en el
+móvil y prueben los cambios antes de subirlos.
 
 ---
 
@@ -203,7 +207,7 @@ pierden con él.
 |---|---|
 | La web | Volver a copiar el `dist/` anterior |
 | Una OTA del móvil | `eas update:republish` apuntando a la versión buena |
-| Un APK con un fallo nativo | Repartir el APK anterior |
+| Una versión nativa con fallo | Detener el despliegue en Play y volver a publicar la anterior |
 | El backend | Volver al contenedor de la versión anterior |
 | Los datos | Restaurar la copia (y avisar de lo que se pierda) |
 
@@ -237,16 +241,18 @@ arrancar.
 | Semana | Mirar los errores del backend y los avisos que no se están entregando |
 | Mes | Restaurar una copia en pruebas y comprobar que arranca |
 | Trimestre | Actualizar dependencias menores; revisar espacio en disco y tamaño de la base de datos |
-| Semestre | Subir de versión el SDK de Expo (Expo saca dos al año) y repartir APK nuevo |
-| Año | Revisar que la clave de firma sigue guardada y accesible |
+| Semestre | Subir de versión el SDK de Expo (Expo saca dos al año) y publicar versión nueva |
+| Año | Revisar los avisos de Play sobre versiones mínimas de Android y la política de privacidad |
 
-Lo del SDK de Expo no es opcional a largo plazo: Android va exigiendo
-versiones mínimas y mantenerse al día en saltos pequeños es mucho más
-barato que hacer tres saltos de golpe dentro de dos años.
+Lo del SDK de Expo no es opcional a largo plazo: **Google exige cada año
+compilar contra una versión reciente de Android** para poder seguir
+publicando actualizaciones. Mantenerse al día en saltos pequeños es mucho
+más barato que hacer tres saltos de golpe dentro de dos años.
 
-Y ojo con la **clave de firma del APK**: si se pierde, los móviles rechazan
-la actualización y hay que desinstalar y reinstalar en todos. Descárgala
-con `eas credentials` y guárdala fuera del equipo de quien compila.
+Sobre la clave de firma: con **Play App Signing** activado (lo normal en
+apps nuevas) es Google quien guarda la clave final, y una clave de subida
+perdida se puede reiniciar. Aun así, guarda las credenciales con
+`eas credentials` fuera del equipo de quien compila.
 
 ---
 
@@ -264,19 +270,16 @@ con `eas credentials` y guárdala fuera del equipo de quien compila.
 
 ---
 
-## 11 · Lo difícil de cambiar
+## 11 · Lo único irreversible
 
-Al no publicar en tiendas, casi nada es irreversible. Las dos cosas que
-más cuestan:
+Casi todo se puede cambiar después. La excepción es el **identificador de
+la app** (`android.package`, hoy `com.urkiolamotor.carservice`).
 
-- **El identificador de la app** (`android.package`, hoy
-  `com.urkiolamotor.carservice`). Cambiarlo obliga a desinstalar y
-  reinstalar en todos los móviles: Android lo trata como otra aplicación
-  distinta.
-- **La clave de firma.** Perderla tiene el mismo efecto. Guárdala bien.
+Una vez subida la primera versión a Google Play **no se puede cambiar**:
+habría que crear otra aplicación distinta y perder las instalaciones. Hay
+que decidirlo antes de la primera subida, no después.
 
-Si algún día se publica en Google Play, el identificador pasa a ser
-definitivo de verdad: a partir de ahí ya no se puede cambiar.
+El nombre visible sí se puede cambiar cuando queráis.
 
 ---
 
@@ -300,9 +303,10 @@ Tres decisiones del diseño actual abaratan los cambios futuros:
 Lista corta para no dejarse nada:
 
 - [ ] `eas init` y `eas update:configure` (activar las actualizaciones OTA)
-- [ ] Decidir el identificador definitivo de la app
-- [ ] Descargar y guardar la clave de firma (`eas credentials`)
-- [ ] Publicar el APK en una URL fija de la intranet o la web
+- [ ] Dar de alta la cuenta de Google Play Console (25 US$, tarda días)
+- [ ] Decidir el identificador definitivo de la app (irreversible al publicar)
+- [ ] Política de privacidad publicada en una URL pública
+- [ ] Descargar y guardar las credenciales (`eas credentials`)
 - [ ] Migraciones de base de datos desde la primera tabla
 - [ ] Entorno de pruebas con su propia base de datos
 - [ ] Copias de seguridad fuera del servidor

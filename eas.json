@@ -25,15 +25,23 @@
       }
     },
     "production": {
-      "distribution": "internal",
       "channel": "production",
       "autoIncrement": true,
       "platforms": ["android"],
       "android": {
-        "buildType": "apk"
+        "buildType": "app-bundle"
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.urkiolacarservice.com"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./secrets/google-play-service-account.json",
+        "track": "internal",
+        "releaseStatus": "completed"
       }
     }
   }

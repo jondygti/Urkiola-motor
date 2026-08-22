@@ -8,7 +8,7 @@ partir del mockup `Urkiola_Car_Service_V18_ABRIBLE.html`.
 | Destino | Para quién | Cómo se distribuye |
 |---|---|---|
 | Web | Gestión y control (oficina) | Página estática en cualquier hosting |
-| Android | Campa, transporte y preparación | APK propio, sin pasar por Google Play |
+| Android | Campa, transporte y preparación | Google Play (canal de prueba interna) |
 
 El proyecto también compila para iOS y la configuración está escrita, pero
 queda fuera de alcance: Apple exige 99 US$/año para instalar en un iPhone.
@@ -84,8 +84,8 @@ negocio se escriben una sola vez.
 
 - [`docs/DESPLIEGUE.md`](docs/DESPLIEGUE.md) — **dónde alojarlo**: AWS
   frente a alternativas, con costes reales y recomendación.
-- [`docs/DISTRIBUCION.md`](docs/DISTRIBUCION.md) — cómo se compila y se
-  reparte el APK de Android sin usar tiendas, y qué se pierde por ello.
+- [`docs/DISTRIBUCION.md`](docs/DISTRIBUCION.md) — publicar en Google Play:
+  canales, ficha, plazos y cómo actualizar sin pasar por revisión.
 - [`docs/BACKEND-API.md`](docs/BACKEND-API.md) — contrato de la API,
   tablas de PostgreSQL e integración con Quiter.
 - [`docs/MANTENIMIENTO.md`](docs/MANTENIMIENTO.md) — **cómo se sigue
