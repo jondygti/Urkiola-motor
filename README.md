@@ -85,6 +85,10 @@ negocio se escriben una sola vez.
   cuentas, costes y plazos para Google Play y App Store.
 - [`docs/BACKEND-API.md`](docs/BACKEND-API.md) — contrato de la API,
   tablas de PostgreSQL e integración con Quiter.
+- [`docs/MANTENIMIENTO.md`](docs/MANTENIMIENTO.md) — **cómo se sigue
+  cambiando el sistema una vez está en marcha**: actualizaciones sin pasar
+  por las tiendas, migraciones, entornos, copias de seguridad y qué no
+  hacer nunca.
 - [`docs/PANTALLAS.md`](docs/PANTALLAS.md) — qué había en el mockup V18 y
   dónde está ahora.
 
