@@ -25,12 +25,15 @@ import { NOTIFY_CONDITION_LABEL, type NotificationRule } from '@/data/types';
 import { Cell, useOpenVehicle } from '@/features/common/bits';
 import { NotificationRuleModal } from '@/features/actions/VehicleActions';
 import { registerForPush } from '@/data/push';
+import { IfCan, usePerms } from '@/features/common/Guard';
 
 export default function NotificationsScreen() {
   const state = useAppState();
   const { run } = useStore();
   const { c } = useTheme();
   const openVehicle = useOpenVehicle();
+  const { can } = usePerms();
+  const puedeGestionar = can('notificaciones.gestionar');
 
   const [tab, setTab] = useState<'avisos' | 'reglas'>('avisos');
   const [newOpen, setNewOpen] = useState(false);
@@ -106,16 +109,17 @@ export default function NotificationsScreen() {
       key: 'actions',
       header: '',
       width: 170,
-      render: (r) => (
-        <View style={{ flexDirection: 'row', gap: 6 }}>
-          <Btn small onPress={() => run({ type: 'rule.toggle', ruleId: r.id })}>
-            {r.active ? 'Pausar' : 'Activar'}
-          </Btn>
-          <Btn small variant="ghost" onPress={() => run({ type: 'rule.delete', ruleId: r.id })}>
-            Borrar
-          </Btn>
-        </View>
-      ),
+      render: (r) =>
+        puedeGestionar ? (
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            <Btn small onPress={() => run({ type: 'rule.toggle', ruleId: r.id })}>
+              {r.active ? 'Pausar' : 'Activar'}
+            </Btn>
+            <Btn small variant="ghost" onPress={() => run({ type: 'rule.delete', ruleId: r.id })}>
+              Borrar
+            </Btn>
+          </View>
+        ) : null,
     },
   ];
 
@@ -135,9 +139,11 @@ export default function NotificationsScreen() {
             { value: 'reglas', label: `Reglas · ${state.rules.length}` },
           ]}
         />
-        <Btn variant="primary" onPress={() => setNewOpen(true)}>
-          + Nueva regla
-        </Btn>
+        <IfCan permission="notificaciones.gestionar">
+          <Btn variant="primary" onPress={() => setNewOpen(true)}>
+            + Nueva regla
+          </Btn>
+        </IfCan>
         {tab === 'avisos' && unread > 0 ? (
           <Btn onPress={() => run({ type: 'inbox.readAll' })}>Marcar todo como leído</Btn>
         ) : null}
@@ -206,7 +212,11 @@ export default function NotificationsScreen() {
         </Panel>
       )}
 
-      <NotificationRuleModal visible={newOpen} onClose={() => setNewOpen(false)} onDone={setToast} />
+      <NotificationRuleModal
+        visible={newOpen && puedeGestionar}
+        onClose={() => setNewOpen(false)}
+        onDone={setToast}
+      />
     </Screen>
   );
 }

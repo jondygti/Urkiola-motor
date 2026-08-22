@@ -360,6 +360,7 @@ export const BUILTIN_ROLES = [
 /** Todo lo que se puede permitir o denegar a un rol. */
 export type Permission =
   | 'flota.ver'
+  | 'flota.editar'
   | 'campa.ver'
   | 'movimientos.registrar'
   | 'solicitudes.crear'
@@ -375,6 +376,7 @@ export type Permission =
 
 export const PERMISSION_LABEL: Record<Permission, string> = {
   'flota.ver': 'Ver la flota y las fichas',
+  'flota.editar': 'Editar campos propios del vehículo',
   'campa.ver': 'Ver campas y plazas',
   'movimientos.registrar': 'Registrar movimientos',
   'solicitudes.crear': 'Crear solicitudes',

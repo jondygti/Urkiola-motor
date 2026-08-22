@@ -28,6 +28,7 @@ import {
   type Vehicle,
 } from '@/data/types';
 import { PrepStatePill } from '@/features/common/bits';
+import { usePerms } from '@/features/common/Guard';
 
 const STATE_LABEL: Record<CheckState, string> = {
   completado: '✅ Completado',
@@ -48,6 +49,9 @@ export function PrepPanel({
   const { state, run } = useStore();
   const { c } = useTheme();
   const now = useTicker(1000);
+  const { can } = usePerms();
+  // Sin permiso para trabajar en preparaciones, el panel es de solo lectura.
+  const puedeEjecutar = can('preparacion.ejecutar');
   const [pauseOpen, setPauseOpen] = useState(false);
   const [reason, setReason] = useState(state.config.waitReasons[0]);
   const [blocked, setBlocked] = useState(false);
@@ -57,6 +61,7 @@ export function PrepPanel({
   const { done, total, pct } = prepProgress(prep);
   const overSla = prepIsOverSla(prep, now);
   const finished = prep.runState === 'terminado';
+  const bloqueado = finished || !puedeEjecutar;
   const apt = finished || (pct === 100 && prep.phase === 'apto_entrega');
 
   const cycle = (requirementId: string, current: CheckState) => {
@@ -142,8 +147,8 @@ export function PrepPanel({
               }}
             >
               <Pressable
-                onPress={() => !finished && cycle(item.requirementId, item.state)}
-                disabled={finished || item.state === 'no_requerido'}
+                onPress={() => !bloqueado && cycle(item.requirementId, item.state)}
+                disabled={bloqueado || item.state === 'no_requerido'}
               >
                 <Text style={{ fontSize: 13, color: c.text, fontWeight: '600' }}>
                   {STATE_LABEL[item.state].split(' ')[0]} {item.label}
@@ -157,7 +162,7 @@ export function PrepPanel({
                       : 'Pendiente'}
                 </Text>
               </Pressable>
-              {!finished ? (
+              {!bloqueado ? (
                 <View style={{ flexDirection: 'row', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
                   {(['completado', 'pendiente', 'no_requerido'] as CheckState[]).map((st) => (
                     <Pressable
@@ -191,7 +196,9 @@ export function PrepPanel({
       </View>
 
       <Toolbar>
-        {prep.runState === 'en_curso' ? (
+        {!puedeEjecutar ? (
+          <Muted>Tu rol puede consultar esta preparación, pero no modificarla.</Muted>
+        ) : prep.runState === 'en_curso' ? (
           <Btn small={compact} onPress={() => setPauseOpen(true)}>
             ⏸ Pausar
           </Btn>
@@ -206,16 +213,16 @@ export function PrepPanel({
             ▶ {prep.startedAt ? 'Reanudar' : 'Iniciar'}
           </Btn>
         ) : null}
-        {!finished ? (
+        {!finished && puedeEjecutar ? (
           <Btn variant="primary" small={compact} onPress={() => run({ type: 'prep.finish', prepId: prep.id })}>
             ✓ Finalizar preparación
           </Btn>
-        ) : (
+        ) : finished ? (
           <Muted>
             Terminada · {formatShortDuration(prep.effectiveMs)} efectivos · preparador{' '}
             {userName(state, prep.preparerId)}
           </Muted>
-        )}
+        ) : null}
       </Toolbar>
 
       <Muted>

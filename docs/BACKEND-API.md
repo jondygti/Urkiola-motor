@@ -122,6 +122,43 @@ Las definiciones exactas de cada uno están tipadas en
 especificación: si el backend se escribe en TypeScript, puede importarlo
 tal cual.
 
+## Permisos: el servidor tiene la última palabra
+
+La app comprueba permisos en tres niveles —el menú oculta lo que el rol no
+puede usar, cada pantalla vuelve a comprobarlo por si se llega por un
+enlace, y cada botón se esconde si no corresponde—, pero **eso es comodidad
+de interfaz, no seguridad**.
+
+Cualquiera puede modificar el cliente o llamar a la API a mano. Así que el
+servidor debe comprobar, en cada comando, que el usuario del token tiene el
+permiso correspondiente:
+
+| Comando | Permiso exigido |
+|---|---|
+| `movement.register`, `vehicle.check` | `movimientos.registrar` o `recuentos.ejecutar` |
+| `request.create` | `solicitudes.crear` |
+| `request.update` | `solicitudes.gestionar` |
+| `prep.create` | `preparacion.gestionar` |
+| `prep.start` / `pause` / `resume` / `finish` / `item` | `preparacion.ejecutar` |
+| `count.*` | `recuentos.ejecutar` |
+| `incident.create` | `incidencias.crear` |
+| `incident.close` | `incidencias.cerrar` |
+| `reception.*` | `recepcion.ejecutar` |
+| `rule.*` | `notificaciones.gestionar` |
+| `vehicle.setCustom` | `flota.editar` |
+| `site.*`, `zone.*`, `position.*`, `user.*`, `role.*`, `customField.*`, `config.update` | `admin.configurar` |
+
+Además, si el usuario tiene sedes asignadas (`user.siteIds` no vacío), el
+servidor debe rechazar comandos sobre vehículos de otras sedes.
+
+Un comando sin permiso se responde **`403`**. La app lo trata como
+«rechazado»: lo aparta de la cola y lo avisa por pantalla, en vez de
+reintentarlo eternamente.
+
+Los permisos y los roles viven en `config.roles` y se editan desde la
+aplicación, así que el servidor los lee de la base de datos, no de una
+lista fija en el código.
+
 ## Modelo de datos
 
 Está en `src/data/types.ts`. Traducido a tablas de PostgreSQL:

@@ -27,6 +27,7 @@ import { formatShortDuration, siteName, userName, vehicleName, vehicleRef } from
 import { PREP_PHASES, PREP_PHASE_LABEL, PREP_RUN_STATE_LABEL, type Preparation } from '@/data/types';
 import { Cell, PrepStatePill, useOpenVehicle } from '@/features/common/bits';
 import { PrepPanel } from '@/features/prep/PrepPanel';
+import { ScreenGuard } from '@/features/common/Guard';
 
 const ALL = '__all__';
 
@@ -173,6 +174,7 @@ export default function PreparationScreen() {
   const live = detail ? state.preparations.find((p) => p.id === detail.id) ?? null : null;
 
   return (
+    <ScreenGuard href="/preparacion" title="Preparación">
     <Screen>
       <H1>Preparación</H1>
       <Muted>Leioa, Galdakao, Anoeta e Irun. Cada equipo tiene su propia cola de trabajo.</Muted>
@@ -268,5 +270,6 @@ export default function PreparationScreen() {
         </Modal>
       ) : null}
     </Screen>
+    </ScreenGuard>
   );
 }

@@ -28,12 +28,15 @@ import { formatDateTime, hoursSince, locationLabel, timeAgo, userName, vehicleNa
 import type { FleetCount } from '@/data/types';
 import { Cell, useOpenVehicle } from '@/features/common/bits';
 import { BarcodeScanner } from '@/features/scan/BarcodeScanner';
+import { IfCan, ScreenGuard, usePerms } from '@/features/common/Guard';
 
 export default function CountsScreen() {
   const state = useAppState();
   const { run } = useStore();
   const { c } = useTheme();
   const openVehicle = useOpenVehicle();
+  const { can } = usePerms();
+  const puedeRecontar = can('recuentos.ejecutar');
 
   const [newOpen, setNewOpen] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
@@ -109,6 +112,7 @@ export default function CountsScreen() {
   ];
 
   return (
+    <ScreenGuard href="/recuentos" title="Recuentos de flota">
     <Screen>
       <H1>Recuentos de flota</H1>
       <Muted>
@@ -118,24 +122,26 @@ export default function CountsScreen() {
 
       {toast ? <Notice>{toast}</Notice> : null}
 
-      <Toolbar>
-        <Btn variant="primary" onPress={() => setNewOpen(true)}>
-          + Nuevo recuento
-        </Btn>
-        {current ? (
-          <>
-            <Btn onPress={() => setScanOpen(true)}>📷 Escanear vehículo</Btn>
-            <Btn
-              onPress={() => {
-                run({ type: 'count.close', countId: current.id });
-                setToast(`Recuento ${current.code} cerrado.`);
-              }}
-            >
-              ✓ Cerrar recuento
-            </Btn>
-          </>
-        ) : null}
-      </Toolbar>
+      <IfCan permission="recuentos.ejecutar">
+        <Toolbar>
+          <Btn variant="primary" onPress={() => setNewOpen(true)}>
+            + Nuevo recuento
+          </Btn>
+          {current ? (
+            <>
+              <Btn onPress={() => setScanOpen(true)}>📷 Escanear vehículo</Btn>
+              <Btn
+                onPress={() => {
+                  run({ type: 'count.close', countId: current.id });
+                  setToast(`Recuento ${current.code} cerrado.`);
+                }}
+              >
+                ✓ Cerrar recuento
+              </Btn>
+            </>
+          ) : null}
+        </Toolbar>
+      </IfCan>
 
       <Grid cols={2} minWidth={420}>
         <Panel title={current ? `Recuento ${current.code} · ${locationLabel(state, { siteId: current.siteId, zoneId: current.zoneId ?? undefined })}` : 'Sin recuento abierto'}>
@@ -152,9 +158,11 @@ export default function CountsScreen() {
                 tone={summary.missing > 0 ? 'amber' : 'ok'}
               />
               <Spacer h={space.md} />
-              <Btn variant="primary" full onPress={() => setScanOpen(true)}>
-                📷 Escanear matrícula / VIN-8
-              </Btn>
+              {puedeRecontar ? (
+                <Btn variant="primary" full onPress={() => setScanOpen(true)}>
+                  📷 Escanear matrícula / VIN-8
+                </Btn>
+              ) : null}
               <Spacer h={space.sm} />
               <Muted>
                 La app registra automáticamente fecha, hora, usuario y ubicación comprobada. No hace falta QR:
@@ -218,7 +226,7 @@ export default function CountsScreen() {
       </Panel>
 
       <NewCountModal
-        visible={newOpen}
+        visible={newOpen && puedeRecontar}
         onClose={() => setNewOpen(false)}
         onDone={(m) => {
           setToast(m);
@@ -226,7 +234,7 @@ export default function CountsScreen() {
         }}
       />
 
-      {current && scanOpen ? (
+      {current && scanOpen && puedeRecontar ? (
         <ScanModal
           count={current}
           onClose={() => setScanOpen(false)}
@@ -234,6 +242,7 @@ export default function CountsScreen() {
         />
       ) : null}
     </Screen>
+    </ScreenGuard>
   );
 }
 

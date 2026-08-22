@@ -42,6 +42,7 @@ import { NOTIFY_CONDITION_LABEL, VEHICLE_FLOW, VEHICLE_STATUS_LABEL } from '@/da
 import { VehicleActions } from '@/features/actions/VehicleActions';
 import { PrepPanel } from '@/features/prep/PrepPanel';
 import { CustomFields } from '@/features/common/CustomFields';
+import { IfCan, ScreenGuard, usePerms } from '@/features/common/Guard';
 import { IncidentStatusPill, SituationPill, TypePill, RequestStatusPill } from '@/features/common/bits';
 
 export default function VehicleScreen() {
@@ -50,6 +51,7 @@ export default function VehicleScreen() {
   const { run } = useStore();
   const router = useRouter();
   const { c } = useTheme();
+  const { can, canAny } = usePerms();
   const [toast, setToast] = useState<string | null>(null);
 
   const vehicle = vehicleById(state, id);
@@ -81,6 +83,7 @@ export default function VehicleScreen() {
   const flowIndex = Math.max(0, VEHICLE_FLOW.indexOf(vehicle.status));
 
   return (
+    <ScreenGuard anyOf={['flota.ver']} title="Ficha de vehículo">
     <Screen>
       <H1>
         Ficha 360º · {vehicleName(vehicle)} · {vehicleRef(vehicle)}
@@ -91,14 +94,16 @@ export default function VehicleScreen() {
 
       <Toolbar>
         <Btn onPress={() => router.push('/flota')}>← Flota</Btn>
-        <Btn
-          onPress={() => {
-            run({ type: 'vehicle.check', vehicleId: vehicle.id });
-            setToast('Comprobación física registrada.');
-          }}
-        >
-          ✅ Comprobar ahora
-        </Btn>
+        {canAny('recuentos.ejecutar', 'movimientos.registrar') ? (
+          <Btn
+            onPress={() => {
+              run({ type: 'vehicle.check', vehicleId: vehicle.id });
+              setToast('Comprobación física registrada.');
+            }}
+          >
+            ✅ Comprobar ahora
+          </Btn>
+        ) : null}
       </Toolbar>
 
       <VehicleActions vehicle={vehicle} onDone={setToast} />
@@ -151,6 +156,7 @@ export default function VehicleScreen() {
             <Spacer h={space.sm} />
             <Btn
               variant="primary"
+              disabled={!can('preparacion.gestionar')}
               onPress={() => {
                 run({
                   type: 'prep.create',
@@ -202,9 +208,11 @@ export default function VehicleScreen() {
                       {formatDateTime(inc.createdAt)} · {inc.photos.length} fotos
                     </Text>
                     {inc.status !== 'cerrada' ? (
-                      <Btn small onPress={() => run({ type: 'incident.close', incidentId: inc.id })}>
-                        Cerrar incidencia
-                      </Btn>
+                      <IfCan permission="incidencias.cerrar">
+                        <Btn small onPress={() => run({ type: 'incident.close', incidentId: inc.id })}>
+                          Cerrar incidencia
+                        </Btn>
+                      </IfCan>
                     ) : null}
                   </View>
                 </Notice>
@@ -274,5 +282,6 @@ export default function VehicleScreen() {
         </View>
       </Grid>
     </Screen>
+    </ScreenGuard>
   );
 }

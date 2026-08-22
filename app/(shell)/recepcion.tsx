@@ -26,6 +26,7 @@ import { formatDateTime, locationLabel, vehicleName } from '@/data/format';
 import type { Reception, ReceptionLine } from '@/data/types';
 import { capturePhoto } from '@/features/actions/photos';
 import { Cell, useOpenVehicle } from '@/features/common/bits';
+import { ScreenGuard } from '@/features/common/Guard';
 
 export default function ReceptionScreen() {
   const state = useAppState();
@@ -121,6 +122,7 @@ export default function ReceptionScreen() {
   ];
 
   return (
+    <ScreenGuard href="/recepcion" title="Recepción de camiones">
     <Screen>
       <H1>Recepción de camiones</H1>
       <Muted>Descarga, albarán, daños, fotos y ubicación inicial en campa.</Muted>
@@ -221,6 +223,7 @@ export default function ReceptionScreen() {
         />
       ) : null}
     </Screen>
+    </ScreenGuard>
   );
 }
 

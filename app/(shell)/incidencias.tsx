@@ -26,6 +26,7 @@ import { formatDateTime, userName, vehicleName, vehicleRef } from '@/data/format
 import { INCIDENT_TYPE_LABEL, type Incident } from '@/data/types';
 import { Cell, IncidentStatusPill, useOpenVehicle } from '@/features/common/bits';
 import { IncidentModal } from '@/features/actions/VehicleActions';
+import { IfCan, ScreenGuard, usePerms } from '@/features/common/Guard';
 
 const ALL = '__all__';
 
@@ -34,6 +35,8 @@ export default function IncidentsScreen() {
   const { run } = useStore();
   const { c } = useTheme();
   const openVehicle = useOpenVehicle();
+  const { can } = usePerms();
+  const puedeCerrar = can('incidencias.cerrar');
 
   const [type, setType] = useState(ALL);
   const [status, setStatus] = useState(ALL);
@@ -136,6 +139,7 @@ export default function IncidentsScreen() {
   ];
 
   return (
+    <ScreenGuard href="/incidencias" title="Incidencias">
     <Screen>
       <H1>Incidencias</H1>
       <Muted>Daños, faltas y bloqueos detectados en recepción, transporte, campa o preparación.</Muted>
@@ -143,9 +147,11 @@ export default function IncidentsScreen() {
       {toast ? <Notice>{toast}</Notice> : null}
 
       <Toolbar>
-        <Btn variant="primary" onPress={() => setNewOpen(true)}>
-          + Nueva incidencia
-        </Btn>
+        <IfCan permission="incidencias.crear">
+          <Btn variant="primary" onPress={() => setNewOpen(true)}>
+            + Nueva incidencia
+          </Btn>
+        </IfCan>
         <Select
           value={type}
           onChange={setType}
@@ -220,7 +226,7 @@ export default function IncidentsScreen() {
           title={`Incidencia · ${INCIDENT_TYPE_LABEL[detail.type]}`}
           footer={
             <>
-              {detail.status !== 'cerrada' ? (
+              {detail.status !== 'cerrada' && puedeCerrar ? (
                 <Btn
                   variant="primary"
                   full
@@ -280,5 +286,6 @@ export default function IncidentsScreen() {
         </Modal>
       ) : null}
     </Screen>
+    </ScreenGuard>
   );
 }

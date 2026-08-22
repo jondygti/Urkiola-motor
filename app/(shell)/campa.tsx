@@ -22,6 +22,7 @@ import { siteOccupancy, vehiclesAtSite, vehiclesInZone, zoneOccupancy } from '@/
 import { formatDateTime, timeAgo, vehicleName, vehicleRef } from '@/data/format';
 import type { Position } from '@/data/types';
 import { Cell, StatusPill, useOpenVehicle } from '@/features/common/bits';
+import { ScreenGuard } from '@/features/common/Guard';
 
 export default function CampScreen() {
   const state = useAppState();
@@ -106,6 +107,7 @@ export default function CampScreen() {
   ];
 
   return (
+    <ScreenGuard href="/campa" title="Campa">
     <Screen>
       <H1>{site.kind === 'campa' ? `Campa ${site.name}` : `Parkings de ${site.name}`}</H1>
       <Muted>
@@ -198,5 +200,6 @@ export default function CampScreen() {
         </Grid>
       </Panel>
     </Screen>
+    </ScreenGuard>
   );
 }

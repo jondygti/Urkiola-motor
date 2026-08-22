@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { TextInput, View } from 'react-native';
-import { Field, Muted, Segmented, Select, radius, useTheme } from '@/ui';
+import { Detail, Field, Muted, Segmented, Select, radius, useTheme } from '@/ui';
+import { customValue } from '@/data/selectors';
+import { usePerms } from '@/features/common/Guard';
 import { useStore } from '@/data/store';
 import type { CustomField, Vehicle } from '@/data/types';
 
@@ -12,9 +14,24 @@ const SIN_VALOR = '__vacio__';
  */
 export function CustomFields({ vehicle }: { vehicle: Vehicle }) {
   const { state, run } = useStore();
+  const { can } = usePerms();
+  const editable = can('flota.editar');
   const fields = state.config.customFields;
+
   if (fields.length === 0) {
     return <Muted>No hay campos propios definidos. Se crean en Administración → Flota y columnas.</Muted>;
+  }
+
+  // Sin permiso de edición se ven los valores, pero no se tocan.
+  if (!editable) {
+    return (
+      <View>
+        {fields.map((field) => (
+          <Detail key={field.id} label={field.label} value={customValue(vehicle, field)} />
+        ))}
+        <Muted>Tu rol puede consultar estos campos, pero no cambiarlos.</Muted>
+      </View>
+    );
   }
 
   const set = (field: CustomField, value: string) =>

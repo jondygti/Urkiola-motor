@@ -21,6 +21,7 @@ import { useAppState } from '@/data/store';
 import { formatDateTime, locationLabel, userName, vehicleName, vehicleRef } from '@/data/format';
 import type { Movement } from '@/data/types';
 import { Cell, useOpenVehicle } from '@/features/common/bits';
+import { IfCan, ScreenGuard } from '@/features/common/Guard';
 import { MovementModal } from '@/features/actions/VehicleActions';
 import { vehicleByRef } from '@/data/selectors';
 import { Input } from '@/ui';
@@ -125,6 +126,7 @@ export default function MovementsScreen() {
   const targetVehicle = target ? state.vehicles.find((v) => v.id === target) : null;
 
   return (
+    <ScreenGuard href="/movimientos" title="Movimientos">
     <Screen>
       <H1>Movimientos</H1>
       <Muted>Dentro de una misma concesión o entre cualquier ubicación de la red.</Muted>
@@ -132,9 +134,11 @@ export default function MovementsScreen() {
       {toast ? <Notice>{toast}</Notice> : null}
 
       <Toolbar>
-        <Btn variant="primary" onPress={() => setPickerOpen(true)}>
-          📍 Registrar movimiento
-        </Btn>
+        <IfCan permission="movimientos.registrar">
+          <Btn variant="primary" onPress={() => setPickerOpen(true)}>
+            📍 Registrar movimiento
+          </Btn>
+        </IfCan>
         <Select
           value={site}
           onChange={setSite}
@@ -212,5 +216,6 @@ export default function MovementsScreen() {
         />
       ) : null}
     </Screen>
+    </ScreenGuard>
   );
 }

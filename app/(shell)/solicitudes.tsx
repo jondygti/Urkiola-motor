@@ -23,6 +23,7 @@ import { requestsBySite } from '@/data/selectors';
 import { formatDateTime, locationLabel, siteName, userName, vehicleName, vehicleRef } from '@/data/format';
 import { REQUEST_STATUS_LABEL, type RequestStatus, type ServiceRequest } from '@/data/types';
 import { Cell, RequestStatusPill, useOpenVehicle } from '@/features/common/bits';
+import { ScreenGuard, usePerms } from '@/features/common/Guard';
 
 const ALL = '__all__';
 
@@ -30,6 +31,8 @@ export default function RequestsScreen() {
   const state = useAppState();
   const { c } = useTheme();
   const openVehicle = useOpenVehicle();
+  const { can } = usePerms();
+  const puedeGestionar = can('solicitudes.gestionar');
 
   const [site, setSite] = useState(ALL);
   const [type, setType] = useState(ALL);
@@ -139,15 +142,17 @@ export default function RequestsScreen() {
       key: 'actions',
       header: '',
       width: 110,
-      render: (r) => (
-        <Btn small onPress={() => setEditing(r)}>
-          Gestionar
-        </Btn>
-      ),
+      render: (r) =>
+        puedeGestionar ? (
+          <Btn small onPress={() => setEditing(r)}>
+            Gestionar
+          </Btn>
+        ) : null,
     },
   ];
 
   return (
+    <ScreenGuard href="/solicitudes" title="Solicitudes">
     <Screen>
       <H1>Solicitudes</H1>
       <Muted>Traslados y preparaciones, filtrados por sede y estado del flujo de trabajo.</Muted>
@@ -215,7 +220,7 @@ export default function RequestsScreen() {
         />
       </Panel>
 
-      {editing ? (
+      {editing && puedeGestionar ? (
         <ManageModal
           request={editing}
           onClose={() => setEditing(null)}
@@ -226,6 +231,7 @@ export default function RequestsScreen() {
         />
       ) : null}
     </Screen>
+    </ScreenGuard>
   );
 }
 
@@ -241,6 +247,8 @@ function ManageModal({
   const { state, run } = useStore();
   const [status, setStatus] = useState<RequestStatus>(request.status);
   const [assignedTo, setAssignedTo] = useState<string | null>(request.assignedTo);
+  const { can } = usePerms();
+  const puedePreparar = can('preparacion.gestionar');
 
   const candidates = state.users.filter((u) =>
     request.type === 'traslado' ? u.role === 'transportista' || u.role === 'logistica' : u.role === 'preparador'
@@ -265,7 +273,7 @@ function ManageModal({
           >
             Guardar cambios
           </Btn>
-          {request.type === 'preparacion' && status !== 'terminada' ? (
+          {request.type === 'preparacion' && status !== 'terminada' && puedePreparar ? (
             <Btn
               full
               onPress={() => {

@@ -21,6 +21,7 @@ import { useAppState } from '@/data/store';
 import { customValue, fleetColumns } from '@/data/selectors';
 import { formatDateTime, locationLabel, matchesSearch, siteName, timeAgo, vehicleName } from '@/data/format';
 import { Cell, SituationPill, StatusPill, TypePill, useOpenVehicle } from '@/features/common/bits';
+import { ScreenGuard } from '@/features/common/Guard';
 import type { Vehicle } from '@/data/types';
 
 const ALL = '__all__';
@@ -201,6 +202,7 @@ export default function FleetScreen() {
   if (columns.length > 0) columns[0] = { ...columns[0], primary: true };
 
   return (
+    <ScreenGuard href="/flota" title="Flota">
     <Screen>
       <H1>Flota</H1>
       <Muted>
@@ -300,5 +302,6 @@ export default function FleetScreen() {
         </Panel>
       </Grid>
     </Screen>
+    </ScreenGuard>
   );
 }

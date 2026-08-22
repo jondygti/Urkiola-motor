@@ -113,3 +113,8 @@ export function titleForPath(path: string): string {
 export function mobileHome(state: AppState, user: User | null): string {
   return mobileNav(state, user)[0]?.href ?? '/mi-trabajo';
 }
+
+/** Permisos que exige una ruta según el menú. Vacío = abierta a cualquiera. */
+export function permissionsForRoute(href: string): Permission[] {
+  return ALL_ITEMS.find((i) => i.href === href)?.anyOf ?? [];
+}
