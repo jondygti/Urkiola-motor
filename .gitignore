@@ -46,3 +46,8 @@ secrets/
 
 # copias de seguridad generadas por docker compose
 backups/
+
+# demostración empaquetada en un solo fichero
+demo/
+.demo-build/
+dist-spa/

@@ -67,7 +67,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
 
   web: {
     bundler: 'metro',
-    output: 'static',
+    // 'static' genera una página por ruta (lo normal para desplegar).
+    // 'single' genera una sola página; lo usa `npm run build:demo` para
+    // empaquetar la demostración en un único fichero HTML.
+    output: process.env.EXPO_WEB_OUTPUT === 'single' ? 'single' : 'static',
     favicon: './assets/favicon.png',
     name: 'Urkiola Car Service',
     shortName: 'Urkiola',

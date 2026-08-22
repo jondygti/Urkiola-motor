@@ -1,14 +1,13 @@
+import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
 
 /**
  * Toma una foto con la cámara o la elige de la galería.
- * Se importa de forma perezosa para no romper la web ni el simulador.
- * Devuelve la URI local o null si el usuario cancela / no hay permisos.
+ * Devuelve la URI local, o null si el usuario cancela o no da permisos.
+ * En el navegador siempre abre el selector de ficheros.
  */
 export async function capturePhoto(source: 'camera' | 'library' = 'camera'): Promise<string | null> {
   try {
-    const ImagePicker = await import('expo-image-picker');
-
     if (source === 'camera' && Platform.OS !== 'web') {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
       if (!perm.granted) return null;
