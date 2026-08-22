@@ -36,10 +36,10 @@ hará falta documentación de la sociedad.
 
 ### Antes de la primera subida
 
-- **`android.package`** en `app.config.ts`: ahora
-  `com.urkiolamotor.carservice`. Al publicar en Play **queda fijado para
-  siempre**: cambiarlo después obliga a crear otra aplicación distinta,
-  perdiendo instalaciones. Es el momento de decidirlo.
+- **`android.package`**: `com.urkiolamotor.carservice`, **confirmado**. Al
+  publicar en Play queda fijado para siempre, así que no se toca. Si
+  alguien lo cambia en `app.config.ts` después de la primera subida, Play
+  lo tratará como otra aplicación distinta.
 - **`EXPO_PUBLIC_API_URL`** en `eas.json` debe apuntar al servidor real.
 
 > **Cuidado con la caché.** Las variables `EXPO_PUBLIC_*` se incrustan al

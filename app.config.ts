@@ -12,6 +12,10 @@ import type { ExpoConfig, ConfigContext } from 'expo/config';
  * y sustituye `extra.eas.projectId` por el que devuelva `eas init`.
  */
 
+// Identificador definitivo, confirmado con Urkiola. Una vez publicada la
+// primera versión en Google Play NO se puede cambiar: Play trataría un
+// identificador distinto como otra aplicación y se perderían las
+// instalaciones. No tocar.
 const BUNDLE_ID = 'com.urkiolamotor.carservice';
 const BRAND_DARK = '#10262d';
 

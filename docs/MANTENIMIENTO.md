@@ -273,11 +273,12 @@ perdida se puede reiniciar. Aun así, guarda las credenciales con
 ## 11 · Lo único irreversible
 
 Casi todo se puede cambiar después. La excepción es el **identificador de
-la app** (`android.package`, hoy `com.urkiolamotor.carservice`).
+la app**: `com.urkiolamotor.carservice`, ya confirmado y fijado en
+`app.config.ts`.
 
 Una vez subida la primera versión a Google Play **no se puede cambiar**:
-habría que crear otra aplicación distinta y perder las instalaciones. Hay
-que decidirlo antes de la primera subida, no después.
+habría que crear otra aplicación distinta y perder las instalaciones. No lo
+toquéis.
 
 El nombre visible sí se puede cambiar cuando queráis.
 
@@ -304,7 +305,7 @@ Lista corta para no dejarse nada:
 
 - [ ] `eas init` y `eas update:configure` (activar las actualizaciones OTA)
 - [ ] Dar de alta la cuenta de Google Play Console (25 US$, tarda días)
-- [ ] Decidir el identificador definitivo de la app (irreversible al publicar)
+- [x] Identificador de la app decidido: `com.urkiolamotor.carservice`
 - [ ] Política de privacidad publicada en una URL pública
 - [ ] Descargar y guardar las credenciales (`eas credentials`)
 - [ ] Migraciones de base de datos desde la primera tabla
