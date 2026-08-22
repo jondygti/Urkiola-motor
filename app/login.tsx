@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '@/data/store';
-import { ROLE_LABEL } from '@/data/types';
+import { roleLabel } from '@/data/selectors';
 import { Btn, Field, Input, Muted, Panel, radius, space, useTheme } from '@/ui';
 
 export default function LoginScreen() {
@@ -106,7 +106,7 @@ export default function LoginScreen() {
                         <Text style={{ fontSize: 11, color: c.textMuted }}>{u.email}</Text>
                       </View>
                       <Text style={{ fontSize: 11, color: c.primary, fontWeight: '800' }}>
-                        {ROLE_LABEL[u.role]}
+                        {roleLabel(state, u.role)}
                       </Text>
                     </Pressable>
                   ))}

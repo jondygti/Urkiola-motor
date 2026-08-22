@@ -5,8 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { radius, space, useTheme } from '@/ui/theme';
 import { useStore } from '@/data/store';
 import { unreadCount } from '@/data/selectors';
-import { ROLE_LABEL } from '@/data/types';
-import { TABS, titleForPath, visibleNav } from './nav';
+import { roleLabel } from '@/data/selectors';
+import { mobileNav, mobileTabs, titleForPath, visibleNav } from './nav';
 import { SyncBar } from './SyncBar';
 
 const SIDEBAR_WIDTH = 245;
@@ -57,13 +57,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
 /* ------------------------------------------------------------- lateral */
 
-function SideMenu({ unread, onNavigate }: { unread: number; onNavigate?: () => void }) {
+function SideMenu({
+  unread,
+  onNavigate,
+  compact,
+}: {
+  unread: number;
+  onNavigate?: () => void;
+  compact?: boolean;
+}) {
   const { c } = useTheme();
-  const { user, logout } = useStore();
+  const { state, user, logout } = useStore();
   const pathname = usePathname();
   const router = useRouter();
-  const groups = visibleNav(user?.role);
   const insets = useSafeAreaInsets();
+
+  // En el teléfono el menú es el corto que el rol tenga configurado.
+  const groups = compact
+    ? [{ title: 'MI TRABAJO', items: mobileNav(state, user) }]
+    : visibleNav(state, user);
 
   return (
     <View style={{ flex: 1, backgroundColor: c.navBg, paddingTop: insets.top + 14 }}>
@@ -72,7 +84,7 @@ function SideMenu({ unread, onNavigate }: { unread: number; onNavigate?: () => v
           URKIOLA{'\n'}CAR SERVICE
         </Text>
         <Text style={{ color: c.navBrandSub, fontSize: 10, marginTop: 5 }}>
-          Gestión logística de flota
+          {compact ? roleLabel(state, user?.role) : 'Gestión logística de flota'}
         </Text>
       </View>
 
@@ -145,7 +157,7 @@ function SideMenu({ unread, onNavigate }: { unread: number; onNavigate?: () => v
         >
           <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>{user.name}</Text>
           <Text style={{ color: c.navBrandSub, fontSize: 10, marginTop: 2 }}>
-            {ROLE_LABEL[user.role]} · Cerrar sesión
+            {roleLabel(state, user.role)} · Cerrar sesión
           </Text>
         </Pressable>
       ) : null}
@@ -235,6 +247,8 @@ function BottomTabs({ bottomInset, onMore }: { bottomInset: number; onMore: () =
   const { c } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
+  const { state, user } = useStore();
+  const tabs = mobileTabs(state, user);
 
   return (
     <View
@@ -246,7 +260,7 @@ function BottomTabs({ bottomInset, onMore }: { bottomInset: number; onMore: () =
         paddingBottom: bottomInset,
       }}
     >
-      {TABS.map((tab) => {
+      {tabs.map((tab) => {
         const active = tab.href === '/' ? pathname === '/' : pathname.startsWith(tab.href);
         return (
           <Pressable
@@ -313,7 +327,7 @@ function Drawer({ open, onClose, unread }: { open: boolean; onClose: () => void;
           transform: [{ translateX }],
         }}
       >
-        <SideMenu unread={unread} onNavigate={onClose} />
+        <SideMenu unread={unread} onNavigate={onClose} compact />
         <Pressable
           onPress={onClose}
           accessibilityLabel="Cerrar menú"

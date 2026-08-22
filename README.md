@@ -65,6 +65,7 @@ src/
     format.ts             Fechas, duraciones, nombres
   ui/                     Sistema de diseño (colores del mockup + modo oscuro)
   features/
+    admin/                Ubicaciones, usuarios y roles, columnas y campos
     shell/                Menú lateral, pestañas y estado de sincronización
     actions/              Modales de movimiento, solicitud, incidencia, aviso
     prep/                 Panel de preparación con cronómetros y checklist
@@ -102,6 +103,18 @@ npm run typecheck     # TypeScript en modo estricto
 npm run build:web     # genera dist/ listo para publicar
 npm run icons         # regenera los iconos de assets/
 ```
+
+## Todo se configura desde la propia app
+
+Sedes, tejavanas y plazas; requisitos del checklist; objetivos de tiempo;
+usuarios, roles y permisos; qué columnas se ven en la lista de flota y
+campos propios para clasificar los coches de otras formas. Nada de eso está
+fijado en el código: se cambia desde Administración, sin desplegar.
+
+Cada rol decide además qué ve en el teléfono, así que **la app es
+deliberadamente más corta que la web**: abre en el trabajo del día y enseña
+solo tres o cuatro secciones. El detalle está en
+[`docs/PANTALLAS.md`](docs/PANTALLAS.md).
 
 ## Funciona sin cobertura
 

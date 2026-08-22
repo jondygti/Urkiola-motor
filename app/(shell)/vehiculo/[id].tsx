@@ -41,6 +41,7 @@ import {
 import { NOTIFY_CONDITION_LABEL, VEHICLE_FLOW, VEHICLE_STATUS_LABEL } from '@/data/types';
 import { VehicleActions } from '@/features/actions/VehicleActions';
 import { PrepPanel } from '@/features/prep/PrepPanel';
+import { CustomFields } from '@/features/common/CustomFields';
 import { IncidentStatusPill, SituationPill, TypePill, RequestStatusPill } from '@/features/common/bits';
 
 export default function VehicleScreen() {
@@ -180,6 +181,10 @@ export default function VehicleScreen() {
                 </Notice>
               ))
             )}
+          </Panel>
+
+          <Panel title="🏷️ Campos propios">
+            <CustomFields vehicle={vehicle} />
           </Panel>
 
           <Panel title="⚠️ Incidencias y documentos">

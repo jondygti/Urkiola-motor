@@ -1,4 +1,19 @@
-import type { AppState, FleetCount, Id, Preparation, ServiceRequest, Site, Vehicle } from './types';
+import type {
+  AppState,
+  ColumnPref,
+  CustomField,
+  FleetCount,
+  Id,
+  Permission,
+  Preparation,
+  Role,
+  RoleConfig,
+  ServiceRequest,
+  Site,
+  User,
+  Vehicle,
+} from './types';
+import { BASE_COLUMNS } from './types';
 import { prepElapsedMs, prepIsOverSla, prepProgress } from './commands';
 import { hoursSince } from './format';
 
@@ -295,3 +310,95 @@ export function attentionItems(s: AppState) {
 /** % de checklist de una preparación (reexport cómodo para las pantallas). */
 export { prepProgress, prepElapsedMs, prepIsOverSla };
 export const HOUR_MS = HOUR;
+
+
+/* ------------------------------------------------------ roles y permisos */
+
+export function roleConfig(s: AppState, role: Role | undefined): RoleConfig | undefined {
+  if (!role) return undefined;
+  return s.config.roles.find((r) => r.id === role);
+}
+
+/** Nombre visible de un rol, tal y como esté configurado. */
+export function roleLabel(s: AppState, role: Role | undefined): string {
+  if (!role) return '—';
+  return roleConfig(s, role)?.label ?? role;
+}
+
+/** ¿Puede este usuario hacer esto? Sin usuario, no. */
+export function can(s: AppState, user: User | null, permission: Permission): boolean {
+  if (!user) return false;
+  const cfg = roleConfig(s, user.role);
+  // Un rol borrado o desconocido no da permisos: mejor quedarse corto.
+  return cfg ? cfg.permissions.includes(permission) : false;
+}
+
+/** Secciones que este rol ve en el teléfono. */
+export function mobileSections(s: AppState, user: User | null): string[] {
+  if (!user) return [];
+  return roleConfig(s, user.role)?.mobileSections ?? [];
+}
+
+/** Usuarios activos, que son los que pueden aparecer como responsables. */
+export const activeUsers = (s: AppState): User[] => s.users.filter((u) => u.active);
+
+/* ------------------------------------------- columnas y campos propios */
+
+export interface ResolvedColumn {
+  key: string;
+  label: string;
+  /** Campo propio asociado, si la columna lo es. */
+  field?: CustomField;
+  order: number;
+}
+
+/** Columnas visibles de la lista de flota, en el orden configurado. */
+export function fleetColumns(s: AppState): ResolvedColumn[] {
+  const prefs = new Map(s.config.fleetColumns.map((p) => [p.key, p]));
+  const out: ResolvedColumn[] = [];
+
+  for (const base of BASE_COLUMNS) {
+    const pref = prefs.get(base.key);
+    // Una columna sin preferencia guardada se muestra: así, al añadir
+    // columnas nuevas en una versión futura, no desaparecen sin avisar.
+    if (pref && !pref.visible) continue;
+    out.push({ key: base.key, label: base.label, order: pref?.order ?? 99 });
+  }
+
+  for (const field of s.config.customFields) {
+    const key = `custom:${field.id}`;
+    const pref = prefs.get(key);
+    const visible = pref ? pref.visible : field.showInTable;
+    if (!visible) continue;
+    out.push({ key, label: field.label, field, order: pref?.order ?? 100 + field.order });
+  }
+
+  return out.sort((a, b) => a.order - b.order);
+}
+
+/** Todas las columnas posibles, para la pantalla de configuración. */
+export function allColumns(s: AppState): { key: string; label: string; pref: ColumnPref }[] {
+  const prefs = new Map(s.config.fleetColumns.map((p) => [p.key, p]));
+  const base = BASE_COLUMNS.map((c, i) => ({
+    key: c.key,
+    label: c.label,
+    pref: prefs.get(c.key) ?? { key: c.key, visible: true, order: i + 1 },
+  }));
+  const custom = s.config.customFields.map((f) => {
+    const key = `custom:${f.id}`;
+    return {
+      key,
+      label: `${f.label} (campo propio)`,
+      pref: prefs.get(key) ?? { key, visible: f.showInTable, order: 100 + f.order },
+    };
+  });
+  return [...base, ...custom].sort((a, b) => a.pref.order - b.pref.order);
+}
+
+/** Valor de un campo propio de un vehículo, listo para mostrar. */
+export function customValue(v: Vehicle, field: CustomField): string {
+  const raw = v.custom?.[field.id];
+  if (raw === undefined || raw === '') return '—';
+  if (field.type === 'si_no') return raw === 'si' ? 'Sí' : 'No';
+  return raw;
+}

@@ -16,7 +16,7 @@ y dónde está ahora.
 | 📋 Recuentos | `/recuentos` | `app/(shell)/recuentos.tsx` | Recuento real: esperados/encontrados/faltan, escaneo con cámara en móvil, corrección de plaza, histórico |
 | ⚠ Incidencias | `/incidencias` | `app/(shell)/incidencias.tsx` | Alta con fotos de cámara o galería, cierre de incidencia |
 | 🔔 Notificaciones | `/notificaciones` | `app/(shell)/notificaciones.tsx` | Bandeja de avisos + reglas configurables; alta, pausa y borrado; alta de push en el dispositivo |
-| ⚙ Administración | `/administracion` | `app/(shell)/administracion.tsx` | Objetivos, umbral de comprobación, motivos de espera, requisitos (alta/edición/borrado), alta de zonas y plazas, usuarios y roles, arquitectura |
+| ⚙ Administración | `/administracion` | `app/(shell)/administracion.tsx` + `src/features/admin/` | Cinco pestañas: preparación, ubicaciones, flota y columnas, usuarios y roles, sistema. Ver abajo |
 | 📱 App móvil | `/mi-trabajo` | `app/(shell)/mi-trabajo.tsx` | En el mockup era una *simulación* dibujada; aquí es la pantalla de inicio real del operario, con sus tareas del día |
 | *(nuevo)* Acceso | `/login` | `app/login.tsx` | No estaba en el mockup: hace falta para saber quién registra cada acción |
 
@@ -31,6 +31,44 @@ y dónde está ahora.
 | 🚚 Solicitar traslado | `VehicleActions` |
 | 🧽 Solicitar preparación | `VehicleActions` |
 | 📸 Incidencia | `VehicleActions` e Incidencias |
+
+## Qué se configura sin tocar código
+
+Todo esto se cambia desde Administración, sin programador y sin desplegar:
+
+| Pestaña | Qué permite |
+|---|---|
+| **Preparación** | Objetivos de VN y VO, horas sin comprobación antes de avisar, motivos de espera, y alta/edición/borrado de requisitos del checklist (a qué tipo y sedes aplican, si llevan cronómetro, si son opcionales) |
+| **Ubicaciones** | Crear sedes desde cero (campa o concesión, si prepara o no), crear tejavanas y parkings, fijar cuántas plazas tiene cada uno, y dar de alta o borrar plazas sueltas con el código que uséis en campa |
+| **Flota y columnas** | Qué columnas se ven en la lista de vehículos y en qué orden, y crear campos propios (lista, texto, número, sí/no) para clasificar los coches de otras formas, con filtro incluido |
+| **Usuarios y roles** | Alta, edición y baja de usuarios; crear roles nuevos; y para cada rol, qué permisos tiene y qué secciones ve en el teléfono |
+| **Sistema** | Regla de datos de Quiter, infraestructura y restauración de los datos de ejemplo |
+
+Protecciones: no se puede borrar una sede, zona o plaza con vehículos
+dentro, ni un rol que alguien tenga asignado. Los usuarios no se borran, se
+dan de baja: su nombre sigue en el histórico de movimientos y recuentos.
+
+## La app es más corta que la web
+
+En el teléfono no se enseña todo. Cada rol tiene configurada su lista de
+secciones, y la app:
+
+- abre directamente en la sección principal de ese rol, no en el panel de
+  gestión;
+- enseña como mucho cuatro pestañas abajo, con etiquetas cortas;
+- oculta en el menú lo que ese rol no necesita en mano.
+
+Por ejemplo, con la configuración de serie:
+
+| Rol | Menú del móvil |
+|---|---|
+| Preparador | Mi trabajo · Flota · Preparación |
+| Transportista | Mi trabajo · Flota · Movimientos |
+| Recepción | Mi trabajo · Recepción · Flota · Recuentos |
+| Comercial | Mi trabajo · Flota |
+
+En la web, ese mismo preparador sí ve diez secciones. Es la misma app: lo
+que cambia es cuánto enseña en cada sitio.
 
 ## Diferencias intencionadas
 

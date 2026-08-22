@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import React from 'react';
 import { Text, View } from 'react-native';
 import {
@@ -19,6 +19,7 @@ import {
 } from '@/ui';
 import { useAppState, useStore, useTicker } from '@/data/store';
 import { dashboardKpis, attentionItems, recentActivity, sitePerformance } from '@/data/selectors';
+import { mobileHome } from '@/features/shell/nav';
 import { formatDateTime, formatShortDuration, vehicleTitle } from '@/data/format';
 
 export default function DashboardScreen() {
@@ -26,7 +27,12 @@ export default function DashboardScreen() {
   const { user, mode, state: s } = useStore();
   const router = useRouter();
   const now = useTicker(15_000);
-  const { c } = useTheme();
+  const { c, isDesktop } = useTheme();
+
+  // En el teléfono la app es más sencilla: si el rol no tiene el panel de
+  // gestión entre sus secciones, se abre directamente en su trabajo del día.
+  const home = mobileHome(state, user);
+  if (!isDesktop && home !== '/') return <Redirect href={home as never} />;
 
   const kpis = dashboardKpis(state);
   const perf = sitePerformance(state, now);

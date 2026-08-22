@@ -22,11 +22,16 @@ import type {
   Preparation,
   Reception,
   Requirement,
+  RoleConfig,
   ServiceRequest,
   RequestStatus,
   RequestType,
+  Site,
   TraceEvent,
+  User,
   Vehicle,
+  Zone,
+  CustomField,
 } from './types';
 import { CONFIG } from './seed';
 import { locationLabel, siteName, userName, vehicleTitle } from './format';
@@ -101,7 +106,19 @@ export type Command =
   | { type: 'config.update'; id: Id; at: string; userId: Id; patch: Partial<AppState['config']> }
   | { type: 'requirement.upsert'; id: Id; at: string; userId: Id; requirement: Requirement }
   | { type: 'requirement.delete'; id: Id; at: string; userId: Id; requirementId: Id }
-  | { type: 'zone.upsert'; id: Id; at: string; userId: Id; zone: AppState['zones'][number]; positions: number }
+  | { type: 'site.upsert'; id: Id; at: string; userId: Id; site: Site }
+  | { type: 'site.delete'; id: Id; at: string; userId: Id; siteId: Id }
+  | { type: 'zone.upsert'; id: Id; at: string; userId: Id; zone: Zone; positions: number }
+  | { type: 'zone.delete'; id: Id; at: string; userId: Id; zoneId: Id }
+  | { type: 'position.add'; id: Id; at: string; userId: Id; zoneId: Id; code: string }
+  | { type: 'position.delete'; id: Id; at: string; userId: Id; positionId: Id }
+  | { type: 'user.upsert'; id: Id; at: string; userId: Id; user: User }
+  | { type: 'user.delete'; id: Id; at: string; userId: Id; targetUserId: Id }
+  | { type: 'role.upsert'; id: Id; at: string; userId: Id; role: RoleConfig }
+  | { type: 'role.delete'; id: Id; at: string; userId: Id; roleId: Id }
+  | { type: 'customField.upsert'; id: Id; at: string; userId: Id; field: CustomField }
+  | { type: 'customField.delete'; id: Id; at: string; userId: Id; fieldId: Id }
+  | { type: 'vehicle.setCustom'; id: Id; at: string; userId: Id; vehicleId: Id; fieldId: Id; value: string }
   | { type: 'vehicle.activate'; id: Id; at: string; userId: Id; vehicleId: Id };
 
 /** Metadatos que añade el store automáticamente. */
@@ -758,16 +775,157 @@ export function applyCommand(state: AppState, cmd: Command): AppState {
         },
       };
 
+    /* ------------------------------------------------------- ubicaciones */
+    case 'site.upsert': {
+      const exists = state.sites.some((x) => x.id === cmd.site.id);
+      const sites = exists
+        ? state.sites.map((x) => (x.id === cmd.site.id ? cmd.site : x))
+        : [...state.sites, cmd.site];
+      return { ...state, sites };
+    }
+
+    case 'site.delete': {
+      // Nunca se borra una sede con vehículos dentro: se perdería el rastro.
+      const inUse = state.vehicles.some((v) => v.location?.siteId === cmd.siteId);
+      if (inUse) return state;
+      return {
+        ...state,
+        sites: state.sites.filter((x) => x.id !== cmd.siteId),
+        zones: state.zones.filter((z) => z.siteId !== cmd.siteId),
+        positions: state.positions.filter(
+          (p) => !state.zones.some((z) => z.siteId === cmd.siteId && z.id === p.zoneId)
+        ),
+      };
+    }
+
     case 'zone.upsert': {
       const exists = state.zones.some((z) => z.id === cmd.zone.id);
-      const zones = exists ? state.zones.map((z) => (z.id === cmd.zone.id ? cmd.zone : z)) : [...state.zones, cmd.zone];
-      const existingPositions = state.positions.filter((p) => p.zoneId === cmd.zone.id);
-      const positions = [...state.positions];
-      for (let i = existingPositions.length; i < cmd.positions; i++) {
-        const code = `P${String(i + 1).padStart(2, '0')}`;
-        positions.push({ id: `${cmd.zone.id}-p${String(i + 1).padStart(2, '0')}`, zoneId: cmd.zone.id, code });
+      const zones = exists
+        ? state.zones.map((z) => (z.id === cmd.zone.id ? cmd.zone : z))
+        : [...state.zones, cmd.zone];
+
+      const current = state.positions.filter((p) => p.zoneId === cmd.zone.id);
+      let positions = [...state.positions];
+
+      if (cmd.positions > current.length) {
+        // Se añaden plazas al final, sin tocar las existentes.
+        for (let i = current.length; i < cmd.positions; i++) {
+          const n = String(i + 1).padStart(2, '0');
+          positions.push({ id: `${cmd.zone.id}-p${n}`, zoneId: cmd.zone.id, code: `P${n}` });
+        }
+      } else if (cmd.positions < current.length) {
+        // Al reducir, solo se quitan las plazas vacías, empezando por el final.
+        const occupied = new Set(
+          state.vehicles.map((v) => v.location?.positionId).filter(Boolean) as string[]
+        );
+        const removable = current
+          .slice()
+          .reverse()
+          .filter((p) => !occupied.has(p.id))
+          .slice(0, current.length - cmd.positions)
+          .map((p) => p.id);
+        positions = positions.filter((p) => !removable.includes(p.id));
       }
+
       return { ...state, zones, positions };
+    }
+
+    case 'zone.delete': {
+      const inUse = state.vehicles.some((v) => v.location?.zoneId === cmd.zoneId);
+      if (inUse) return state;
+      return {
+        ...state,
+        zones: state.zones.filter((z) => z.id !== cmd.zoneId),
+        positions: state.positions.filter((p) => p.zoneId !== cmd.zoneId),
+      };
+    }
+
+    case 'position.add': {
+      const code = cmd.code.trim().toUpperCase();
+      if (!code) return state;
+      if (state.positions.some((p) => p.zoneId === cmd.zoneId && p.code === code)) return state;
+      return {
+        ...state,
+        positions: [
+          ...state.positions,
+          { id: `${cmd.zoneId}-${code.toLowerCase()}`, zoneId: cmd.zoneId, code },
+        ],
+      };
+    }
+
+    case 'position.delete': {
+      const occupied = state.vehicles.some((v) => v.location?.positionId === cmd.positionId);
+      if (occupied) return state;
+      return { ...state, positions: state.positions.filter((p) => p.id !== cmd.positionId) };
+    }
+
+    /* ---------------------------------------------------- usuarios y roles */
+    case 'user.upsert': {
+      const exists = state.users.some((u) => u.id === cmd.user.id);
+      const users = exists
+        ? state.users.map((u) => (u.id === cmd.user.id ? cmd.user : u))
+        : [...state.users, cmd.user];
+      return { ...state, users };
+    }
+
+    case 'user.delete': {
+      // Se desactiva en vez de borrar: su nombre sigue en el histórico.
+      return {
+        ...state,
+        users: state.users.map((u) => (u.id === cmd.targetUserId ? { ...u, active: false } : u)),
+      };
+    }
+
+    case 'role.upsert': {
+      const exists = state.config.roles.some((r) => r.id === cmd.role.id);
+      const roles = exists
+        ? state.config.roles.map((r) => (r.id === cmd.role.id ? { ...cmd.role, builtin: r.builtin } : r))
+        : [...state.config.roles, cmd.role];
+      return { ...state, config: { ...state.config, roles } };
+    }
+
+    case 'role.delete': {
+      const role = state.config.roles.find((r) => r.id === cmd.roleId);
+      // Los roles de serie y los que tienen gente asignada no se borran.
+      if (!role || role.builtin) return state;
+      if (state.users.some((u) => u.active && u.role === cmd.roleId)) return state;
+      return {
+        ...state,
+        config: { ...state.config, roles: state.config.roles.filter((r) => r.id !== cmd.roleId) },
+      };
+    }
+
+    /* -------------------------------------------------- campos propios */
+    case 'customField.upsert': {
+      const exists = state.config.customFields.some((f) => f.id === cmd.field.id);
+      const customFields = exists
+        ? state.config.customFields.map((f) => (f.id === cmd.field.id ? cmd.field : f))
+        : [...state.config.customFields, cmd.field];
+      return {
+        ...state,
+        config: { ...state.config, customFields: customFields.sort((a, b) => a.order - b.order) },
+      };
+    }
+
+    case 'customField.delete': {
+      return {
+        ...state,
+        config: {
+          ...state.config,
+          customFields: state.config.customFields.filter((f) => f.id !== cmd.fieldId),
+          fleetColumns: state.config.fleetColumns.filter((c) => c.key !== `custom:${cmd.fieldId}`),
+        },
+      };
+    }
+
+    case 'vehicle.setCustom': {
+      const v = state.vehicles.find((x) => x.id === cmd.vehicleId);
+      if (!v) return state;
+      const custom = { ...(v.custom ?? {}), [cmd.fieldId]: cmd.value };
+      return {
+        ...activate(state, cmd.vehicleId),
+        vehicles: replace(state.vehicles, cmd.vehicleId, { custom }),
+      };
     }
 
     case 'vehicle.activate':

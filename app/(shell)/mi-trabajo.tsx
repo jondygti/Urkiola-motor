@@ -21,7 +21,7 @@ import {
   useTheme,
 } from '@/ui';
 import { useAppState, useStore, useTicker } from '@/data/store';
-import { myWork, vehicleByRef, countSummary } from '@/data/selectors';
+import { myWork, vehicleByRef, countSummary, roleLabel } from '@/data/selectors';
 import { prepElapsedMs, prepIsOverSla, prepProgress } from '@/data/commands';
 import {
   formatDateTime,
@@ -33,7 +33,7 @@ import {
   vehicleName,
   vehicleRef,
 } from '@/data/format';
-import { ROLE_LABEL } from '@/data/types';
+
 import { PrepStatePill, StatusPill, useOpenVehicle } from '@/features/common/bits';
 import { VehicleActions } from '@/features/actions/VehicleActions';
 
@@ -61,7 +61,7 @@ export default function MyWorkScreen() {
     <Screen>
       <H1>Hola, {user?.name.split(' ')[0] ?? 'equipo'}</H1>
       <Muted>
-        {user ? ROLE_LABEL[user.role] : 'Operativa'} · tareas del día en campa, transporte y preparación.
+        {user ? roleLabel(state, user.role) : 'Operativa'} · tareas del día en campa, transporte y preparación.
       </Muted>
 
       {toast ? <Notice>{toast}</Notice> : null}

@@ -15,6 +15,7 @@ import {
   useTheme,
 } from '@/ui';
 import { useStore } from '@/data/store';
+import { can } from '@/data/selectors';
 import { locationLabel, vehicleTitle } from '@/data/format';
 import {
   INCIDENT_TYPE_LABEL,
@@ -41,26 +42,45 @@ export function VehicleActions({
   onDone?: (message: string) => void;
 }) {
   const [open, setOpen] = useState<Which>(null);
+  const { state, user } = useStore();
   const close = () => setOpen(null);
+
+  // Cada rol ve solo las acciones que tiene permitidas.
+  const puedeMover = can(state, user, 'movimientos.registrar');
+  const puedeSolicitar = can(state, user, 'solicitudes.crear');
+  const puedeIncidencia = can(state, user, 'incidencias.crear');
+  const puedeAvisar = can(state, user, 'notificaciones.gestionar');
+
+  if (!puedeMover && !puedeSolicitar && !puedeIncidencia && !puedeAvisar) return null;
 
   return (
     <>
       <Toolbar>
-        <Btn variant="primary" small={compact} onPress={() => setOpen('move')}>
-          📍 Registrar movimiento
-        </Btn>
-        <Btn small={compact} onPress={() => setOpen('transfer')}>
-          🚚 Solicitar traslado
-        </Btn>
-        <Btn small={compact} onPress={() => setOpen('prep')}>
-          🧽 Solicitar preparación
-        </Btn>
-        <Btn small={compact} onPress={() => setOpen('incident')}>
-          📸 Incidencia
-        </Btn>
-        <Btn small={compact} onPress={() => setOpen('notify')}>
-          🔔 Crear notificación
-        </Btn>
+        {puedeMover ? (
+          <Btn variant="primary" small={compact} onPress={() => setOpen('move')}>
+            📍 Registrar movimiento
+          </Btn>
+        ) : null}
+        {puedeSolicitar ? (
+          <>
+            <Btn small={compact} onPress={() => setOpen('transfer')}>
+              🚚 Solicitar traslado
+            </Btn>
+            <Btn small={compact} onPress={() => setOpen('prep')}>
+              🧽 Solicitar preparación
+            </Btn>
+          </>
+        ) : null}
+        {puedeIncidencia ? (
+          <Btn small={compact} onPress={() => setOpen('incident')}>
+            📸 Incidencia
+          </Btn>
+        ) : null}
+        {puedeAvisar ? (
+          <Btn small={compact} onPress={() => setOpen('notify')}>
+            🔔 Crear notificación
+          </Btn>
+        ) : null}
       </Toolbar>
 
       <MovementModal visible={open === 'move'} vehicle={vehicle} onClose={close} onDone={onDone} />

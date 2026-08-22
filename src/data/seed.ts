@@ -1,6 +1,10 @@
+import { ALL_PERMISSIONS, BASE_COLUMNS } from './types';
 import type {
   AdminConfig,
   AppState,
+  ColumnPref,
+  CustomField,
+  RoleConfig,
   FleetCount,
   Id,
   Incident,
@@ -91,15 +95,109 @@ function buildZonesAndPositions(): { zones: Zone[]; positions: Position[] } {
 }
 
 export const USERS: User[] = [
-  { id: 'u-admin', name: 'Jon Aranburu', role: 'admin', siteIds: [], email: 'admin@urkiolacarservice.com' },
-  { id: 'u-log', name: 'Marta Ibarra', role: 'logistica', siteIds: [], email: 'logistica@urkiolacarservice.com' },
-  { id: 'u-pedro', name: 'Pedro Larrea', role: 'preparador', siteIds: ['leioa'], email: 'pedro@urkiolacarservice.com' },
-  { id: 'u-ane', name: 'Ane Zubiaur', role: 'preparador', siteIds: ['leioa', 'galdakao'], email: 'ane@urkiolacarservice.com' },
-  { id: 'u-jon', name: 'Jon Etxaniz', role: 'preparador', siteIds: ['anoeta', 'irun'], email: 'jon@urkiolacarservice.com' },
-  { id: 'u-iker', name: 'Iker Solano', role: 'transportista', siteIds: [], email: 'transporte@urkiolacarservice.com' },
-  { id: 'u-nerea', name: 'Nerea Goiri', role: 'recepcion', siteIds: ['sondika'], email: 'recepcion@urkiolacarservice.com' },
-  { id: 'u-juan', name: 'Juan Bilbao', role: 'comercial', siteIds: ['leioa'], email: 'juan@urkiolacarservice.com' },
+  { id: 'u-admin', name: 'Jon Aranburu', role: 'admin', siteIds: [], email: 'admin@urkiolacarservice.com', active: true },
+  { id: 'u-log', name: 'Marta Ibarra', role: 'logistica', siteIds: [], email: 'logistica@urkiolacarservice.com', active: true },
+  { id: 'u-pedro', name: 'Pedro Larrea', role: 'preparador', siteIds: ['leioa'], email: 'pedro@urkiolacarservice.com', active: true },
+  { id: 'u-ane', name: 'Ane Zubiaur', role: 'preparador', siteIds: ['leioa', 'galdakao'], email: 'ane@urkiolacarservice.com', active: true },
+  { id: 'u-jon', name: 'Jon Etxaniz', role: 'preparador', siteIds: ['anoeta', 'irun'], email: 'jon@urkiolacarservice.com', active: true },
+  { id: 'u-iker', name: 'Iker Solano', role: 'transportista', siteIds: [], email: 'transporte@urkiolacarservice.com', active: true },
+  { id: 'u-nerea', name: 'Nerea Goiri', role: 'recepcion', siteIds: ['sondika'], email: 'recepcion@urkiolacarservice.com', active: true },
+  { id: 'u-juan', name: 'Juan Bilbao', role: 'comercial', siteIds: ['leioa'], email: 'juan@urkiolacarservice.com', active: true },
 ];
+
+/* ------------------------------------------------------- roles y permisos */
+
+/** Roles de serie. Se pueden renombrar y cambiar sus permisos desde la app. */
+export const ROLES: RoleConfig[] = [
+  {
+    id: 'admin',
+    label: 'Administrador',
+    permissions: [...ALL_PERMISSIONS],
+    mobileSections: ['/mi-trabajo', '/flota', '/solicitudes', '/recuentos', '/incidencias'],
+    builtin: true,
+  },
+  {
+    id: 'logistica',
+    label: 'Logística',
+    permissions: ALL_PERMISSIONS.filter((p) => p !== 'admin.configurar'),
+    mobileSections: ['/mi-trabajo', '/flota', '/solicitudes', '/recuentos', '/movimientos'],
+    builtin: true,
+  },
+  {
+    id: 'preparador',
+    label: 'Preparador',
+    permissions: [
+      'flota.ver',
+      'campa.ver',
+      'movimientos.registrar',
+      'solicitudes.crear',
+      'preparacion.ejecutar',
+      'recuentos.ejecutar',
+      'incidencias.crear',
+    ],
+    mobileSections: ['/mi-trabajo', '/flota', '/preparacion'],
+    builtin: true,
+  },
+  {
+    id: 'transportista',
+    label: 'Transportista',
+    permissions: ['flota.ver', 'campa.ver', 'movimientos.registrar', 'incidencias.crear'],
+    mobileSections: ['/mi-trabajo', '/flota', '/movimientos'],
+    builtin: true,
+  },
+  {
+    id: 'recepcion',
+    label: 'Recepción',
+    permissions: [
+      'flota.ver',
+      'campa.ver',
+      'movimientos.registrar',
+      'recepcion.ejecutar',
+      'incidencias.crear',
+      'recuentos.ejecutar',
+    ],
+    mobileSections: ['/mi-trabajo', '/recepcion', '/flota', '/recuentos'],
+    builtin: true,
+  },
+  {
+    id: 'comercial',
+    label: 'Comercial',
+    permissions: ['flota.ver', 'solicitudes.crear', 'notificaciones.gestionar'],
+    mobileSections: ['/mi-trabajo', '/flota'],
+    builtin: true,
+  },
+];
+
+/* ------------------------------------------------- campos propios y columnas */
+
+/** Ejemplos de campo propio, para que se vea cómo funciona. */
+const CUSTOM_FIELDS: CustomField[] = [
+  {
+    id: 'cf-financiera',
+    label: 'Financiera',
+    type: 'lista',
+    options: ['Contado', 'Financiado', 'Renting'],
+    showInTable: false,
+    filterable: true,
+    order: 1,
+  },
+  {
+    id: 'cf-prioridad',
+    label: 'Prioridad',
+    type: 'lista',
+    options: ['Normal', 'Alta', 'Urgente'],
+    showInTable: false,
+    filterable: true,
+    order: 2,
+  },
+];
+
+const FLEET_COLUMNS: ColumnPref[] = BASE_COLUMNS.map((col, i) => ({
+  key: col.key,
+  // De serie se ven las nueve del mockup; el resto se activan si hacen falta.
+  visible: !['dealership', 'target', 'received'].includes(col.key),
+  order: i + 1,
+}));
 
 const SALES_REPS = ['Juan', 'Ane', 'Pedro'];
 
@@ -144,6 +242,9 @@ export const CONFIG: AdminConfig = {
   staleCheckHours: 72,
   waitReasons: ['Material', 'Matrículas', 'Documentación', 'Accesorios', 'Autorización', 'Incidencia', 'Otro'],
   requirements: REQUIREMENTS,
+  customFields: CUSTOM_FIELDS,
+  fleetColumns: FLEET_COLUMNS,
+  roles: ROLES,
 };
 
 /* ----------------------------------------------------------- generación */

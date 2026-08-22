@@ -104,6 +104,8 @@ export interface Vehicle {
   lastCheckBy: string | null;
   lastMovementAt: ISODate | null;
   receivedAt: ISODate | null;
+  /** Valores de los campos propios definidos en Administración. */
+  custom?: Record<Id, string>;
 }
 
 /* ----------------------------------------------------------- movimiento */
@@ -339,16 +341,68 @@ export interface Reception {
 
 /* -------------------------------------------------------- usuarios/roles */
 
-export type Role = 'admin' | 'logistica' | 'preparador' | 'transportista' | 'recepcion' | 'comercial';
+/**
+ * Los roles son configurables desde Administración, así que `Role` es un
+ * identificador libre. Los seis de abajo vienen de serie y no se pueden
+ * borrar, pero sí renombrar y cambiarles los permisos.
+ */
+export type Role = string;
 
-export const ROLE_LABEL: Record<Role, string> = {
-  admin: 'Administrador',
-  logistica: 'Logística',
-  preparador: 'Preparador',
-  transportista: 'Transportista',
-  recepcion: 'Recepción',
-  comercial: 'Comercial',
+export const BUILTIN_ROLES = [
+  'admin',
+  'logistica',
+  'preparador',
+  'transportista',
+  'recepcion',
+  'comercial',
+] as const;
+
+/** Todo lo que se puede permitir o denegar a un rol. */
+export type Permission =
+  | 'flota.ver'
+  | 'campa.ver'
+  | 'movimientos.registrar'
+  | 'solicitudes.crear'
+  | 'solicitudes.gestionar'
+  | 'preparacion.ejecutar'
+  | 'preparacion.gestionar'
+  | 'recuentos.ejecutar'
+  | 'incidencias.crear'
+  | 'incidencias.cerrar'
+  | 'recepcion.ejecutar'
+  | 'notificaciones.gestionar'
+  | 'admin.configurar';
+
+export const PERMISSION_LABEL: Record<Permission, string> = {
+  'flota.ver': 'Ver la flota y las fichas',
+  'campa.ver': 'Ver campas y plazas',
+  'movimientos.registrar': 'Registrar movimientos',
+  'solicitudes.crear': 'Crear solicitudes',
+  'solicitudes.gestionar': 'Gestionar y asignar solicitudes',
+  'preparacion.ejecutar': 'Trabajar en preparaciones',
+  'preparacion.gestionar': 'Ver y gestionar todas las preparaciones',
+  'recuentos.ejecutar': 'Hacer recuentos',
+  'incidencias.crear': 'Registrar incidencias',
+  'incidencias.cerrar': 'Cerrar incidencias',
+  'recepcion.ejecutar': 'Recepcionar camiones',
+  'notificaciones.gestionar': 'Configurar avisos',
+  'admin.configurar': 'Administrar la configuración',
 };
+
+export const ALL_PERMISSIONS = Object.keys(PERMISSION_LABEL) as Permission[];
+
+export interface RoleConfig {
+  id: Role;
+  label: string;
+  permissions: Permission[];
+  /**
+   * Secciones que este rol ve en el teléfono. La app es deliberadamente
+   * más corta que la web: aquí se decide cuánto.
+   */
+  mobileSections: string[];
+  /** Los de serie no se pueden borrar. */
+  builtin: boolean;
+}
 
 export interface User {
   id: Id;
@@ -357,6 +411,7 @@ export interface User {
   /** Sedes a las que tiene acceso; vacío = todas. */
   siteIds: Id[];
   email: string;
+  active: boolean;
 }
 
 /* ------------------------------------------------- configuración (admin) */
@@ -375,6 +430,56 @@ export interface Requirement {
   order: number;
 }
 
+export type CustomFieldType = 'texto' | 'lista' | 'numero' | 'si_no';
+
+export const CUSTOM_FIELD_TYPE_LABEL: Record<CustomFieldType, string> = {
+  texto: 'Texto libre',
+  lista: 'Lista de opciones',
+  numero: 'Número',
+  si_no: 'Sí / No',
+};
+
+/**
+ * Campo propio de vehículo, para clasificar la flota de formas que no
+ * estaban previstas (campaña, financiera, cliente, prioridad…).
+ */
+export interface CustomField {
+  id: Id;
+  label: string;
+  type: CustomFieldType;
+  /** Opciones cuando el tipo es 'lista'. */
+  options: string[];
+  /** Si aparece como columna en la lista de flota. */
+  showInTable: boolean;
+  /** Si se puede filtrar por él. */
+  filterable: boolean;
+  order: number;
+}
+
+/** Preferencia de una columna de la tabla de flota. */
+export interface ColumnPref {
+  /** Clave base ('vin8', 'plate'…) o `custom:<id>` para un campo propio. */
+  key: string;
+  visible: boolean;
+  order: number;
+}
+
+/** Columnas de serie de la lista de flota. */
+export const BASE_COLUMNS: { key: string; label: string }[] = [
+  { key: 'vin8', label: 'VIN-8' },
+  { key: 'plate', label: 'Matrícula' },
+  { key: 'model', label: 'Vehículo' },
+  { key: 'type', label: 'Tipo' },
+  { key: 'rep', label: 'Comercial' },
+  { key: 'situation', label: 'Situación' },
+  { key: 'location', label: 'Ubicación' },
+  { key: 'status', label: 'Estado' },
+  { key: 'check', label: 'Última comprobación' },
+  { key: 'dealership', label: 'Concesión' },
+  { key: 'target', label: 'Destino operativo' },
+  { key: 'received', label: 'Fecha de recepción' },
+];
+
 export interface AdminConfig {
   /** Objetivo de preparación en minutos. */
   prepTargetMinutes: Record<VehicleType, number>;
@@ -382,6 +487,12 @@ export interface AdminConfig {
   staleCheckHours: number;
   waitReasons: string[];
   requirements: Requirement[];
+  /** Campos propios de vehículo. */
+  customFields: CustomField[];
+  /** Qué columnas se ven en la lista de flota y en qué orden. */
+  fleetColumns: ColumnPref[];
+  /** Roles y sus permisos. */
+  roles: RoleConfig[];
 }
 
 /* ---------------------------------------------------------- trazabilidad */

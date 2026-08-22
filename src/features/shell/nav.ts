@@ -1,11 +1,14 @@
-import type { Role } from '@/data/types';
+import type { AppState, Permission, User } from '@/data/types';
+import { can, mobileSections } from '@/data/selectors';
 
 export interface NavItem {
   href: string;
   label: string;
   icon: string;
-  /** Roles que ven la entrada; vacío = todos. */
-  roles?: Role[];
+  /** Etiqueta corta para la barra inferior del móvil. */
+  short?: string;
+  /** Se ve si el rol tiene al menos uno de estos permisos. Vacío = siempre. */
+  anyOf?: Permission[];
 }
 
 export interface NavGroup {
@@ -13,65 +16,100 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-/** Menú lateral, con los mismos grupos y orden que el mockup V18. */
+/** Menú lateral de la web, con los mismos grupos y orden que el mockup V18. */
 export const NAV: NavGroup[] = [
   {
     title: 'CONTROL',
     items: [
-      { href: '/', label: 'Dashboard', icon: '▦' },
-      { href: '/flota', label: 'Flota', icon: '🚗' },
+      { href: '/', label: 'Dashboard', icon: '▦', short: 'Panel' },
+      { href: '/flota', label: 'Flota', icon: '🚗', short: 'Flota', anyOf: ['flota.ver'] },
     ],
   },
   {
     title: 'LOGÍSTICA',
     items: [
-      { href: '/recepcion', label: 'Recepción', icon: '🚚' },
-      { href: '/campa', label: 'Campa Sondika', icon: '📍' },
+      { href: '/recepcion', label: 'Recepción', icon: '🚚', short: 'Recibir', anyOf: ['recepcion.ejecutar'] },
+      { href: '/campa', label: 'Campa Sondika', icon: '📍', short: 'Campa', anyOf: ['campa.ver'] },
     ],
   },
   {
     title: 'PREPARACIÓN',
     items: [
-      { href: '/solicitudes', label: 'Solicitudes', icon: '📋' },
-      { href: '/preparacion', label: 'Preparación', icon: '🧽' },
-      { href: '/movimientos', label: 'Movimientos', icon: '↔' },
-      { href: '/recuentos', label: 'Recuentos', icon: '📋' },
+      {
+        href: '/solicitudes',
+        label: 'Solicitudes',
+        icon: '📋',
+        short: 'Tareas',
+        anyOf: ['solicitudes.crear', 'solicitudes.gestionar'],
+      },
+      {
+        href: '/preparacion',
+        label: 'Preparación',
+        icon: '🧽',
+        short: 'Preparar',
+        anyOf: ['preparacion.ejecutar', 'preparacion.gestionar'],
+      },
+      { href: '/movimientos', label: 'Movimientos', icon: '↔', short: 'Mover', anyOf: ['movimientos.registrar'] },
+      { href: '/recuentos', label: 'Recuentos', icon: '📋', short: 'Recuento', anyOf: ['recuentos.ejecutar'] },
     ],
   },
   {
     title: 'CONTROL Y ADMIN',
     items: [
-      { href: '/incidencias', label: 'Incidencias', icon: '⚠' },
-      { href: '/notificaciones', label: 'Notificaciones', icon: '🔔' },
-      { href: '/administracion', label: 'Administración', icon: '⚙', roles: ['admin', 'logistica'] },
+      { href: '/incidencias', label: 'Incidencias', icon: '⚠', short: 'Incid.', anyOf: ['incidencias.crear', 'incidencias.cerrar'] },
+      { href: '/notificaciones', label: 'Notificaciones', icon: '🔔', short: 'Avisos' },
+      { href: '/administracion', label: 'Administración', icon: '⚙', short: 'Config.', anyOf: ['admin.configurar'] },
     ],
   },
   {
     title: 'OPERATIVA',
-    items: [{ href: '/mi-trabajo', label: 'Mi trabajo', icon: '📱' }],
+    items: [{ href: '/mi-trabajo', label: 'Mi trabajo', icon: '📱', short: 'Inicio' }],
   },
 ];
 
-/** Barra inferior en móvil (equivalente a la del mockup). */
-export const TABS: NavItem[] = [
-  { href: '/mi-trabajo', label: 'Inicio', icon: '⌂' },
-  { href: '/flota', label: 'Flota', icon: '🚗' },
-  { href: '/solicitudes', label: 'Tareas', icon: '📋' },
-  { href: '/recuentos', label: 'Recuento', icon: '📍' },
-];
+const ALL_ITEMS = NAV.flatMap((g) => g.items);
 
-export function visibleNav(role: Role | undefined): NavGroup[] {
-  if (!role) return NAV;
-  return NAV.map((g) => ({
-    ...g,
-    items: g.items.filter((i) => !i.roles || i.roles.includes(role)),
-  })).filter((g) => g.items.length > 0);
+function allowed(state: AppState, user: User | null, item: NavItem): boolean {
+  if (!item.anyOf || item.anyOf.length === 0) return true;
+  return item.anyOf.some((p) => can(state, user, p));
+}
+
+/** Menú completo de la web, filtrado por los permisos del rol. */
+export function visibleNav(state: AppState, user: User | null): NavGroup[] {
+  return NAV.map((g) => ({ ...g, items: g.items.filter((i) => allowed(state, user, i)) })).filter(
+    (g) => g.items.length > 0
+  );
+}
+
+/**
+ * Menú del teléfono: deliberadamente más corto que el de la web.
+ * Cada rol elige sus secciones en Administración → Usuarios y roles, y
+ * además se respetan los permisos.
+ */
+export function mobileNav(state: AppState, user: User | null): NavItem[] {
+  const wanted = mobileSections(state, user);
+  const items = wanted
+    .map((href) => ALL_ITEMS.find((i) => i.href === href))
+    .filter((i): i is NavItem => !!i && allowed(state, user, i));
+
+  // Si el rol no tiene nada configurado, al menos su trabajo del día.
+  if (items.length === 0) return ALL_ITEMS.filter((i) => i.href === '/mi-trabajo');
+  return items;
+}
+
+/** Barra inferior: las cuatro primeras secciones del rol. */
+export function mobileTabs(state: AppState, user: User | null): NavItem[] {
+  return mobileNav(state, user).slice(0, 4);
 }
 
 /** Título de cabecera a partir de la ruta actual. */
 export function titleForPath(path: string): string {
   if (path === '/' || path === '/index') return 'Centro de control';
   if (path.startsWith('/vehiculo')) return 'Ficha de vehículo';
-  const all = NAV.flatMap((g) => g.items);
-  return all.find((i) => i.href === path)?.label ?? 'Urkiola Car Service';
+  return ALL_ITEMS.find((i) => i.href === path)?.label ?? 'Urkiola Car Service';
+}
+
+/** Primera sección del rol en el móvil: es donde debe abrirse la app. */
+export function mobileHome(state: AppState, user: User | null): string {
+  return mobileNav(state, user)[0]?.href ?? '/mi-trabajo';
 }

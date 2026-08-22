@@ -18,7 +18,8 @@ import {
   useTheme,
 } from '@/ui';
 import { useAppState } from '@/data/store';
-import { formatDateTime, locationLabel, matchesSearch, timeAgo, vehicleName } from '@/data/format';
+import { customValue, fleetColumns } from '@/data/selectors';
+import { formatDateTime, locationLabel, matchesSearch, siteName, timeAgo, vehicleName } from '@/data/format';
 import { Cell, SituationPill, StatusPill, TypePill, useOpenVehicle } from '@/features/common/bits';
 import type { Vehicle } from '@/data/types';
 
@@ -54,19 +55,21 @@ export default function FleetScreen() {
     });
   }, [state.vehicles, scope, type, rep, situation, site, query]);
 
-  const columns: Column<Vehicle>[] = [
-    {
+  const configured = fleetColumns(state);
+
+  /** Definición de cada columna base; se monta solo la que esté activada. */
+  const BASE: Record<string, Column<Vehicle>> = {
+    vin8: {
       key: 'vin8',
       header: 'VIN-8',
       width: 120,
-      primary: true,
       value: (v) => v.vin8,
       filter: { type: 'text' },
       render: (v) => (
         <Text style={{ fontSize: 13, fontWeight: '800', color: c.text }}>{v.vin8}</Text>
       ),
     },
-    {
+    plate: {
       key: 'plate',
       header: 'Matrícula',
       width: 110,
@@ -74,7 +77,7 @@ export default function FleetScreen() {
       filter: { type: 'text' },
       render: (v) => <Cell muted={!v.plate}>{v.plate ?? '—'}</Cell>,
     },
-    {
+    model: {
       key: 'model',
       header: 'Vehículo',
       width: 150,
@@ -82,7 +85,7 @@ export default function FleetScreen() {
       filter: { type: 'text' },
       render: (v) => <Cell>{vehicleName(v)}</Cell>,
     },
-    {
+    type: {
       key: 'type',
       header: 'Tipo',
       width: 90,
@@ -90,7 +93,7 @@ export default function FleetScreen() {
       filter: { type: 'select', options: [{ value: 'VN', label: 'VN' }, { value: 'VO', label: 'VO' }] },
       render: (v) => <TypePill type={v.type} />,
     },
-    {
+    rep: {
       key: 'rep',
       header: 'Comercial',
       width: 140,
@@ -101,7 +104,7 @@ export default function FleetScreen() {
       },
       render: (v) => <Cell muted={!v.salesRep}>{v.salesRep ? `${v.salesRep} · Asignado` : '—'}</Cell>,
     },
-    {
+    situation: {
       key: 'situation',
       header: 'Situación',
       width: 110,
@@ -115,7 +118,7 @@ export default function FleetScreen() {
       },
       render: (v) => <SituationPill situation={v.situation} />,
     },
-    {
+    location: {
       key: 'location',
       header: 'Ubicación',
       width: 200,
@@ -126,14 +129,14 @@ export default function FleetScreen() {
       },
       render: (v) => <Cell muted={!v.location}>{locationLabel(state, v.location, true)}</Cell>,
     },
-    {
+    status: {
       key: 'status',
       header: 'Estado',
       width: 150,
       value: (v) => v.status,
       render: (v) => <StatusPill status={v.status} />,
     },
-    {
+    check: {
       key: 'check',
       header: 'Última comprobación',
       width: 160,
@@ -145,7 +148,57 @@ export default function FleetScreen() {
         </Cell>
       ),
     },
-  ];
+    dealership: {
+      key: 'dealership',
+      header: 'Concesión',
+      width: 130,
+      value: (v) => v.dealership,
+      filter: { type: 'select', options: state.sites.map((x) => ({ value: x.name, label: x.name })) },
+      render: (v) => <Cell>{v.dealership}</Cell>,
+    },
+    target: {
+      key: 'target',
+      header: 'Destino operativo',
+      width: 160,
+      value: (v) => siteName(state, v.targetSiteId),
+      filter: { type: 'select', options: state.sites.map((x) => ({ value: x.name, label: x.name })) },
+      render: (v) => <Cell muted={!v.targetSiteId}>{siteName(state, v.targetSiteId)}</Cell>,
+    },
+    received: {
+      key: 'received',
+      header: 'Fecha de recepción',
+      width: 150,
+      value: (v) => formatDateTime(v.receivedAt),
+      render: (v) => <Cell muted>{formatDateTime(v.receivedAt)}</Cell>,
+    },
+  };
+
+  const columns: Column<Vehicle>[] = configured
+    .map((col): Column<Vehicle> | null => {
+      if (col.field) {
+        const field = col.field;
+        return {
+          key: col.key,
+          header: field.label,
+          width: 140,
+          value: (v) => customValue(v, field),
+          filter: field.filterable
+            ? field.type === 'lista'
+              ? { type: 'select', options: field.options.map((o) => ({ value: o, label: o })) }
+              : { type: 'text' }
+            : undefined,
+          render: (v) => {
+            const text = customValue(v, field);
+            return <Cell muted={text === '—'}>{text}</Cell>;
+          },
+        };
+      }
+      return BASE[col.key] ?? null;
+    })
+    .filter((col): col is Column<Vehicle> => col !== null);
+
+  // La primera columna hace de título en la vista de móvil.
+  if (columns.length > 0) columns[0] = { ...columns[0], primary: true };
 
   return (
     <Screen>
@@ -211,7 +264,8 @@ export default function FleetScreen() {
         <Notice>
           <Text style={{ fontSize: 12, color: c.text }}>
             <Text style={{ fontWeight: '800' }}>Filtros por columna: </Text>
-            se combinan entre sí y con la búsqueda. Tipo = VN / VO; situación y comercial son independientes.
+            se combinan entre sí y con la búsqueda. Las columnas que se ven, su orden y los campos propios se
+            configuran en Administración → Flota y columnas.
           </Text>
         </Notice>
         <Spacer h={space.sm} />

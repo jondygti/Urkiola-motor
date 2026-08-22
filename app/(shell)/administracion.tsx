@@ -16,7 +16,6 @@ import {
   Pill,
   Screen,
   Segmented,
-  Select,
   Spacer,
   StatLine,
   Toolbar,
@@ -26,15 +25,20 @@ import {
 } from '@/ui';
 import { useAppState, useStore } from '@/data/store';
 import { API_URL, apiEnabled } from '@/data/api';
-import { ROLE_LABEL, type Requirement, type VehicleType } from '@/data/types';
-import { siteOccupancy } from '@/data/selectors';
+import type { Requirement, VehicleType } from '@/data/types';
+import { can, roleLabel } from '@/data/selectors';
+import { LocationsAdmin } from '@/features/admin/LocationsAdmin';
+import { UsersAdmin } from '@/features/admin/UsersAdmin';
+import { FleetAdmin } from '@/features/admin/FleetAdmin';
 
 export default function AdminScreen() {
   const state = useAppState();
-  const { run, resetDemo, mode } = useStore();
+  const { run, resetDemo, mode, user } = useStore();
   const { c } = useTheme();
 
-  const [tab, setTab] = useState<'operativa' | 'ubicaciones' | 'usuarios' | 'sistema'>('operativa');
+  const [tab, setTab] = useState<'operativa' | 'ubicaciones' | 'flota' | 'usuarios' | 'sistema'>(
+    'operativa'
+  );
   const [editing, setEditing] = useState<Requirement | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -43,6 +47,18 @@ export default function AdminScreen() {
       type: 'config.update',
       patch: { prepTargetMinutes: { ...state.config.prepTargetMinutes, [type]: minutes } },
     });
+
+  if (!can(state, user, 'admin.configurar')) {
+    return (
+      <Screen>
+        <H1>Administración</H1>
+        <Notice tone="warn">
+          Tu rol ({roleLabel(state, user?.role)}) no tiene permiso para configurar el sistema. Habla con un
+          administrador si necesitas acceso.
+        </Notice>
+      </Screen>
+    );
+  }
 
   return (
     <Screen>
@@ -56,8 +72,9 @@ export default function AdminScreen() {
           value={tab}
           onChange={setTab}
           options={[
-            { value: 'operativa', label: 'Operativa' },
+            { value: 'operativa', label: 'Preparación' },
             { value: 'ubicaciones', label: 'Ubicaciones' },
+            { value: 'flota', label: 'Flota y columnas' },
             { value: 'usuarios', label: 'Usuarios y roles' },
             { value: 'sistema', label: 'Sistema' },
           ]}
@@ -176,64 +193,11 @@ export default function AdminScreen() {
         </>
       ) : null}
 
-      {tab === 'ubicaciones' ? (
-        <>
-          <Grid cols={3} minWidth={260}>
-            {state.sites.map((s) => {
-              const occ = siteOccupancy(state, s.id);
-              return (
-                <Panel key={s.id} title={s.name}>
-                  <Muted>
-                    {s.kind === 'campa' ? 'Campa · solo almacena' : 'Concesión · prepara vehículos'}
-                  </Muted>
-                  <Spacer h={space.sm} />
-                  <Text style={{ fontSize: 24, fontWeight: '900', color: c.text }}>
-                    {occ.occupied}/{occ.capacity}
-                  </Text>
-                  <Muted>
-                    {occ.zones} zonas · {occ.pct}% de ocupación
-                  </Muted>
-                </Panel>
-              );
-            })}
-          </Grid>
-          <Spacer h={space.lg} />
-          <ZoneEditor onDone={setToast} />
-        </>
-      ) : null}
+      {tab === 'ubicaciones' ? <LocationsAdmin onDone={setToast} /> : null}
 
-      {tab === 'usuarios' ? (
-        <Panel title="👥 Usuarios y permisos">
-          <Muted>
-            Cada rol ve solo lo que necesita. Los preparadores y transportistas trabajan desde la app móvil;
-            logística y administración, desde la web.
-          </Muted>
-          <Spacer h={space.md} />
-          {state.users.map((u) => (
-            <View
-              key={u.id}
-              style={{
-                flexDirection: 'row',
-                gap: 8,
-                alignItems: 'center',
-                paddingVertical: 10,
-                borderBottomWidth: 1,
-                borderBottomColor: c.borderSoft,
-                flexWrap: 'wrap',
-              }}
-            >
-              <View style={{ flex: 1, minWidth: 180 }}>
-                <Text style={{ fontSize: 13, fontWeight: '700', color: c.text }}>{u.name}</Text>
-                <Text style={{ fontSize: 11, color: c.textMuted }}>{u.email}</Text>
-              </View>
-              <Pill tone="blue">{ROLE_LABEL[u.role]}</Pill>
-              <Text style={{ fontSize: 11, color: c.textMuted }}>
-                {u.siteIds.length ? u.siteIds.join(', ') : 'Todas las sedes'}
-              </Text>
-            </View>
-          ))}
-        </Panel>
-      ) : null}
+      {tab === 'flota' ? <FleetAdmin onDone={setToast} /> : null}
+
+      {tab === 'usuarios' ? <UsersAdmin onDone={setToast} /> : null}
 
       {tab === 'sistema' ? (
         <>
@@ -358,60 +322,6 @@ function WaitReasonEditor({ onDone }: { onDone: (m: string) => void }) {
         Añadir
       </Btn>
     </View>
-  );
-}
-
-function ZoneEditor({ onDone }: { onDone: (m: string) => void }) {
-  const { state, run } = useStore();
-  const [siteId, setSiteId] = useState('sondika');
-  const [name, setName] = useState('');
-  const [positions, setPositions] = useState('20');
-
-  const site = state.sites.find((s) => s.id === siteId)!;
-
-  return (
-    <Panel title="➕ Nueva zona (tejavana o parking)">
-      <Grid cols={3} minWidth={200}>
-        <Field label="Sede">
-          <Select
-            full
-            value={siteId}
-            onChange={setSiteId}
-            options={state.sites.map((s) => ({ value: s.id, label: s.name }))}
-            title="Sede"
-          />
-        </Field>
-        <Field label="Nombre">
-          <Input value={name} onChangeText={setName} placeholder={site.kind === 'campa' ? 'Tejavana 13' : 'Parking 04'} />
-        </Field>
-        <Field label="Nº de plazas">
-          <Input value={positions} onChangeText={setPositions} keyboardType="numeric" />
-        </Field>
-      </Grid>
-      <Btn
-        variant="primary"
-        onPress={() => {
-          const n = Number(positions.replace(/\D/g, '')) || 0;
-          if (!name.trim() || n <= 0) return;
-          const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
-          run({
-            type: 'zone.upsert',
-            zone: {
-              id: `${siteId}-${slug}`,
-              siteId,
-              name: name.trim(),
-              kind: site.kind === 'campa' ? 'tejavana' : 'parking',
-              capacity: n,
-            },
-            positions: n,
-          });
-          onDone(`Zona «${name.trim()}» creada con ${n} plazas.`);
-          setName('');
-        }}
-      >
-        Crear zona y plazas
-      </Btn>
-    </Panel>
   );
 }
 
