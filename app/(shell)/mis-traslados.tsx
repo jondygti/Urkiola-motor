@@ -17,10 +17,11 @@ import {
   useTheme,
 } from '@/ui';
 import { useStore } from '@/data/store';
-import { myTransfers } from '@/data/selectors';
+import { deadlineOf, myTransfers } from '@/data/selectors';
 import { formatDateTime, locationLabel, timeAgo, vehicleName, vehicleRef } from '@/data/format';
 import type { ServiceRequest, Vehicle } from '@/data/types';
 import { ScreenGuard } from '@/features/common/Guard';
+import { DeadlineChip } from '@/features/common/DeadlineChip';
 import { capturePhoto } from '@/features/actions/photos';
 
 /**
@@ -82,6 +83,7 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
 
   const vehicle = state.vehicles.find((v) => v.id === request.vehicleId);
   const enRuta = request.status === 'en_ruta';
+  const plazo = deadlineOf(state, request);
 
   const recoger = () => {
     run({ type: 'request.update', requestId: request.id, status: 'en_ruta' });
@@ -118,6 +120,7 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
         </Text>
         {enRuta ? <Pill tone="blue">En ruta</Pill> : <Pill tone="amber">Por recoger</Pill>}
         {request.urgent ? <Pill tone="red">Urgente</Pill> : null}
+        <DeadlineChip deadline={plazo} compact />
       </View>
       <Text style={{ fontSize: 14, color: c.textMuted }}>{vehicle ? vehicleName(vehicle) : ''}</Text>
 
@@ -139,6 +142,14 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
       <Btn variant="primary" full onPress={enRuta ? entregar : recoger}>
         {enRuta ? '✓ He entregado el vehículo' : '▶ He recogido el vehículo'}
       </Btn>
+      {!enRuta ? (
+        <>
+          <Spacer h={space.xs} />
+          <Muted>
+            Al recoger las llaves empiezan a contar {state.config.transferDeadlineHours} h para entregarlo.
+          </Muted>
+        </>
+      ) : null}
 
       <Spacer h={space.sm} />
       <Btn full onPress={() => setProblemOpen(true)}>

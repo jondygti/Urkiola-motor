@@ -99,6 +99,33 @@ export default function AdminScreen() {
                   keyboardType="numeric"
                 />
               </Field>
+              <Field label="Horas de plazo del transportista" hint="Desde que recoge las llaves.">
+                <Input
+                  value={String(state.config.transferDeadlineHours)}
+                  onChangeText={(v) =>
+                    run({
+                      type: 'config.update',
+                      patch: { transferDeadlineHours: Number(v.replace(/\D/g, '')) || 48 },
+                    })
+                  }
+                  keyboardType="numeric"
+                />
+              </Field>
+              <Field
+                label="Horas mínimas de preparación"
+                hint="Lo que el comercial tiene que dar de margen al pedirla."
+              >
+                <Input
+                  value={String(state.config.prepDeadlineHours)}
+                  onChangeText={(v) =>
+                    run({
+                      type: 'config.update',
+                      patch: { prepDeadlineHours: Number(v.replace(/\D/g, '')) || 48 },
+                    })
+                  }
+                  keyboardType="numeric"
+                />
+              </Field>
               <Field label="Horas sin comprobación antes de avisar">
                 <Input
                   value={String(state.config.staleCheckHours)}
@@ -109,8 +136,9 @@ export default function AdminScreen() {
                 />
               </Field>
               <Muted>
-                «Preentrega cliente» no tiene tiempo propio: es un simple check. Los objetivos se aplican a las
-                preparaciones nuevas.
+                Ojo con la diferencia: el objetivo de 2 h es lo que debe durar el trabajo; las 48 h son el
+                plazo comprometido para tenerlo listo. Los plazos se calculan al crear la solicitud, así que
+                cambiarlos aquí no mueve lo ya comprometido.
               </Muted>
             </Panel>
 

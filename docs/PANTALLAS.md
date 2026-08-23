@@ -60,12 +60,27 @@ secciones, y la app:
 
 Por ejemplo, con la configuración de serie:
 
-| Rol | Menú del móvil |
-|---|---|
-| Preparador | Mi trabajo · Flota · Preparación |
-| Transportista (externo) | Solo «Mis traslados», sin menú |
-| Recepción | Mi trabajo · Recepción · Flota · Recuentos |
-| Comercial | Mi trabajo · Flota |
+| Rol | Menú del móvil | Abre en |
+|---|---|---|
+| Preparador | Mi preparación · Mi trabajo · Flota | Su cola de trabajo |
+| Recepción | Descargar camión · Mi trabajo · Flota · Recuentos | La descarga en curso |
+| Transportista (externo) | Solo «Mis traslados», sin menú | Sus traslados |
+| Comercial | Mi trabajo · Flota | Su trabajo del día |
+
+### Pantallas rápidas de campo
+
+Tres pantallas están hechas para el móvil y para ir deprisa, con la versión
+completa siempre disponible en la web:
+
+| Pantalla | Para quién | Cómo funciona |
+|---|---|---|
+| `/mis-traslados` | Transportista | Una tarjeta por traslado y un solo botón, que cambia de «He recogido» a «He entregado» |
+| `/mi-preparacion` | Preparador | Cola ordenada por plazo; al abrir, cronómetro y checklist donde **cada línea se marca de un toque** |
+| `/mi-recepcion` | Recepción | Bucle de descarga: identificar, plaza propuesta automáticamente y «Descargado · siguiente» |
+
+En la descarga, la zona que se propone es **la primera que tenga hueco**, no
+la primera de la lista; y si se llena a media descarga, ofrece saltar a la
+siguiente con plazas libres.
 
 En la web, ese mismo preparador sí ve diez secciones. Es la misma app: lo
 que cambia es cuánto enseña en cada sitio.

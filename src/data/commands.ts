@@ -335,6 +335,14 @@ export function applyCommand(state: AppState, cmd: Command): AppState {
     /* -------------------------------------------------------- solicitudes */
     case 'request.create': {
       if (!vehicle) return state;
+      // La preparación arranca el reloj al pedirla: es el plazo mínimo que
+      // el comercial tiene que dar. El traslado no, porque su plazo empieza
+      // cuando el transportista recoge las llaves.
+      const dueAt =
+        cmd.requestType === 'preparacion'
+          ? new Date(new Date(cmd.at).getTime() + state.config.prepDeadlineHours * 3_600_000).toISOString()
+          : null;
+
       const request: ServiceRequest = {
         id: newId('req'),
         type: cmd.requestType,
@@ -348,6 +356,8 @@ export function applyCommand(state: AppState, cmd: Command): AppState {
         createdBy: cmd.userId,
         assignedTo: null,
         note: cmd.note,
+        dueAt,
+        pickedUpAt: null,
       };
       const vehiclePatch: Partial<Vehicle> =
         cmd.requestType === 'traslado'
@@ -373,13 +383,21 @@ export function applyCommand(state: AppState, cmd: Command): AppState {
     case 'request.update': {
       const req = state.requests.find((r) => r.id === cmd.requestId);
       if (!req) return state;
-      const next: AppState = {
-        ...state,
-        requests: replace(state.requests, cmd.requestId, {
-          status: cmd.status,
-          assignedTo: cmd.assignedTo !== undefined ? cmd.assignedTo : req.assignedTo,
-        }),
+
+      // Al recoger las llaves arranca el plazo del transportista.
+      const recoge = req.type === 'traslado' && cmd.status === 'en_ruta' && !req.pickedUpAt;
+      const patch: Partial<ServiceRequest> = {
+        status: cmd.status,
+        assignedTo: cmd.assignedTo !== undefined ? cmd.assignedTo : req.assignedTo,
       };
+      if (recoge) {
+        patch.pickedUpAt = cmd.at;
+        patch.dueAt = new Date(
+          new Date(cmd.at).getTime() + state.config.transferDeadlineHours * 3_600_000
+        ).toISOString();
+      }
+
+      const next: AppState = { ...state, requests: replace(state.requests, cmd.requestId, patch) };
       return addEvent(next, {
         vehicleId: req.vehicleId,
         kind: 'solicitud',

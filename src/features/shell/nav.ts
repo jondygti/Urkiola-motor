@@ -29,6 +29,13 @@ export const NAV: NavGroup[] = [
     title: 'LOGÍSTICA',
     items: [
       { href: '/recepcion', label: 'Recepción', icon: '🚚', short: 'Recibir', anyOf: ['recepcion.ejecutar'] },
+      {
+        href: '/mi-recepcion',
+        label: 'Descargar camión',
+        icon: '📦',
+        short: 'Descargar',
+        anyOf: ['recepcion.ejecutar'],
+      },
       { href: '/campa', label: 'Campa Sondika', icon: '📍', short: 'Campa', anyOf: ['campa.ver'] },
     ],
   },
@@ -71,6 +78,13 @@ export const NAV: NavGroup[] = [
         icon: '🚚',
         short: 'Traslados',
         anyOf: ['traslados.propios'],
+      },
+      {
+        href: '/mi-preparacion',
+        label: 'Mi preparación',
+        icon: '🧽',
+        short: 'Preparar',
+        anyOf: ['preparacion.ejecutar'],
       },
     ],
   },

@@ -120,7 +120,7 @@ export const ROLES: RoleConfig[] = [
     id: 'logistica',
     label: 'Logística',
     permissions: ALL_PERMISSIONS.filter((p) => p !== 'admin.configurar'),
-    mobileSections: ['/mi-trabajo', '/flota', '/solicitudes', '/recuentos', '/movimientos'],
+    mobileSections: ['/mi-trabajo', '/flota', '/solicitudes', '/recuentos', '/mi-preparacion'],
     builtin: true,
   },
   {
@@ -135,7 +135,8 @@ export const ROLES: RoleConfig[] = [
       'recuentos.ejecutar',
       'incidencias.crear',
     ],
-    mobileSections: ['/mi-trabajo', '/flota', '/preparacion'],
+    // En el móvil entra directo a su cola de trabajo.
+    mobileSections: ['/mi-preparacion', '/mi-trabajo', '/flota'],
     builtin: true,
   },
   {
@@ -159,7 +160,8 @@ export const ROLES: RoleConfig[] = [
       'incidencias.crear',
       'recuentos.ejecutar',
     ],
-    mobileSections: ['/mi-trabajo', '/recepcion', '/flota', '/recuentos'],
+    // En el móvil entra directo a la descarga del camión.
+    mobileSections: ['/mi-recepcion', '/mi-trabajo', '/flota', '/recuentos'],
     builtin: true,
   },
   {
@@ -245,6 +247,8 @@ export const CONFIG: AdminConfig = {
   staleCheckHours: 72,
   waitReasons: ['Material', 'Matrículas', 'Documentación', 'Accesorios', 'Autorización', 'Incidencia', 'Otro'],
   requirements: REQUIREMENTS,
+  transferDeadlineHours: 48,
+  prepDeadlineHours: 48,
   customFields: CUSTOM_FIELDS,
   fleetColumns: FLEET_COLUMNS,
   roles: ROLES,
@@ -599,6 +603,9 @@ export function buildSeedState(): AppState {
     createdAt: iso(10 * HOUR),
     createdBy: 'u-juan',
     assignedTo: null,
+    // 48 h desde que la pidió el comercial: quedan 38.
+    dueAt: iso(-38 * HOUR),
+    pickedUpAt: null,
   });
   requests.push({
     id: 'req-0002',
@@ -612,6 +619,9 @@ export function buildSeedState(): AppState {
     createdAt: iso(6 * HOUR),
     createdBy: 'u-log',
     assignedTo: 'u-iker',
+    // Aún sin recoger: el plazo del transportista no ha empezado.
+    dueAt: null,
+    pickedUpAt: null,
   });
   requests.push({
     id: 'req-0003',
@@ -625,12 +635,16 @@ export function buildSeedState(): AppState {
     createdAt: iso(28 * HOUR),
     createdBy: 'u-log',
     assignedTo: 'u-jon',
+    // Pedida hace 28 h: quedan 20 y sigue bloqueada.
+    dueAt: iso(-20 * HOUR),
+    pickedUpAt: null,
   });
 
   const pool = activeVehicles.filter((v) => !requests.some((r) => r.vehicleId === v.id));
   for (let i = 0; i < 19; i++) {
     const v = pool[i];
     const site = v.targetSiteId ?? pick(PREP_SITES).id;
+    const hoursAgo = Math.floor(rnd() * 40);
     requests.push({
       id: nextId('req'),
       type: 'preparacion',
@@ -640,14 +654,21 @@ export function buildSeedState(): AppState {
       to: { siteId: site },
       status: pick(openPrepStatuses),
       urgent: chance(0.15),
-      createdAt: iso(Math.floor(rnd() * 40) * HOUR),
+      createdAt: iso(hoursAgo * HOUR),
       createdBy: 'u-log',
       assignedTo: chance(0.5) ? pick(USERS.filter((u) => u.role === 'preparador')).id : null,
+      // 48 h desde la solicitud; algunas ya se han pasado.
+      dueAt: iso((hoursAgo - 48) * HOUR),
+      pickedUpAt: null,
     });
   }
   for (let i = 19; i < 30; i++) {
     const v = pool[i];
     const site = pick(PREP_SITES).id;
+    const status = pick(openMoveStatuses);
+    const hoursAgo = Math.floor(rnd() * 30);
+    // El plazo del transportista solo corre desde que recoge las llaves.
+    const pickedUpAt = status === 'en_ruta' ? iso(Math.floor(rnd() * 20) * HOUR) : null;
     requests.push({
       id: nextId('req'),
       type: 'traslado',
@@ -655,11 +676,15 @@ export function buildSeedState(): AppState {
       siteId: site,
       from: v.location,
       to: { siteId: site },
-      status: pick(openMoveStatuses),
+      status,
       urgent: chance(0.1),
-      createdAt: iso(Math.floor(rnd() * 30) * HOUR),
+      createdAt: iso(hoursAgo * HOUR),
       createdBy: 'u-log',
       assignedTo: chance(0.6) ? 'u-iker' : null,
+      dueAt: pickedUpAt
+        ? new Date(new Date(pickedUpAt).getTime() + 48 * HOUR).toISOString()
+        : null,
+      pickedUpAt,
     });
   }
   // Solicitudes ya cerradas, para el histórico.
@@ -677,6 +702,8 @@ export function buildSeedState(): AppState {
       createdAt: iso(Math.floor(24 + rnd() * 120) * HOUR),
       createdBy: 'u-log',
       assignedTo: 'u-iker',
+      dueAt: null,
+      pickedUpAt: null,
     });
   }
 

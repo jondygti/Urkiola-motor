@@ -423,11 +423,12 @@ export function myTransfers(s: AppState, userId: Id): ServiceRequest[] {
   return s.requests
     .filter((r) => r.type === 'traslado' && r.status !== 'terminada' && r.assignedTo === userId)
     .sort((a, b) => {
-      // Primero lo que ya está en marcha; el resto, en orden de recorrido.
-      const enRuta = (r: ServiceRequest) => (r.status === 'en_ruta' ? 0 : 1);
+      // Lo vencido primero, después lo urgente, y lo demás en orden de
+      // recorrido para no cruzar la campa de un lado a otro.
+      const vencido = (r: ServiceRequest) => (deadlineOf(s, r).overdue ? 0 : 1);
       const urgente = (r: ServiceRequest) => (r.urgent ? 0 : 1);
       return (
-        enRuta(a) - enRuta(b) ||
+        vencido(a) - vencido(b) ||
         urgente(a) - urgente(b) ||
         ruta(a).localeCompare(ruta(b), 'es')
       );
@@ -438,4 +439,56 @@ export function myTransfers(s: AppState, userId: Id): ServiceRequest[] {
 export function isSimpleRole(s: AppState, user: User | null): boolean {
   if (!user) return false;
   return roleConfig(s, user.role)?.simple === true;
+}
+
+
+/* ------------------------------------------------------------- plazos */
+
+export interface Deadline {
+  /** Fecha límite, si el reloj ya ha arrancado. */
+  dueAt: string | null;
+  /** Milisegundos que quedan; negativo si ya se ha pasado. */
+  remainingMs: number | null;
+  overdue: boolean;
+  /** Queda menos de una cuarta parte del plazo. */
+  atRisk: boolean;
+}
+
+/**
+ * Plazo de una solicitud.
+ *
+ * Traslado: 48 h desde que el transportista recoge las llaves.
+ * Preparación: 48 h desde que el comercial la pide.
+ */
+export function deadlineOf(s: AppState, r: ServiceRequest, now = Date.now()): Deadline {
+  if (!r.dueAt || r.status === 'terminada') {
+    return { dueAt: r.dueAt, remainingMs: null, overdue: false, atRisk: false };
+  }
+  const remainingMs = new Date(r.dueAt).getTime() - now;
+  const total =
+    (r.type === 'traslado' ? s.config.transferDeadlineHours : s.config.prepDeadlineHours) * 3_600_000;
+  return {
+    dueAt: r.dueAt,
+    remainingMs,
+    overdue: remainingMs < 0,
+    atRisk: remainingMs >= 0 && remainingMs < total / 4,
+  };
+}
+
+/** Solicitudes abiertas cuyo plazo ya se ha pasado. */
+export function overdueRequests(s: AppState, now = Date.now()): ServiceRequest[] {
+  return openRequests(s).filter((r) => deadlineOf(s, r, now).overdue);
+}
+
+/** Ordena por urgencia real: primero lo vencido, luego lo que menos tiempo tiene. */
+export function byDeadline(s: AppState, now = Date.now()) {
+  return (a: ServiceRequest, b: ServiceRequest) => {
+    const da = deadlineOf(s, a, now).remainingMs;
+    const db = deadlineOf(s, b, now).remainingMs;
+    // Lo que aún no tiene plazo va al final: nadie lo ha comprometido.
+    if (da === null && db === null) return 0;
+    if (da === null) return 1;
+    if (db === null) return -1;
+    return da - db;
+  };
 }

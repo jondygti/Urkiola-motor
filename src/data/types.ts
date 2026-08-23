@@ -147,6 +147,20 @@ export interface ServiceRequest {
   id: Id;
   type: RequestType;
   vehicleId: Id;
+  /**
+   * Fecha límite del servicio.
+   *
+   * - Traslado: 48 h desde que el transportista recoge las llaves, así que
+   *   no existe hasta la recogida.
+   * - Preparación: 48 h desde que el comercial la solicita, que es el
+   *   plazo mínimo que tiene que dar.
+   *
+   * Se guarda calculada, no se recalcula: si mañana cambia el plazo en
+   * Administración, lo ya comprometido no se mueve.
+   */
+  dueAt: ISODate | null;
+  /** Cuándo se recogieron las llaves (solo traslados). */
+  pickedUpAt: ISODate | null;
   /** Sede responsable de atender la solicitud. */
   siteId: Id;
   from: LocationRef | null;
@@ -496,6 +510,10 @@ export interface AdminConfig {
   staleCheckHours: number;
   waitReasons: string[];
   requirements: Requirement[];
+  /** Horas que tiene el transportista desde que recoge las llaves. */
+  transferDeadlineHours: number;
+  /** Horas de preparación que como mínimo debe dar el comercial. */
+  prepDeadlineHours: number;
   /** Campos propios de vehículo. */
   customFields: CustomField[];
   /** Qué columnas se ven en la lista de flota y en qué orden. */
