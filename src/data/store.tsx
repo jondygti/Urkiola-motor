@@ -11,6 +11,26 @@ const STATE_KEY = 'urkiola.state.v1';
 const QUEUE_KEY = 'urkiola.queue.v1';
 const SESSION_KEY = 'urkiola.session.v1';
 
+/**
+ * Versión del modelo de datos guardado en el dispositivo.
+ *
+ * **Hay que subirla cada vez que cambie el modelo o la configuración de
+ * serie** (roles, permisos, requisitos, campos…). Si no, quien ya tenga
+ * datos guardados de una versión anterior seguirá viendo la configuración
+ * vieja y las novedades no le llegarán nunca.
+ *
+ * Al detectar una versión distinta se descarta lo guardado: en modo
+ * demostración se vuelve al parque de ejemplo, y con backend se recarga
+ * del servidor, que es quien manda. Los comandos pendientes de subir NO se
+ * tocan: son trabajo de la persona, no caché.
+ */
+const STATE_SCHEMA_VERSION = 2;
+
+interface StoredState {
+  v: number;
+  state: AppState;
+}
+
 /** Cada cuánto se reintenta la subida mientras haya pendientes. */
 const RETRY_MS = 30_000;
 
@@ -90,7 +110,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (!ready || !dirty.current) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      AsyncStorage.setItem(STATE_KEY, JSON.stringify(state)).catch(() => undefined);
+      const payload: StoredState = { v: STATE_SCHEMA_VERSION, state };
+      AsyncStorage.setItem(STATE_KEY, JSON.stringify(payload)).catch(() => undefined);
     }, 600);
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -176,10 +197,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         //    usable aunque no haya cobertura en este momento.
         let local: AppState | null = null;
         if (savedState) {
-          const parsed = JSON.parse(savedState) as AppState;
-          if (parsed?.vehicles?.length) {
-            local = parsed;
-            if (!cancelled) setState(parsed);
+          const parsed = JSON.parse(savedState) as StoredState | AppState;
+          // Sin número de versión es de una versión anterior al versionado.
+          const version = (parsed as StoredState)?.v ?? 0;
+          const candidate = version ? (parsed as StoredState).state : (parsed as AppState);
+
+          if (version !== STATE_SCHEMA_VERSION) {
+            // Modelo antiguo: se descarta para no arrastrar configuración
+            // caducada (roles, permisos, requisitos…).
+            await AsyncStorage.removeItem(STATE_KEY).catch(() => undefined);
+            dirty.current = true;
+          } else if (candidate?.vehicles?.length) {
+            local = candidate;
+            if (!cancelled) setState(candidate);
           }
         }
 

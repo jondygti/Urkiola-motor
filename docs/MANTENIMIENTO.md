@@ -140,6 +140,32 @@ Antes de cada migración en producción: **copia de seguridad**. Siempre.
 
 ---
 
+## 4 bis · Cuando cambia la configuración de serie
+
+Hay un caso fácil de pasar por alto y que ya nos mordió una vez: la app
+guarda una copia del estado en el dispositivo, y ahí dentro va la
+**configuración** (roles, permisos, requisitos, campos propios). Si cambias
+un rol de serie en el código y no haces nada más, quien ya tenga datos
+guardados seguirá viendo la configuración vieja para siempre. En pruebas no
+se nota, porque un navegador limpio siempre coge lo último.
+
+Por eso existe `STATE_SCHEMA_VERSION` en `src/data/store.tsx`:
+
+```ts
+const STATE_SCHEMA_VERSION = 2;
+```
+
+**Súbela cada vez que cambies el modelo de datos o la configuración de
+serie.** Al arrancar, la app compara la versión guardada con esa: si no
+coinciden, descarta lo local y vuelve a partir de cero (en demostración,
+del parque de ejemplo; con backend, de lo que diga el servidor). Los
+comandos pendientes de subir no se tocan nunca: son trabajo de la persona,
+no caché.
+
+En producción esto no pierde nada, porque el servidor manda. En modo
+demostración sí se pierden las pruebas que hubiera hecho el usuario, y es
+lo correcto: vale más eso que arrastrar una configuración caducada.
+
 ## 5 · Entornos
 
 Tres, y ya están previstos en `eas.json`:
@@ -314,3 +340,4 @@ Lista corta para no dejarse nada:
 - [ ] Primera prueba de restauración
 - [ ] Versión mínima soportada en la API y en la app
 - [ ] Registro de errores del backend en algún sitio que alguien mire
+- [ ] Recordar subir `STATE_SCHEMA_VERSION` al cambiar el modelo o los roles
