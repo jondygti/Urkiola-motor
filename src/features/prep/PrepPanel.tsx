@@ -29,6 +29,7 @@ import {
 } from '@/data/types';
 import { PrepStatePill } from '@/features/common/bits';
 import { usePerms } from '@/features/common/Guard';
+import { FinishPrepModal } from './FinishPrep';
 
 const STATE_LABEL: Record<CheckState, string> = {
   completado: '✅ Completado',
@@ -53,6 +54,7 @@ export function PrepPanel({
   // Sin permiso para trabajar en preparaciones, el panel es de solo lectura.
   const puedeEjecutar = can('preparacion.ejecutar');
   const [pauseOpen, setPauseOpen] = useState(false);
+  const [finishOpen, setFinishOpen] = useState(false);
   const [reason, setReason] = useState(state.config.waitReasons[0]);
   const [blocked, setBlocked] = useState(false);
 
@@ -214,7 +216,7 @@ export function PrepPanel({
           </Btn>
         ) : null}
         {!finished && puedeEjecutar ? (
-          <Btn variant="primary" small={compact} onPress={() => run({ type: 'prep.finish', prepId: prep.id })}>
+          <Btn variant="primary" small={compact} onPress={() => setFinishOpen(true)}>
             ✓ Finalizar preparación
           </Btn>
         ) : finished ? (
@@ -229,6 +231,8 @@ export function PrepPanel({
         Los requisitos «no requerido» no cuentan en el porcentaje ni bloquean la entrega. «Preentrega cliente»
         es un simple check y no tiene cronómetro propio.
       </Muted>
+
+      <FinishPrepModal prep={prep} visible={finishOpen} onClose={() => setFinishOpen(false)} />
 
       <Modal
         visible={pauseOpen}

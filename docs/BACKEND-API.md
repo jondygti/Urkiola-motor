@@ -53,6 +53,13 @@ El campo `id` de cada comando es único: el servidor debe **ignorar
 comandos repetidos** (idempotencia) para que un reintento tras un fallo de
 red no duplique un movimiento.
 
+Un comando puede generar otro por dentro. `prep.finish` con destino
+(`to`) registra además el movimiento del vehículo, y ese movimiento lleva
+el id del comando con el sufijo `-mov`. Si el backend ejecuta
+`applyCommand` no hay nada que hacer: sale solo, y con el mismo id, así que
+un reintento sigue sin duplicar nada. Si se reimplementa la lógica en otro
+lenguaje, hay que respetar esa composición.
+
 ## Trabajo sin cobertura: lo que el servidor tiene que cumplir
 
 La app ya está construida para funcionar en sótanos y zonas sin señal, así
@@ -108,7 +115,8 @@ que esto **no es opcional**, es parte del contrato:
 | `vehicle.check` | Comprobación física suelta (actualiza última comprobación) |
 | `movement.register` | Registra un movimiento y actualiza la ubicación |
 | `request.create` / `request.update` | Solicitudes de traslado y preparación |
-| `prep.create` / `prep.start` / `prep.pause` / `prep.resume` / `prep.finish` | Ciclo de vida de una preparación |
+| `prep.create` / `prep.start` / `prep.pause` / `prep.resume` | Ciclo de vida de una preparación |
+| `prep.finish` | Cierra la preparación. Con `to` opcional: deja el vehículo en esa ubicación y genera el movimiento |
 | `prep.item` | Cambia un requisito a completado / pendiente / no requerido |
 | `count.create` / `count.finding` / `count.close` | Recuentos de flota |
 | `incident.create` / `incident.close` | Incidencias |
@@ -141,7 +149,8 @@ permiso correspondiente:
 | `vehicle.setDelivery` | `entregas.gestionar` |
 | `carrier.upsert`, `carrier.delete` | `admin.configurar` |
 | `prep.create` | `preparacion.gestionar` |
-| `prep.start` / `pause` / `resume` / `finish` / `item` | `preparacion.ejecutar` |
+| `prep.start` / `pause` / `resume` / `item` | `preparacion.ejecutar` |
+| `prep.finish` | `preparacion.ejecutar`; si trae `to`, también `movimientos.registrar` |
 | `count.*` | `recuentos.ejecutar` |
 | `incident.create` | `incidencias.crear` |
 | `incident.close` | `incidencias.cerrar` |

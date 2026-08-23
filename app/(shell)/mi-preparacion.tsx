@@ -24,6 +24,7 @@ import { formatDuration, formatShortDuration, siteName, vehicleName, vehicleRef 
 import type { CheckState, Preparation, ServiceRequest } from '@/data/types';
 import { ScreenGuard, usePerms } from '@/features/common/Guard';
 import { DeadlineChip } from '@/features/common/DeadlineChip';
+import { FinishPrepModal } from '@/features/prep/FinishPrep';
 
 /**
  * Pantalla de trabajo del preparador.
@@ -175,6 +176,7 @@ function WorkModal({
   const now = useTicker(1000);
   const { can } = usePerms();
   const [pauseOpen, setPauseOpen] = useState(false);
+  const [finishOpen, setFinishOpen] = useState(false);
   const [reason, setReason] = useState(state.config.waitReasons[0]);
 
   const vehicle = state.vehicles.find((v) => v.id === prep.vehicleId);
@@ -211,14 +213,7 @@ function WorkModal({
                 ▶ {prep.startedAt ? 'Reanudar' : 'Empezar'}
               </Btn>
             )}
-            <Btn
-              variant={pendientes === 0 ? 'primary' : 'default'}
-              full
-              onPress={() => {
-                run({ type: 'prep.finish', prepId: prep.id });
-                onDone(`${vehicle ? vehicleRef(vehicle) : 'Vehículo'} listo para entrega.`);
-              }}
-            >
+            <Btn variant={pendientes === 0 ? 'primary' : 'default'} full onPress={() => setFinishOpen(true)}>
               {pendientes === 0 ? '✓ Terminar · todo hecho' : `✓ Terminar (quedan ${pendientes})`}
             </Btn>
           </>
@@ -336,6 +331,13 @@ function WorkModal({
         Pulsa una línea para marcarla o desmarcarla. Los requisitos «no requerido» no cuentan y se
         configuran desde la web.
       </Muted>
+
+      <FinishPrepModal
+        prep={prep}
+        visible={finishOpen}
+        onClose={() => setFinishOpen(false)}
+        onDone={onDone}
+      />
 
       <Modal
         visible={pauseOpen}

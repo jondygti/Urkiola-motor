@@ -79,7 +79,15 @@ export type Command =
   | { type: 'prep.start'; id: Id; at: string; userId: Id; prepId: Id }
   | { type: 'prep.pause'; id: Id; at: string; userId: Id; prepId: Id; reason: string; blocked?: boolean }
   | { type: 'prep.resume'; id: Id; at: string; userId: Id; prepId: Id }
-  | { type: 'prep.finish'; id: Id; at: string; userId: Id; prepId: Id }
+  | {
+      type: 'prep.finish';
+      id: Id;
+      at: string;
+      userId: Id;
+      prepId: Id;
+      /** Dónde deja el coche el preparador. Opcional: si no lo dice, no se mueve. */
+      to?: LocationRef;
+    }
   | { type: 'prep.item'; id: Id; at: string; userId: Id; prepId: Id; requirementId: Id; state: CheckState }
   | { type: 'count.create'; id: Id; at: string; userId: Id; siteId: Id; zoneId: Id | null; code: string }
   | { type: 'count.finding'; id: Id; at: string; userId: Id; countId: Id; vehicleId: Id; positionId?: Id | null }
@@ -565,11 +573,26 @@ export function applyCommand(state: AppState, cmd: Command): AppState {
     case 'prep.finish': {
       const p = state.preparations.find((x) => x.id === cmd.prepId);
       if (!p) return state;
+      // Si el preparador dice dónde deja el coche, el movimiento se registra
+      // antes de cerrar: así la ficha no se queda diciendo que sigue en el
+      // taller. Es el mismo comando de siempre, con un id derivado del de
+      // esta orden para que un reintento no duplique el movimiento.
+      const base: AppState = cmd.to
+        ? applyCommand(state, {
+            type: 'movement.register',
+            id: `${cmd.id}-mov`,
+            at: cmd.at,
+            userId: cmd.userId,
+            vehicleId: p.vehicleId,
+            to: cmd.to,
+            note: 'Ubicación al terminar la preparación',
+          })
+        : state;
       const ranMs = p.runningSince ? Date.now() - new Date(p.runningSince).getTime() : 0;
       const items = p.items.map((i) => (i.state === 'pendiente' ? { ...i, state: 'completado' as CheckState } : i));
       let next: AppState = {
-        ...state,
-        preparations: replace(state.preparations, cmd.prepId, {
+        ...base,
+        preparations: replace(base.preparations, cmd.prepId, {
           runState: 'terminado',
           phase: 'apto_entrega',
           items,
@@ -579,14 +602,14 @@ export function applyCommand(state: AppState, cmd: Command): AppState {
           waitReason: null,
           finishedAt: cmd.at,
         }),
-        vehicles: replace(state.vehicles, p.vehicleId, { status: 'apto_entrega' }),
+        vehicles: replace(base.vehicles, p.vehicleId, { status: 'apto_entrega' }),
       };
       const openReq = next.requests.find(
         (r) => r.vehicleId === p.vehicleId && r.type === 'preparacion' && r.status !== 'terminada'
       );
       if (openReq) next = { ...next, requests: replace(next.requests, openReq.id, { status: 'terminada' }) };
 
-      const v = state.vehicles.find((x) => x.id === p.vehicleId) ?? null;
+      const v = next.vehicles.find((x) => x.id === p.vehicleId) ?? null;
       next = fireRules(next, 'preparacion_terminada', v, {
         siteId: p.siteId,
         body: `${v ? vehicleTitle(v) : 'Vehículo'} apto para entrega en ${siteName(state, p.siteId)}.`,
@@ -595,7 +618,9 @@ export function applyCommand(state: AppState, cmd: Command): AppState {
         vehicleId: p.vehicleId,
         kind: 'preparacion',
         title: 'Preparación terminada · apto entrega',
-        detail: userName(state, cmd.userId),
+        detail: cmd.to
+          ? `${userName(state, cmd.userId)} · lo deja en ${locationLabel(next, cmd.to, true)}`
+          : userName(state, cmd.userId),
         at: cmd.at,
         userId: cmd.userId,
       });

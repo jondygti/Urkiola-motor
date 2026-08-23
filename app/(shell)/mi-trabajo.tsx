@@ -287,6 +287,7 @@ export default function MyWorkScreen() {
 
       <Panel title="Accesos rápidos">
         <Toolbar>
+          <Btn variant="primary" onPress={() => router.push('/mover')}>📍 Mover coche</Btn>
           <Btn onPress={() => router.push('/recuentos')}>📋 Recuento</Btn>
           <Btn onPress={() => router.push('/recepcion')}>🚚 Recepción</Btn>
           <Btn onPress={() => router.push('/campa')}>📍 Campa</Btn>

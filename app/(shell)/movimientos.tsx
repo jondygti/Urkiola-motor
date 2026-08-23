@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import {
@@ -32,6 +33,7 @@ export default function MovementsScreen() {
   const state = useAppState();
   const { c } = useTheme();
   const openVehicle = useOpenVehicle();
+  const router = useRouter();
 
   const [site, setSite] = useState(ALL);
   const [kind, setKind] = useState(ALL);
@@ -138,6 +140,7 @@ export default function MovementsScreen() {
           <Btn variant="primary" onPress={() => setPickerOpen(true)}>
             📍 Registrar movimiento
           </Btn>
+          <Btn onPress={() => router.push('/mover')}>⚡ Mover en cadena</Btn>
         </IfCan>
         <Select
           value={site}

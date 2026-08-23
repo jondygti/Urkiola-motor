@@ -116,6 +116,11 @@ deliberadamente más corta que la web**: abre en el trabajo del día y enseña
 solo tres o cuatro secciones. El detalle está en
 [`docs/PANTALLAS.md`](docs/PANTALLAS.md).
 
+Lo que más se repite tiene su propia pantalla corta: **mover un coche** es
+matrícula (o bastidor, o escanear), dónde lo dejas y botón. El destino se
+queda puesto para el siguiente, que es como se baja media tejavana sin
+volver a tocar la pantalla.
+
 ## Funciona sin cobertura
 
 En campa y en sótanos no siempre hay señal, así que la app está pensada
@@ -164,3 +169,8 @@ Salen del mockup y se han mantenido tal cual:
 - **Los traslados se encargan a una empresa de transporte** según la zona
   (Bizkaia / fuera). La app propone cuál por la ruta, y cada transportista
   ve solo los de su empresa.
+- **Al terminar una preparación se dice dónde queda el coche**, y eso
+  registra el movimiento en el mismo gesto: la ficha no se queda diciendo
+  que sigue en el box cuando ya está en el parking de entregas.
+- **La plaza concreta siempre es opcional.** La zona basta para que cuadre
+  la ocupación, y una plaza inventada es peor que ninguna.

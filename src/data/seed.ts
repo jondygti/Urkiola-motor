@@ -115,14 +115,14 @@ export const ROLES: RoleConfig[] = [
     id: 'admin',
     label: 'Administrador',
     permissions: [...ALL_PERMISSIONS],
-    mobileSections: ['/mi-trabajo', '/flota', '/solicitudes', '/recuentos', '/incidencias'],
+    mobileSections: ['/mi-trabajo', '/mover', '/flota', '/solicitudes', '/recuentos', '/incidencias'],
     builtin: true,
   },
   {
     id: 'logistica',
     label: 'Logística',
     permissions: ALL_PERMISSIONS.filter((p) => p !== 'admin.configurar'),
-    mobileSections: ['/mi-trabajo', '/entregas', '/solicitudes', '/flota', '/recuentos'],
+    mobileSections: ['/mi-trabajo', '/mover', '/entregas', '/solicitudes', '/flota'],
     builtin: true,
   },
   {
@@ -138,7 +138,7 @@ export const ROLES: RoleConfig[] = [
       'incidencias.crear',
     ],
     // En el móvil entra directo a su cola de trabajo.
-    mobileSections: ['/mi-preparacion', '/mi-trabajo', '/flota'],
+    mobileSections: ['/mi-preparacion', '/mover', '/mi-trabajo', '/flota'],
     builtin: true,
   },
   {
@@ -163,7 +163,7 @@ export const ROLES: RoleConfig[] = [
       'recuentos.ejecutar',
     ],
     // En el móvil entra directo a la descarga del camión.
-    mobileSections: ['/mi-recepcion', '/mi-trabajo', '/flota', '/recuentos'],
+    mobileSections: ['/mi-recepcion', '/mover', '/mi-trabajo', '/flota'],
     builtin: true,
   },
   {

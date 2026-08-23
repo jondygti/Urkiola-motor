@@ -113,6 +113,10 @@ export function Input({
   autoCapitalize = 'sentences',
   secureTextEntry,
   small,
+  big,
+  autoFocus,
+  onSubmitEditing,
+  returnKeyType,
 }: {
   value: string;
   onChangeText: (v: string) => void;
@@ -122,6 +126,12 @@ export function Input({
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   secureTextEntry?: boolean;
   small?: boolean;
+  /** Campo de matrícula: letra grande, para leerlo de un vistazo en campa. */
+  big?: boolean;
+  autoFocus?: boolean;
+  /** Enter en el teclado: encadena sin levantar la mano de la pantalla. */
+  onSubmitEditing?: () => void;
+  returnKeyType?: 'done' | 'go' | 'next' | 'search' | 'send';
 }) {
   const { c } = useTheme();
   return (
@@ -134,14 +144,19 @@ export function Input({
       keyboardType={keyboardType}
       autoCapitalize={autoCapitalize}
       secureTextEntry={secureTextEntry}
+      autoFocus={autoFocus}
+      onSubmitEditing={onSubmitEditing}
+      returnKeyType={returnKeyType ?? (onSubmitEditing ? 'go' : undefined)}
       style={{
         borderWidth: 1,
         borderColor: c.border,
         backgroundColor: c.surface,
         borderRadius: radius.md,
-        paddingVertical: small ? 6 : 10,
+        paddingVertical: small ? 6 : big ? 14 : 10,
         paddingHorizontal: small ? 8 : 12,
-        fontSize: small ? 12 : 13,
+        fontSize: small ? 12 : big ? 22 : 13,
+        fontWeight: big ? '800' : '400',
+        letterSpacing: big ? 1 : undefined,
         color: c.text,
         minHeight: multiline ? 84 : undefined,
         textAlignVertical: multiline ? 'top' : 'center',

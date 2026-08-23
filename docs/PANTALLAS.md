@@ -12,7 +12,8 @@ y dónde está ahora.
 | 📍 Campa Sondika | `/campa` | `app/(shell)/campa.tsx` | Sirve para cualquier sede y zona; ocupación por tejavana/parking; plaza a plaza |
 | 📋 Solicitudes | `/solicitudes` | `app/(shell)/solicitudes.tsx` | Cambio de estado, asignación a persona y apertura de la preparación desde la propia solicitud |
 | 🧽 Preparación | `/preparacion` | `app/(shell)/preparacion.tsx` | Cronómetros en marcha, SLA calculado, checklist de tres estados, motivos de espera y bloqueo |
-| ↔ Movimientos | `/movimientos` | `app/(shell)/movimientos.tsx` | Alta de movimiento buscando por matrícula o VIN-8 |
+| ↔ Movimientos | `/movimientos` | `app/(shell)/movimientos.tsx` | Histórico con filtros y alta de movimiento buscando por matrícula o VIN-8 |
+| *(nuevo)* 📍 Mover coche | `/mover` | `app/(shell)/mover.tsx` | Alta de movimientos en cadena, pensada para el móvil: matrícula y destino, sin tablas |
 | 📋 Recuentos | `/recuentos` | `app/(shell)/recuentos.tsx` | Recuento real: esperados/encontrados/faltan, escaneo con cámara en móvil, corrección de plaza, histórico |
 | ⚠ Incidencias | `/incidencias` | `app/(shell)/incidencias.tsx` | Alta con fotos de cámara o galería, cierre de incidencia |
 | 🔔 Notificaciones | `/notificaciones` | `app/(shell)/notificaciones.tsx` | Bandeja de avisos + reglas configurables; alta, pausa y borrado; alta de push en el dispositivo |
@@ -62,15 +63,15 @@ Por ejemplo, con la configuración de serie:
 
 | Rol | Menú del móvil | Abre en |
 |---|---|---|
-| Preparador | Mi preparación · Mi trabajo · Flota | Su cola de trabajo |
-| Recepción | Descargar camión · Mi trabajo · Flota · Recuentos | La descarga en curso |
+| Preparador | Mi preparación · Mover coche · Mi trabajo · Flota | Su cola de trabajo |
+| Recepción | Descargar camión · Mover coche · Mi trabajo · Flota | La descarga en curso |
 | Transportista (externo) | Solo «Mis traslados», sin menú | Sus traslados |
 | Comercial | Mi trabajo · Flota | Su trabajo del día |
 
 ### Pantallas rápidas de campo
 
-Tres pantallas están hechas para el móvil y para ir deprisa, con la versión
-completa siempre disponible en la web:
+Cinco pantallas están hechas para el móvil y para ir deprisa, con la
+versión completa siempre disponible en la web:
 
 | Pantalla | Para quién | Cómo funciona |
 |---|---|---|
@@ -78,10 +79,36 @@ completa siempre disponible en la web:
 | `/entregas` | Comercial y logística | Entregas comprometidas agrupadas por día, con lo que le falta a cada una |
 | `/mi-preparacion` | Preparador | Cola ordenada por plazo; al abrir, cronómetro y checklist donde **cada línea se marca de un toque** |
 | `/mi-recepcion` | Recepción | Bucle de descarga: identificar, plaza propuesta automáticamente y «Descargado · siguiente» |
+| `/mover` | Cualquiera que mueva coches | Matrícula o bastidor, dónde lo dejas, y a por el siguiente |
 
 En la descarga, la zona que se propone es **la primera que tenga hueco**, no
 la primera de la lista; y si se llena a media descarga, ofrece saltar a la
 siguiente con plazas libres.
+
+#### Mover un coche
+
+Es la pantalla más corta de todas, porque es la acción que más se repite:
+
+1. **Matrícula o bastidor** — escrito o escaneado. Debajo aparece el coche
+   y dónde está ahora, para no equivocarse de vehículo.
+2. **Dónde lo dejas** — los tres últimos sitios donde ha dejado coches esa
+   persona salen como atajo de un toque; si no, sede y zona.
+3. **Mover** — el botón dice a dónde va, y al pulsarlo el campo se vacía
+   **manteniendo el destino**: se bajan seis coches seguidos a la misma
+   tejavana sin volver a tocar nada. Abajo queda la cuenta de lo movido.
+
+La plaza concreta es opcional a propósito. Al mover por la campa casi nadie
+apunta el número de plaza, y una plaza inventada es peor que ninguna:
+dejaría ocupado un hueco que está libre. Con la zona basta para que cuadre
+la ocupación.
+
+#### Terminar una preparación
+
+Al dar por terminada una preparación, la app pregunta **dónde queda el
+coche** y lo registra como movimiento en el mismo gesto. Si el coche ya
+está en la sede, ofrece «se queda donde está» de un toque; y siempre se
+puede terminar sin indicar sitio. Así la ficha no se queda diciendo que el
+coche sigue en el box cuando ya está en el parking de entregas.
 
 En la web, ese mismo preparador sí ve diez secciones. Es la misma app: lo
 que cambia es cuánto enseña en cada sitio.
