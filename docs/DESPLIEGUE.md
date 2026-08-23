@@ -1,168 +1,205 @@
 # Dónde alojar Urkiola Car Service
 
-**Decisión tomada: Arsys**, un VPS con centro de datos en España y soporte
-24/7 en castellano. Este documento recoge el porqué, qué hay que contratar
-y cómo se despliega.
+**Decisión: Railway + Supabase.** Sustituye a la decisión anterior (un VPS
+en Arsys), que sigue documentada abajo como alternativa porque el proyecto
+no depende de ninguna de las dos.
 
-## Por qué Arsys y no otra cosa
+## Por qué ha cambiado
 
-El requisito que decidió fue **tener soporte en español**. Con eso encima
-de la mesa:
+La razón para elegir Arsys fue el **soporte en castellano**: si nadie en
+Urkiola iba a administrar un servidor, había que poder llamar a alguien.
 
-| Opción | Por qué se descartó |
+Ahora la premisa es otra: el sistema lo lleváis vosotros conmigo. Eso
+cambia la pregunta. Ya no se trata de a quién llamar cuando falle el
+servidor, sino de **no tener servidor que falle**:
+
+| Con un VPS (Arsys) | Con Railway + Supabase |
 |---|---|
-| **AWS** (`eu-south-2`, lo previsto en el mockup) | 200-400 €/mes y un proyecto de infraestructura en sí mismo. Para 5 sedes y unas decenas de usuarios no lo justifica nada |
-| **Hetzner** | Lo más barato del mercado (~20 €/mes), pero solo atiende en alemán e inglés |
-| **PaaS** (Railway, Render, Fly.io) | Cómodo, pero soporte en inglés y el coste crece rápido |
-| **Supabase** | Ahorra backend, pero ata el modelo de datos y el soporte es en inglés |
-| **Dinahosting** | Igual de válido y con fama excelente de soporte, pero arranca bastante más caro |
-| **Stackscale** | Muy bueno, pensado para infraestructuras mayores; se queda grande para empezar |
+| Parches del sistema operativo, Docker, PostgreSQL | No existen: los pone el proveedor |
+| Certificado HTTPS, cortafuegos, SSH por clave | Vienen hechos |
+| Copias montadas y vigiladas por vosotros | Diarias, del proveedor, más la vuestra fuera |
+| Desplegar = `scp` y `docker compose up` | Desplegar = `git push` |
+| Soporte en español para la máquina | Soporte en inglés, por ticket |
 
-Arsys reúne las tres cosas que hacían falta: datos en España, alguien que
-coge el teléfono en castellano y un precio razonable para el tamaño real
-del proyecto.
+Lo que se pierde es el teléfono en castellano. Lo que se gana es que la
+mayor parte de las llamadas que lo harían falta ya no ocurren: no hay
+máquina que parchear ni disco que se llene.
 
-## Qué cubre —y qué no— el soporte
+## Qué es cada pieza
 
-Conviene tenerlo claro desde el principio para no llevarse un chasco en la
-primera incidencia:
-
-| Capa | Ejemplo | Quién responde |
+| Pieza | Quién | Para qué |
 |---|---|---|
-| **La máquina** | El servidor no arranca, se cayó la red, falla un disco | Arsys, incluido |
-| **El sistema** | Parches del sistema operativo, Docker, PostgreSQL, copias | Solo si se contrata **servidor gestionado** (aparte) |
-| **La aplicación** | Un fallo dentro de Urkiola Car Service | Urkiola o quien mantenga el software |
+| **Base de datos** | Supabase (PostgreSQL gestionado) | El parque, los movimientos, las preparaciones… y el registro de comandos |
+| **Fotos** | Supabase Storage | Albaranes, daños e incidencias. Sustituye al MinIO del montaje anterior |
+| **Identidad** | Supabase Auth | Contraseñas, recuperación y sesión. Los roles y permisos siguen siendo nuestros |
+| **API** | Railway | El servicio que recibe los comandos y aplica las reglas de negocio |
+| **Panel web** | Railway, servido por la propia API | Es un export estático; sale del mismo dominio y así no hay líos de CORS |
+| **App Android** | Google Play | Ver [`DISTRIBUCION.md`](DISTRIBUCION.md). Solo necesita la dirección de la API |
 
-Si en Urkiola no va a haber nadie que actualice un servidor, merece la pena
-preguntar por el servicio de **administración de sistemas**. Sube el coste
-mensual, pero evita el fallo clásico: un servidor que nadie parchea durante
-un año.
+Es a propósito que la lógica viva en la API y no en la base de datos: las
+reglas están en `src/data/commands.ts`, en TypeScript puro, y el servidor
+puede usar ese mismo fichero. Una regla escrita una vez, no dos.
 
-## Qué contratar
+## Dónde estarán los datos
 
-Para el tamaño real —unos 450 vehículos activos, 5 sedes, del orden de
-30-60 usuarios— basta con poco:
+Los dos son proveedores estadounidenses con centros de datos en Europa, así
+que hay que **elegir región europea a mano al crear cada proyecto**; por
+defecto suelen proponer Estados Unidos.
 
-| Recurso | Recomendado | Por qué |
-|---|---|---|
-| vCPU | 2-4 | La carga es baja y muy irregular |
-| RAM | 8 GB | PostgreSQL, la API, MinIO y Caddy caben de sobra |
-| Disco SSD | 120-160 GB | La base de datos crece poco; lo que crece son las fotos |
-| Sistema | Ubuntu LTS o Debian | Es lo que espera el `docker-compose.yml` |
-| Copias | Las del proveedor **más las propias** | Ver abajo |
+| Pieza | Región a elegir |
+|---|---|
+| Supabase | Frankfurt (`eu-central-1`), o Irlanda / París |
+| Railway | Europa (Ámsterdam, `europe-west4`) |
 
-Sobre el disco: la base de datos se mantendrá por debajo de 1 GB durante
-años, pero las fotos de incidencias y albaranes suman del orden de 2 GB al
-año. Con 120 GB hay margen largo, contando que las copias de seguridad
-también ocupan.
+Con datos de empleados y de clientes de por medio, además de elegir región:
+firmar el **acuerdo de tratamiento de datos (DPA)** de cada uno —los dos lo
+ofrecen— y anotarlos como encargados de tratamiento en el registro de
+actividades. Es papeleo de una tarde, pero hay que hacerlo.
 
-### Antes de firmar, pregunta esto
+## Coste
 
-1. ¿El soporte cubre solo la máquina o también el sistema operativo?
-2. ¿Horario y canal reales? Teléfono 24/7 no es lo mismo que ticket de 9 a 18.
-3. ¿Tiempo de respuesta comprometido por escrito?
-4. ¿Copias incluidas? ¿Con qué retención? ¿Se pueden restaurar solos?
+Cifras orientativas: **confirmadlas al contratar**, que estas cosas cambian
+cada pocos meses.
+
+| Concepto | Coste aproximado |
+|---|---|
+| Supabase Pro | ~25 US$/mes |
+| Railway (plan de pago, servicio pequeño) | ~5-20 US$/mes según uso |
+| Dominio | ~12 €/año |
+| Cuenta de Google Play | 25 US$ **una sola vez** |
+| EAS Build | 0 € con el plan gratuito |
+| **Total** | **≈ 30-45 US$/mes** |
+
+Dos avisos sobre el plan gratuito de Supabase: **pausa el proyecto tras una
+semana sin actividad** y no hace copias diarias. Vale para probar, no para
+producción. Para el entorno de pruebas sí sirve.
+
+Comparado con el VPS (~30-60 €/mes más el trabajo de administrarlo), sale
+parecido o más barato, y sin horas de sistemas.
 
 ## Entornos
 
-Con un solo servidor se puede tener producción y pruebas sin pagar dos
-máquinas: dos proyectos de Docker Compose separados, con **bases de datos
-distintas** y dos subdominios.
+Dos entornos desde el primer día, y **nunca la misma base de datos**:
 
-| Entorno | Dirección | Base de datos |
-|---|---|---|
-| Producción | `urkiolacarservice.com` + `/api` | `urkiola` |
-| Pruebas | `pre.urkiolacarservice.com` | `urkiola_pre`, con copia de datos reales |
+| Entorno | Railway | Supabase | Dirección |
+|---|---|---|---|
+| Producción | entorno `production` | proyecto `urkiola` (Pro) | `urkiolacarservice.com` |
+| Pruebas | entorno `staging` | proyecto `urkiola-pre` (gratis) | `pre.urkiolacarservice.com` |
 
-Lo que **nunca** debe compartirse es la base de datos. Si el proyecto crece
-y las pruebas empiezan a molestar, se separa en una segunda máquina sin
-tocar nada del código.
+Railway tiene entornos separados con sus propias variables: el mismo
+repositorio despliega en los dos, cada uno apuntando a su base de datos.
 
-## Cómo desplegar
+## Cómo se despliega
 
-```bash
-# 1. En tu equipo: generar la web
-npm run build:web          # deja el resultado en dist/
-
-# 2. Copiar al servidor
-scp -r dist deploy docker-compose.yml usuario@servidor:/opt/urkiola/
-
-# 3. En el servidor
-cd /opt/urkiola
-cp deploy/.env.example .env     # y rellenar contraseñas
-docker compose up -d
+```
+git push  →  Railway construye  →  migraciones  →  servicio nuevo en marcha
 ```
 
-Caddy pide y renueva el certificado HTTPS solo. A partir de ahí:
+Sin `scp`, sin `docker compose`, sin entrar por SSH. Railway construye desde
+la rama que se le diga y cambia al servicio nuevo cuando arranca bien; si
+falla, se queda el anterior.
 
-- panel web: `https://urkiolacarservice.com`
-- API: `https://urkiolacarservice.com/api`
-- fotos: almacenadas en MinIO, servidas por la API
+Variables del servicio de la API (en Railway → Variables):
 
-Y en la app móvil basta con apuntar `EXPO_PUBLIC_API_URL` a esa dirección
-(ver `eas.json`). Ojo: esa variable se incrusta al compilar, así que hay
-que compilar con `--clear` si se cambia.
+| Variable | Qué es |
+|---|---|
+| `DATABASE_URL` | Cadena de conexión de Supabase. Para un proceso Node de larga vida, la conexión directa o el *session pooler*, no el de transacciones |
+| `SUPABASE_URL` | Dirección del proyecto, para Storage |
+| `SUPABASE_SERVICE_ROLE_KEY` | Clave de servicio. **Solo en el servidor**, nunca en la app |
+| `SUPABASE_JWT_SECRET` | Para validar el token de sesión del usuario |
+| `ALLOWED_ORIGIN` | El dominio del panel web |
 
-### Lo primero, antes de instalar nada
+Y en la app móvil, `EXPO_PUBLIC_API_URL` apuntando a la API (ver
+`eas.json`). Ojo con lo de siempre: esa variable **se incrusta al compilar
+y Metro la cachea**, así que al cambiarla hay que compilar con `--clear`.
 
-- Cortafuegos: abrir **solo** 80, 443 y SSH.
-- SSH **con clave, no con contraseña**, y root deshabilitado.
-- Actualizaciones de seguridad automáticas del sistema.
-- La base de datos y MinIO **no** se exponen a internet: solo los ve la red
-  interna de Docker, y así está montado en `docker-compose.yml`.
+> Ninguna de estas claves va al repositorio. `secrets/` y `.env` están en
+> `.gitignore` y deben seguir estándolo.
 
 ## Copias de seguridad
 
-El `docker-compose.yml` ya hace un volcado diario de PostgreSQL con 30 días
-de retención. Dos reglas que no se pueden saltar:
+Supabase Pro hace **copias diarias con 7 días de retención**, y el punto de
+restauración continuo (PITR) es un extra de pago. Con eso no basta. Las dos
+reglas de siempre:
 
-1. **Una copia fuera del servidor.** Las que viven en la máquina se pierden
-   con la máquina. Vale otro proveedor, un disco de la oficina o el
-   almacenamiento de respaldo del propio Arsys.
-2. **Restaurar una vez al mes** en el entorno de pruebas. Una copia que
+1. **Una copia fuera de Supabase.** Un volcado semanal con `pg_dump` a otro
+   sitio —el almacenamiento de otro proveedor o un disco de la oficina—.
+   Si un día se pierde el acceso a la cuenta, las copias que viven dentro
+   se pierden con ella.
+2. **Restaurar una vez al mes** en el proyecto de pruebas. Una copia que
    nunca has restaurado no es una copia.
 
 ```bash
-gunzip -c backups/urkiola-20260822-0300.sql.gz | \
-  docker compose exec -T db psql -U urkiola urkiola
+# volcado manual desde cualquier equipo con psql instalado
+pg_dump "$DATABASE_URL" --no-owner --format=custom > urkiola-$(date +%F).dump
+
+# restaurar en el proyecto de pruebas
+pg_restore --clean --no-owner --dbname "$DATABASE_URL_PRE" urkiola-2026-08-23.dump
 ```
 
-## Coste estimado del primer año
+## Qué pasa si un día hay que irse
 
-| Concepto | Coste |
-|---|---|
-| VPS Arsys con copias | ~30-60 €/mes (confirmar en la contratación) |
-| Dominio | ~12 €/año |
-| Cuenta de Google Play | 25 US$ **una sola vez** |
-| EAS Build | 0 € (el plan gratuito basta) |
-| **Total primer año** | **≈ 500-800 €** |
+Poco, y es a propósito:
 
-Frente a los 2.400-4.800 €/año que costaría lo mismo sobre AWS en alta
-disponibilidad. La diferencia con un Hetzner (~300 €/año) son unos 300-500 €
-al año: eso es lo que cuesta que alguien te atienda en castellano, y para
-una empresa sin sistemas propios está bien gastado.
+- **La base de datos es PostgreSQL a secas.** Un `pg_dump` y a otro sitio.
+- **Las fotos** están en un almacenamiento compatible con S3; se copian con
+  cualquier cliente de S3.
+- **La lógica de negocio está en la aplicación**, no en la base de datos:
+  no hay funciones ni disparadores que reescribir. Es la razón de haberlo
+  montado con comandos desde el principio.
+- **La app no se entera.** Habla con un contrato HTTP propio
+  ([`BACKEND-API.md`](BACKEND-API.md)); cambiar de alojamiento es cambiar
+  una dirección.
 
-Si se contrata además administración de sistemas, hay que sumarlo aparte.
+Lo único que ataría de verdad sería apoyarse en las funciones específicas
+de Supabase (Edge Functions, seguridad por filas, PostgREST). No las
+usamos: la API es nuestra. La excepción es Auth, que sí es suya —a cambio
+de no escribir nosotros el guardado de contraseñas y la recuperación, que
+es justo el código que no conviene improvisar—. Si algún día hay que
+migrar, los usuarios están en una tabla de PostgreSQL como todo lo demás.
 
-## Nada de esto ata el proyecto
+## Alternativa: servidor propio
 
-Todo va en contenedores, con PostgreSQL y almacenamiento compatible con S3.
-Si algún día hay que cambiar de proveedor —o subir a AWS porque el negocio
-lo pida—, es mover contenedores y restaurar una copia, no reescribir la
-aplicación. Por eso se montó así desde el principio.
+El montaje anterior sigue en el repositorio y sigue siendo válido:
+`docker-compose.yml` (PostgreSQL + MinIO + Caddy) y `deploy/Caddyfile`.
+Tiene sentido si algún día pesa más tener los datos en una máquina
+concreta, o si el coste mensual crece por encima de lo que cuesta
+administrarla.
 
-## La parte web no necesita servidor aparte
+Lo que hay que asumir con esa opción: parches del sistema, cortafuegos
+abierto solo en 80/443/SSH, SSH con clave y root deshabilitado, copias
+montadas y vigiladas, y el certificado renovándose. Caddy hace lo último
+solo; el resto es trabajo de alguien.
 
-El panel es un export estático (`npm run build:web`). Se sirve desde el
-mismo VPS con Caddy, que es lo que ya hace `deploy/Caddyfile`. Si algún día
-interesa, también puede publicarse gratis en Cloudflare Pages o Netlify.
+```bash
+npm run build:web
+scp -r dist deploy docker-compose.yml usuario@servidor:/opt/urkiola/
+cd /opt/urkiola && cp deploy/.env.example .env && docker compose up -d
+```
 
-Importante: al ser una aplicación de una sola página con rutas como
-`/vehiculo/12345678`, el servidor tiene que devolver la página aunque el
-fichero no exista. En `deploy/Caddyfile` está resuelto con `try_files`.
+## El panel web es una página estática
 
-## La app móvil no necesita alojamiento
+`npm run build:web` deja en `dist/` una aplicación de una sola página. La
+sirve la propia API en Railway, y también podría publicarse gratis en
+Cloudflare Pages o Netlify.
 
-Se distribuye por Google Play (ver `docs/DISTRIBUCION.md`). Lo único que
-necesita del servidor es la API. Las correcciones de JavaScript se publican
-con EAS Update sin pasar por la tienda.
+Importante en cualquiera de los casos: al tener rutas como
+`/vehiculo/12345678`, el servidor **debe devolver `index.html` aunque el
+fichero no exista**. Si no, esas direcciones dan 404 al recargar. En
+`deploy/Caddyfile` está resuelto con `try_files`; en Railway lo tiene que
+hacer la API, y en Cloudflare Pages o Netlify, su regla de reescritura.
+
+## Qué hay que hacer, y en qué orden
+
+1. Crear el proyecto de Supabase **en región europea** y guardar las claves.
+2. Crear el proyecto de Railway, conectarlo al repositorio y elegir Europa.
+3. Escribir el backend contra [`BACKEND-API.md`](BACKEND-API.md) y las
+   migraciones de las tablas.
+4. Apuntar `EXPO_PUBLIC_API_URL` al dominio y compilar la app con `--clear`.
+5. Entorno de pruebas con su propio proyecto de Supabase.
+6. Volcado semanal fuera de Supabase y primera restauración de prueba.
+7. Firmar los DPA y anotar los dos proveedores en el registro de
+   tratamientos.
+
+Los puntos 3 a 6 son trabajo nuestro y están pendientes; los otros son de
+alta de cuenta.

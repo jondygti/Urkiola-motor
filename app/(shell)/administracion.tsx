@@ -259,9 +259,9 @@ Ubicación · Movimiento · Solicitud · Preparación · Incidencia · Recuento`
             <Grid cols={4} minWidth={150}>
               {[
                 { t: 'Web + App', s: 'HTTPS · mismo código' },
-                { t: 'API', s: 'Node/PostgreSQL' },
-                { t: 'Base de datos', s: 'PostgreSQL gestionado' },
-                { t: 'Fotos y albaranes', s: 'Almacenamiento S3' },
+                { t: 'API', s: 'Node en Railway (UE)' },
+                { t: 'Base de datos', s: 'PostgreSQL en Supabase' },
+                { t: 'Fotos y albaranes', s: 'Supabase Storage (S3)' },
               ].map((box) => (
                 <View
                   key={box.t}
@@ -284,16 +284,16 @@ Ubicación · Movimiento · Solicitud · Preparación · Incidencia · Recuento`
             <StatLine
               items={[
                 '🇪🇺 Datos alojados en la UE (RGPD)',
-                '🔐 Acceso por rol + doble factor en admin',
-                '🛡️ Base de datos en red privada',
-                '💾 Copias de seguridad diarias',
+                '🔐 Permisos por rol, comprobados en el servidor',
+                '🛡️ Claves de servicio solo en el servidor',
+                '💾 Copias diarias + volcado semanal fuera',
                 '📊 Registro de auditoría',
               ]}
             />
             <Spacer h={space.sm} />
             <Muted>
               Conexión actual: {apiEnabled ? API_URL : 'modo demostración (datos en el dispositivo)'}. La
-              comparativa de servidores y los pasos de despliegue están en `docs/DESPLIEGUE.md`.
+              comparativa de alojamientos y los pasos de despliegue están en `docs/DESPLIEGUE.md`.
             </Muted>
           </Panel>
 

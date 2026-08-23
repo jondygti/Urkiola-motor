@@ -71,7 +71,7 @@ src/
     prep/                 Panel de preparación con cronómetros y checklist
     scan/                 Lectura de códigos (cámara en Android)
     common/               Píldoras de estado y celdas reutilizables
-deploy/                   Caddy y variables para el servidor
+deploy/                   Caddy y variables para la opción de servidor propio
 docs/                     Documentación
 scripts/generate-icons.mjs  Genera los iconos de marca
 ```
@@ -84,7 +84,8 @@ negocio se escriben una sola vez.
 ## Documentación
 
 - [`docs/DESPLIEGUE.md`](docs/DESPLIEGUE.md) — **dónde alojarlo**: por qué
-  Arsys, qué contratar, cómo desplegar y copias de seguridad.
+  Railway y Supabase, qué contratar, cómo desplegar, copias de seguridad y
+  la alternativa de servidor propio.
 - [`docs/DISTRIBUCION.md`](docs/DISTRIBUCION.md) — publicar en Google Play:
   canales, ficha, plazos y cómo actualizar sin pasar por revisión.
 - [`docs/BACKEND-API.md`](docs/BACKEND-API.md) — contrato de la API,

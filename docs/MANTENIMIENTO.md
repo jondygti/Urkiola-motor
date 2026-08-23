@@ -41,11 +41,18 @@ que sepa hacer ahí es una petición que no llega al programador.
 ### La web
 
 ```bash
+git push        # Railway construye y publica; la web va dentro del servicio
+```
+
+Los usuarios lo ven al recargar la página. Sin interrupción del servicio:
+Railway solo cambia al despliegue nuevo cuando arranca bien.
+
+Con la opción de servidor propio son dos órdenes en vez de una:
+
+```bash
 npm run build:web                       # genera dist/
 scp -r dist usuario@servidor:/opt/urkiola/
 ```
-
-Los usuarios lo ven al recargar la página. Sin interrupción del servicio.
 
 ### El móvil, sin pasar por las tiendas
 
@@ -211,21 +218,22 @@ como la nueva, así que se despliega primero y no rompe a nadie.
 
 ### Copias
 
-El `docker-compose.yml` incluye un servicio `backup` que hace un volcado
-diario de PostgreSQL en `./backups/` y borra los de más de 30 días.
+Supabase hace copias diarias con 7 días de retención en el plan Pro. Eso
+cubre el «se ha borrado algo esta semana», no el «hemos perdido la cuenta».
 
 **Una copia que nunca has restaurado no es una copia.** Una vez al mes,
-restaura la última en el entorno de pruebas y comprueba que la aplicación
+restaura la última en el proyecto de pruebas y comprueba que la aplicación
 arranca con esos datos:
 
 ```bash
-gunzip -c backups/urkiola-20260822-0300.sql.gz | \
-  docker compose exec -T db psql -U urkiola urkiola
+pg_dump "$DATABASE_URL" --no-owner --format=custom > urkiola-$(date +%F).dump
+pg_restore --clean --no-owner --dbname "$DATABASE_URL_PRE" urkiola-2026-08-23.dump
 ```
 
-Guarda además una copia **fuera del servidor** (otro proveedor, un disco de
-la oficina). Si se pierde el servidor entero, las copias que viven en él se
-pierden con él.
+Guarda además una copia **fuera de Supabase** (otro proveedor, un disco de
+la oficina), semanal. Si se pierde el acceso a la cuenta, las copias que
+viven dentro se pierden con ella. Con servidor propio vale lo mismo
+cambiando Supabase por la máquina.
 
 ### Volver atrás
 
@@ -336,7 +344,7 @@ Lista corta para no dejarse nada:
 - [ ] Descargar y guardar las credenciales (`eas credentials`)
 - [ ] Migraciones de base de datos desde la primera tabla
 - [ ] Entorno de pruebas con su propia base de datos
-- [ ] Copias de seguridad fuera del servidor
+- [ ] Copias de seguridad fuera del proveedor
 - [ ] Primera prueba de restauración
 - [ ] Versión mínima soportada en la API y en la app
 - [ ] Registro de errores del backend en algún sitio que alguien mire
