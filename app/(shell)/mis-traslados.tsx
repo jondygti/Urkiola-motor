@@ -17,7 +17,7 @@ import {
   useTheme,
 } from '@/ui';
 import { useStore } from '@/data/store';
-import { deadlineOf, myTransfers } from '@/data/selectors';
+import { carrierName, deadlineOf, myTransfers } from '@/data/selectors';
 import { formatDateTime, locationLabel, timeAgo, vehicleName, vehicleRef } from '@/data/format';
 import type { ServiceRequest, Vehicle } from '@/data/types';
 import { ScreenGuard } from '@/features/common/Guard';
@@ -128,6 +128,11 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
 
       <Leg label="RECOGER EN" value={locationLabel(state, request.from)} icon="📍" />
       <Leg label="ENTREGAR EN" value={locationLabel(state, request.to)} icon="🏁" />
+      {request.carrierId ? (
+        <Text style={{ fontSize: 11, color: c.textFaint, marginTop: 4 }}>
+          Encargado a {carrierName(state, request.carrierId)}
+        </Text>
+      ) : null}
 
       {request.note ? (
         <>

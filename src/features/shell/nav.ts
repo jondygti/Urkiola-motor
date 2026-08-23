@@ -23,6 +23,13 @@ export const NAV: NavGroup[] = [
     items: [
       { href: '/', label: 'Dashboard', icon: '▦', short: 'Panel' },
       { href: '/flota', label: 'Flota', icon: '🚗', short: 'Flota', anyOf: ['flota.ver'] },
+      {
+        href: '/entregas',
+        label: 'Entregas',
+        icon: '📅',
+        short: 'Entregas',
+        anyOf: ['entregas.gestionar', 'solicitudes.gestionar'],
+      },
     ],
   },
   {

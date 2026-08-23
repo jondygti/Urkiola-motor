@@ -158,3 +158,9 @@ Salen del mockup y se han mantenido tal cual:
   debe dar **48 h mínimo** para preparar un vehículo. El objetivo de 2 h es
   cuánto debe durar el trabajo; las 48 h son cuándo tiene que estar. Las dos
   cifras se configuran por separado.
+- **La fecha de entrega al cliente manda sobre el plazo por defecto**, y
+  pedir una preparación con menos de 48 h de margen avisa y obliga a
+  confirmar.
+- **Los traslados se encargan a una empresa de transporte** según la zona
+  (Bizkaia / fuera). La app propone cuál por la ruta, y cada transportista
+  ve solo los de su empresa.

@@ -32,6 +32,7 @@ import type {
   Vehicle,
   Zone,
   CustomField,
+  Carrier,
 } from './types';
 import { CONFIG } from './seed';
 import { locationLabel, siteName, userName, vehicleTitle } from './format';
@@ -61,8 +62,19 @@ export type Command =
       to: LocationRef | null;
       urgent?: boolean;
       note?: string;
+      /** Empresa de transporte, solo para traslados. */
+      carrierId?: Id | null;
     }
-  | { type: 'request.update'; id: Id; at: string; userId: Id; requestId: Id; status: RequestStatus; assignedTo?: Id | null }
+  | {
+      type: 'request.update';
+      id: Id;
+      at: string;
+      userId: Id;
+      requestId: Id;
+      status: RequestStatus;
+      assignedTo?: Id | null;
+      carrierId?: Id | null;
+    }
   | { type: 'prep.create'; id: Id; at: string; userId: Id; vehicleId: Id; siteId: Id; preparerId?: Id | null }
   | { type: 'prep.start'; id: Id; at: string; userId: Id; prepId: Id }
   | { type: 'prep.pause'; id: Id; at: string; userId: Id; prepId: Id; reason: string; blocked?: boolean }
@@ -119,6 +131,16 @@ export type Command =
   | { type: 'customField.upsert'; id: Id; at: string; userId: Id; field: CustomField }
   | { type: 'customField.delete'; id: Id; at: string; userId: Id; fieldId: Id }
   | { type: 'vehicle.setCustom'; id: Id; at: string; userId: Id; vehicleId: Id; fieldId: Id; value: string }
+  | { type: 'carrier.upsert'; id: Id; at: string; userId: Id; carrier: Carrier }
+  | { type: 'carrier.delete'; id: Id; at: string; userId: Id; carrierId: Id }
+  | {
+      type: 'vehicle.setDelivery';
+      id: Id;
+      at: string;
+      userId: Id;
+      vehicleId: Id;
+      deliveryDate: string | null;
+    }
   | { type: 'vehicle.activate'; id: Id; at: string; userId: Id; vehicleId: Id };
 
 /** Metadatos que añade el store automáticamente. */
@@ -336,11 +358,13 @@ export function applyCommand(state: AppState, cmd: Command): AppState {
     case 'request.create': {
       if (!vehicle) return state;
       // La preparación arranca el reloj al pedirla: es el plazo mínimo que
-      // el comercial tiene que dar. El traslado no, porque su plazo empieza
-      // cuando el transportista recoge las llaves.
+      // el comercial tiene que dar. Si el vehículo ya tiene fecha de entrega
+      // comprometida, manda esa, que es la que de verdad importa. El
+      // traslado no tiene plazo hasta que recogen las llaves.
       const dueAt =
         cmd.requestType === 'preparacion'
-          ? new Date(new Date(cmd.at).getTime() + state.config.prepDeadlineHours * 3_600_000).toISOString()
+          ? (vehicle.deliveryDate ??
+            new Date(new Date(cmd.at).getTime() + state.config.prepDeadlineHours * 3_600_000).toISOString())
           : null;
 
       const request: ServiceRequest = {
@@ -358,6 +382,7 @@ export function applyCommand(state: AppState, cmd: Command): AppState {
         note: cmd.note,
         dueAt,
         pickedUpAt: null,
+        carrierId: cmd.requestType === 'traslado' ? (cmd.carrierId ?? null) : null,
       };
       const vehiclePatch: Partial<Vehicle> =
         cmd.requestType === 'traslado'
@@ -389,6 +414,7 @@ export function applyCommand(state: AppState, cmd: Command): AppState {
       const patch: Partial<ServiceRequest> = {
         status: cmd.status,
         assignedTo: cmd.assignedTo !== undefined ? cmd.assignedTo : req.assignedTo,
+        carrierId: cmd.carrierId !== undefined ? cmd.carrierId : req.carrierId,
       };
       if (recoge) {
         patch.pickedUpAt = cmd.at;
@@ -944,6 +970,65 @@ export function applyCommand(state: AppState, cmd: Command): AppState {
         ...activate(state, cmd.vehicleId),
         vehicles: replace(state.vehicles, cmd.vehicleId, { custom }),
       };
+    }
+
+    /* ------------------------------------------- empresas de transporte */
+    case 'carrier.upsert': {
+      const exists = state.carriers.some((x) => x.id === cmd.carrier.id);
+      const carriers = exists
+        ? state.carriers.map((x) => (x.id === cmd.carrier.id ? cmd.carrier : x))
+        : [...state.carriers, cmd.carrier];
+      return { ...state, carriers };
+    }
+
+    case 'carrier.delete': {
+      // Con traslados abiertos no se borra: se desactiva para que deje de
+      // aparecer al asignar, pero el histórico sigue teniendo su nombre.
+      const enUso = state.requests.some(
+        (r) => r.carrierId === cmd.carrierId && r.status !== 'terminada'
+      );
+      if (enUso) {
+        return {
+          ...state,
+          carriers: state.carriers.map((x) => (x.id === cmd.carrierId ? { ...x, active: false } : x)),
+        };
+      }
+      return { ...state, carriers: state.carriers.filter((x) => x.id !== cmd.carrierId) };
+    }
+
+    /* --------------------------------------------- fecha de entrega */
+    case 'vehicle.setDelivery': {
+      if (!vehicle) return state;
+      let next: AppState = {
+        ...activate(state, cmd.vehicleId),
+        vehicles: replace(state.vehicles, cmd.vehicleId, { deliveryDate: cmd.deliveryDate }),
+      };
+
+      // Si ya hay una preparación pedida, su plazo pasa a ser la entrega.
+      const prepReq = next.requests.find(
+        (r) => r.vehicleId === cmd.vehicleId && r.type === 'preparacion' && r.status !== 'terminada'
+      );
+      if (prepReq) {
+        next = {
+          ...next,
+          requests: replace(next.requests, prepReq.id, {
+            dueAt:
+              cmd.deliveryDate ??
+              new Date(
+                new Date(prepReq.createdAt).getTime() + state.config.prepDeadlineHours * 3_600_000
+              ).toISOString(),
+          }),
+        };
+      }
+
+      return addEvent(next, {
+        vehicleId: cmd.vehicleId,
+        kind: 'estado',
+        title: cmd.deliveryDate ? 'Fecha de entrega fijada' : 'Fecha de entrega retirada',
+        detail: `${cmd.deliveryDate ? new Date(cmd.deliveryDate).toLocaleDateString('es-ES') : '—'} · ${userName(state, cmd.userId)}`,
+        at: cmd.at,
+        userId: cmd.userId,
+      });
     }
 
     case 'vehicle.activate':

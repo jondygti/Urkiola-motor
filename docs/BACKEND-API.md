@@ -137,7 +137,9 @@ permiso correspondiente:
 |---|---|
 | `movement.register`, `vehicle.check` | `movimientos.registrar` o `recuentos.ejecutar`. Con solo `traslados.propios`, únicamente sobre vehículos de un traslado asignado a esa persona |
 | `request.create` | `solicitudes.crear` |
-| `request.update` | `solicitudes.gestionar`, **o** `traslados.propios` si la solicitud está asignada a ese usuario y el nuevo estado es `en_ruta` o `terminada` |
+| `request.update` | `solicitudes.gestionar`, **o** `traslados.propios` si el traslado es de su empresa (o suyo) y el nuevo estado es `en_ruta` o `terminada` |
+| `vehicle.setDelivery` | `entregas.gestionar` |
+| `carrier.upsert`, `carrier.delete` | `admin.configurar` |
 | `prep.create` | `preparacion.gestionar` |
 | `prep.start` / `pause` / `resume` / `finish` / `item` | `preparacion.ejecutar` |
 | `count.*` | `recuentos.ejecutar` |
@@ -154,8 +156,10 @@ servidor debe rechazar comandos sobre vehículos de otras sedes.
 ### Colaboradores externos
 
 Los roles marcados como `simple` (hoy, el transportista) son proveedores
-externos y merecen una regla aparte: **solo pueden tocar los traslados que
-tienen asignados**. En concreto, `GET /state` debería devolverles un estado
+externos y merecen una regla aparte: **solo pueden tocar los traslados de
+su empresa** (`user.carrierId === request.carrierId`) o los asignados a
+ellos en concreto. Urkiola trabaja con varias empresas de transporte según
+la zona, y ninguna debe ver los encargos de otra. En concreto, `GET /state` debería devolverles un estado
 recortado —sus traslados y los vehículos implicados— y no el parque
 completo. No es solo cuestión de permisos: es no exponer a un proveedor la
 flota, los comerciales ni la ocupación de las campas.
@@ -174,6 +178,7 @@ Está en `src/data/types.ts`. Traducido a tablas de PostgreSQL:
 
 ```
 sites            (id, name, kind, prepares)
+carriers         (id, name, site_ids[], phone, active, note)
 zones            (id, site_id, name, kind, capacity)
 positions        (id, zone_id, code)
 users            (id, name, email, role, site_ids[])
@@ -183,7 +188,8 @@ vehicles         (id, vin8, vin, plate, brand, model, type, situation,
                   last_check_at, last_check_by, last_movement_at, received_at)
 movements        (id, vehicle_id, from_*, to_*, user_id, at, status, note)
 requests         (id, type, vehicle_id, site_id, from_*, to_*, status,
-                  urgent, created_at, created_by, assigned_to, note)
+                  urgent, created_at, created_by, assigned_to, note,
+                  carrier_id, due_at, picked_up_at)
 preparations     (id, vehicle_id, site_id, preparer_id, phase, run_state,
                   effective_ms, waiting_ms, target_ms, running_since,
                   waiting_since, wait_reason, started_at, finished_at)
@@ -215,6 +221,13 @@ commands         (id, type, payload jsonb, at, user_id)               -- auditor
 - **«Preentrega cliente» no tiene cronómetro** (`timed: false`).
 - **Sondika no prepara**: no puede ser sede de una solicitud de
   preparación.
+- **Los plazos se guardan calculados, no se recalculan.** Un traslado
+  recibe `due_at` al pasar a `en_ruta` (recogida + 48 h); una preparación,
+  al crearse (solicitud + 48 h, o la fecha de entrega si la hay). Cambiar
+  el plazo en la configuración no puede mover lo ya comprometido.
+- **La fecha de entrega manda sobre el plazo por defecto.** Al fijarla con
+  `vehicle.setDelivery`, la preparación abierta de ese vehículo pasa a
+  vencer ese día.
 
 ## La integración con Quiter
 

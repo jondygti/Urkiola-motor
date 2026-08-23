@@ -15,7 +15,8 @@ import {
   useTheme,
 } from '@/ui';
 import { useStore } from '@/data/store';
-import { can } from '@/data/selectors';
+import { activeCarriers, can, suggestCarrier } from '@/data/selectors';
+import { DateField } from '@/features/common/DateField';
 import { locationLabel, vehicleTitle } from '@/data/format';
 import {
   INCIDENT_TYPE_LABEL,
@@ -234,15 +235,45 @@ export function RequestModal({
   const [urgent, setUrgent] = useState(false);
   const [note, setNote] = useState('');
 
+  // La empresa se propone sola según la ruta; se puede cambiar.
+  const sugerida = suggestCarrier(state, vehicle.location?.siteId, siteId);
+  const [carrierId, setCarrierId] = useState<string | null>(sugerida?.id ?? null);
+  const [carrierTocado, setCarrierTocado] = useState(false);
+  const [deliveryDate, setDeliveryDate] = useState<string | null>(vehicle.deliveryDate ?? null);
+  const [aviso, setAviso] = useState<string | null>(null);
+
+  // Regla de Urkiola: el comercial tiene que dar un mínimo de margen.
+  const minimoMs = state.config.prepDeadlineHours * 3_600_000;
+  const margenCorto =
+    type === 'preparacion' &&
+    deliveryDate !== null &&
+    new Date(deliveryDate).getTime() - Date.now() < minimoMs;
+
+  // Si cambian el destino y nadie ha tocado la empresa, se recalcula.
+  const carrierElegido = carrierTocado ? carrierId : (sugerida?.id ?? null);
+
   const submit = () => {
+    // Si la entrega es antes del plazo mínimo, se avisa y hay que confirmar.
+    if (margenCorto && !aviso) {
+      setAviso(
+        `La entrega es en menos de ${state.config.prepDeadlineHours} h. Se puede pedir igual, pero quedará marcada como urgente y puede no llegar.`
+      );
+      return;
+    }
+
+    if (type === 'preparacion' && deliveryDate !== (vehicle.deliveryDate ?? null)) {
+      run({ type: 'vehicle.setDelivery', vehicleId: vehicle.id, deliveryDate });
+    }
+
     run({
       type: 'request.create',
       requestType: type,
       vehicleId: vehicle.id,
       siteId,
       to: { siteId },
-      urgent,
+      urgent: urgent || margenCorto,
       note: note || undefined,
+      carrierId: type === 'traslado' ? carrierElegido : undefined,
     });
     onDone?.(type === 'traslado' ? 'Solicitud de traslado creada.' : 'Solicitud de preparación creada.');
     onClose();
@@ -255,7 +286,7 @@ export function RequestModal({
       title={type === 'traslado' ? '🚚 Solicitar traslado' : '🧽 Solicitar preparación'}
       footer={
         <Btn variant="primary" full onPress={submit}>
-          Crear solicitud
+          {aviso ? 'Pedir igualmente' : 'Crear solicitud'}
         </Btn>
       }
     >
@@ -280,6 +311,49 @@ export function RequestModal({
           title="Sede"
         />
       </Field>
+      {type === 'traslado' ? (
+        <Field
+          label="Empresa de transporte"
+          hint={
+            sugerida && !carrierTocado
+              ? `Propuesta por la ruta: ${sugerida.name}.`
+              : 'Quién hace el traslado.'
+          }
+        >
+          <Select
+            full
+            value={carrierElegido}
+            onChange={(v) => {
+              setCarrierTocado(true);
+              setCarrierId(v);
+            }}
+            placeholder="Sin asignar"
+            options={activeCarriers(state).map((c) => ({
+              value: c.id,
+              label: c.name,
+              hint: c.siteIds.map((id) => state.sites.find((s) => s.id === id)?.name ?? id).join(', '),
+            }))}
+            title="Empresa de transporte"
+          />
+        </Field>
+      ) : null}
+
+      {type === 'preparacion' ? (
+        <Field
+          label="Fecha de entrega al cliente"
+          hint={`Si la sabes, ponla: el plazo pasa a ser esa fecha. Urkiola pide ${state.config.prepDeadlineHours} h de margen como mínimo.`}
+        >
+          <DateField value={deliveryDate} onChange={setDeliveryDate} />
+        </Field>
+      ) : null}
+
+      {margenCorto ? (
+        <Notice tone={aviso ? 'danger' : 'warn'}>
+          {aviso ??
+            `Ojo: quedan menos de ${state.config.prepDeadlineHours} h hasta la entrega.`}
+        </Notice>
+      ) : null}
+
       <Checkbox checked={urgent} onToggle={() => setUrgent((u) => !u)} label="Marcar como urgente" />
       <Field label="Nota (opcional)">
         <Input value={note} onChangeText={setNote} placeholder="Detalles para el equipo" multiline />

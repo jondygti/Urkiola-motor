@@ -183,6 +183,7 @@ function UserModal({ user, onClose, onDone }: { user: User; onClose: () => void;
   const [role, setRole] = useState(user.role);
   const [siteIds, setSiteIds] = useState<string[]>(user.siteIds);
   const [active, setActive] = useState(user.active);
+  const [carrierId, setCarrierId] = useState<string | null>(user.carrierId ?? null);
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -199,7 +200,7 @@ function UserModal({ user, onClose, onDone }: { user: User; onClose: () => void;
     const id = isNew ? `u-${slug(cleanName)}-${Date.now().toString(36).slice(-4)}` : user.id;
     run({
       type: 'user.upsert',
-      user: { id, name: cleanName, email: cleanEmail, role, siteIds, active },
+      user: { id, name: cleanName, email: cleanEmail, role, siteIds, active, carrierId },
     });
     onDone(isNew ? `${cleanName} dado de alta.` : `${cleanName} actualizado.`);
     onClose();
@@ -246,6 +247,24 @@ function UserModal({ user, onClose, onDone }: { user: User; onClose: () => void;
             title="Rol"
           />
         </Field>
+        {state.config.roles.find((r) => r.id === role)?.permissions.includes('traslados.propios') ? (
+          <Field
+            label="Empresa de transporte"
+            hint="Verá en su móvil los traslados encargados a esta empresa."
+          >
+            <Select
+              full
+              value={carrierId}
+              onChange={setCarrierId}
+              placeholder="Sin empresa"
+              options={state.carriers
+                .filter((x) => x.active)
+                .map((x) => ({ value: x.id, label: x.name }))}
+              title="Empresa"
+            />
+          </Field>
+        ) : null}
+
         <Field label="Sedes" hint="Sin marcar ninguna, ve todas las sedes.">
           {state.sites.map((s) => (
             <Checkbox

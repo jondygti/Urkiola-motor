@@ -9,6 +9,7 @@ import type {
   Role,
   RoleConfig,
   ServiceRequest,
+  Carrier,
   Site,
   User,
   Vehicle,
@@ -406,12 +407,16 @@ export function customValue(v: Vehicle, field: CustomField): string {
 /* ----------------------------------------------- traslados asignados */
 
 /**
- * Traslados abiertos asignados a esta persona.
+ * Traslados abiertos que le tocan a esta persona.
  *
- * Solo los suyos: un transportista externo no debe ver la carga de trabajo
- * de los demás ni los traslados que todavía no se han repartido.
+ * Un transportista pertenece a una empresa (Grúas Francis, Betigoiz…) y ve
+ * los traslados encargados a **su empresa**, más los que se le hayan
+ * asignado a él en concreto. Nunca los de otra empresa ni los que aún no se
+ * han repartido.
  */
 export function myTransfers(s: AppState, userId: Id): ServiceRequest[] {
+  const user = s.users.find((u) => u.id === userId);
+  const carrierId = user?.carrierId ?? null;
   // Clave de recorrido: sede, luego zona, luego plaza. Ordenar por ella
   // evita que el transportista cruce la campa de un lado a otro.
   const ruta = (r: ServiceRequest) => {
@@ -421,7 +426,11 @@ export function myTransfers(s: AppState, userId: Id): ServiceRequest[] {
   };
 
   return s.requests
-    .filter((r) => r.type === 'traslado' && r.status !== 'terminada' && r.assignedTo === userId)
+    .filter((r) => {
+      if (r.type !== 'traslado' || r.status === 'terminada') return false;
+      if (r.assignedTo === userId) return true;
+      return carrierId !== null && r.carrierId === carrierId;
+    })
     .sort((a, b) => {
       // Lo vencido primero, después lo urgente, y lo demás en orden de
       // recorrido para no cruzar la campa de un lado a otro.
@@ -491,4 +500,77 @@ export function byDeadline(s: AppState, now = Date.now()) {
     if (db === null) return -1;
     return da - db;
   };
+}
+
+
+/* --------------------------------------------- empresas de transporte */
+
+export const activeCarriers = (s: AppState): Carrier[] => s.carriers.filter((c) => c.active);
+
+export function carrierName(s: AppState, id: Id | null | undefined): string {
+  if (!id) return 'Sin asignar';
+  return s.carriers.find((c) => c.id === id)?.name ?? id;
+}
+
+/**
+ * Empresa que cubre una ruta. Se propone sola al pedir el traslado: la que
+ * llega al destino, y mejor todavía si también cubre el origen.
+ */
+export function suggestCarrier(s: AppState, fromSiteId?: Id, toSiteId?: Id): Carrier | undefined {
+  const activos = activeCarriers(s);
+  if (!toSiteId) return undefined;
+  const ambas = activos.find(
+    (c) => c.siteIds.includes(toSiteId) && (!fromSiteId || c.siteIds.includes(fromSiteId))
+  );
+  return ambas ?? activos.find((c) => c.siteIds.includes(toSiteId));
+}
+
+/* --------------------------------------------------- entregas a cliente */
+
+/** Vehículos con fecha de entrega comprometida, del más próximo al más lejano. */
+export function upcomingDeliveries(s: AppState, days = 14): Vehicle[] {
+  const limite = Date.now() + days * 86_400_000;
+  return activeVehicles(s)
+    .filter((v) => v.deliveryDate && new Date(v.deliveryDate).getTime() <= limite)
+    .sort((a, b) => new Date(a.deliveryDate!).getTime() - new Date(b.deliveryDate!).getTime());
+}
+
+export interface DeliveryStatus {
+  vehicle: Vehicle;
+  /** Milisegundos hasta la entrega; negativo si ya pasó. */
+  inMs: number;
+  /** Lo que falta para poder entregar. */
+  missing: string[];
+  ready: boolean;
+  atRisk: boolean;
+}
+
+/** Qué le falta a cada entrega y si llega a tiempo. */
+export function deliveryStatus(s: AppState, v: Vehicle, now = Date.now()): DeliveryStatus {
+  const inMs = v.deliveryDate ? new Date(v.deliveryDate).getTime() - now : 0;
+  const missing: string[] = [];
+
+  const prep = preparationFor(s, v.id);
+  if (v.status !== 'apto_entrega' && v.status !== 'entregado') {
+    if (!prep) missing.push('Sin preparación abierta');
+    else if (prep.runState !== 'terminado') {
+      const { done, total } = prepProgress(prep);
+      missing.push(
+        prep.runState === 'bloqueado'
+          ? `Preparación bloqueada (${done}/${total})`
+          : `Preparación ${done}/${total}`
+      );
+    }
+  }
+
+  const traslado = s.requests.find(
+    (r) => r.vehicleId === v.id && r.type === 'traslado' && r.status !== 'terminada'
+  );
+  if (traslado) missing.push('Traslado pendiente');
+
+  if (incidentsFor(s, v.id).some((i) => i.status !== 'cerrada')) missing.push('Incidencia abierta');
+
+  const ready = missing.length === 0;
+  // En riesgo: quedan menos de 48 h y todavía falta algo.
+  return { vehicle: v, inMs, missing, ready, atRisk: !ready && inMs < 48 * 3_600_000 };
 }

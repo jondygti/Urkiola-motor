@@ -22,6 +22,7 @@ import {
 } from '@/ui';
 import { useAppState, useStore } from '@/data/store';
 import {
+  deliveryStatus,
   incidentsFor,
   movementsFor,
   preparationFor,
@@ -30,6 +31,7 @@ import {
   vehicleTimeline,
 } from '@/data/selectors';
 import {
+  formatDate,
   formatDateTime,
   hoursSince,
   locationLabel,
@@ -42,6 +44,7 @@ import { NOTIFY_CONDITION_LABEL, VEHICLE_FLOW, VEHICLE_STATUS_LABEL } from '@/da
 import { VehicleActions } from '@/features/actions/VehicleActions';
 import { PrepPanel } from '@/features/prep/PrepPanel';
 import { CustomFields } from '@/features/common/CustomFields';
+import { DateField } from '@/features/common/DateField';
 import { IfCan, ScreenGuard, usePerms } from '@/features/common/Guard';
 import { IncidentStatusPill, SituationPill, TypePill, RequestStatusPill } from '@/features/common/bits';
 
@@ -189,6 +192,33 @@ export default function VehicleScreen() {
             )}
           </Panel>
 
+          <Panel title="📅 Entrega al cliente">
+            {can('entregas.gestionar') ? (
+              <>
+                <DateField
+                  value={vehicle.deliveryDate ?? null}
+                  onChange={(iso) => {
+                    run({ type: 'vehicle.setDelivery', vehicleId: vehicle.id, deliveryDate: iso });
+                    setToast(iso ? 'Fecha de entrega guardada.' : 'Fecha de entrega retirada.');
+                  }}
+                />
+                <Spacer h={space.sm} />
+              </>
+            ) : (
+              <Detail
+                label="Fecha comprometida"
+                value={vehicle.deliveryDate ? formatDate(vehicle.deliveryDate) : 'Sin fecha'}
+              />
+            )}
+
+            {vehicle.deliveryDate ? <DeliveryState vehicle={vehicle} /> : (
+              <Muted>
+                Sin fecha comprometida, la preparación se mide contra el plazo de{' '}
+                {state.config.prepDeadlineHours} h desde que se pide.
+              </Muted>
+            )}
+          </Panel>
+
           <Panel title="🏷️ Campos propios">
             <CustomFields vehicle={vehicle} />
           </Panel>
@@ -283,5 +313,32 @@ export default function VehicleScreen() {
       </Grid>
     </Screen>
     </ScreenGuard>
+  );
+}
+
+
+/** Qué falta para poder entregar y si llega a tiempo. */
+function DeliveryState({ vehicle }: { vehicle: import('@/data/types').Vehicle }) {
+  const state = useAppState();
+  const estado = deliveryStatus(state, vehicle);
+  const dias = Math.ceil(estado.inMs / 86_400_000);
+
+  return (
+    <>
+      <Detail
+        label="Fecha comprometida"
+        value={`${formatDate(vehicle.deliveryDate)} · ${
+          estado.inMs < 0 ? 'ya pasó' : dias <= 1 ? 'mañana o antes' : `en ${dias} días`
+        }`}
+      />
+      {estado.ready ? (
+        <Notice tone="info">✅ Listo para entregar.</Notice>
+      ) : (
+        <Notice tone={estado.atRisk ? 'danger' : 'warn'}>
+          {estado.atRisk ? '⚠️ En riesgo · ' : 'Pendiente · '}
+          {estado.missing.join(' · ')}
+        </Notice>
+      )}
+    </>
   );
 }

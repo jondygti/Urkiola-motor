@@ -75,6 +75,7 @@ completa siempre disponible en la web:
 | Pantalla | Para quién | Cómo funciona |
 |---|---|---|
 | `/mis-traslados` | Transportista | Una tarjeta por traslado y un solo botón, que cambia de «He recogido» a «He entregado» |
+| `/entregas` | Comercial y logística | Entregas comprometidas agrupadas por día, con lo que le falta a cada una |
 | `/mi-preparacion` | Preparador | Cola ordenada por plazo; al abrir, cronómetro y checklist donde **cada línea se marca de un toque** |
 | `/mi-recepcion` | Recepción | Bucle de descarga: identificar, plaza propuesta automáticamente y «Descargado · siguiente» |
 
@@ -84,6 +85,36 @@ siguiente con plazas libres.
 
 En la web, ese mismo preparador sí ve diez secciones. Es la misma app: lo
 que cambia es cuánto enseña en cada sitio.
+
+### Empresas de transporte
+
+Urkiola reparte los traslados por zona: dentro de Bizkaia los hace una
+empresa y fuera otra. El sistema lo recoge así:
+
+- Cada **empresa de transporte** lleva las sedes que cubre, y se gestiona
+  en Administración → Transporte.
+- Al pedir un traslado, la app **propone la empresa que llega al destino**
+  (y mejor si también cubre el origen). Se puede cambiar.
+- Cada transportista pertenece a una empresa, y en su móvil ve **solo los
+  traslados de la suya**. Nunca los de la competencia.
+
+### Plazos y entregas
+
+Dos relojes distintos, que conviene no mezclar:
+
+| Reloj | Qué mide | Cuándo arranca |
+|---|---|---|
+| Objetivo de preparación (2 h / 2 h 30) | Cuánto debe durar el **trabajo** | Al empezar a preparar |
+| Plazo comprometido (48 h) | Cuándo tiene que **estar hecho** | Traslado: al recoger las llaves. Preparación: al pedirla |
+
+Si el vehículo tiene **fecha de entrega al cliente**, esa manda: el plazo
+de la preparación pasa a ser el día de la entrega, y el coche sube o baja
+en la cola del preparador según lo que quede.
+
+Al pedir una preparación con una entrega a menos de 48 h, la app avisa y
+obliga a confirmar («Pedir igualmente»), y la marca como urgente. Es la
+regla de que el comercial debe dar 48 h de margen, aplicada donde se
+incumple.
 
 ### Modo colaborador externo
 

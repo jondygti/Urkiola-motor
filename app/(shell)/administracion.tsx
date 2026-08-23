@@ -30,15 +30,16 @@ import { can, roleLabel } from '@/data/selectors';
 import { LocationsAdmin } from '@/features/admin/LocationsAdmin';
 import { UsersAdmin } from '@/features/admin/UsersAdmin';
 import { FleetAdmin } from '@/features/admin/FleetAdmin';
+import { CarriersAdmin } from '@/features/admin/CarriersAdmin';
 
 export default function AdminScreen() {
   const state = useAppState();
   const { run, resetDemo, mode, user } = useStore();
   const { c } = useTheme();
 
-  const [tab, setTab] = useState<'operativa' | 'ubicaciones' | 'flota' | 'usuarios' | 'sistema'>(
-    'operativa'
-  );
+  const [tab, setTab] = useState<
+    'operativa' | 'ubicaciones' | 'flota' | 'usuarios' | 'transporte' | 'sistema'
+  >('operativa');
   const [editing, setEditing] = useState<Requirement | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -76,6 +77,7 @@ export default function AdminScreen() {
             { value: 'ubicaciones', label: 'Ubicaciones' },
             { value: 'flota', label: 'Flota y columnas' },
             { value: 'usuarios', label: 'Usuarios y roles' },
+            { value: 'transporte', label: 'Transporte' },
             { value: 'sistema', label: 'Sistema' },
           ]}
         />
@@ -226,6 +228,8 @@ export default function AdminScreen() {
       {tab === 'flota' ? <FleetAdmin onDone={setToast} /> : null}
 
       {tab === 'usuarios' ? <UsersAdmin onDone={setToast} /> : null}
+
+      {tab === 'transporte' ? <CarriersAdmin onDone={setToast} /> : null}
 
       {tab === 'sistema' ? (
         <>

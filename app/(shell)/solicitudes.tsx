@@ -19,10 +19,11 @@ import {
   useTheme,
 } from '@/ui';
 import { useAppState, useStore } from '@/data/store';
-import { requestsBySite } from '@/data/selectors';
+import { activeCarriers, carrierName, deadlineOf, requestsBySite } from '@/data/selectors';
 import { formatDateTime, locationLabel, siteName, userName, vehicleName, vehicleRef } from '@/data/format';
 import { REQUEST_STATUS_LABEL, type RequestStatus, type ServiceRequest } from '@/data/types';
 import { Cell, RequestStatusPill, useOpenVehicle } from '@/features/common/bits';
+import { DeadlineChip } from '@/features/common/DeadlineChip';
 import { ScreenGuard, usePerms } from '@/features/common/Guard';
 
 const ALL = '__all__';
@@ -111,6 +112,29 @@ export default function RequestsScreen() {
       width: 170,
       value: (r) => locationLabel(state, r.to, true),
       render: (r) => <Cell muted>{locationLabel(state, r.to, true)}</Cell>,
+    },
+    {
+      key: 'carrier',
+      header: 'Transportista',
+      width: 150,
+      value: (r) => (r.type === 'traslado' ? carrierName(state, r.carrierId) : '—'),
+      filter: {
+        type: 'select',
+        options: state.carriers.map((x) => ({ value: x.name, label: x.name })),
+      },
+      render: (r) =>
+        r.type === 'traslado' ? (
+          <Cell muted={!r.carrierId}>{carrierName(state, r.carrierId)}</Cell>
+        ) : (
+          <Cell muted>—</Cell>
+        ),
+    },
+    {
+      key: 'due',
+      header: 'Plazo',
+      width: 140,
+      value: (r) => (r.dueAt ? new Date(r.dueAt).toISOString() : ''),
+      render: (r) => <DeadlineChip deadline={deadlineOf(state, r)} />,
     },
     {
       key: 'assigned',
@@ -247,6 +271,7 @@ function ManageModal({
   const { state, run } = useStore();
   const [status, setStatus] = useState<RequestStatus>(request.status);
   const [assignedTo, setAssignedTo] = useState<string | null>(request.assignedTo);
+  const [carrierId, setCarrierId] = useState<string | null>(request.carrierId);
   const { can } = usePerms();
   const puedePreparar = can('preparacion.gestionar');
 
@@ -267,7 +292,7 @@ function ManageModal({
             variant="primary"
             full
             onPress={() => {
-              run({ type: 'request.update', requestId: request.id, status, assignedTo });
+              run({ type: 'request.update', requestId: request.id, status, assignedTo, carrierId });
               onDone('Solicitud actualizada.');
             }}
           >
@@ -310,6 +335,19 @@ function ManageModal({
           title="Estado"
         />
       </Field>
+      {request.type === 'traslado' ? (
+        <Field label="Empresa de transporte">
+          <Select
+            full
+            value={carrierId}
+            onChange={setCarrierId}
+            placeholder="Sin asignar"
+            options={activeCarriers(state).map((x) => ({ value: x.id, label: x.name }))}
+            title="Empresa de transporte"
+          />
+        </Field>
+      ) : null}
+
       <Field label="Asignar a">
         <Select
           full

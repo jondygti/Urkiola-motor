@@ -2,6 +2,7 @@ import { ALL_PERMISSIONS, BASE_COLUMNS } from './types';
 import type {
   AdminConfig,
   AppState,
+  Carrier,
   ColumnPref,
   CustomField,
   RoleConfig,
@@ -100,7 +101,8 @@ export const USERS: User[] = [
   { id: 'u-pedro', name: 'Pedro Larrea', role: 'preparador', siteIds: ['leioa'], email: 'pedro@urkiolacarservice.com', active: true },
   { id: 'u-ane', name: 'Ane Zubiaur', role: 'preparador', siteIds: ['leioa', 'galdakao'], email: 'ane@urkiolacarservice.com', active: true },
   { id: 'u-jon', name: 'Jon Etxaniz', role: 'preparador', siteIds: ['anoeta', 'irun'], email: 'jon@urkiolacarservice.com', active: true },
-  { id: 'u-iker', name: 'Iker Solano', role: 'transportista', siteIds: [], email: 'transporte@urkiolacarservice.com', active: true },
+  { id: 'u-iker', name: 'Iker Solano', role: 'transportista', siteIds: [], email: 'transporte@urkiolacarservice.com', active: true, carrierId: 'gruas-francis' },
+  { id: 'u-aitor', name: 'Aitor Bengoa', role: 'transportista', siteIds: [], email: 'betigoiz@urkiolacarservice.com', active: true, carrierId: 'gruas-betigoiz' },
   { id: 'u-nerea', name: 'Nerea Goiri', role: 'recepcion', siteIds: ['sondika'], email: 'recepcion@urkiolacarservice.com', active: true },
   { id: 'u-juan', name: 'Juan Bilbao', role: 'comercial', siteIds: ['leioa'], email: 'juan@urkiolacarservice.com', active: true },
 ];
@@ -120,7 +122,7 @@ export const ROLES: RoleConfig[] = [
     id: 'logistica',
     label: 'Logística',
     permissions: ALL_PERMISSIONS.filter((p) => p !== 'admin.configurar'),
-    mobileSections: ['/mi-trabajo', '/flota', '/solicitudes', '/recuentos', '/mi-preparacion'],
+    mobileSections: ['/mi-trabajo', '/entregas', '/solicitudes', '/flota', '/recuentos'],
     builtin: true,
   },
   {
@@ -167,8 +169,8 @@ export const ROLES: RoleConfig[] = [
   {
     id: 'comercial',
     label: 'Comercial',
-    permissions: ['flota.ver', 'solicitudes.crear', 'notificaciones.gestionar'],
-    mobileSections: ['/mi-trabajo', '/flota'],
+    permissions: ['flota.ver', 'solicitudes.crear', 'entregas.gestionar', 'notificaciones.gestionar'],
+    mobileSections: ['/entregas', '/mi-trabajo', '/flota'],
     builtin: true,
   },
 ];
@@ -205,6 +207,45 @@ const FLEET_COLUMNS: ColumnPref[] = BASE_COLUMNS.map((col, i) => ({
 }));
 
 const SALES_REPS = ['Juan', 'Ane', 'Pedro'];
+
+/* ---------------------------------------------- empresas de transporte */
+
+/**
+ * Urkiola reparte los traslados por zona: dentro de Bizkaia una empresa y
+ * fuera otra. Las sedes que cubre cada una sirven para proponerla sola.
+ */
+export const CARRIERS: Carrier[] = [
+  {
+    id: 'gruas-francis',
+    name: 'Grúas Francis',
+    siteIds: ['sondika', 'leioa', 'galdakao'],
+    phone: '',
+    active: true,
+    note: 'Traslados dentro de Bizkaia.',
+  },
+  {
+    id: 'gruas-betigoiz',
+    name: 'Grúas Betigoiz',
+    siteIds: ['anoeta', 'irun'],
+    phone: '',
+    active: true,
+    note: 'Traslados fuera de Bizkaia.',
+  },
+];
+
+/** Empresa que cubre una ruta: la que llega al destino, y mejor si también al origen. */
+export function carrierForRoute(
+  carriers: Carrier[],
+  fromSiteId: Id | undefined,
+  toSiteId: Id | undefined
+): Carrier | undefined {
+  const activos = carriers.filter((c) => c.active);
+  if (!toSiteId) return undefined;
+  const ambas = activos.find(
+    (c) => c.siteIds.includes(toSiteId) && (!fromSiteId || c.siteIds.includes(fromSiteId))
+  );
+  return ambas ?? activos.find((c) => c.siteIds.includes(toSiteId));
+}
 
 const CATALOG: { brand: string; models: string[]; type: 'VN' | 'VO' }[] = [
   { brand: 'BMW', models: ['X1', 'X2', 'X3', 'Serie 1', 'Serie 3', 'iX1'], type: 'VN' },
@@ -525,6 +566,26 @@ function buildFleet(positions: Position[]): Build {
     );
   }
 
+  /* --- fechas de entrega comprometidas ---------------------------------- */
+
+  // Un puñado de coches con fecha, repartidos en los próximos días, para
+  // que la pantalla de Entregas tenga casos de todo tipo.
+  const conEntrega = vehicles.filter(
+    (v) => v.logisticActive && v.situation === 'pedido' && v.salesRep
+  );
+  const DIA = 24 * HOUR;
+  conEntrega.slice(0, 14).forEach((v, i) => {
+    // Algunas hoy y mañana (las que aprietan), el resto repartidas.
+    const dias = i < 2 ? 0 : i < 5 ? 1 : Math.floor(i / 2);
+    v.deliveryDate = new Date(NOW + dias * DIA + 9 * HOUR).toISOString();
+  });
+  // Una atrasada, para que se vea el caso rojo.
+  if (conEntrega[14]) conEntrega[14].deliveryDate = iso(1 * DIA);
+
+  // El BMW X1 del mockup entrega pasado mañana.
+  const x1 = vehicles.find((v) => v.id === 'v-12345678');
+  if (x1) x1.deliveryDate = new Date(NOW + 2 * DIA + 9 * HOUR).toISOString();
+
   /* --- forzar exactamente 5 vehículos sin comprobar > 72 h ------------- */
 
   const staleTargets = vehicles.filter((v) => v.logisticActive).slice(20, 23);
@@ -606,6 +667,7 @@ export function buildSeedState(): AppState {
     // 48 h desde que la pidió el comercial: quedan 38.
     dueAt: iso(-38 * HOUR),
     pickedUpAt: null,
+    carrierId: null,
   });
   requests.push({
     id: 'req-0002',
@@ -622,6 +684,8 @@ export function buildSeedState(): AppState {
     // Aún sin recoger: el plazo del transportista no ha empezado.
     dueAt: null,
     pickedUpAt: null,
+    // Sondika → Leioa: dentro de Bizkaia.
+    carrierId: 'gruas-francis',
   });
   requests.push({
     id: 'req-0003',
@@ -638,6 +702,7 @@ export function buildSeedState(): AppState {
     // Pedida hace 28 h: quedan 20 y sigue bloqueada.
     dueAt: iso(-20 * HOUR),
     pickedUpAt: null,
+    carrierId: null,
   });
 
   const pool = activeVehicles.filter((v) => !requests.some((r) => r.vehicleId === v.id));
@@ -660,6 +725,7 @@ export function buildSeedState(): AppState {
       // 48 h desde la solicitud; algunas ya se han pasado.
       dueAt: iso((hoursAgo - 48) * HOUR),
       pickedUpAt: null,
+      carrierId: null,
     });
   }
   for (let i = 19; i < 30; i++) {
@@ -680,11 +746,13 @@ export function buildSeedState(): AppState {
       urgent: chance(0.1),
       createdAt: iso(hoursAgo * HOUR),
       createdBy: 'u-log',
-      assignedTo: chance(0.6) ? 'u-iker' : null,
+      assignedTo: null,
       dueAt: pickedUpAt
         ? new Date(new Date(pickedUpAt).getTime() + 48 * HOUR).toISOString()
         : null,
       pickedUpAt,
+      // Se reparte por zona, como en la realidad.
+      carrierId: carrierForRoute(CARRIERS, v.location?.siteId, site)?.id ?? null,
     });
   }
   // Solicitudes ya cerradas, para el histórico.
@@ -704,6 +772,7 @@ export function buildSeedState(): AppState {
       assignedTo: 'u-iker',
       dueAt: null,
       pickedUpAt: null,
+      carrierId: null,
     });
   }
 
@@ -1087,6 +1156,7 @@ export function buildSeedState(): AppState {
 
   return {
     users: USERS,
+    carriers: CARRIERS,
     sites: SITES,
     zones,
     positions,

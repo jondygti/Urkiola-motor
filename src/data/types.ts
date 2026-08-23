@@ -106,6 +106,8 @@ export interface Vehicle {
   receivedAt: ISODate | null;
   /** Valores de los campos propios definidos en Administración. */
   custom?: Record<Id, string>;
+  /** Fecha comprometida de entrega al cliente. */
+  deliveryDate?: ISODate | null;
 }
 
 /* ----------------------------------------------------------- movimiento */
@@ -161,6 +163,8 @@ export interface ServiceRequest {
   dueAt: ISODate | null;
   /** Cuándo se recogieron las llaves (solo traslados). */
   pickedUpAt: ISODate | null;
+  /** Empresa de transporte a la que se encarga el traslado. */
+  carrierId: Id | null;
   /** Sede responsable de atender la solicitud. */
   siteId: Id;
   from: LocationRef | null;
@@ -353,6 +357,22 @@ export interface Reception {
   lines: ReceptionLine[];
 }
 
+/* ------------------------------------------------- empresas de transporte */
+
+/**
+ * Empresa que hace los traslados. Urkiola trabaja con varias según la zona:
+ * una para Bizkaia y otra para fuera.
+ */
+export interface Carrier {
+  id: Id;
+  name: string;
+  /** Sedes que cubre; sirve para proponerla sola al pedir el traslado. */
+  siteIds: Id[];
+  phone: string;
+  active: boolean;
+  note?: string;
+}
+
 /* -------------------------------------------------------- usuarios/roles */
 
 /**
@@ -386,6 +406,7 @@ export type Permission =
   | 'incidencias.crear'
   | 'incidencias.cerrar'
   | 'recepcion.ejecutar'
+  | 'entregas.gestionar'
   | 'notificaciones.gestionar'
   | 'admin.configurar';
 
@@ -403,6 +424,7 @@ export const PERMISSION_LABEL: Record<Permission, string> = {
   'incidencias.crear': 'Registrar incidencias',
   'incidencias.cerrar': 'Cerrar incidencias',
   'recepcion.ejecutar': 'Recepcionar camiones',
+  'entregas.gestionar': 'Fijar fechas de entrega al cliente',
   'notificaciones.gestionar': 'Configurar avisos',
   'admin.configurar': 'Administrar la configuración',
 };
@@ -435,6 +457,8 @@ export interface User {
   siteIds: Id[];
   email: string;
   active: boolean;
+  /** Solo para transportistas: la empresa a la que pertenecen. */
+  carrierId?: Id | null;
 }
 
 /* ------------------------------------------------- configuración (admin) */
@@ -548,6 +572,7 @@ export interface TraceEvent {
 
 export interface AppState {
   users: User[];
+  carriers: Carrier[];
   sites: Site[];
   zones: Zone[];
   positions: Position[];
