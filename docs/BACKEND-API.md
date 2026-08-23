@@ -135,9 +135,9 @@ permiso correspondiente:
 
 | Comando | Permiso exigido |
 |---|---|
-| `movement.register`, `vehicle.check` | `movimientos.registrar` o `recuentos.ejecutar` |
+| `movement.register`, `vehicle.check` | `movimientos.registrar` o `recuentos.ejecutar`. Con solo `traslados.propios`, únicamente sobre vehículos de un traslado asignado a esa persona |
 | `request.create` | `solicitudes.crear` |
-| `request.update` | `solicitudes.gestionar` |
+| `request.update` | `solicitudes.gestionar`, **o** `traslados.propios` si la solicitud está asignada a ese usuario y el nuevo estado es `en_ruta` o `terminada` |
 | `prep.create` | `preparacion.gestionar` |
 | `prep.start` / `pause` / `resume` / `finish` / `item` | `preparacion.ejecutar` |
 | `count.*` | `recuentos.ejecutar` |
@@ -150,6 +150,15 @@ permiso correspondiente:
 
 Además, si el usuario tiene sedes asignadas (`user.siteIds` no vacío), el
 servidor debe rechazar comandos sobre vehículos de otras sedes.
+
+### Colaboradores externos
+
+Los roles marcados como `simple` (hoy, el transportista) son proveedores
+externos y merecen una regla aparte: **solo pueden tocar los traslados que
+tienen asignados**. En concreto, `GET /state` debería devolverles un estado
+recortado —sus traslados y los vehículos implicados— y no el parque
+completo. No es solo cuestión de permisos: es no exponer a un proveedor la
+flota, los comerciales ni la ocupación de las campas.
 
 Un comando sin permiso se responde **`403`**. La app lo trata como
 «rechazado»: lo aparta de la cola y lo avisa por pantalla, en vez de

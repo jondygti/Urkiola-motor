@@ -63,12 +63,29 @@ Por ejemplo, con la configuración de serie:
 | Rol | Menú del móvil |
 |---|---|
 | Preparador | Mi trabajo · Flota · Preparación |
-| Transportista | Mi trabajo · Flota · Movimientos |
+| Transportista (externo) | Solo «Mis traslados», sin menú |
 | Recepción | Mi trabajo · Recepción · Flota · Recuentos |
 | Comercial | Mi trabajo · Flota |
 
 En la web, ese mismo preparador sí ve diez secciones. Es la misma app: lo
 que cambia es cuánto enseña en cada sitio.
+
+### Modo colaborador externo
+
+Un rol puede marcarse como **externo** en Administración → Usuarios y
+roles. Entonces la app cambia de forma: sin menú lateral, sin pestañas y
+sin poder salir de su pantalla ni escribiendo la dirección. Es lo que usa
+el transportista, que es un proveedor de fuera.
+
+Su pantalla, `/mis-traslados`, enseña solo los traslados **asignados a él**
+—ni los de otros ni los que están sin repartir—, ordenados por recorrido
+para no cruzar la campa, y con un único botón por traslado que cambia según
+el momento: «He recogido el vehículo» y después «He entregado el vehículo».
+Un segundo botón, «Tengo un problema», abre un aviso con foto opcional que
+llega a logística como incidencia de transporte.
+
+Con eso, el transportista deja de tener acceso a la flota, a las campas y
+al resto de la operativa.
 
 ## Diferencias intencionadas
 

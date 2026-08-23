@@ -363,6 +363,7 @@ export type Permission =
   | 'flota.editar'
   | 'campa.ver'
   | 'movimientos.registrar'
+  | 'traslados.propios'
   | 'solicitudes.crear'
   | 'solicitudes.gestionar'
   | 'preparacion.ejecutar'
@@ -379,6 +380,7 @@ export const PERMISSION_LABEL: Record<Permission, string> = {
   'flota.editar': 'Editar campos propios del vehículo',
   'campa.ver': 'Ver campas y plazas',
   'movimientos.registrar': 'Registrar movimientos',
+  'traslados.propios': 'Ver y completar solo sus traslados asignados',
   'solicitudes.crear': 'Crear solicitudes',
   'solicitudes.gestionar': 'Gestionar y asignar solicitudes',
   'preparacion.ejecutar': 'Trabajar en preparaciones',
@@ -402,6 +404,11 @@ export interface RoleConfig {
    * más corta que la web: aquí se decide cuánto.
    */
   mobileSections: string[];
+  /**
+   * Interfaz reducida para colaboradores externos: una sola pantalla con
+   * su trabajo asignado, sin menú, sin pestañas y sin acceso al resto.
+   */
+  simple?: boolean;
   /** Los de serie no se pueden borrar. */
   builtin: boolean;
 }

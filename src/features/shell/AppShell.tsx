@@ -4,7 +4,7 @@ import { Animated, Platform, Pressable, ScrollView, Text, View } from 'react-nat
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { radius, space, useTheme } from '@/ui/theme';
 import { useStore } from '@/data/store';
-import { unreadCount } from '@/data/selectors';
+import { isSimpleRole, unreadCount } from '@/data/selectors';
 import { roleLabel } from '@/data/selectors';
 import { mobileNav, mobileTabs, titleForPath, visibleNav } from './nav';
 import { SyncBar } from './SyncBar';
@@ -14,7 +14,7 @@ const DRAWER_WIDTH = 285;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { c, isDesktop } = useTheme();
-  const { state } = useStore();
+  const { state, user } = useStore();
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const insets = useSafeAreaInsets();
@@ -24,6 +24,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setDrawerOpen(false);
   }, [pathname]);
+
+  // Colaboradores externos: una sola pantalla, sin menú ni pestañas.
+  if (isSimpleRole(state, user)) return <SimpleShell>{children}</SimpleShell>;
 
   if (isDesktop) {
     return (
@@ -51,6 +54,55 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <View style={{ flex: 1 }}>{children}</View>
       <BottomTabs bottomInset={insets.bottom} onMore={() => setDrawerOpen(true)} />
       <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} unread={unread} />
+    </View>
+  );
+}
+
+/* ---------------------------------------------- interfaz de colaborador */
+
+/**
+ * Armazón mínimo para roles externos (transportistas). Sin menú lateral,
+ * sin pestañas y sin navegación: solo su trabajo y cerrar sesión.
+ */
+function SimpleShell({ children }: { children: React.ReactNode }) {
+  const { c } = useTheme();
+  const { state, user, logout } = useStore();
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View style={{ flex: 1, backgroundColor: c.bg }}>
+      <View
+        style={{
+          backgroundColor: c.navBg,
+          paddingTop: insets.top + 10,
+          paddingBottom: 12,
+          paddingHorizontal: 16,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 12,
+        }}
+      >
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: '#fff', fontSize: 15, fontWeight: '900' }}>URKIOLA CAR SERVICE</Text>
+          <Text style={{ color: c.navBrandSub, fontSize: 11, marginTop: 2 }}>
+            {user?.name} · {roleLabel(state, user?.role)}
+          </Text>
+        </View>
+        <Pressable
+          onPress={logout}
+          style={{
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.25)',
+            borderRadius: radius.sm,
+            paddingVertical: 7,
+            paddingHorizontal: 12,
+          }}
+        >
+          <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Salir</Text>
+        </Pressable>
+      </View>
+      <SyncBar />
+      <View style={{ flex: 1 }}>{children}</View>
     </View>
   );
 }

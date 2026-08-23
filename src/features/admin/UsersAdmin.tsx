@@ -63,6 +63,7 @@ export function UsersAdmin({ onDone }: { onDone: (m: string) => void }) {
     label: '',
     permissions: ['flota.ver'],
     mobileSections: ['/mi-trabajo', '/flota'],
+    simple: false,
     builtin: false,
   });
 
@@ -149,6 +150,7 @@ export function UsersAdmin({ onDone }: { onDone: (m: string) => void }) {
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <Text style={{ fontSize: 14, fontWeight: '800', color: c.text, flex: 1 }}>{r.label}</Text>
+                    {r.simple ? <Pill tone="blue">Externo</Pill> : null}
                     {r.builtin ? <Pill tone="neutral">De serie</Pill> : null}
                   </View>
                   <Text style={{ fontSize: 11, color: c.textMuted }}>
@@ -286,6 +288,7 @@ function RoleModal({ role, onClose, onDone }: { role: RoleConfig; onClose: () =>
   const [label, setLabel] = useState(role.label);
   const [permissions, setPermissions] = useState<Permission[]>(role.permissions);
   const [mobileSections, setMobileSections] = useState<string[]>(role.mobileSections);
+  const [simple, setSimple] = useState(role.simple === true);
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -304,7 +307,7 @@ function RoleModal({ role, onClose, onDone }: { role: RoleConfig; onClose: () =>
     }
     run({
       type: 'role.upsert',
-      role: { id, label: clean, permissions, mobileSections, builtin: role.builtin },
+      role: { id, label: clean, permissions, mobileSections, simple, builtin: role.builtin },
     });
     onDone(isNew ? `Rol «${clean}» creado.` : `Rol «${clean}» actualizado.`);
     onClose();
@@ -343,6 +346,13 @@ function RoleModal({ role, onClose, onDone }: { role: RoleConfig; onClose: () =>
             />
           ))}
         </Field>
+
+        <Checkbox
+          checked={simple}
+          onToggle={() => setSimple((v) => !v)}
+          label="Interfaz reducida para colaboradores externos"
+          hint="Una sola pantalla con su trabajo asignado, sin menú ni pestañas y sin poder salir de ahí. Pensado para transportistas y proveedores."
+        />
 
         <Field
           label="Qué ve en el teléfono"

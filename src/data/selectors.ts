@@ -244,7 +244,7 @@ export function myWork(s: AppState, userId: Id): MyWork {
     preparations: activePreparations(s).filter(
       (p) => (p.preparerId === userId || !p.preparerId) && inScope(p.siteId)
     ),
-    transfers: openTransferRequests(s).filter((r) => r.assignedTo === userId || !r.assignedTo),
+    transfers: myTransfers(s, userId),
     counts: s.counts.filter((c) => !c.closedAt && inScope(c.siteId)),
     incidents: openIncidents(s).length,
   };
@@ -401,4 +401,41 @@ export function customValue(v: Vehicle, field: CustomField): string {
   if (raw === undefined || raw === '') return '—';
   if (field.type === 'si_no') return raw === 'si' ? 'Sí' : 'No';
   return raw;
+}
+
+/* ----------------------------------------------- traslados asignados */
+
+/**
+ * Traslados abiertos asignados a esta persona.
+ *
+ * Solo los suyos: un transportista externo no debe ver la carga de trabajo
+ * de los demás ni los traslados que todavía no se han repartido.
+ */
+export function myTransfers(s: AppState, userId: Id): ServiceRequest[] {
+  // Clave de recorrido: sede, luego zona, luego plaza. Ordenar por ella
+  // evita que el transportista cruce la campa de un lado a otro.
+  const ruta = (r: ServiceRequest) => {
+    const pos = r.from?.positionId ? s.positions.find((p) => p.id === r.from!.positionId) : undefined;
+    const zone = r.from?.zoneId ? s.zones.find((z) => z.id === r.from!.zoneId) : undefined;
+    return [r.from?.siteId ?? '', zone?.name ?? '', pos?.code ?? ''].join('|');
+  };
+
+  return s.requests
+    .filter((r) => r.type === 'traslado' && r.status !== 'terminada' && r.assignedTo === userId)
+    .sort((a, b) => {
+      // Primero lo que ya está en marcha; el resto, en orden de recorrido.
+      const enRuta = (r: ServiceRequest) => (r.status === 'en_ruta' ? 0 : 1);
+      const urgente = (r: ServiceRequest) => (r.urgent ? 0 : 1);
+      return (
+        enRuta(a) - enRuta(b) ||
+        urgente(a) - urgente(b) ||
+        ruta(a).localeCompare(ruta(b), 'es')
+      );
+    });
+}
+
+/** ¿Este rol usa la interfaz reducida de colaborador externo? */
+export function isSimpleRole(s: AppState, user: User | null): boolean {
+  if (!user) return false;
+  return roleConfig(s, user.role)?.simple === true;
 }

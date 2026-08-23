@@ -63,7 +63,16 @@ export const NAV: NavGroup[] = [
   },
   {
     title: 'OPERATIVA',
-    items: [{ href: '/mi-trabajo', label: 'Mi trabajo', icon: '📱', short: 'Inicio' }],
+    items: [
+      { href: '/mi-trabajo', label: 'Mi trabajo', icon: '📱', short: 'Inicio' },
+      {
+        href: '/mis-traslados',
+        label: 'Mis traslados',
+        icon: '🚚',
+        short: 'Traslados',
+        anyOf: ['traslados.propios'],
+      },
+    ],
   },
 ];
 

@@ -140,9 +140,12 @@ export const ROLES: RoleConfig[] = [
   },
   {
     id: 'transportista',
-    label: 'Transportista',
-    permissions: ['flota.ver', 'campa.ver', 'movimientos.registrar', 'incidencias.crear'],
-    mobileSections: ['/mi-trabajo', '/flota', '/movimientos'],
+    label: 'Transportista (externo)',
+    // Un proveedor externo no tiene por qué ver la flota entera ni las
+    // campas: solo los traslados que le han asignado.
+    permissions: ['traslados.propios', 'movimientos.registrar', 'incidencias.crear'],
+    mobileSections: ['/mis-traslados'],
+    simple: true,
     builtin: true,
   },
   {
