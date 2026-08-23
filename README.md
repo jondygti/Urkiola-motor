@@ -83,8 +83,8 @@ negocio se escriben una sola vez.
 
 ## Documentación
 
-- [`docs/DESPLIEGUE.md`](docs/DESPLIEGUE.md) — **dónde alojarlo**: AWS
-  frente a alternativas, con costes reales y recomendación.
+- [`docs/DESPLIEGUE.md`](docs/DESPLIEGUE.md) — **dónde alojarlo**: por qué
+  Arsys, qué contratar, cómo desplegar y copias de seguridad.
 - [`docs/DISTRIBUCION.md`](docs/DISTRIBUCION.md) — publicar en Google Play:
   canales, ficha, plazos y cómo actualizar sin pasar por revisión.
 - [`docs/BACKEND-API.md`](docs/BACKEND-API.md) — contrato de la API,
