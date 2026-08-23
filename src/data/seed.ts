@@ -169,8 +169,16 @@ export const ROLES: RoleConfig[] = [
   {
     id: 'comercial',
     label: 'Comercial',
-    permissions: ['flota.ver', 'solicitudes.crear', 'entregas.gestionar', 'notificaciones.gestionar'],
-    mobileSections: ['/entregas', '/mi-trabajo', '/flota'],
+    // El comercial también mueve coches: los saca a la puerta, los lleva a
+    // la exposición y los devuelve.
+    permissions: [
+      'flota.ver',
+      'movimientos.registrar',
+      'solicitudes.crear',
+      'entregas.gestionar',
+      'notificaciones.gestionar',
+    ],
+    mobileSections: ['/entregas', '/mover', '/mi-trabajo', '/flota'],
     builtin: true,
   },
 ];

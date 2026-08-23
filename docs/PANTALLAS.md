@@ -66,7 +66,7 @@ Por ejemplo, con la configuración de serie:
 | Preparador | Mi preparación · Mover coche · Mi trabajo · Flota | Su cola de trabajo |
 | Recepción | Descargar camión · Mover coche · Mi trabajo · Flota | La descarga en curso |
 | Transportista (externo) | Solo «Mis traslados», sin menú | Sus traslados |
-| Comercial | Mi trabajo · Flota | Su trabajo del día |
+| Comercial | Entregas · Mover coche · Mi trabajo · Flota | Sus entregas |
 
 ### Pantallas rápidas de campo
 
