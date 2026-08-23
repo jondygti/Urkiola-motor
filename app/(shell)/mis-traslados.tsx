@@ -39,6 +39,9 @@ export default function MyTransfersScreen() {
   return (
     <ScreenGuard href="/mis-traslados" title="Mis traslados">
       <Screen>
+        {/* Flujo pensado para el móvil: en un monitor grande se acota para
+            que las tarjetas y los botones no queden desproporcionados. */}
+        <View style={{ width: '100%', maxWidth: 640, alignSelf: 'center' }}>
         <H1>Mis traslados</H1>
         <Muted>
           {transfers.length === 0
@@ -66,6 +69,7 @@ export default function MyTransfersScreen() {
           Si no tienes cobertura puedes trabajar igual: lo que marques se guarda en el móvil y se envía solo
           al recuperar la señal.
         </Muted>
+        </View>
       </Screen>
     </ScreenGuard>
   );
