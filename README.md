@@ -38,14 +38,25 @@ vehículos activos repartidos entre Sondika, Leioa, Galdakao, Anoeta e Irun)
 y guarda los cambios en el propio dispositivo. Sirve para validar la
 operativa con el equipo antes de montar el servidor.
 
-Para conectarla a un backend real basta con:
+El backend está escrito, en [`server/`](server). Para levantarlo en local y
+usar la app contra él, sin contratar nada:
 
 ```bash
-EXPO_PUBLIC_API_URL=https://api.urkiolacarservice.com npm start
+npm run server                                    # el servidor, en el 8080
+EXPO_PUBLIC_API_URL=http://127.0.0.1:8080 npm run web
 ```
 
-No hay que tocar ninguna pantalla. El contrato que debe cumplir el servidor
-está en [`docs/BACKEND-API.md`](docs/BACKEND-API.md).
+Los usuarios de ejemplo entran con la contraseña `urkiola` (lo avisa la
+consola del servidor al arrancar). En producción se cambia por lo de
+siempre: un administrador inicial y contraseñas de verdad.
+
+No hay que tocar ninguna pantalla: `EXPO_PUBLIC_API_URL` es lo único que
+cambia. Ojo, **se incrusta al compilar y Metro la cachea**, así que al
+cambiarla hay que compilar con `--clear`.
+
+El contrato que cumple el servidor está en
+[`docs/BACKEND-API.md`](docs/BACKEND-API.md) y cómo desplegarlo, en
+[`server/README.md`](server/README.md).
 
 ## Estructura
 
@@ -71,6 +82,7 @@ src/
     prep/                 Panel de preparación con cronómetros y checklist
     scan/                 Lectura de códigos (cámara en Android)
     common/               Píldoras de estado y celdas reutilizables
+server/                   El backend: rutas, permisos, almacén y pruebas
 deploy/                   Caddy y variables para la opción de servidor propio
 docs/                     Documentación
 scripts/generate-icons.mjs  Genera los iconos de marca
@@ -78,8 +90,8 @@ scripts/generate-icons.mjs  Genera los iconos de marca
 
 La pieza clave es `src/data/commands.ts`: cada acción de la app es un
 *comando* y `applyCommand(state, cmd)` es una función pura sin React. El
-mismo fichero puede ejecutarse en el servidor, así que las reglas de
-negocio se escriben una sola vez.
+servidor **importa ese mismo fichero**, así que las reglas de negocio están
+escritas una sola vez y no hay dos versiones que puedan discrepar.
 
 ## Documentación
 
@@ -90,6 +102,8 @@ negocio se escriben una sola vez.
   canales, ficha, plazos y cómo actualizar sin pasar por revisión.
 - [`docs/BACKEND-API.md`](docs/BACKEND-API.md) — contrato de la API,
   tablas de PostgreSQL e integración con Quiter.
+- [`server/README.md`](server/README.md) — el backend: cómo arrancarlo,
+  cómo está montado, variables de entorno y qué le falta todavía.
 - [`docs/MANTENIMIENTO.md`](docs/MANTENIMIENTO.md) — **cómo se sigue
   cambiando el sistema una vez está en marcha**: actualizaciones sin pasar
   por las tiendas, migraciones, entornos, copias de seguridad y qué no
@@ -107,6 +121,8 @@ negocio se escriben una sola vez.
 ```bash
 npm run typecheck     # TypeScript en modo estricto
 npm run verify        # recorre la app con un navegador: 252 cargas + 37 comprobaciones
+npm run server:test   # el backend por dentro: 42 comprobaciones
+npm run verify:api    # la app compilada contra el servidor real: 14 comprobaciones
 npm run build:web     # genera dist/ listo para publicar
 npm run icons         # regenera los iconos de assets/
 ```

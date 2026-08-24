@@ -13,21 +13,27 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [entrando, setEntrando] = useState(false);
 
   if (ready && user) return <Redirect href="/" />;
 
+  const entrar = async (correo: string, clave: string) => {
+    setEntrando(true);
+    setError(null);
+    // Quien decide si el correo y la contraseña valen es el servidor: aquí
+    // solo se enseña lo que conteste.
+    const fallo = await login(correo, clave);
+    setEntrando(false);
+    if (fallo) setError(fallo);
+  };
+
   const submit = () => {
-    const found = state.users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
-    if (!found) {
-      setError('No encontramos ese usuario. Revisa el correo.');
-      return;
-    }
+    if (entrando) return;
     if (mode === 'api' && password.length < 4) {
       setError('Introduce tu contraseña.');
       return;
     }
-    setError(null);
-    login(found.id);
+    void entrar(email, password);
   };
 
   return (
@@ -74,8 +80,8 @@ export default function LoginScreen() {
               </View>
             ) : null}
 
-            <Btn variant="primary" full onPress={submit}>
-              Entrar
+            <Btn variant="primary" full onPress={submit} disabled={entrando}>
+              {entrando ? 'Entrando…' : 'Entrar'}
             </Btn>
 
             {mode === 'demo' ? (
@@ -88,7 +94,7 @@ export default function LoginScreen() {
                   {state.users.map((u) => (
                     <Pressable
                       key={u.id}
-                      onPress={() => login(u.id)}
+                      onPress={() => void entrar(u.email, '')}
                       style={({ pressed }) => ({
                         borderWidth: 1,
                         borderColor: c.border,

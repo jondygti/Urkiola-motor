@@ -4,10 +4,11 @@
 urkiolacarservice.com, www.urkiolacarservice.com {
 	encode zstd gzip
 
-	# API del backend (cuando exista el contenedor `api`).
+	# API del backend. Quita el prefijo /api, así que la app se configura
+	# con EXPO_PUBLIC_API_URL=https://urkiolacarservice.com/api
 	handle /api/* {
 		uri strip_prefix /api
-		reverse_proxy api:3000
+		reverse_proxy api:8080
 	}
 
 	# Fotos y albaranes servidos desde MinIO.

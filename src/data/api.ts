@@ -13,6 +13,10 @@ import type { Command } from './commands';
  *   GET  /state                                      -> AppState
  *   POST /commands        Command                    -> { ok: true }
  *   GET  /health                                     -> { ok: true }
+ *   POST /push/token      { token }                  -> { ok: true }
+ *
+ * Está implementado en `server/`, con las mismas reglas de negocio que la
+ * app (reutiliza `src/data/commands.ts`).
  */
 
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? '').replace(/\/+$/, '');
@@ -92,5 +96,11 @@ export const api = {
     request<{ ok: boolean }>('/commands', {
       method: 'POST',
       body: JSON.stringify(command),
+    }),
+  /** Registra el móvil para recibir avisos. */
+  pushToken: (token: string) =>
+    request<{ ok: boolean }>('/push/token', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
     }),
 };

@@ -32,20 +32,26 @@ services:
     volumes:
       - minio-data:/data
 
-  # Descomentar cuando el backend esté escrito.
-  # Debe implementar el contrato de docs/BACKEND-API.md.
-  # api:
-  #   build: ./server
-  #   restart: unless-stopped
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
-  #   environment:
-  #     DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-  #     S3_ENDPOINT: http://minio:9000
-  #     S3_ACCESS_KEY: ${MINIO_ROOT_USER}
-  #     S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
-  #     JWT_SECRET: ${JWT_SECRET}
+  api:
+    # Sin argumento EXPO_PUBLIC_API_URL: aquí el panel web lo sirve Caddy
+    # desde ./dist (lo genera `npm run build:web`), no la propia API.
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET}
+      URKIOLA_ADMIN_EMAIL: ${URKIOLA_ADMIN_EMAIL}
+      URKIOLA_ADMIN_PASSWORD: ${URKIOLA_ADMIN_PASSWORD}
+      URKIOLA_SEMILLA: vacia
+      CORS_ORIGEN: ${PUBLIC_URL}
+      NODE_ENV: production
+    # Una sola instancia: el servidor aplica los comandos en fila y coge un
+    # cerrojo en la base de datos. Ver server/README.md.
 
   web:
     image: caddy:2-alpine

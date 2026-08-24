@@ -1,23 +1,39 @@
-# Contrato del backend
+# El backend
 
-La app funciona hoy en **modo demostración**: lleva dentro un parque de
-ejemplo (428 vehículos activos, 5 sedes, 240 plazas en Sondika) y guarda
-los cambios en el propio dispositivo. Es suficiente para validar la
-operativa con el equipo antes de escribir una sola línea de servidor.
+> **Estado: escrito y funcionando.** Está en [`server/`](../server), con sus
+> comprobaciones (`npm --prefix server test`) y una prueba de la app real
+> contra él (`npm run verify:api`). Cómo arrancarlo y desplegarlo, en
+> [`server/README.md`](../server/README.md). Este documento es el contrato:
+> qué tiene que cumplir cualquier servidor de esta app, y por qué.
 
-Para conectarla a un backend real solo hay que definir
-`EXPO_PUBLIC_API_URL`. No hay que tocar ninguna pantalla.
+La app también funciona en **modo demostración**, sin servidor: lleva dentro
+un parque de ejemplo (428 vehículos activos, 5 sedes, 240 plazas en Sondika)
+y guarda los cambios en el propio dispositivo. Es lo que se usa para validar
+la operativa con el equipo.
 
-## Endpoints mínimos
+Para conectarla al backend solo hay que definir `EXPO_PUBLIC_API_URL`. No
+hay que tocar ninguna pantalla.
+
+## Endpoints
 
 | Método | Ruta | Devuelve |
 |---|---|---|
 | `GET` | `/health` | `{ "ok": true }` |
 | `POST` | `/auth/login` | `{ "token": "...", "user": User }` |
-| `GET` | `/state` | El `AppState` completo del usuario |
-| `POST` | `/commands` | `{ "ok": true, "state"?: AppState }` |
+| `POST` | `/auth/password` | `{ "ok": true }` |
+| `GET` | `/state` | El `AppState` que le corresponde ver a ese usuario |
+| `POST` | `/commands` | `{ "ok": true, "repetido": false }` |
+| `POST` | `/push/token` | `{ "ok": true }` |
 
 La autenticación va en `Authorization: Bearer <token>`.
+
+Las contraseñas las guarda el propio servidor con scrypt y la sesión es un
+JWT firmado con `node:crypto`. Se descartó apoyarse en Supabase Auth: los
+usuarios, los roles y los permisos ya viven en el estado de la aplicación y
+se editan desde Administración, así que tener un segundo censo de personas
+en otro sitio era más problema que ventaja. **A cambio no hay recuperación
+de contraseña por correo**: hoy la restablece un administrador desde
+`/auth/password`. Está anotado como pendiente.
 
 ## Por qué un único endpoint de escritura
 
@@ -53,6 +69,24 @@ El campo `id` de cada comando es único: el servidor debe **ignorar
 comandos repetidos** (idempotencia) para que un reintento tras un fallo de
 red no duplique un movimiento.
 
+### Los identificadores se derivan del comando
+
+Todo lo que nace de un comando —la preparación, el traslado, el recuento, la
+incidencia, el apunte del histórico— recibe un identificador **derivado del
+id del comando**: `prep.create` con id `cmd-a1b2` crea la preparación
+`prep-cmd-a1b2`, siempre.
+
+No es un detalle de estilo, es lo que hace posible trabajar sin cobertura.
+El móvil aplica el comando en local y enseña la preparación en pantalla; el
+servidor aplica el mismo comando por su cuenta cuando le llega. Si cada uno
+inventase un identificador aleatorio, el comando siguiente («empezar la
+preparación *prep-…*») no encontraría nada en el servidor y el trabajo del
+operario se perdería sin que nadie se enterase. Con el id derivado, los dos
+llegan al mismo sitio.
+
+De paso, rehacer el histórico da exactamente el mismo estado, que es lo que
+permite reconstruirlo si hace falta.
+
 Un comando puede generar otro por dentro. `prep.finish` con destino
 (`to`) registra además el movimiento del vehículo, y ese movimiento lleva
 el id del comando con el sufijo `-mov`. Si el backend ejecuta
@@ -78,7 +112,13 @@ que esto **no es opcional**, es parte del contrato:
 3. **Pueden llegar tarde.** Un comando registrado a las 9:05 en un sótano
    puede llegar a las 11:30. Por eso cada comando lleva su propio `at`:
    **usa esa fecha, no la de recepción**, para el histórico y la
-   trazabilidad.
+   trazabilidad. También para medir: si una preparación se pausó a las 9:05,
+   el tiempo efectivo se corta a las 9:05, no a las 11:30. Con la fecha de
+   llegada, dos horas de cola se contarían como dos horas de taller.
+
+   La excepción es una fecha en el **futuro**: un móvil con el reloj mal
+   puesto dispararía los plazos y el histórico, así que el servidor la
+   sustituye por la de llegada.
 
 4. **Los códigos de error significan cosas distintas para la app:**
 
@@ -165,13 +205,19 @@ servidor debe rechazar comandos sobre vehículos de otras sedes.
 ### Colaboradores externos
 
 Los roles marcados como `simple` (hoy, el transportista) son proveedores
-externos y merecen una regla aparte: **solo pueden tocar los traslados de
-su empresa** (`user.carrierId === request.carrierId`) o los asignados a
-ellos en concreto. Urkiola trabaja con varias empresas de transporte según
+externos y merecen una regla aparte, **que se comprueba antes que los
+permisos del rol y no depende de ellos**: solo pueden tocar los traslados de
+su empresa (`user.carrierId === request.carrierId`) o los asignados a ellos
+en concreto. Si se hiciera al revés —dejando pasar lo que permita el rol—
+bastaría con marcar una casilla de más en Administración para abrirle a un
+proveedor la flota entera. Urkiola trabaja con varias empresas de transporte según
 la zona, y ninguna debe ver los encargos de otra. En concreto, `GET /state` debería devolverles un estado
 recortado —sus traslados y los vehículos implicados— y no el parque
 completo. No es solo cuestión de permisos: es no exponer a un proveedor la
 flota, los comerciales ni la ocupación de las campas.
+
+El `userId` del comando **no se cree**: se sustituye por el del token. Si no,
+cualquiera podría registrar movimientos a nombre de otra persona.
 
 Un comando sin permiso se responde **`403`**. La app lo trata como
 «rechazado»: lo aparta de la cola y lo avisa por pantalla, en vez de

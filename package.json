@@ -8,9 +8,12 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "build:web": "expo export --platform web --output-dir dist",
+    "build:web": "expo export --platform web --output-dir dist --clear",
     "typecheck": "tsc --noEmit",
     "verify": "node scripts/verify/run.mjs",
+    "verify:api": "node scripts/verify/backend.mjs",
+    "server": "npm --prefix server run dev",
+    "server:test": "npm --prefix server test",
     "lint": "expo lint",
     "icons": "node scripts/generate-icons.mjs",
     "build:demo": "node scripts/build-demo.mjs"

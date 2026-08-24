@@ -163,9 +163,43 @@ export type CommandInput = DistributiveOmit<Command, keyof CommandMeta> & Partia
 /* ------------------------------------------------------------ utilidades */
 
 let counter = 0;
+/**
+ * Identificador de comando.
+ *
+ * Lleva parte aleatoria a propósito: dos operarios que pulsan el mismo
+ * botón en el mismo milisegundo, cada uno en su móvil, generarían el mismo
+ * id sin ella. Como el servidor descarta los comandos repetidos por id, uno
+ * de los dos movimientos desaparecería sin que nadie se enterase.
+ */
 export function newId(prefix = 'c'): Id {
   counter += 1;
-  return `${prefix}-${Date.now().toString(36)}-${counter.toString(36)}`;
+  const azar = Math.random().toString(36).slice(2, 8);
+  return `${prefix}-${Date.now().toString(36)}-${counter.toString(36)}-${azar}`;
+}
+
+/**
+ * Contexto del comando que se está aplicando ahora mismo.
+ *
+ * Sirve para que todo lo que nace de un comando (la preparación, el aviso,
+ * el apunte del histórico) reciba un identificador **derivado del id del
+ * comando** y no uno aleatorio. Es imprescindible para trabajar sin
+ * cobertura: el móvil aplica el comando en local y luego el servidor aplica
+ * el mismo comando por su cuenta; si cada uno inventase su propio id, el
+ * siguiente comando ("empezar la preparación prep-…") no encontraría nada
+ * en el servidor y el trabajo del operario se perdería en silencio.
+ */
+let enCurso: { id: Id; at: string; seq: number } | null = null;
+
+/** Id derivado del comando en curso. Único dentro del comando. */
+function derivado(prefix: string): Id {
+  if (!enCurso) return newId(prefix);
+  enCurso.seq += 1;
+  return `${prefix}-${enCurso.id}-${enCurso.seq}`;
+}
+
+/** Id derivado fijo, para lo que un comando crea una sola vez. */
+function unico(prefix: string, cmd: Command): Id {
+  return `${prefix}-${cmd.id}`;
 }
 
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
@@ -175,13 +209,22 @@ function replace<T extends { id: Id }>(list: T[], id: Id, patch: Partial<T>): T[
 }
 
 function addEvent(state: AppState, ev: Omit<TraceEvent, 'id'>): AppState {
-  const event: TraceEvent = { id: newId('ev'), ...ev };
+  const event: TraceEvent = { id: derivado('ev'), ...ev };
   return { ...state, events: [event, ...state.events].slice(0, 4000) };
 }
 
 function addInbox(state: AppState, ev: Omit<NotificationEvent, 'id' | 'read'>): AppState {
-  const item: NotificationEvent = { id: newId('nev'), read: false, ...ev };
+  const item: NotificationEvent = { id: derivado('nev'), read: false, ...ev };
   return { ...state, inbox: [item, ...state.inbox].slice(0, 500) };
+}
+
+/** Milisegundos transcurridos entre `desde` y la fecha del comando. */
+function transcurrido(desde: string | null, cmd: Command): number {
+  if (!desde) return 0;
+  // La fecha del comando, no la de ahora: un comando registrado en un
+  // sótano puede aplicarse dos horas después, y esas dos horas no las
+  // trabajó ni las esperó nadie.
+  return Math.max(0, new Date(cmd.at).getTime() - new Date(desde).getTime());
 }
 
 /** Evalúa las reglas activas y genera avisos en la bandeja. */
@@ -202,7 +245,10 @@ function fireRules(
       vehicleId: vehicle?.id ?? null,
       title: `${rule.recipient} · aviso`,
       body: ctx.body,
-      at: new Date().toISOString(),
+      // La fecha del comando, no la de ahora: si el servidor rehace su
+      // estado a partir del histórico, los avisos salen con la misma fecha
+      // que tenían y no con la del reinicio.
+      at: enCurso?.at ?? new Date().toISOString(),
       tone: ctx.tone ?? 'info',
     });
   }
@@ -268,6 +314,19 @@ function checklistFor(state: AppState, vehicle: Vehicle): Preparation['items'] {
 /* ----------------------------------------------------------- aplicación */
 
 export function applyCommand(state: AppState, cmd: Command): AppState {
+  // El contexto se apila porque un comando puede aplicar otro por dentro
+  // (`prep.finish` registra el movimiento). Al volver, el de fuera sigue
+  // numerando donde lo dejó.
+  const previo = enCurso;
+  enCurso = { id: cmd.id, at: cmd.at, seq: 0 };
+  try {
+    return aplicar(state, cmd);
+  } finally {
+    enCurso = previo;
+  }
+}
+
+function aplicar(state: AppState, cmd: Command): AppState {
   const vehicle = 'vehicleId' in cmd ? state.vehicles.find((v) => v.id === cmd.vehicleId) ?? null : null;
 
   switch (cmd.type) {
@@ -304,7 +363,7 @@ export function applyCommand(state: AppState, cmd: Command): AppState {
     case 'movement.register': {
       if (!vehicle) return state;
       const movement: Movement = {
-        id: newId('mov'),
+        id: unico('mov', cmd),
         vehicleId: cmd.vehicleId,
         from: vehicle.location,
         to: cmd.to,
@@ -377,7 +436,7 @@ export function applyCommand(state: AppState, cmd: Command): AppState {
           : null;
 
       const request: ServiceRequest = {
-        id: newId('req'),
+        id: unico('req', cmd),
         type: cmd.requestType,
         vehicleId: cmd.vehicleId,
         siteId: cmd.siteId,
@@ -456,7 +515,7 @@ export function applyCommand(state: AppState, cmd: Command): AppState {
       if (existing) return state;
       const target = (state.config.prepTargetMinutes[vehicle.type] ?? 120) * 60_000;
       const prep: Preparation = {
-        id: newId('prep'),
+        id: unico('prep', cmd),
         vehicleId: cmd.vehicleId,
         siteId: cmd.siteId,
         preparerId: cmd.preparerId ?? null,
@@ -491,7 +550,7 @@ export function applyCommand(state: AppState, cmd: Command): AppState {
     case 'prep.resume': {
       const p = state.preparations.find((x) => x.id === cmd.prepId);
       if (!p || p.runState === 'terminado') return state;
-      const waitedMs = p.waitingSince ? Date.now() - new Date(p.waitingSince).getTime() : 0;
+      const waitedMs = transcurrido(p.waitingSince, cmd);
       const next: AppState = {
         ...state,
         preparations: replace(state.preparations, cmd.prepId, {
@@ -517,7 +576,7 @@ export function applyCommand(state: AppState, cmd: Command): AppState {
     case 'prep.pause': {
       const p = state.preparations.find((x) => x.id === cmd.prepId);
       if (!p) return state;
-      const ranMs = p.runningSince ? Date.now() - new Date(p.runningSince).getTime() : 0;
+      const ranMs = transcurrido(p.runningSince, cmd);
       let next: AppState = {
         ...state,
         preparations: replace(state.preparations, cmd.prepId, {
@@ -593,7 +652,7 @@ export function applyCommand(state: AppState, cmd: Command): AppState {
             note: 'Ubicación al terminar la preparación',
           })
         : state;
-      const ranMs = p.runningSince ? Date.now() - new Date(p.runningSince).getTime() : 0;
+      const ranMs = transcurrido(p.runningSince, cmd);
       const items = p.items.map((i) => (i.state === 'pendiente' ? { ...i, state: 'completado' as CheckState } : i));
       let next: AppState = {
         ...base,
@@ -639,7 +698,7 @@ export function applyCommand(state: AppState, cmd: Command): AppState {
         )
         .map((v) => v.id);
       const count: FleetCount = {
-        id: newId('count'),
+        id: unico('count', cmd),
         code: cmd.code,
         siteId: cmd.siteId,
         zoneId: cmd.zoneId,
@@ -700,7 +759,7 @@ export function applyCommand(state: AppState, cmd: Command): AppState {
     /* -------------------------------------------------------- incidencias */
     case 'incident.create': {
       const incident: Incident = {
-        id: newId('inc'),
+        id: unico('inc', cmd),
         vehicleId: cmd.vehicleId,
         type: cmd.incidentType,
         description: cmd.description,
@@ -744,7 +803,7 @@ export function applyCommand(state: AppState, cmd: Command): AppState {
 
     /* ------------------------------------------------------ notificaciones */
     case 'rule.create': {
-      const rule: NotificationRule = { id: newId('rule'), createdAt: cmd.at, ...cmd.rule };
+      const rule: NotificationRule = { id: unico('rule', cmd), createdAt: cmd.at, ...cmd.rule };
       return { ...state, rules: [rule, ...state.rules] };
     }
     case 'rule.toggle': {
@@ -763,7 +822,7 @@ export function applyCommand(state: AppState, cmd: Command): AppState {
     /* ----------------------------------------------------------- recepción */
     case 'reception.create': {
       const reception: Reception = {
-        id: newId('rec'),
+        id: unico('rec', cmd),
         truckPlate: cmd.truckPlate,
         carrier: cmd.carrier,
         siteId: cmd.siteId,

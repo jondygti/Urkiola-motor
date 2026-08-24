@@ -1,0 +1,53 @@
+/**
+ * Arranque del servidor.
+ *
+ *   npm run dev     con datos de ejemplo, guardando en un fichero
+ *   npm start       en producción (necesita DATABASE_URL y JWT_SECRET)
+ *
+ * Ver server/README.md.
+ */
+import { leerConfig } from './config';
+import { AlmacenFichero } from './almacen/fichero';
+import { AlmacenPostgres } from './almacen/postgres';
+import type { Almacen } from './almacen/tipos';
+import { Servicio } from './servicio';
+import { crearServidor } from './http';
+
+async function main() {
+  const config = leerConfig();
+
+  const almacen: Almacen = config.databaseUrl
+    ? new AlmacenPostgres(config.databaseUrl)
+    : new AlmacenFichero(config.ficheroDatos);
+
+  if (!config.databaseUrl) {
+    console.warn(
+      `Sin DATABASE_URL: los datos se guardan en ${config.ficheroDatos}. ` +
+        'Vale para probar, no para producción.'
+    );
+  }
+
+  const servicio = await Servicio.crear(almacen, config);
+  const servidor = crearServidor(servicio, config);
+
+  servidor.listen(config.puerto, () => {
+    console.log(`Urkiola Car Service · API escuchando en el puerto ${config.puerto}`);
+  });
+
+  // Al desplegar, la plataforma manda SIGTERM: hay que terminar lo que se
+  // esté aplicando y soltar el cerrojo de la base de datos antes de morir,
+  // o la instancia nueva se queda esperando.
+  const apagar = async (senal: string) => {
+    console.log(`${senal}: cerrando…`);
+    servidor.close();
+    await servicio.cerrar();
+    process.exit(0);
+  };
+  process.on('SIGTERM', () => void apagar('SIGTERM'));
+  process.on('SIGINT', () => void apagar('SIGINT'));
+}
+
+main().catch((e) => {
+  console.error(e instanceof Error ? e.message : e);
+  process.exit(1);
+});

@@ -42,12 +42,27 @@ Cada una viene de un fallo real de este proyecto:
    cliente puede mentir.
 7. **La plaza concreta siempre es opcional; la zona basta.** Una plaza
    inventada deja ocupado un hueco que está libre.
-8. **`EXPO_PUBLIC_*` se incrusta al compilar y Metro lo cachea**: al
-   cambiarla, compilar con `--clear`.
+8. **`EXPO_PUBLIC_*` se incrusta al compilar y Metro lo cachea.** Por eso
+   `build:web` lleva `--clear` siempre: sin él, compilar la demostración
+   justo después de `verify:api` dejaba la dirección del servidor dentro de
+   la demostración, que se pasaba el rato intentando conectarse a un
+   servidor que ya no existía.
 9. **Nunca subir `secrets/` ni `.env`** al repositorio.
 10. **Las versiones de dependencias se leen de
     `node_modules/expo/bundledNativeModules.json`**; `npx expo install` no
     funciona detrás del proxy de estas sesiones.
+11. **Lo que crea un comando lleva un id derivado del id del comando**
+    (`prep.create` con id `cmd-a1b2` → preparación `prep-cmd-a1b2`). Si
+    fuera aleatorio, el móvil y el servidor inventarían identificadores
+    distintos y el comando siguiente («empezar *prep-…*») no encontraría
+    nada en el servidor: el trabajo del operario se perdería en silencio.
+12. **Los tiempos se miden con `cmd.at`, nunca con `Date.now()`.** Un
+    comando registrado en un sótano puede aplicarse dos horas después, y
+    esas dos horas no las trabajó ni las esperó nadie.
+13. **El servidor no se cree el `userId` del comando**: lo sustituye por el
+    del token. Y los colaboradores externos (transportista) se comprueban
+    **antes** que los permisos de su rol, no con ellos: si no, marcar una
+    casilla de más en Administración le abriría la flota a un proveedor.
 
 ## Comprobar antes de dar algo por bueno
 
@@ -55,14 +70,20 @@ Cada una viene de un fallo real de este proyecto:
 npm run typecheck            # TypeScript estricto
 npm run verify               # compila, sirve y recorre la app con un navegador
 npm run verify -- --build    # forzando recompilación
+npm run server:test          # el backend por dentro
+npm run verify:api           # la app real contra el backend real
 ```
-
-`npm run verify` hace dos cosas (`scripts/verify/`):
 
 | Suite | Qué comprueba |
 |---|---|
-| `rutas.mjs` | 7 perfiles × 2 anchos × 18 pantallas = 252 cargas: que ninguna se rompe para ningún rol |
-| `funciones.mjs` | 37 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
+| `scripts/verify/rutas.mjs` | 7 perfiles × 2 anchos × 18 pantallas = 252 cargas: que ninguna se rompe para ningún rol |
+| `scripts/verify/funciones.mjs` | 37 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
+| `server/pruebas/` | 42 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios |
+| `scripts/verify/backend.mjs` | 14 comprobaciones de la app compilada contra el servidor: entrar con contraseña, mover un coche y que **otro dispositivo lo vea** |
+
+`verify:api` va aparte de `verify` porque compila la web una segunda vez:
+`EXPO_PUBLIC_API_URL` se incrusta al compilar, así que la versión de
+demostración y la conectada son dos compilaciones distintas.
 
 Necesita Playwright disponible (global vale) y usa el Chromium ya instalado
 en la imagen. Si se añade una función nueva, **se añade su comprobación
@@ -80,12 +101,14 @@ app/(shell)/        Una pantalla por fichero (expo-router)
 src/data/           types · commands (reglas) · selectors (cálculos) · store · seed
 src/features/       admin · shell (menú) · actions · prep · scan · common
 src/ui/             Sistema de diseño (colores del mockup + modo oscuro)
+server/             El backend. Reutiliza src/data/commands.ts tal cual
 scripts/verify/     Comprobación automática
 docs/               Documentación, toda en castellano
 ```
 
 Documentación de referencia: `docs/PANTALLAS.md` (qué hace cada pantalla y
-por qué), `docs/BACKEND-API.md` (contrato del servidor), `docs/DESPLIEGUE.md`
+por qué), `server/README.md` (cómo arrancar y probar el servidor),
+`docs/BACKEND-API.md` (contrato del servidor), `docs/DESPLIEGUE.md`
 (Railway + Supabase), `docs/MANTENIMIENTO.md` (cómo se sigue cambiando esto
 en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
 `docs/DISTRIBUCION.md` (Google Play).
@@ -112,17 +135,29 @@ en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
 **Hecho:** las 18 pantallas, configuración completa desde Administración
 (sedes, plazas, roles, permisos, columnas, campos propios, checklist),
 funcionamiento sin cobertura con cola de subida, app de Android lista para
-compilar, y toda la documentación.
+compilar, **el backend** (`server/`, con la app entrando con contraseña de
+verdad contra él) y toda la documentación.
 
 **Pendiente, por orden:**
 
-1. **El backend.** No existe todavía. Contrato en `docs/BACKEND-API.md`;
-   se puede escribir y probar en local antes de contratar nada.
-2. **Alta de cuentas** de Railway y Supabase en región europea.
-3. **Integración con Quiter.** Jon tiene que conseguir un export real; sin
+1. **Alta de cuentas** de Railway y Supabase en región europea, y primer
+   despliegue. El servidor ya está listo: `docs/DESPLIEGUE.md`.
+2. **Las fotos.** Las de incidencias y albaranes se guardan como una
+   dirección local del móvil, así que hoy no las ve nadie más. Hace falta
+   subirlas a Supabase Storage antes de mandar el comando.
+3. **Recuperación de contraseña por correo.** Hoy la restablece un
+   administrador; hace falta el envío de correo para que no dependa de
+   nadie.
+4. **Integración con Quiter.** Jon tiene que conseguir un export real; sin
    verlo no se escribe el importador.
-4. **Revisión de seguridad externa** antes de meter datos de clientes
+5. **Revisión de seguridad externa** antes de meter datos de clientes
    (`docs/APOYO-TECNICO.md`).
-5. **Publicación en Google Play** (`docs/DISTRIBUCION.md`).
+6. **Publicación en Google Play** (`docs/DISTRIBUCION.md`).
+
+Menor, apuntado para no olvidarlo: la pantalla de acceso da un aviso de
+hidratación de React en la web compilada (React descarta el HTML
+prerenderizado de esa pantalla y la vuelve a pintar). Se recupera solo y no
+afecta al uso, pero está ahí; `scripts/verify/backend.mjs` lo tiene
+filtrado a propósito y con el motivo escrito.
 
 Rama de trabajo: `claude/frontend-mobile-app-multiplatform-pj09ly`.

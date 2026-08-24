@@ -5,11 +5,13 @@ import { AppState as RNAppState } from 'react-native';
 import { applyAll, applyCommand, newId, type Command, type CommandInput } from './commands';
 import { ApiError, api, apiEnabled, setAuthToken } from './api';
 import { buildSeedState } from './seed';
+import { registerForPush } from './push';
 import type { AppState, Id, User } from './types';
 
 const STATE_KEY = 'urkiola.state.v1';
 const QUEUE_KEY = 'urkiola.queue.v1';
 const SESSION_KEY = 'urkiola.session.v1';
+const TOKEN_KEY = 'urkiola.token.v1';
 
 /**
  * Versión del modelo de datos guardado en el dispositivo.
@@ -68,7 +70,14 @@ interface StoreValue {
   run: (cmd: CommandInput) => void;
   /** Fuerza un intento de subida (botón «reintentar»). */
   flushNow: () => void;
-  login: (userId: Id) => void;
+  /**
+   * Entra en la aplicación.
+   *
+   * Con backend comprueba la contraseña contra el servidor y guarda la
+   * sesión; en modo demostración basta con el correo. Devuelve null si
+   * todo ha ido bien, o el mensaje que hay que enseñar si no.
+   */
+  login: (email: string, password: string) => Promise<string | null>;
   logout: () => void;
   resetDemo: () => void;
 }
@@ -187,11 +196,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     (async () => {
       try {
-        const [savedSession, savedState, savedQueue] = await Promise.all([
+        const [savedSession, savedState, savedQueue, savedToken] = await Promise.all([
           AsyncStorage.getItem(SESSION_KEY),
           AsyncStorage.getItem(STATE_KEY),
           AsyncStorage.getItem(QUEUE_KEY),
+          AsyncStorage.getItem(TOKEN_KEY),
         ]);
+
+        // El token va antes que cualquier llamada: sin él el servidor
+        // responde 401 y la app se creería que no hay conexión.
+        if (savedToken) setAuthToken(savedToken);
 
         // 1. Lo guardado en el dispositivo va primero: la app arranca y es
         //    usable aunque no haya cobertura en este momento.
@@ -222,8 +236,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (savedSession && !cancelled) setUser(JSON.parse(savedSession) as User);
         if (!cancelled) setReady(true);
 
-        // 2. Después, si hay backend, se intenta refrescar desde el servidor.
-        if (apiEnabled && !cancelled) {
+        // 2. Después, si hay backend y sesión, se refresca del servidor.
+        if (apiEnabled && savedToken && !cancelled) {
           try {
             const remote = await api.state();
             if (cancelled) return;
@@ -235,7 +249,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           } catch (err) {
             if (cancelled) return;
             const apiErr = err instanceof ApiError ? err : null;
-            if (!apiErr || apiErr.status === 0) {
+            if (apiErr?.status === 401) {
+              // La sesión ha caducado o el usuario ya no está activo: se
+              // vuelve a la pantalla de entrar. La cola NO se toca: es
+              // trabajo hecho, y se subirá cuando alguien entre otra vez.
+              setAuthToken(null);
+              setUser(null);
+              await AsyncStorage.multiRemove([SESSION_KEY, TOKEN_KEY]).catch(() => undefined);
+              setError('Tu sesión ha caducado. Vuelve a entrar.');
+            } else if (!apiErr || apiErr.status === 0) {
               // No hemos alcanzado el servidor: es el caso del sótano.
               onlineRef.current = false;
               setOnline(false);
@@ -315,19 +337,66 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     void flush();
   }, [flush]);
 
-  const login = useCallback(
-    (userId: Id) => {
-      const found = state.users.find((u) => u.id === userId) ?? null;
-      setUser(found);
-      if (found) AsyncStorage.setItem(SESSION_KEY, JSON.stringify(found)).catch(() => undefined);
+  const login = useCallback<StoreValue['login']>(
+    async (email, password) => {
+      const correo = email.trim().toLowerCase();
+
+      // Modo demostración: no hay servidor al que preguntar, así que con
+      // reconocer el correo basta para entrar y probar la operativa.
+      if (!apiEnabled) {
+        const found = state.users.find((u) => u.email.toLowerCase() === correo) ?? null;
+        if (!found) return 'No encontramos ese usuario. Revisa el correo.';
+        setUser(found);
+        AsyncStorage.setItem(SESSION_KEY, JSON.stringify(found)).catch(() => undefined);
+        return null;
+      }
+
+      try {
+        const { token, user: entrante } = await api.login(correo, password);
+        setAuthToken(token);
+        setUser(entrante);
+        await AsyncStorage.multiSet([
+          [TOKEN_KEY, token],
+          [SESSION_KEY, JSON.stringify(entrante)],
+        ]).catch(() => undefined);
+
+        // El estado depende de quién entra (un transportista solo recibe
+        // sus traslados), así que hay que pedirlo otra vez, no reutilizar
+        // el del usuario anterior.
+        try {
+          const remote = await api.state();
+          dirty.current = true;
+          setState(queueRef.current.length ? applyAll(remote, queueRef.current) : remote);
+          setLastSyncAt(new Date().toISOString());
+          setError(null);
+        } catch {
+          // Ha entrado pero no hemos podido traer los datos: se queda con
+          // lo último guardado y se reintentará solo.
+          setError('Sin conexión con el servidor');
+        }
+
+        // Los avisos push necesitan que el servidor sepa este dispositivo.
+        void registerForPush()
+          .then((expo) => (expo ? api.pushToken(expo) : null))
+          .catch(() => undefined);
+
+        void flush();
+        return null;
+      } catch (err) {
+        const apiErr = err instanceof ApiError ? err : null;
+        if (!apiErr || apiErr.status === 0) return 'No hay conexión con el servidor.';
+        if (apiErr.status === 401) return 'Correo o contraseña incorrectos.';
+        if (apiErr.status === 429) return 'Demasiados intentos. Prueba dentro de un rato.';
+        return apiErr.message;
+      }
     },
-    [state.users]
+    [state.users, flush]
   );
 
   const logout = useCallback(() => {
     setUser(null);
     setAuthToken(null);
-    AsyncStorage.removeItem(SESSION_KEY).catch(() => undefined);
+    AsyncStorage.multiRemove([SESSION_KEY, TOKEN_KEY]).catch(() => undefined);
   }, []);
 
   const resetDemo = useCallback(() => {

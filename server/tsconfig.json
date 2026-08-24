@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "nodenext",
+    "rootDir": "..",
+    "outDir": "dist",
+    "strict": true,
+    "noUncheckedIndexedAccess": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "types": ["node"]
+  },
+    "include": [
+    "src/**/*.ts",
+    "pruebas/**/*.ts",
+    "../src/data/types.ts",
+    "../src/data/format.ts",
+    "../src/data/commands.ts",
+    "../src/data/selectors.ts",
+    "../src/data/seed.ts"
+  ]
+}

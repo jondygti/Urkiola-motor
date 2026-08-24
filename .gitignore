@@ -51,3 +51,7 @@ backups/
 demo/
 .demo-build/
 dist-spa/
+dist-api/
+
+# datos del servidor en local
+server/datos/

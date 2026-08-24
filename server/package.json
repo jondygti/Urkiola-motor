@@ -1,0 +1,21 @@
+{
+  "name": "urkiola-servidor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backend de Urkiola Car Service. Implementa docs/BACKEND-API.md reutilizando la lógica de negocio de la app (src/data/commands.ts).",
+  "scripts": {
+    "build": "tsc -p . && node scripts/copiar-recursos.mjs",
+    "typecheck": "tsc -p . --noEmit",
+    "start": "node dist/server/src/index.js",
+    "dev": "npm run build && node dist/server/src/index.js",
+    "test": "npm run build && node --test dist/server/pruebas/*.test.js"
+  },
+  "dependencies": {
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/pg": "^8.15.5",
+    "typescript": "~6.0.3"
+  }
+}

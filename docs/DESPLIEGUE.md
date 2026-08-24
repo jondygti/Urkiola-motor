@@ -31,8 +31,8 @@ máquina que parchear ni disco que se llene.
 |---|---|---|
 | **Base de datos** | Supabase (PostgreSQL gestionado) | El parque, los movimientos, las preparaciones… y el registro de comandos |
 | **Fotos** | Supabase Storage | Albaranes, daños e incidencias. Sustituye al MinIO del montaje anterior |
-| **Identidad** | Supabase Auth | Contraseñas, recuperación y sesión. Los roles y permisos siguen siendo nuestros |
-| **API** | Railway | El servicio que recibe los comandos y aplica las reglas de negocio |
+| **Identidad** | La propia API | Contraseñas (scrypt) y sesión (JWT). Se descartó Supabase Auth: los usuarios y sus permisos ya viven en el estado de la app y se editan desde Administración, así que un segundo censo de personas en otro sitio sobraba. Ver [`BACKEND-API.md`](BACKEND-API.md) |
+| **API** | Railway | El servicio que recibe los comandos y aplica las reglas de negocio. Está en [`server/`](../server) |
 | **Panel web** | Railway, servido por la propia API | Es un export estático; sale del mismo dominio y así no hay líos de CORS |
 | **App Android** | Google Play | Ver [`DISTRIBUCION.md`](DISTRIBUCION.md). Solo necesita la dirección de la API |
 
@@ -99,15 +99,27 @@ Sin `scp`, sin `docker compose`, sin entrar por SSH. Railway construye desde
 la rama que se le diga y cambia al servicio nuevo cuando arranca bien; si
 falla, se queda el anterior.
 
-Variables del servicio de la API (en Railway → Variables):
+Railway construye con `server/Dockerfile` y la raíz del repositorio como
+contexto. El panel web se compila **dentro** de la imagen, porque
+`EXPO_PUBLIC_API_URL` se incrusta al compilar: pásalo como argumento de
+construcción con el dominio público.
+
+Variables del servicio de la API (en Railway → Variables). La lista completa
+está en [`server/README.md`](../server/README.md):
 
 | Variable | Qué es |
 |---|---|
 | `DATABASE_URL` | Cadena de conexión de Supabase. Para un proceso Node de larga vida, la conexión directa o el *session pooler*, no el de transacciones |
-| `SUPABASE_URL` | Dirección del proyecto, para Storage |
-| `SUPABASE_SERVICE_ROLE_KEY` | Clave de servicio. **Solo en el servidor**, nunca en la app |
-| `SUPABASE_JWT_SECRET` | Para validar el token de sesión del usuario |
-| `ALLOWED_ORIGIN` | El dominio del panel web |
+| `JWT_SECRET` | Firma de las sesiones. `openssl rand -hex 32`. **Sin esto el servidor no arranca en producción**, a propósito |
+| `URKIOLA_SEMILLA` | `vacia` en producción. `demo` carga el parque de ejemplo |
+| `URKIOLA_ADMIN_EMAIL` / `URKIOLA_ADMIN_PASSWORD` | El primer administrador, que se crea al arrancar. Sin él nadie podría entrar en un sistema recién instalado |
+| `CORS_ORIGEN` | El dominio del panel web |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Para Storage, cuando se suban las fotos. **Solo en el servidor**, nunca en la app |
+
+**Una sola instancia (réplicas = 1).** El servidor aplica los comandos en
+fila y coge un cerrojo en la base de datos: un segundo proceso espera a que
+el primero suelte —así un despliegue nuevo releva al viejo sin cortar— y si
+no lo suelta, falla con un mensaje claro en vez de corromper los datos.
 
 Y en la app móvil, `EXPO_PUBLIC_API_URL` apuntando a la API (ver
 `eas.json`). Ojo con lo de siempre: esa variable **se incrusta al compilar
@@ -171,11 +183,18 @@ abierto solo en 80/443/SSH, SSH con clave y root deshabilitado, copias
 montadas y vigiladas, y el certificado renovándose. Caddy hace lo último
 solo; el resto es trabajo de alguien.
 
+El `docker-compose.yml` ya trae el servicio `api` levantando el backend de
+`server/`, con la base de datos, las copias diarias y Caddy delante:
+
 ```bash
-npm run build:web
-scp -r dist deploy docker-compose.yml usuario@servidor:/opt/urkiola/
-cd /opt/urkiola && cp deploy/.env.example .env && docker compose up -d
+npm run build:web       # el panel; en este montaje lo sirve Caddy
+rsync -a --exclude node_modules . usuario@servidor:/opt/urkiola/
+cd /opt/urkiola && cp deploy/.env.example .env   # y rellenarlo
+docker compose up -d --build
 ```
+
+Aquí Caddy expone la API bajo `/api`, así que la app se compila con
+`EXPO_PUBLIC_API_URL=https://tu-dominio/api`.
 
 ## El panel web es una página estática
 
@@ -191,15 +210,19 @@ hacer la API, y en Cloudflare Pages o Netlify, su regla de reescritura.
 
 ## Qué hay que hacer, y en qué orden
 
-1. Crear el proyecto de Supabase **en región europea** y guardar las claves.
-2. Crear el proyecto de Railway, conectarlo al repositorio y elegir Europa.
-3. Escribir el backend contra [`BACKEND-API.md`](BACKEND-API.md) y las
-   migraciones de las tablas.
-4. Apuntar `EXPO_PUBLIC_API_URL` al dominio y compilar la app con `--clear`.
-5. Entorno de pruebas con su propio proyecto de Supabase.
-6. Volcado semanal fuera de Supabase y primera restauración de prueba.
-7. Firmar los DPA y anotar los dos proveedores en el registro de
+1. ~~Escribir el backend~~. Hecho: está en [`server/`](../server), con sus
+   comprobaciones. Se puede arrancar y probar en un portátil sin contratar
+   nada (`npm run server`).
+2. Crear el proyecto de Supabase **en región europea** y guardar las claves.
+   El esquema lo crea el propio servidor al arrancar
+   (`server/src/almacen/esquema.sql`): no hay migraciones que ejecutar a
+   mano todavía.
+3. Crear el proyecto de Railway, conectarlo al repositorio y elegir Europa.
+4. Poner las variables de arriba y desplegar. Comprobar `GET /health`.
+5. Apuntar `EXPO_PUBLIC_API_URL` al dominio y compilar la app con `--clear`.
+6. Entorno de pruebas con su propio proyecto de Supabase.
+7. Volcado semanal fuera de Supabase y primera restauración de prueba.
+8. Firmar los DPA y anotar los dos proveedores en el registro de
    tratamientos.
 
-Los puntos 3 a 6 son trabajo nuestro y están pendientes; los otros son de
-alta de cuenta.
+Del 2 al 4 hace falta que las cuentas existan; el resto es trabajo nuestro.
