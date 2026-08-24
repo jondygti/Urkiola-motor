@@ -381,3 +381,80 @@ test('el preparador abre la preparación que le han pedido, pero no se la invent
   assert.equal(solicitud.status, 'en_curso');
   assert.equal(solicitud.assignedTo, pedro.id);
 });
+
+test('un coche que no está en el parque se puede dar de alta con el bastidor', async (t) => {
+  const p = await servidorDePruebas();
+  t.after(() => p.limpiar());
+  const nerea = await entrar(p.servicio, 'recepcion@urkiolacarservice.com');
+
+  const antes = p.servicio.estado.vehicles.length;
+  await p.servicio.ejecutar(
+    cmd('vehicle.create', { vin8: 'ZZ998877', plate: '1111 ZZZ' }, { id: 'c-alta', userId: nerea.id }),
+    nerea
+  );
+
+  const nuevo = p.servicio.estado.vehicles.find((v) => v.vin8 === 'ZZ998877');
+  assert.equal(p.servicio.estado.vehicles.length, antes + 1);
+  assert.equal(nuevo?.id, 'v-ZZ998877');
+  assert.equal(nuevo?.plate, '1111 ZZZ');
+  // Entra activo: si no, no saldría en la operativa y no serviría de nada.
+  assert.equal(nuevo?.logisticActive, true);
+  // Y lo que no se sabe queda marcado como tal, no inventado.
+  assert.equal(nuevo?.brand, 'Sin identificar');
+});
+
+test('dar de alta dos veces el mismo bastidor no duplica el coche', async (t) => {
+  const p = await servidorDePruebas();
+  t.after(() => p.limpiar());
+  const nerea = await entrar(p.servicio, 'recepcion@urkiolacarservice.com');
+
+  await p.servicio.ejecutar(cmd('vehicle.create', { vin8: 'AB123456' }, { id: 'c-1', userId: nerea.id }), nerea);
+  const despuesDeUno = p.servicio.estado.vehicles.length;
+
+  // Otro comando distinto (otro móvil, otra persona) con el mismo bastidor.
+  await p.servicio.ejecutar(
+    cmd('vehicle.create', { vin8: 'ab123456', plate: '2222 BBB' }, { id: 'c-2', userId: nerea.id }),
+    nerea
+  );
+
+  assert.equal(p.servicio.estado.vehicles.length, despuesDeUno);
+  // Y la segunda vez completa lo que faltaba en vez de perderse.
+  assert.equal(p.servicio.estado.vehicles.find((v) => v.vin8 === 'AB123456')?.plate, '2222 BBB');
+});
+
+test('el alta enlaza la línea del camión que estaba suelta', async (t) => {
+  const p = await servidorDePruebas();
+  t.after(() => p.limpiar());
+  const nerea = await entrar(p.servicio, 'recepcion@urkiolacarservice.com');
+
+  await p.servicio.ejecutar(
+    cmd('reception.create', { truckPlate: '0000 TRK', carrier: 'Grúas Francis', siteId: 'sondika' }, { id: 'c-rec', userId: nerea.id }),
+    nerea
+  );
+  await p.servicio.ejecutar(
+    cmd('reception.line', { receptionId: 'rec-c-rec', ref: 'NUEVO123' }, { userId: nerea.id }),
+    nerea
+  );
+
+  const suelta = p.servicio.estado.receptions[0].lines.find((l) => l.ref === 'NUEVO123');
+  assert.equal(suelta?.vehicleId, null, 'antes del alta la línea no apunta a ningún coche');
+
+  await p.servicio.ejecutar(
+    cmd('vehicle.create', { vin8: 'NUEVO123' }, { id: 'c-alta2', userId: nerea.id }),
+    nerea
+  );
+
+  const enlazada = p.servicio.estado.receptions[0].lines.find((l) => l.ref === 'NUEVO123');
+  assert.equal(enlazada?.vehicleId, 'v-NUEVO123');
+});
+
+test('un preparador no da de alta vehículos', async (t) => {
+  const p = await servidorDePruebas();
+  t.after(() => p.limpiar());
+  const pedro = await entrar(p.servicio, 'pedro@urkiolacarservice.com');
+
+  await assert.rejects(
+    () => p.servicio.ejecutar(cmd('vehicle.create', { vin8: 'XX000111' }, { userId: pedro.id }), pedro),
+    (e: unknown) => e instanceof ErrorHttp && e.codigo === 403
+  );
+});

@@ -163,6 +163,7 @@ que esto **no es opcional**, es parte del contrato:
 | `rule.create` / `rule.toggle` / `rule.delete` | Reglas de notificación |
 | `inbox.read` / `inbox.readAll` | Bandeja de avisos |
 | `reception.create` / `reception.line` / `reception.albaran` / `reception.close` | Recepción de camiones |
+| `vehicle.create` | Alta manual de un vehículo por su bastidor. El id sale del VIN-8 (`v-<vin8>`), así que darlo de alta dos veces no duplica nada |
 | `config.update` / `requirement.upsert` / `requirement.delete` / `zone.upsert` | Administración |
 
 Las definiciones exactas de cada uno están tipadas en
@@ -197,6 +198,7 @@ permiso correspondiente:
 | `reception.*` | `recepcion.ejecutar` |
 | `rule.*` | `notificaciones.gestionar` |
 | `vehicle.setCustom` | `flota.editar` |
+| `vehicle.create` | `flota.editar` **o** `recepcion.ejecutar` (quien descarga camiones registra el coche que llega sin estar en el parque) |
 | `site.*`, `zone.*`, `position.*`, `user.*`, `role.*`, `customField.*`, `config.update` | `admin.configurar` |
 
 Además, si el usuario tiene sedes asignadas (`user.siteIds` no vacío), el
@@ -291,6 +293,13 @@ Dos fases, como estaba previsto:
 1. **Ahora**: importación de un Excel. Un endpoint `POST /import/quiter`
    que reciba el fichero y haga *upsert* por VIN. Los vehículos entran con
    `logistic_active = false` hasta que tengan actividad.
+
+   Los dados de alta a mano (`vehicle.create`) llevan como identificador
+   `v-<vin8>`, así que el importador los reconoce por el bastidor y
+   completa marca, modelo y comercial **sin tocar nada de lo logístico**:
+   la ubicación, los movimientos y la preparación que ya tuvieran se
+   quedan como están. Se distinguen porque su `origin` es «Alta manual» y
+   su marca, mientras nadie la complete, es «Sin identificar».
 2. **Después**: sincronización periódica contra la API de Quiter, con la
    misma lógica de *upsert*. Quiter manda en los datos comerciales
    (vehículo, comercial, stock/pedido); Urkiola manda en los logísticos

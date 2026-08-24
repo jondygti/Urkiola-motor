@@ -574,6 +574,23 @@ export function suggestCarrier(s: AppState, fromSiteId?: Id, toSiteId?: Id): Car
  * Manda la sede de destino: es la concesión que ha quedado en preparar y
  * entregar. Si todavía no la tiene, la sede donde está ahora.
  */
+/**
+ * ¿Es este coche del comercial que ha entrado?
+ *
+ * El comercial de un vehículo viene de Quiter como **texto** ('Juan'), no
+ * como un usuario de la aplicación ('Juan Bilbao'), así que hay que
+ * emparejarlos con cuidado: se acepta el nombre completo o el de pila, en
+ * los dos sentidos. Cuando llegue el importador de Quiter y se vea el
+ * formato real, este es el único sitio que hay que tocar.
+ */
+export function esDelComercial(v: Vehicle, user: User | null): boolean {
+  if (!user || !v.salesRep) return false;
+  const rep = v.salesRep.trim().toLowerCase();
+  const nombre = user.name.trim().toLowerCase();
+  if (!rep) return false;
+  return rep === nombre || nombre.startsWith(`${rep} `) || rep.startsWith(`${nombre} `);
+}
+
 export function sedeDeEntrega(v: Vehicle): Id | null {
   return v.targetSiteId ?? v.location?.siteId ?? null;
 }

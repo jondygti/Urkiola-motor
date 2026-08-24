@@ -54,6 +54,7 @@ export const TIPOS: ReadonlySet<string> = new Set<Command['type']>([
   'carrier.delete',
   'vehicle.setDelivery',
   'vehicle.activate',
+  'vehicle.create',
 ]);
 
 /** Margen que se le permite al reloj del móvil antes de corregirlo. */

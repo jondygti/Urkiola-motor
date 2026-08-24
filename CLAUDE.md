@@ -77,8 +77,8 @@ npm run verify:api           # la app real contra el backend real
 | Suite | Qué comprueba |
 |---|---|
 | `scripts/verify/rutas.mjs` | 7 perfiles × 2 anchos × 18 pantallas = 252 cargas: que ninguna se rompe para ningún rol |
-| `scripts/verify/funciones.mjs` | 67 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
-| `server/pruebas/` | 43 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios |
+| `scripts/verify/funciones.mjs` | 84 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
+| `server/pruebas/` | 47 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios |
 | `scripts/verify/backend.mjs` | 14 comprobaciones de la app compilada contra el servidor: entrar con contraseña, mover un coche y que **otro dispositivo lo vea** |
 
 `verify:api` va aparte de `verify` porque compila la web una segunda vez:
@@ -135,6 +135,13 @@ en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
 - **El panel de control es de dirección** (`panel.ver`). De serie solo lo
   tiene el administrador; se puede dar a quien haga falta desde
   Administración. Quien no lo tiene entra directo a su trabajo.
+- **Un coche se puede dar de alta a mano con solo el bastidor**, desde
+  Flota o en la propia descarga del camión. El identificador sale del
+  VIN-8 (`v-<vin8>`), así que darlo de alta dos veces no duplica nada y el
+  importador de Quiter lo reconoce y lo completa después.
+- **El comercial de un vehículo viene de Quiter como texto** («Juan»), no
+  como usuario («Juan Bilbao»). El emparejamiento está en
+  `esDelComercial` (`src/data/selectors.ts`), en un solo sitio.
 
 ## Estado y siguientes pasos
 

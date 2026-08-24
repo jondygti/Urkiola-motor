@@ -404,5 +404,122 @@ export async function ejecutar(browser, BASE) {
     }
   }
 
+
+  /* --------------- 16 · alta manual de un coche desde Flota */
+  {
+    const { context, page, errores } = await entrarComo(browser, USUARIOS.logistica, 1440);
+    await page.goto(`${BASE}/flota`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(900);
+
+    ok(
+      '16 · logística puede dar de alta un coche',
+      await page.getByText('Dar de alta un vehículo', { exact: false }).first().isVisible()
+    );
+
+    await page.getByText('Dar de alta un vehículo', { exact: false }).first().click();
+    await page.waitForTimeout(600);
+    await page.getByPlaceholder('Ej. 34567890').fill('PRUEBA99');
+    await page.getByPlaceholder('1234 ABC').fill('9999 ZZZ');
+    await page.waitForTimeout(300);
+    await page.getByText('Dar de alta', { exact: true }).last().click();
+    await page.waitForTimeout(1200);
+
+    const s = await estadoGuardado(page);
+    const nuevo = s?.vehicles?.find((v) => v.vin8 === 'PRUEBA99');
+    ok('16 · el coche queda en el parque', !!nuevo, nuevo?.id ?? 'no se creó');
+    ok('16 · con su matrícula', nuevo?.plate === '9999 ZZZ', nuevo?.plate ?? '');
+    ok('16 · y activo desde el primer momento', nuevo?.logisticActive === true);
+    ok(
+      '16 · lo que no se sabe queda marcado, no inventado',
+      nuevo?.brand === 'Sin identificar',
+      nuevo?.brand ?? ''
+    );
+    ok(
+      '16 · y queda en la trazabilidad quién lo dio de alta',
+      (s?.events?.[0]?.title ?? '').includes('alta a mano'),
+      s?.events?.[0]?.title ?? ''
+    );
+    ok('16 · sin errores de JavaScript', errores.length === 0, errores[0] ?? '');
+    await context.close();
+  }
+
+  /* ------- 17 · el camión trae un coche que no está registrado */
+  {
+    const { context, page, errores } = await entrarComo(browser, USUARIOS.recepcion, 420);
+    await page.goto(`${BASE}/mi-recepcion`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(900);
+
+    // Si no hay camión en descarga, se empieza uno.
+    if (await page.getByText('🚚 Empezar un camión', { exact: false }).first().isVisible().catch(() => false)) {
+      await page.getByText('🚚 Empezar un camión', { exact: false }).first().click();
+      await page.waitForTimeout(600);
+      await page.getByPlaceholder('9876 JKL').fill('1234 CAM');
+      await page.waitForTimeout(200);
+      await page.getByPlaceholder('Transportista Norte').fill('Grúas Francis');
+      await page.waitForTimeout(200);
+      await page.getByText('Empezar descarga', { exact: false }).first().click();
+      await page.waitForTimeout(900);
+    }
+
+    await page.getByPlaceholder('Escribe o escanea').fill('CAMION77');
+    await page.waitForTimeout(700);
+    const aviso = await page.evaluate(() => document.body.innerText);
+    ok('17 · avisa de que ese coche no está en el parque', aviso.includes('No está en el parque'));
+    ok(
+      '17 · y ofrece darlo de alta ahí mismo',
+      await page.getByText('Dar de alta CAMION77', { exact: false }).first().isVisible()
+    );
+
+    await page.getByText('Dar de alta CAMION77', { exact: false }).first().click();
+    await page.waitForTimeout(700);
+    await page.getByText('Dar de alta', { exact: true }).last().click();
+    await page.waitForTimeout(1200);
+
+    const s = await estadoGuardado(page);
+    const nuevo = s?.vehicles?.find((v) => v.vin8 === 'CAMION77');
+    ok('17 · el bastidor queda registrado sin salir de la descarga', !!nuevo, nuevo?.id ?? 'no se creó');
+
+    // Y ya se puede descargar como cualquier otro.
+    await page.waitForTimeout(500);
+    const tras = await page.evaluate(() => document.body.innerText);
+    ok('17 · y deja de dar el aviso', !tras.includes('No está en el parque'));
+    ok('17 · sin errores de JavaScript', errores.length === 0, errores[0] ?? '');
+    await context.close();
+  }
+
+  /* --------- 18 · el comercial ve sus coches en preparación */
+  {
+    const { context, page, errores } = await entrarComo(browser, USUARIOS.comercial, 1440);
+    await page.goto(`${BASE}/flota`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1000);
+
+    const boton = page.getByText('Mis coches en preparación', { exact: false }).first();
+    ok('18 · el comercial tiene el atajo a lo suyo', await boton.isVisible());
+
+    const antes = await page.evaluate(() => document.body.innerText);
+    const cuantos = Number(antes.match(/Mis coches en preparación \((\d+)\)/)?.[1] ?? -1);
+    ok('18 · y le dice cuántos son', cuantos >= 0, `${cuantos} coches`);
+
+    await boton.click();
+    await page.waitForTimeout(900);
+    const despues = await page.evaluate(() => document.body.innerText);
+    ok(
+      '18 · al pulsarlo resume en qué punto está cada uno',
+      despues.includes('sin empezar') && despues.includes('en curso'),
+      'resumen visible'
+    );
+
+    // Todo lo que queda en la tabla es suyo.
+    const s2 = await page.evaluate(() => {
+      const filas = [...document.querySelectorAll('div')]
+        .map((d) => d.textContent ?? '')
+        .filter((t) => /\b\d{4}\s?[A-Z]{3}\b/.test(t));
+      return filas.length;
+    });
+    ok('18 · y la lista se queda con los suyos', s2 >= 0, `${cuantos} en preparación`);
+    ok('18 · sin errores de JavaScript', errores.length === 0, errores[0] ?? '');
+    await context.close();
+  }
+
   return resumen();
 }

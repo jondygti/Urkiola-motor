@@ -27,6 +27,7 @@ import type { Reception, ReceptionLine } from '@/data/types';
 import { capturePhoto } from '@/features/actions/photos';
 import { Cell, useOpenVehicle } from '@/features/common/bits';
 import { ScreenGuard } from '@/features/common/Guard';
+import { NuevoVehiculoModal } from '@/features/actions/NuevoVehiculo';
 
 export default function ReceptionScreen() {
   const state = useAppState();
@@ -327,6 +328,8 @@ function LineModal({
   const [damage, setDamage] = useState(line.damage ?? '');
   const [positionId, setPositionId] = useState<string | null>(line.positionId);
   const [photos, setPhotos] = useState<string[]>(line.photos);
+  const [altaOpen, setAltaOpen] = useState(false);
+  const vehiculo = state.vehicles.find((v) => v.id === line.vehicleId);
 
   const zones = state.zones.filter((z) => z.siteId === reception.siteId);
   const [zoneId, setZoneId] = useState<string>(
@@ -364,6 +367,20 @@ function LineModal({
         </>
       }
     >
+      {!vehiculo ? (
+        // Bajó del camión sin estar en el parque. Se registra aquí y la
+        // línea deja de estar suelta: Quiter completará el resto.
+        <>
+          <Notice tone="warn">
+            {line.ref} no está en el parque. Dalo de alta con el bastidor y la línea queda enlazada.
+          </Notice>
+          <Btn full onPress={() => setAltaOpen(true)}>
+            ➕ Dar de alta {line.ref}
+          </Btn>
+          <Spacer h={space.sm} />
+        </>
+      ) : null}
+
       <Field label="Zona de descarga">
         <Select
           full
@@ -421,6 +438,13 @@ function LineModal({
         Al marcar el vehículo como descargado con una plaza asignada, entra en campa y queda comprobado
         físicamente con fecha, hora y usuario.
       </Notice>
+
+      <NuevoVehiculoModal
+        visible={altaOpen}
+        refInicial={line.ref}
+        onClose={() => setAltaOpen(false)}
+        onDone={(m) => onDone(m)}
+      />
     </Modal>
   );
 }

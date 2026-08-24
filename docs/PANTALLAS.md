@@ -6,7 +6,7 @@ y dónde está ahora.
 | Pantalla del mockup | Ruta en la app | Fichero | Qué se ha añadido respecto al HTML |
 |---|---|---|---|
 | ▦ Dashboard | `/` | `app/(shell)/index.tsx` | Los KPI se calculan de los datos reales y son pulsables; la tabla de rendimiento por sede y los avisos de «Atención» se recalculan solos. **Necesita el permiso `panel.ver`**, que de serie solo tiene el administrador: quien no lo tenga entra directamente a su primera pantalla de trabajo |
-| 🚗 Flota | `/flota` | `app/(shell)/flota.tsx` | Buscador y 5 filtros superiores + filtro por columna, combinables; carga por páginas; alternar entre activos y parque Quiter completo |
+| 🚗 Flota | `/flota` | `app/(shell)/flota.tsx` | Buscador y 6 filtros superiores (incluido el estado) + filtro por columna, combinables; carga por páginas; alternar entre activos y parque Quiter completo. Desde aquí se **da de alta un coche a mano** con solo el bastidor, y el comercial tiene el atajo **«Mis coches en preparación»**, que resume cuántos tiene pedidos sin empezar, en curso y listos |
 | 🔎 Ficha vehículo | `/vehiculo/[id]` | `app/(shell)/vehiculo/[id].tsx` | Ficha 360º real de cualquier vehículo, con acciones que modifican los datos y trazabilidad viva |
 | 🚚 Recepción | `/recepcion` | `app/(shell)/recepcion.tsx` | Varias recepciones, alta de camión, líneas de albarán, foto del albarán, daños con fotos y asignación de plaza |
 | 📍 Campa Sondika | `/campa` | `app/(shell)/campa.tsx` | Sirve para cualquier sede y zona; ocupación por tejavana/parking; plaza a plaza |
@@ -78,7 +78,7 @@ versión completa siempre disponible en la web:
 | `/mis-traslados` | Transportista | Una tarjeta por traslado y un solo botón, que cambia de «He recogido las llaves» a «He entregado el vehículo» |
 | `/entregas` | Comercial y logística | Entregas comprometidas agrupadas por día, con lo que le falta a cada una. Se puede ver todo junto o una sede concreta, con el número de entregas de cada una a la vista |
 | `/mi-preparacion` | Preparador | Cola ordenada por plazo, **incluidas las preparaciones que ha pedido el comercial y todavía no ha abierto nadie**: se empiezan de un botón, sin pasar por la oficina. Al abrir, cronómetro y checklist donde **cada línea se marca de un toque** |
-| `/mi-recepcion` | Recepción | Bucle de descarga: identificar, plaza propuesta automáticamente y «Descargado · siguiente» |
+| `/mi-recepcion` | Recepción | Bucle de descarga: identificar, plaza propuesta automáticamente y «Descargado · siguiente». Si el coche que baja del camión no está en el parque, se da de alta con el bastidor sin salir de la descarga |
 | `/mover` | Cualquiera que mueva coches | Matrícula o bastidor, dónde lo dejas, y a por el siguiente |
 
 En la descarga, la zona que se propone es **la primera que tenga hueco**, no

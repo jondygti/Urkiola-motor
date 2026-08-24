@@ -24,6 +24,7 @@ import type { Reception } from '@/data/types';
 import { ScreenGuard } from '@/features/common/Guard';
 import { BarcodeScanner } from '@/features/scan/BarcodeScanner';
 import { capturePhoto } from '@/features/actions/photos';
+import { NuevoVehiculoModal } from '@/features/actions/NuevoVehiculo';
 
 /**
  * Descarga rápida de un camión.
@@ -101,6 +102,7 @@ function UnloadFlow({
   const { c } = useTheme();
 
   const [ref, setRef] = useState('');
+  const [altaOpen, setAltaOpen] = useState(false);
   // Se propone la primera zona QUE TENGA HUECO, no la primera a secas: si
   // no, en una campa con la primera tejavana llena no se puede ni empezar.
   const [zoneId, setZoneId] = useState<string>(() => {
@@ -191,10 +193,16 @@ function UnloadFlow({
               {vehicleName(encontrado)} · {vehicleRef(encontrado)}
             </Notice>
           ) : (
-            <Notice tone="warn">
-              No está en el parque todavía. Se puede descargar igual: se registra como línea del albarán y
-              logística lo cuadra después.
-            </Notice>
+            <>
+              <Notice tone="warn">
+                No está en el parque todavía. Puedes darlo de alta ahora con el bastidor —Quiter completará
+                marca, modelo y comercial después— o descargarlo igual y que logística lo cuadre.
+              </Notice>
+              <Spacer h={space.sm} />
+              <Btn full onPress={() => setAltaOpen(true)}>
+                ➕ Dar de alta {ref.trim().toUpperCase()}
+              </Btn>
+            </>
           )
         ) : null}
 
@@ -330,6 +338,16 @@ function UnloadFlow({
           descargar(damage, photos);
           setDamageOpen(false);
         }}
+      />
+
+      {/* Alta al vuelo: el coche baja del camión y no está en el parque.
+          Se registra el bastidor y se sigue descargando; la línea del
+          albarán queda enlazada al vehículo nuevo sin hacer nada más. */}
+      <NuevoVehiculoModal
+        visible={altaOpen}
+        refInicial={ref.trim().toUpperCase()}
+        onClose={() => setAltaOpen(false)}
+        onDone={(m) => onDone(m)}
       />
     </>
   );

@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Text } from 'react-native';
 import {
+  Btn,
   Column,
   DataTable,
   Grid,
@@ -17,19 +18,25 @@ import {
   space,
   useTheme,
 } from '@/ui';
-import { useAppState } from '@/data/store';
-import { customValue, fleetColumns } from '@/data/selectors';
+import { useAppState, useStore } from '@/data/store';
+import { customValue, esDelComercial, fleetColumns } from '@/data/selectors';
 import { formatDateTime, locationLabel, matchesSearch, siteName, timeAgo, vehicleName } from '@/data/format';
 import { Cell, SituationPill, StatusPill, TypePill, useOpenVehicle } from '@/features/common/bits';
-import { ScreenGuard } from '@/features/common/Guard';
+import { ScreenGuard, usePerms } from '@/features/common/Guard';
+import { NuevoVehiculoModal } from '@/features/actions/NuevoVehiculo';
 import type { Vehicle } from '@/data/types';
+import { VEHICLE_STATUS_LABEL } from '@/data/types';
 
 const ALL = '__all__';
+/** «Los míos»: los coches del comercial que ha entrado. */
+const MIOS = '__mios__';
 
 export default function FleetScreen() {
   const state = useAppState();
+  const { user } = useStore();
   const openVehicle = useOpenVehicle();
   const { c } = useTheme();
+  const { can } = usePerms();
 
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<'activos' | 'quiter'>('activos');
@@ -37,24 +44,70 @@ export default function FleetScreen() {
   const [rep, setRep] = useState<string>(ALL);
   const [situation, setSituation] = useState<string>(ALL);
   const [site, setSite] = useState<string>(ALL);
+  const [status, setStatus] = useState<string>(ALL);
+  const [misPreparaciones, setMisPreparaciones] = useState(false);
+  const [altaOpen, setAltaOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   const reps = useMemo(() => {
     const set = new Set(state.vehicles.map((v) => v.salesRep).filter((r): r is string => !!r));
     return Array.from(set).sort();
   }, [state.vehicles]);
 
+  /**
+   * «Se está preparando» para un comercial no es solo que el preparador
+   * haya empezado: cuenta desde que él la pide. Es lo que quiere saber —en
+   * qué punto está su coche— y no el estado interno del vehículo.
+   */
+  const preparandose = useCallback(
+    (v: Vehicle) =>
+      state.preparations.some((p) => p.vehicleId === v.id && p.runState !== 'terminado') ||
+      state.requests.some(
+        (r) => r.type === 'preparacion' && r.vehicleId === v.id && r.status !== 'terminada'
+      ),
+    [state.preparations, state.requests]
+  );
+
   const rows = useMemo(() => {
     return state.vehicles.filter((v) => {
       if (scope === 'activos' && !v.logisticActive) return false;
       if (type !== ALL && v.type !== type) return false;
       if (rep !== ALL) {
-        if (rep === '__none__' ? v.salesRep !== null : v.salesRep !== rep) return false;
+        if (rep === MIOS) {
+          if (!esDelComercial(v, user)) return false;
+        } else if (rep === '__none__' ? v.salesRep !== null : v.salesRep !== rep) return false;
       }
       if (situation !== ALL && v.situation !== situation) return false;
       if (site !== ALL && v.location?.siteId !== site) return false;
+      if (status !== ALL && v.status !== status) return false;
+      if (misPreparaciones && !(esDelComercial(v, user) && preparandose(v))) return false;
       return matchesSearch(v, query);
     });
-  }, [state.vehicles, scope, type, rep, situation, site, query]);
+  }, [state.vehicles, scope, type, rep, situation, site, status, query, user, misPreparaciones, preparandose]);
+
+  // El comercial se ve a sí mismo en la lista de comerciales: entonces
+  // tiene sentido ofrecerle el atajo a lo suyo.
+  const esComercial = useMemo(
+    () => !!user && state.vehicles.some((v) => esDelComercial(v, user)),
+    [state.vehicles, user]
+  );
+  const enPreparacion = useMemo(
+    () =>
+      esComercial ? state.vehicles.filter((v) => esDelComercial(v, user) && preparandose(v)).length : 0,
+    [state.vehicles, esComercial, user, preparandose]
+  );
+
+  // En qué punto está cada uno, que es la pregunta de verdad.
+  const resumenMio = useMemo(() => {
+    const mios = state.vehicles.filter((v) => esDelComercial(v, user));
+    const abierta = (v: Vehicle) =>
+      state.preparations.find((p) => p.vehicleId === v.id && p.runState !== 'terminado');
+    return {
+      pedidas: mios.filter((v) => preparandose(v) && !abierta(v)).length,
+      enCurso: mios.filter((v) => !!abierta(v)).length,
+      listas: mios.filter((v) => v.status === 'apto_entrega').length,
+    };
+  }, [state.vehicles, state.preparations, user, preparandose]);
 
   const configured = fleetColumns(state);
 
@@ -237,6 +290,7 @@ export default function FleetScreen() {
           title="Comercial"
           options={[
             { value: ALL, label: 'Todos los comerciales' },
+            ...(esComercial ? [{ value: MIOS, label: `Solo los míos · ${user!.name}` }] : []),
             ...reps.map((r) => ({ value: r, label: r })),
             { value: '__none__', label: 'Sin asignar' },
           ]}
@@ -260,7 +314,58 @@ export default function FleetScreen() {
             ...state.sites.map((s) => ({ value: s.id, label: s.name })),
           ]}
         />
+        <Select
+          value={status}
+          onChange={setStatus}
+          title="Estado"
+          options={[
+            { value: ALL, label: 'Todos los estados' },
+            ...Object.entries(VEHICLE_STATUS_LABEL).map(([value, label]) => ({ value, label })),
+          ]}
+        />
       </Toolbar>
+
+      <Toolbar>
+        {esComercial ? (
+          // El atajo que pide la operativa del comercial: sus coches y en
+          // qué punto está la preparación, sin tocar cuatro filtros.
+          <Btn
+            variant={misPreparaciones ? 'primary' : undefined}
+            onPress={() => {
+              setScope('activos');
+              setMisPreparaciones((v) => !v);
+            }}
+          >
+            🧽 Mis coches en preparación ({enPreparacion})
+          </Btn>
+        ) : null}
+        {can('flota.editar') ? (
+          <Btn variant="primary" onPress={() => setAltaOpen(true)}>
+            ➕ Dar de alta un vehículo
+          </Btn>
+        ) : null}
+      </Toolbar>
+
+      {toast ? (
+        <>
+          <Spacer h={space.sm} />
+          <Notice>{toast}</Notice>
+        </>
+      ) : null}
+
+      {misPreparaciones ? (
+        <>
+          <Spacer h={space.sm} />
+          <Notice>
+            <Text style={{ fontSize: 12, color: c.text }}>
+              Tus coches con preparación pedida o en marcha:{' '}
+              <Text style={{ fontWeight: '800' }}>{resumenMio.pedidas}</Text> sin empezar ·{' '}
+              <Text style={{ fontWeight: '800' }}>{resumenMio.enCurso}</Text> en curso ·{' '}
+              <Text style={{ fontWeight: '800' }}>{resumenMio.listas}</Text> listas para entregar.
+            </Text>
+          </Notice>
+        </>
+      ) : null}
 
       <Panel>
         <Notice>
@@ -301,6 +406,15 @@ export default function FleetScreen() {
           />
         </Panel>
       </Grid>
+
+      <NuevoVehiculoModal
+        visible={altaOpen}
+        onClose={() => setAltaOpen(false)}
+        onDone={(m, id) => {
+          setToast(m);
+          openVehicle(id);
+        }}
+      />
     </Screen>
     </ScreenGuard>
   );

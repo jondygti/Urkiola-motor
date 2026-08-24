@@ -48,6 +48,8 @@ function vehiculoDeSuTraslado(s: AppState, u: User, vehicleId: Id): boolean {
  * Devuelve `undefined` cuando el comando no va contra ninguna en concreto.
  */
 function sedeAfectada(s: AppState, cmd: Command): Id | null | undefined {
+  // Un alta manual todavía no tiene vehículo al que mirar.
+  if (cmd.type === 'vehicle.create') return cmd.location?.siteId ?? null;
   if ('vehicleId' in cmd && cmd.vehicleId) {
     const v = s.vehicles.find((x) => x.id === cmd.vehicleId);
     if (v) return v.location?.siteId ?? v.targetSiteId ?? null;
@@ -194,6 +196,14 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
 
     case 'vehicle.setCustom':
       return tiene(s, u, 'flota.editar') ? null : 'No puedes editar campos del vehículo.';
+
+    case 'vehicle.create':
+      // También quien descarga camiones: si llega un coche que no está en
+      // el parque, tiene que poder registrarlo en el momento en vez de
+      // apuntarlo en un papel.
+      return tiene(s, u, 'flota.editar') || tiene(s, u, 'recepcion.ejecutar')
+        ? null
+        : 'No puedes dar de alta vehículos.';
 
     case 'vehicle.setDelivery':
       return tiene(s, u, 'entregas.gestionar') ? null : 'No puedes fijar fechas de entrega.';

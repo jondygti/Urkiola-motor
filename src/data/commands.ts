@@ -33,6 +33,8 @@ import type {
   Zone,
   CustomField,
   Carrier,
+  VehicleType,
+  Situation,
 } from './types';
 import { REQUEST_STATUS_LABEL } from './types';
 import { CONFIG } from './seed';
@@ -150,7 +152,26 @@ export type Command =
       vehicleId: Id;
       deliveryDate: string | null;
     }
-  | { type: 'vehicle.activate'; id: Id; at: string; userId: Id; vehicleId: Id };
+  | { type: 'vehicle.activate'; id: Id; at: string; userId: Id; vehicleId: Id }
+  | {
+      type: 'vehicle.create';
+      id: Id;
+      at: string;
+      userId: Id;
+      /** Los 8 últimos del bastidor: lo único imprescindible. */
+      vin8: string;
+      vin?: string | null;
+      plate?: string | null;
+      brand?: string;
+      model?: string;
+      vehicleType?: VehicleType;
+      situation?: Situation;
+      salesRep?: string | null;
+      dealership?: string;
+      origin?: string;
+      /** Dónde está, si ya se sabe. */
+      location?: LocationRef | null;
+    };
 
 /** Metadatos que añade el store automáticamente. */
 export type CommandMeta = { id: Id; at: string; userId: Id };
@@ -1154,6 +1175,92 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
     case 'vehicle.activate':
       return activate(state, cmd.vehicleId);
+
+    /* ------------------------------------------------- alta de vehículo */
+    case 'vehicle.create': {
+      const vin8 = cmd.vin8.trim().toUpperCase().replace(/\s+/g, '');
+      if (vin8.length < 4) return state;
+
+      const matricula = cmd.plate?.trim().toUpperCase() || null;
+
+      // El identificador sale del bastidor, no del comando: si el mismo
+      // coche se da de alta dos veces —en recepción y en la oficina, o en
+      // dos móviles sin cobertura— tiene que ser el mismo coche, no dos.
+      // Es también lo que permite que el importador de Quiter lo reconozca.
+      const id: Id = `v-${vin8}`;
+
+      const existente =
+        state.vehicles.find((v) => v.id === id) ??
+        state.vehicles.find(
+          (v) =>
+            v.vin8.toUpperCase() === vin8 ||
+            (!!matricula && !!v.plate && v.plate.toUpperCase().replace(/\s+/g, '') === matricula.replace(/\s+/g, ''))
+        );
+
+      // Ya estaba: no se duplica. Se completa lo que faltaba (una matrícula
+      // que antes no se sabía, por ejemplo) y se deja activo.
+      if (existente) {
+        const relleno: Partial<Vehicle> = { logisticActive: true };
+        if (!existente.plate && matricula) relleno.plate = matricula;
+        if (!existente.vin && cmd.vin) relleno.vin = cmd.vin;
+        if (!existente.salesRep && cmd.salesRep) relleno.salesRep = cmd.salesRep;
+        return { ...state, vehicles: replace(state.vehicles, existente.id, relleno) };
+      }
+
+      const vehicle: Vehicle = {
+        id,
+        vin8,
+        vin: cmd.vin?.trim().toUpperCase() || vin8,
+        plate: matricula,
+        // Lo que no se sabe se deja marcado como tal en vez de inventarlo:
+        // Quiter lo completará y así se ve qué falta.
+        brand: cmd.brand?.trim() || 'Sin identificar',
+        model: cmd.model?.trim() || '—',
+        type: cmd.vehicleType ?? 'VN',
+        situation: cmd.situation ?? 'stock',
+        salesRep: cmd.salesRep?.trim() || null,
+        dealership: cmd.dealership?.trim() || '',
+        origin: cmd.origin?.trim() || 'Alta manual',
+        logisticActive: true,
+        location: cmd.location ?? null,
+        targetSiteId: null,
+        status: cmd.location ? 'en_campa' : 'recepcionado',
+        lastCheckAt: cmd.at,
+        lastCheckBy: userName(state, cmd.userId),
+        lastMovementAt: null,
+        receivedAt: cmd.at,
+      };
+
+      let next: AppState = { ...state, vehicles: [vehicle, ...state.vehicles] };
+
+      // Si venía en un camión que se está descargando, la línea del albarán
+      // deja de estar huérfana en el momento: al operario le aparece el
+      // coche con nombre en vez de un bastidor suelto.
+      next = {
+        ...next,
+        receptions: next.receptions.map((r) =>
+          r.closedAt
+            ? r
+            : {
+                ...r,
+                lines: r.lines.map((l) =>
+                  !l.vehicleId && l.ref.toUpperCase().replace(/\s+/g, '') === vin8
+                    ? { ...l, vehicleId: id }
+                    : l
+                ),
+              }
+        ),
+      };
+
+      return addEvent(next, {
+        vehicleId: id,
+        kind: 'estado',
+        title: 'Vehículo dado de alta a mano',
+        detail: `${vin8}${matricula ? ` · ${matricula}` : ''} · ${userName(state, cmd.userId)}`,
+        at: cmd.at,
+        userId: cmd.userId,
+      });
+    }
 
     default:
       return state;

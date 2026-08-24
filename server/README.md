@@ -27,7 +27,7 @@ EXPO_PUBLIC_API_URL=http://127.0.0.1:8080 npx expo start --web --clear
 ## Comprobaciones
 
 ```bash
-npm test                 # dentro de server/: 43 comprobaciones
+npm test                 # dentro de server/: 47 comprobaciones
 npm run verify:api       # en la raíz: la app real contra este servidor
 ```
 
