@@ -38,7 +38,22 @@ function mulberry32(seed: number) {
   };
 }
 
-const rnd = mulberry32(20260819);
+const SEMILLA = 20260819;
+let rnd = mulberry32(SEMILLA);
+
+/**
+ * Vuelve a empezar la serie.
+ *
+ * El generador es determinista, pero es uno solo para todo el módulo: sin
+ * reiniciarlo, la segunda vez que se construye el parque de ejemplo sigue
+ * la serie donde la dejó la primera y sale un parque distinto. Se notaba al
+ * comparar dos estados recién creados —y habría hecho que «volver a los
+ * datos de ejemplo» diera algo diferente cada vez.
+ */
+function reiniciarAzar() {
+  rnd = mulberry32(SEMILLA);
+}
+
 const pick = <T,>(arr: T[]): T => arr[Math.floor(rnd() * arr.length)];
 const chance = (p: number) => rnd() < p;
 
@@ -631,6 +646,7 @@ function checklistFor(type: 'VN' | 'VO', completed: number): Preparation['items'
 /* ------------------------------------------------------ estado completo */
 
 export function buildSeedState(): AppState {
+  reiniciarAzar();
   const { zones, positions } = buildZonesAndPositions();
   const build = buildFleet(positions);
   const { vehicles } = build;

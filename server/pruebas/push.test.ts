@@ -47,7 +47,7 @@ test('solo se manda lo que ha generado este comando', async (t) => {
   await p.servicio.ejecutar(
     cmd('incident.create', {
       vehicleId: vehiculo.id,
-      incidentType: 'dano',
+      incidentType: 'campa',
       description: 'Golpe en la puerta',
       photos: [],
     }, { userId: log.id }),

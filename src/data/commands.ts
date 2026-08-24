@@ -237,7 +237,22 @@ function unico(prefix: 'mov' | 'req' | 'prep' | 'count' | 'inc' | 'rec' | 'rule'
   return idCreadoPor(prefix, cmd);
 }
 
+
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
+
+/**
+ * ¿Ya está creado lo que iba a crear este comando?
+ *
+ * Aplicar dos veces el mismo comando tiene que dar el mismo resultado que
+ * aplicarlo una. Pasa de verdad y sin que nadie se equivoque: el móvil
+ * manda un movimiento, el servidor lo aplica y la respuesta se pierde por
+ * el camino; el comando se queda en la cola y, al arrancar la app otra vez,
+ * se vuelve a aplicar encima del estado que ya lo traía. Sin esto, el
+ * operario vería el mismo movimiento dos veces.
+ */
+function yaCreado(lista: { id: Id }[], id: Id): boolean {
+  return lista.some((x) => x.id === id);
+}
 
 function replace<T extends { id: Id }>(list: T[], id: Id, patch: Partial<T>): T[] {
   return list.map((item) => (item.id === id ? { ...item, ...patch } : item));
@@ -245,11 +260,15 @@ function replace<T extends { id: Id }>(list: T[], id: Id, patch: Partial<T>): T[
 
 function addEvent(state: AppState, ev: Omit<TraceEvent, 'id'>): AppState {
   const event: TraceEvent = { id: derivado('ev'), ...ev };
+  // Si ya está, este comando se está aplicando por segunda vez: el
+  // historial del vehículo no debe contar dos veces lo que pasó una.
+  if (yaCreado(state.events, event.id)) return state;
   return { ...state, events: [event, ...state.events].slice(0, 4000) };
 }
 
 function addInbox(state: AppState, ev: Omit<NotificationEvent, 'id' | 'read'>): AppState {
   const item: NotificationEvent = { id: derivado('nev'), read: false, ...ev };
+  if (yaCreado(state.inbox, item.id)) return state;
   return { ...state, inbox: [item, ...state.inbox].slice(0, 500) };
 }
 
@@ -285,6 +304,48 @@ function fireRules(
       // que tenían y no con la del reinicio.
       at: enCurso?.at ?? new Date().toISOString(),
       tone: ctx.tone ?? 'info',
+    });
+  }
+  return next;
+}
+
+/**
+ * Deja libre una plaza antes de meter otro coche en ella.
+ *
+ * Dos coches en el mismo hueco es un fallo que se paga abajo, en la campa:
+ * alguien baja a buscar uno y no está. Cuando llega una observación física
+ * —un movimiento, una descarga, un recuento— esa observación manda: el
+ * coche que estaba apuntado ahí ya no está, así que se le quita la plaza
+ * (se queda en la zona, que es lo último que se sabe de él) y se anota en su
+ * historial para que alguien lo busque.
+ *
+ * Es la misma idea de la regla de las plazas: mejor «en esta zona, plaza sin
+ * confirmar» que una plaza concreta que es mentira.
+ */
+function liberarPlaza(state: AppState, positionId: Id | undefined | null, salvo: Id, cmd: Command): AppState {
+  if (!positionId) return state;
+  const ocupantes = state.vehicles.filter(
+    (v) => v.id !== salvo && v.location?.positionId === positionId
+  );
+  if (ocupantes.length === 0) return state;
+
+  let next = state;
+  for (const otro of ocupantes) {
+    next = {
+      ...next,
+      vehicles: replace(next.vehicles, otro.id, {
+        location: { siteId: otro.location!.siteId, zoneId: otro.location!.zoneId, positionId: undefined },
+      }),
+    };
+    next = addEvent(next, {
+      vehicleId: otro.id,
+      kind: 'movimiento',
+      title: 'Plaza liberada: hay otro coche ahí',
+      detail: `${locationLabel(state, otro.location, true)} la ocupa ahora ${vehicleTitle(
+        state.vehicles.find((v) => v.id === salvo) ?? otro
+      )}. Queda en la zona, sin plaza confirmada.`,
+      at: cmd.at,
+      userId: cmd.userId,
     });
   }
   return next;
@@ -397,6 +458,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
     /* ------------------------------------------------------- movimientos */
     case 'movement.register': {
       if (!vehicle) return state;
+      if (yaCreado(state.movements, unico('mov', cmd))) return state;
       const movement: Movement = {
         id: unico('mov', cmd),
         vehicleId: cmd.vehicleId,
@@ -415,9 +477,12 @@ function aplicar(state: AppState, cmd: Command): AppState {
       if (vehicle.status === 'traslado_solicitado' && changedSite) status = 'en_campa';
 
       let next: AppState = {
-        ...activate(state, cmd.vehicleId),
+        ...liberarPlaza(activate(state, cmd.vehicleId), cmd.to.positionId, cmd.vehicleId, cmd),
         movements: [movement, ...state.movements],
-        vehicles: replace(state.vehicles, cmd.vehicleId, {
+      };
+      next = {
+        ...next,
+        vehicles: replace(next.vehicles, cmd.vehicleId, {
           location: cmd.to,
           lastMovementAt: cmd.at,
           lastCheckAt: cmd.at,
@@ -460,6 +525,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
     /* -------------------------------------------------------- solicitudes */
     case 'request.create': {
       if (!vehicle) return state;
+      if (yaCreado(state.requests, unico('req', cmd))) return state;
       // La preparación arranca el reloj al pedirla: es el plazo mínimo que
       // el comercial tiene que dar. Si el vehículo ya tiene fecha de entrega
       // comprometida, manda esa, que es la que de verdad importa. El
@@ -544,6 +610,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
     /* -------------------------------------------------------- preparación */
     case 'prep.create': {
       if (!vehicle) return state;
+      if (yaCreado(state.preparations, unico('prep', cmd))) return state;
       const existing = state.preparations.find(
         (p) => p.vehicleId === cmd.vehicleId && p.runState !== 'terminado'
       );
@@ -745,6 +812,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
     /* ---------------------------------------------------------- recuentos */
     case 'count.create': {
+      if (yaCreado(state.counts, unico('count', cmd))) return state;
       const expected = state.vehicles
         .filter((v) =>
           cmd.zoneId ? v.location?.zoneId === cmd.zoneId : v.location?.siteId === cmd.siteId
@@ -786,10 +854,13 @@ function aplicar(state: AppState, cmd: Command): AppState {
           }
         : v.location;
 
+      // El recuento es una observación física: si el coche está aquí, el que
+      // teníamos apuntado en esta plaza ya no está.
+      const base = liberarPlaza(activate(state, cmd.vehicleId), cmd.positionId, cmd.vehicleId, cmd);
       let next: AppState = {
-        ...activate(state, cmd.vehicleId),
-        counts: state.counts.map((c) => (c.id === cmd.countId ? { ...c, found: [...c.found, found] } : c)),
-        vehicles: replace(state.vehicles, cmd.vehicleId, {
+        ...base,
+        counts: base.counts.map((c) => (c.id === cmd.countId ? { ...c, found: [...c.found, found] } : c)),
+        vehicles: replace(base.vehicles, cmd.vehicleId, {
           lastCheckAt: cmd.at,
           lastCheckBy: userName(state, cmd.userId),
           location,
@@ -811,6 +882,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
     /* -------------------------------------------------------- incidencias */
     case 'incident.create': {
+      if (yaCreado(state.incidents, unico('inc', cmd))) return state;
       const incident: Incident = {
         id: unico('inc', cmd),
         vehicleId: cmd.vehicleId,
@@ -856,6 +928,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
     /* ------------------------------------------------------ notificaciones */
     case 'rule.create': {
+      if (yaCreado(state.rules, unico('rule', cmd))) return state;
       const rule: NotificationRule = { id: unico('rule', cmd), createdAt: cmd.at, ...cmd.rule };
       return { ...state, rules: [rule, ...state.rules] };
     }
@@ -874,6 +947,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
     /* ----------------------------------------------------------- recepción */
     case 'reception.create': {
+      if (yaCreado(state.receptions, unico('rec', cmd))) return state;
       const reception: Reception = {
         id: unico('rec', cmd),
         truckPlate: cmd.truckPlate,
@@ -911,8 +985,9 @@ function aplicar(state: AppState, cmd: Command): AppState {
       // Al descargar y asignar plaza, el vehículo entra en campa.
       if (matched && line.unloaded && line.positionId) {
         const zoneId = state.positions.find((p) => p.id === line.positionId)?.zoneId;
+        next = liberarPlaza(activate(next, matched), line.positionId, matched, cmd);
         next = {
-          ...activate(next, matched),
+          ...next,
           vehicles: replace(next.vehicles, matched, {
             location: { siteId: rec.siteId, zoneId, positionId: line.positionId },
             status: 'en_campa',

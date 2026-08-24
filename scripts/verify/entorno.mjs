@@ -93,6 +93,24 @@ export async function cambiarDeUsuario(context, page, usuario, destino) {
   await page.goto(destino, { waitUntil: 'networkidle' });
 }
 
+/**
+ * Pulsa un botón por su texto.
+ *
+ * No se pulsa el texto: se pulsa el contenedor pulsable que lo envuelve. El
+ * texto queda por debajo del propio botón y, con un modal abierto, el clic
+ * no llega. Es el mismo detalle que ya hacía falta en `elegirEnLista`.
+ */
+export async function pulsar(page, texto, { exact = false, primero = false } = {}) {
+  // Se buscan solo elementos PULSABLES que contengan ese texto. Buscar el
+  // texto a secas engañaba: el título del modal («⚠️ Registrar incidencia»)
+  // coincide antes que el botón del pie, y pulsarlo no hace nada. Costó un
+  // rato darse cuenta porque no da error: simplemente no pasa nada.
+  const pulsables = page.locator('[tabindex="0"], button').filter({
+    hasText: exact ? new RegExp(`^\\s*${texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`) : texto,
+  });
+  await (primero ? pulsables.first() : pulsables.last()).click({ force: true });
+}
+
 /** Lo que la app ha guardado en el dispositivo, para comprobar el resultado. */
 export const estadoGuardado = (page) =>
   page.evaluate(() => {

@@ -4,6 +4,7 @@ import { abrirNavegador } from './entorno.mjs';
 import { servirEstatico } from './servidor.mjs';
 import { ejecutar as barrerRutas } from './rutas.mjs';
 import { ejecutar as probarFunciones } from './funciones.mjs';
+import { ejecutar as probarRoles } from './roles.mjs';
 
 /**
  * Comprobación completa de la aplicación web: compila, la sirve y la
@@ -32,6 +33,9 @@ try {
 
   console.log('\n══ Operativa ' + '═'.repeat(41));
   todoBien = (await probarFunciones(browser, servidor.url)) && todoBien;
+
+  console.log('\n══ La jornada de cada rol ' + '═'.repeat(28));
+  todoBien = (await probarRoles(browser, servidor.url)) && todoBien;
 } finally {
   await browser.close();
   servidor.cerrar();

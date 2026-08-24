@@ -63,6 +63,16 @@ Cada una viene de un fallo real de este proyecto:
     del token. Y los colaboradores externos (transportista) se comprueban
     **antes** que los permisos de su rol, no con ellos: si no, marcar una
     casilla de más en Administración le abriría la flota a un proveedor.
+14. **Aplicar un comando dos veces tiene que dar lo mismo que aplicarlo
+    una.** No es teoría: si se pierde la respuesta del servidor, el comando
+    se queda en la cola y se reaplica encima de un estado que ya lo traía.
+    Por eso lo que crea un comando comprueba antes si ya está creado, y los
+    apuntes del histórico también.
+15. **Una observación física manda sobre lo que dice la base de datos.** Al
+    meter un coche en una plaza ocupada —moviéndolo, descargándolo o
+    contándolo— el que estaba apuntado allí se queda **en la zona sin plaza
+    confirmada**, con su apunte en el historial. Dos coches en el mismo
+    hueco se paga abajo, en la campa, buscando uno que no está.
 
 ## Comprobar antes de dar algo por bueno
 
@@ -78,7 +88,8 @@ npm run verify:api           # la app real contra el backend real
 |---|---|
 | `scripts/verify/rutas.mjs` | 7 perfiles × 2 anchos × 18 pantallas = 252 cargas: que ninguna se rompe para ningún rol |
 | `scripts/verify/funciones.mjs` | 84 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
-| `server/pruebas/` | 47 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios |
+| `scripts/verify/roles.mjs` | 44 comprobaciones: la jornada entera de cada uno de los 6 roles, y que lo que no le toca no lo ve ni lo puede tocar |
+| `server/pruebas/` | 58 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios, y las **invariantes** de los datos |
 | `scripts/verify/backend.mjs` | 14 comprobaciones de la app compilada contra el servidor: entrar con contraseña, mover un coche y que **otro dispositivo lo vea** |
 
 `verify:api` va aparte de `verify` porque compila la web una segunda vez:

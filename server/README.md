@@ -27,13 +27,25 @@ EXPO_PUBLIC_API_URL=http://127.0.0.1:8080 npx expo start --web --clear
 ## Comprobaciones
 
 ```bash
-npm test                 # dentro de server/: 47 comprobaciones
+npm test                 # dentro de server/: 58 comprobaciones
 npm run verify:api       # en la raíz: la app real contra este servidor
 ```
 
 `npm test` cubre contraseñas y sesiones, permisos comando a comando,
 idempotencia, comandos que llegan tarde, el estado recortado del
 transportista y que un reinicio no pierda nada.
+
+Dos de ellas merecen mención aparte:
+
+- **`matriz-permisos.test.ts`** es una tabla de los 44 comandos contra los 6
+  roles, escrita a mano. No comprueba lo que hace el código, sino lo que
+  tiene que hacer: si alguien añade un comando y se olvida del permiso, o
+  afloja uno sin querer, sale ahí.
+- **`invariantes.test.ts`** simula una jornada entera —camión, traslado,
+  preparación con bloqueo, recuento, incidencia y entrega— y comprueba que
+  al final los datos siguen teniendo sentido: nadie en dos plazas, ninguna
+  referencia huérfana, ningún cronómetro hacia atrás. Y que repetir todos
+  los comandos no duplica nada.
 
 `npm run verify:api` compila la web apuntando a este servidor y la recorre
 con un navegador: entra con contraseña, mueve un coche y comprueba que el

@@ -458,3 +458,32 @@ test('un preparador no da de alta vehículos', async (t) => {
     (e: unknown) => e instanceof ErrorHttp && e.codigo === 403
   );
 });
+
+test('una configuración inválida se rechaza en vez de romper la app de todos', async (t) => {
+  const p = await servidorDePruebas();
+  t.after(() => p.limpiar());
+  const admin = await entrar(p.servicio, 'admin@urkiolacarservice.com');
+
+  const malas: Record<string, unknown>[] = [
+    { staleCheckHours: 'muchas' },
+    { transferDeadlineHours: 0 },
+    { prepDeadlineHours: -5 },
+    { prepTargetMinutes: { VN: 'dos horas' } },
+    { waitReasons: 'Material' },
+  ];
+
+  for (const patch of malas) {
+    await assert.rejects(
+      () => p.servicio.ejecutar(cmd('config.update', { patch }, { userId: admin.id }), admin),
+      (e: unknown) => e instanceof ErrorHttp && e.codigo === 400,
+      `debería rechazar ${JSON.stringify(patch)}`
+    );
+  }
+
+  // Y la buena pasa.
+  await p.servicio.ejecutar(
+    cmd('config.update', { patch: { prepTargetMinutes: { VN: 90, VO: 150 } } }, { userId: admin.id }),
+    admin
+  );
+  assert.equal(p.servicio.estado.config.prepTargetMinutes.VN, 90);
+});

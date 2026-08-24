@@ -57,6 +57,56 @@ export const TIPOS: ReadonlySet<string> = new Set<Command['type']>([
   'vehicle.create',
 ]);
 
+/**
+ * Números de la configuración que, si llegan mal, rompen la aplicación de
+ * todo el mundo a la vez: un objetivo de preparación que no es un número
+ * deja los cronómetros y las barras de progreso sin sentido en todas las
+ * pantallas. Solo un administrador puede mandarlos, pero un dedazo desde
+ * fuera de la app no debería tumbar la operativa.
+ */
+const NUMEROS_DE_CONFIG = [
+  'staleCheckHours',
+  'transferDeadlineHours',
+  'prepDeadlineHours',
+] as const;
+
+function comprobarConfig(patch: unknown): void {
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
+    throw malaPeticion('La configuración tiene que ser un objeto.');
+  }
+  const p = patch as Record<string, unknown>;
+
+  for (const clave of NUMEROS_DE_CONFIG) {
+    if (p[clave] === undefined) continue;
+    const n = p[clave];
+    if (typeof n !== 'number' || !Number.isFinite(n) || n <= 0) {
+      throw malaPeticion(`${clave} tiene que ser un número de horas mayor que cero.`);
+    }
+  }
+
+  if (p.prepTargetMinutes !== undefined) {
+    const objetivos = p.prepTargetMinutes as Record<string, unknown> | null;
+    if (!objetivos || typeof objetivos !== 'object') {
+      throw malaPeticion('Los objetivos de preparación tienen que ser números.');
+    }
+    for (const tipo of ['VN', 'VO']) {
+      const n = objetivos[tipo];
+      if (n === undefined) continue;
+      if (typeof n !== 'number' || !Number.isFinite(n) || n <= 0) {
+        throw malaPeticion(`El objetivo de ${tipo} tiene que ser un número de minutos mayor que cero.`);
+      }
+    }
+  }
+
+  for (const [clave, valor] of Object.entries(p)) {
+    // Las listas de la configuración son listas: si llega otra cosa, las
+    // pantallas que las recorren se rompen al pintar.
+    if (['waitReasons', 'requirements', 'customFields', 'fleetColumns', 'roles'].includes(clave)) {
+      if (!Array.isArray(valor)) throw malaPeticion(`${clave} tiene que ser una lista.`);
+    }
+  }
+}
+
 /** Margen que se le permite al reloj del móvil antes de corregirlo. */
 const MARGEN_FUTURO_MS = 5 * 60_000;
 
@@ -87,6 +137,8 @@ export function validarComando(cuerpo: unknown, userId: string, ahora = Date.now
   if (Number.isNaN(fecha.getTime())) throw malaPeticion('La fecha del comando no es válida.');
 
   const at = fecha.getTime() > ahora + MARGEN_FUTURO_MS ? new Date(ahora).toISOString() : c.at;
+
+  if (c.type === 'config.update') comprobarConfig(c.patch);
 
   return { ...(c as object), at, userId } as Command;
 }
