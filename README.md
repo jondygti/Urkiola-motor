@@ -96,6 +96,8 @@ negocio se escriben una sola vez.
   hacer nunca.
 - [`docs/PANTALLAS.md`](docs/PANTALLAS.md) — qué había en el mockup V18 y
   dónde está ahora.
+- [`CLAUDE.md`](CLAUDE.md) — resumen del proyecto y reglas de trabajo, para
+  quien se incorpore (persona o asistente).
 - [`docs/APOYO-TECNICO.md`](docs/APOYO-TECNICO.md) — **la red de seguridad**:
   qué revisión de seguridad encargar antes de meter datos reales, qué pedir
   a un técnico externo de respaldo, cómo saber si vale y cuánto cuesta.
@@ -104,6 +106,7 @@ negocio se escriben una sola vez.
 
 ```bash
 npm run typecheck     # TypeScript en modo estricto
+npm run verify        # recorre la app con un navegador: 252 cargas + 37 comprobaciones
 npm run build:web     # genera dist/ listo para publicar
 npm run icons         # regenera los iconos de assets/
 ```

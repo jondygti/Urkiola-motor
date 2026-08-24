@@ -10,6 +10,7 @@
     "web": "expo start --web",
     "build:web": "expo export --platform web --output-dir dist",
     "typecheck": "tsc --noEmit",
+    "verify": "node scripts/verify/run.mjs",
     "lint": "expo lint",
     "icons": "node scripts/generate-icons.mjs",
     "build:demo": "node scripts/build-demo.mjs"
