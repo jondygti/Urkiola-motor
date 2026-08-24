@@ -96,6 +96,9 @@ negocio se escriben una sola vez.
   hacer nunca.
 - [`docs/PANTALLAS.md`](docs/PANTALLAS.md) — qué había en el mockup V18 y
   dónde está ahora.
+- [`docs/APOYO-TECNICO.md`](docs/APOYO-TECNICO.md) — **la red de seguridad**:
+  qué revisión de seguridad encargar antes de meter datos reales, qué pedir
+  a un técnico externo de respaldo, cómo saber si vale y cuánto cuesta.
 
 ## Comprobaciones
 
