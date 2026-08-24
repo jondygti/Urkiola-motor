@@ -21,7 +21,10 @@ export const NAV: NavGroup[] = [
   {
     title: 'CONTROL',
     items: [
-      { href: '/', label: 'Dashboard', icon: '▦', short: 'Panel' },
+      // El panel de control es de dirección: se ve solo con permiso, y de
+      // serie solo lo tiene el administrador. Quien no lo tenga entra
+      // directamente a su trabajo.
+      { href: '/', label: 'Dashboard', icon: '▦', short: 'Panel', anyOf: ['panel.ver'] },
       { href: '/flota', label: 'Flota', icon: '🚗', short: 'Flota', anyOf: ['flota.ver'] },
       {
         href: '/entregas',
@@ -155,6 +158,21 @@ export function titleForPath(path: string): string {
 /** Primera sección del rol en el móvil: es donde debe abrirse la app. */
 export function mobileHome(state: AppState, user: User | null): string {
   return mobileNav(state, user)[0]?.href ?? '/mi-trabajo';
+}
+
+/**
+ * Dónde debe abrirse la aplicación para este usuario.
+ *
+ * El panel de control ya no es la puerta de entrada de todo el mundo: quien
+ * no tiene ese permiso aterriza en la primera pantalla que sí puede usar,
+ * no en un aviso de «no tienes acceso» nada más entrar.
+ */
+export function homeFor(state: AppState, user: User | null, isDesktop: boolean): string {
+  if (!isDesktop) return mobileHome(state, user);
+  const primera = visibleNav(state, user)
+    .flatMap((g) => g.items)
+    .find((i) => i.href !== '/');
+  return primera?.href ?? '/mi-trabajo';
 }
 
 /** Permisos que exige una ruta según el menú. Vacío = abierta a cualquiera. */

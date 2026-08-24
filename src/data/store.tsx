@@ -26,7 +26,7 @@ const TOKEN_KEY = 'urkiola.token.v1';
  * del servidor, que es quien manda. Los comandos pendientes de subir NO se
  * tocan: son trabajo de la persona, no caché.
  */
-const STATE_SCHEMA_VERSION = 6;
+const STATE_SCHEMA_VERSION = 7;
 
 interface StoredState {
   v: number;
@@ -66,8 +66,14 @@ interface StoreValue {
   mode: Mode;
   user: User | null;
   sync: SyncStatus;
-  /** Ejecuta un comando: actualiza la pantalla y lo pone en cola para subir. */
-  run: (cmd: CommandInput) => void;
+  /**
+   * Ejecuta un comando: actualiza la pantalla y lo pone en cola para subir.
+   *
+   * Devuelve el comando ya completo. Sirve para encadenar: lo que crea un
+   * comando lleva un id derivado del suyo (`idCreadoPor`), así que la
+   * pantalla puede lanzar el siguiente sin esperar al servidor.
+   */
+  run: (cmd: CommandInput) => Command;
   /** Fuerza un intento de subida (botón «reintentar»). */
   flushNow: () => void;
   /**
@@ -327,6 +333,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setQueueBoth([...queueRef.current, cmd]);
         void flush();
       }
+
+      return cmd;
     },
     [user, flush, setQueueBoth]
   );

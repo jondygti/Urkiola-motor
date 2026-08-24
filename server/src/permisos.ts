@@ -145,8 +145,17 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
       return 'No puedes cambiar esta solicitud.';
     }
 
-    case 'prep.create':
-      return tiene(s, u, 'preparacion.gestionar') ? null : 'No puedes abrir preparaciones.';
+    case 'prep.create': {
+      if (tiene(s, u, 'preparacion.gestionar')) return null;
+      // El preparador abre la preparación que ya le han pedido: eso es
+      // hacer su trabajo, no gestionarlo. Lo que no puede es inventarse
+      // preparaciones que nadie ha solicitado.
+      const pedida = s.requests.some(
+        (r) => r.type === 'preparacion' && r.vehicleId === cmd.vehicleId && r.status !== 'terminada'
+      );
+      if (tiene(s, u, 'preparacion.ejecutar') && pedida) return null;
+      return 'No puedes abrir preparaciones.';
+    }
 
     case 'prep.start':
     case 'prep.pause':

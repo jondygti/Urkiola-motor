@@ -231,6 +231,8 @@ export function movementsFor(s: AppState, vehicleId: Id) {
 
 export interface MyWork {
   preparations: Preparation[];
+  /** Pedidas por el comercial y todavía sin abrir: también son suyas. */
+  prepRequests: ServiceRequest[];
   transfers: ServiceRequest[];
   counts: FleetCount[];
   incidents: number;
@@ -245,10 +247,48 @@ export function myWork(s: AppState, userId: Id): MyWork {
     preparations: activePreparations(s).filter(
       (p) => (p.preparerId === userId || !p.preparerId) && inScope(p.siteId)
     ),
+    prepRequests: prepRequestsSinAbrir(s, userId),
     transfers: myTransfers(s, userId),
     counts: s.counts.filter((c) => !c.closedAt && inScope(c.siteId)),
     incidents: openIncidents(s).length,
   };
+}
+
+/**
+ * Preparaciones que ha pedido un comercial y que todavía no ha abierto
+ * nadie.
+ *
+ * Son trabajo del preparador igual que las abiertas: si no salen en su
+ * pantalla, la solicitud se queda esperando en el escritorio de la oficina
+ * y el coche parado. Al empezarla se abre la preparación de verdad.
+ *
+ * Se ordenan por plazo, con lo urgente y lo vencido delante.
+ */
+export function prepRequestsSinAbrir(s: AppState, userId: Id, now = Date.now()): ServiceRequest[] {
+  const user = s.users.find((u) => u.id === userId);
+  const inScope = (siteId: Id) => !user || user.siteIds.length === 0 || user.siteIds.includes(siteId);
+  const yaAbierta = new Set(
+    s.preparations.filter((p) => p.runState !== 'terminado').map((p) => p.vehicleId)
+  );
+
+  return s.requests
+    .filter(
+      (r) =>
+        r.type === 'preparacion' &&
+        r.status !== 'terminada' &&
+        !yaAbierta.has(r.vehicleId) &&
+        inScope(r.siteId) &&
+        (r.assignedTo === null || r.assignedTo === userId)
+    )
+    .sort((a, b) => {
+      const vencido = (r: ServiceRequest) => (deadlineOf(s, r, now).overdue ? 0 : 1);
+      const urgente = (r: ServiceRequest) => (r.urgent ? 0 : 1);
+      return (
+        vencido(a) - vencido(b) ||
+        urgente(a) - urgente(b) ||
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+    });
 }
 
 /** Ocupación de una campa/zona. */
@@ -528,6 +568,16 @@ export function suggestCarrier(s: AppState, fromSiteId?: Id, toSiteId?: Id): Car
 /* --------------------------------------------------- entregas a cliente */
 
 /** Vehículos con fecha de entrega comprometida, del más próximo al más lejano. */
+/**
+ * Sede desde la que se entrega un vehículo.
+ *
+ * Manda la sede de destino: es la concesión que ha quedado en preparar y
+ * entregar. Si todavía no la tiene, la sede donde está ahora.
+ */
+export function sedeDeEntrega(v: Vehicle): Id | null {
+  return v.targetSiteId ?? v.location?.siteId ?? null;
+}
+
 export function upcomingDeliveries(s: AppState, days = 14): Vehicle[] {
   const limite = Date.now() + days * 86_400_000;
   return activeVehicles(s)

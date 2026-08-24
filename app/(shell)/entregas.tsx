@@ -11,19 +11,21 @@ import {
   Pill,
   Screen,
   Segmented,
+  Select,
   Spacer,
   radius,
   space,
   useTheme,
 } from '@/ui';
 import { useAppState, useTicker } from '@/data/store';
-import { deliveryStatus, upcomingDeliveries } from '@/data/selectors';
+import { deliveryStatus, sedeDeEntrega, upcomingDeliveries } from '@/data/selectors';
 import { formatDate, siteName, vehicleName, vehicleRef } from '@/data/format';
 import type { Vehicle } from '@/data/types';
 import { ScreenGuard } from '@/features/common/Guard';
 import { useOpenVehicle } from '@/features/common/bits';
 
 const DIA = 86_400_000;
+const TODAS = 'todas';
 
 /**
  * Entregas comprometidas, agrupadas por día.
@@ -38,11 +40,23 @@ export default function DeliveriesScreen() {
   const { c } = useTheme();
   const openVehicle = useOpenVehicle();
   const [rango, setRango] = useState<'7' | '14' | '30'>('7');
+  const [sede, setSede] = useState<string>(TODAS);
 
-  const vehiculos = useMemo(
-    () => upcomingDeliveries(state, Number(rango)),
-    [state, rango]
-  );
+  const vehiculos = useMemo(() => {
+    const lista = upcomingDeliveries(state, Number(rango));
+    return sede === TODAS ? lista : lista.filter((v) => sedeDeEntrega(v) === sede);
+  }, [state, rango, sede]);
+
+  // Cuántas entregas tiene cada sede en este plazo, para verlo sin cambiar
+  // el filtro una por una.
+  const porSede = useMemo(() => {
+    const cuenta = new Map<string, number>();
+    for (const v of upcomingDeliveries(state, Number(rango))) {
+      const id = sedeDeEntrega(v);
+      if (id) cuenta.set(id, (cuenta.get(id) ?? 0) + 1);
+    }
+    return cuenta;
+  }, [state, rango]);
 
   const estados = useMemo(
     () => vehiculos.map((v) => deliveryStatus(state, v, now)),
@@ -95,10 +109,32 @@ export default function DeliveriesScreen() {
           ]}
         />
 
+        <Spacer h={space.sm} />
+
+        <View style={{ maxWidth: 320 }}>
+          <Select
+            full
+            value={sede}
+            onChange={setSede}
+            title="Sede que entrega"
+            options={[
+              { value: TODAS, label: `Todas las sedes · ${upcomingDeliveries(state, Number(rango)).length}` },
+              ...state.sites.map((s) => ({
+                value: s.id,
+                label: `${s.name} · ${porSede.get(s.id) ?? 0}`,
+              })),
+            ]}
+          />
+        </View>
+
         <Spacer h={space.lg} />
 
         <Grid cols={4} minWidth={160}>
-          <Kpi label="Comprometidas" value={vehiculos.length} hint={`próximos ${rango} días`} />
+          <Kpi
+            label="Comprometidas"
+            value={vehiculos.length}
+            hint={sede === TODAS ? `próximos ${rango} días` : `${siteName(state, sede)} · ${rango} días`}
+          />
           <Kpi label="Listas" value={listas} tone="ok" hint="nada pendiente" />
           <Kpi label="En riesgo" value={enRiesgo} tone={enRiesgo > 0 ? 'amber' : undefined} hint="<48 h y falta algo" />
           <Kpi label="Atrasadas" value={vencidas} tone={vencidas > 0 ? 'red' : undefined} hint="fecha pasada" />
@@ -109,8 +145,9 @@ export default function DeliveriesScreen() {
         {vehiculos.length === 0 ? (
           <Panel>
             <Muted>
-              No hay entregas comprometidas en este plazo. Las fechas se ponen desde la ficha del vehículo o
-              al solicitar la preparación.
+              {sede === TODAS
+                ? 'No hay entregas comprometidas en este plazo. Las fechas se ponen desde la ficha del vehículo o al solicitar la preparación.'
+                : `No hay entregas comprometidas en ${siteName(state, sede)} en este plazo.`}
             </Muted>
           </Panel>
         ) : (

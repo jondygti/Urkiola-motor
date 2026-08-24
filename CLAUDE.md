@@ -77,8 +77,8 @@ npm run verify:api           # la app real contra el backend real
 | Suite | Qué comprueba |
 |---|---|
 | `scripts/verify/rutas.mjs` | 7 perfiles × 2 anchos × 18 pantallas = 252 cargas: que ninguna se rompe para ningún rol |
-| `scripts/verify/funciones.mjs` | 37 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
-| `server/pruebas/` | 42 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios |
+| `scripts/verify/funciones.mjs` | 67 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
+| `server/pruebas/` | 43 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios |
 | `scripts/verify/backend.mjs` | 14 comprobaciones de la app compilada contra el servidor: entrar con contraseña, mover un coche y que **otro dispositivo lo vea** |
 
 `verify:api` va aparte de `verify` porque compila la web una segunda vez:
@@ -128,7 +128,13 @@ en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
   (Bizkaia: Grúas Francis; fuera: Grúas Betigoiz), y cada transportista ve
   solo los de la suya.
 - Sin QR: el vehículo se identifica por matrícula o por los 8 últimos del
-  bastidor.
+  bastidor. También en la dirección: `/vehiculo/1234ABC` abre su ficha.
+- **Lo que pide el comercial llega al preparador sin pasar por la oficina**:
+  la solicitud sale en «Mi preparación» y al empezarla se abre la
+  preparación y arranca el cronómetro.
+- **El panel de control es de dirección** (`panel.ver`). De serie solo lo
+  tiene el administrador; se puede dar a quien haga falta desde
+  Administración. Quien no lo tiene entra directo a su trabajo.
 
 ## Estado y siguientes pasos
 

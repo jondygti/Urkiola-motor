@@ -327,3 +327,57 @@ test('un rol con permisos de más no convierte a un externo en interno', async (
     (e: unknown) => e instanceof ErrorHttp && e.codigo === 403
   );
 });
+
+test('el preparador abre la preparación que le han pedido, pero no se la inventa', async (t) => {
+  const p = await servidorDePruebas();
+  t.after(() => p.limpiar());
+  const comercial = await entrar(p.servicio, 'juan@urkiolacarservice.com');
+  const pedro = await entrar(p.servicio, 'pedro@urkiolacarservice.com');
+
+  const conPrep = new Set(
+    p.servicio.estado.preparations.filter((x) => x.runState !== 'terminado').map((x) => x.vehicleId)
+  );
+  const pedidos = new Set(
+    p.servicio.estado.requests
+      .filter((r) => r.type === 'preparacion' && r.status !== 'terminada')
+      .map((r) => r.vehicleId)
+  );
+  const [uno, otro] = p.servicio.estado.vehicles.filter(
+    (v) => v.location?.siteId === 'leioa' && !conPrep.has(v.id) && !pedidos.has(v.id)
+  );
+
+  // Sin que nadie la haya pedido, no.
+  await assert.rejects(
+    () =>
+      p.servicio.ejecutar(
+        cmd('prep.create', { vehicleId: otro.id, siteId: 'leioa' }, { userId: pedro.id }),
+        pedro
+      ),
+    (e: unknown) => e instanceof ErrorHttp && e.codigo === 403
+  );
+
+  // El comercial la pide…
+  await p.servicio.ejecutar(
+    cmd(
+      'request.create',
+      { requestType: 'preparacion', vehicleId: uno.id, siteId: 'leioa', to: { siteId: 'leioa' } },
+      { userId: comercial.id }
+    ),
+    comercial
+  );
+
+  // …y ahora el preparador sí puede abrirla.
+  const r = await p.servicio.ejecutar(
+    cmd('prep.create', { vehicleId: uno.id, siteId: 'leioa', preparerId: pedro.id }, { id: 'c-abre', userId: pedro.id }),
+    pedro
+  );
+  assert.equal(r.repetido, false);
+  assert.ok(p.servicio.estado.preparations.some((x) => x.id === 'prep-c-abre'));
+
+  // Y la solicitud queda en curso y a su nombre, sin tocarla a mano.
+  const solicitud = p.servicio.estado.requests.find(
+    (x) => x.type === 'preparacion' && x.vehicleId === uno.id
+  )!;
+  assert.equal(solicitud.status, 'en_curso');
+  assert.equal(solicitud.assignedTo, pedro.id);
+});

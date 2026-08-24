@@ -121,7 +121,9 @@ export const ROLES: RoleConfig[] = [
   {
     id: 'logistica',
     label: 'Logística',
-    permissions: ALL_PERMISSIONS.filter((p) => p !== 'admin.configurar'),
+    // Todo menos administrar y menos el panel de control, que es de
+    // dirección. Si hace falta, se le marca desde Administración.
+    permissions: ALL_PERMISSIONS.filter((p) => p !== 'admin.configurar' && p !== 'panel.ver'),
     mobileSections: ['/mi-trabajo', '/mover', '/entregas', '/solicitudes', '/flota'],
     builtin: true,
   },

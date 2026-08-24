@@ -197,9 +197,23 @@ function derivado(prefix: string): Id {
   return `${prefix}-${enCurso.id}-${enCurso.seq}`;
 }
 
-/** Id derivado fijo, para lo que un comando crea una sola vez. */
-function unico(prefix: string, cmd: Command): Id {
+/**
+ * Id de lo que crea un comando.
+ *
+ * Es público a propósito: cuando una pantalla encadena dos comandos (crear
+ * la preparación y empezarla), necesita saber cómo se va a llamar lo que
+ * acaba de crear sin esperar respuesta del servidor.
+ */
+export function idCreadoPor(
+  prefix: 'mov' | 'req' | 'prep' | 'count' | 'inc' | 'rec' | 'rule',
+  cmd: { id: Id }
+): Id {
   return `${prefix}-${cmd.id}`;
+}
+
+/** Id derivado fijo, para lo que un comando crea una sola vez. */
+function unico(prefix: 'mov' | 'req' | 'prep' | 'count' | 'inc' | 'rec' | 'rule', cmd: Command): Id {
+  return idCreadoPor(prefix, cmd);
 }
 
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
@@ -531,11 +545,29 @@ function aplicar(state: AppState, cmd: Command): AppState {
         startedAt: null,
         finishedAt: null,
       };
-      const next: AppState = {
+      let next: AppState = {
         ...activate(state, cmd.vehicleId),
         preparations: [prep, ...state.preparations],
         vehicles: replace(state.vehicles, cmd.vehicleId, { status: 'en_preparacion', targetSiteId: cmd.siteId }),
       };
+
+      // Si esto viene de una solicitud del comercial, esa solicitud pasa a
+      // «en curso» y queda a nombre de quien la prepara. Antes había que
+      // acordarse de cambiarla a mano y se quedaba en «solicitada» aunque
+      // el coche ya estuviera en el taller.
+      const pedido = next.requests.find(
+        (r) => r.type === 'preparacion' && r.vehicleId === cmd.vehicleId && r.status !== 'terminada'
+      );
+      if (pedido) {
+        next = {
+          ...next,
+          requests: replace(next.requests, pedido.id, {
+            status: 'en_curso',
+            assignedTo: cmd.preparerId ?? pedido.assignedTo,
+          }),
+        };
+      }
+
       return addEvent(next, {
         vehicleId: cmd.vehicleId,
         kind: 'preparacion',

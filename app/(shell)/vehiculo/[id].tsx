@@ -28,6 +28,7 @@ import {
   preparationFor,
   requestsFor,
   vehicleById,
+  vehicleByRef,
   vehicleTimeline,
 } from '@/data/selectors';
 import {
@@ -57,7 +58,10 @@ export default function VehicleScreen() {
   const { can, canAny } = usePerms();
   const [toast, setToast] = useState<string | null>(null);
 
-  const vehicle = vehicleById(state, id);
+  // Por id interno o por lo que la gente tiene a mano: la matrícula o los
+  // ocho últimos del bastidor. Así un enlace pegado en un mensaje
+  // (/vehiculo/1234ABC) abre la ficha en vez de decir que no existe.
+  const vehicle = vehicleById(state, id) ?? vehicleByRef(state, id ?? '');
 
   if (!vehicle) {
     return (

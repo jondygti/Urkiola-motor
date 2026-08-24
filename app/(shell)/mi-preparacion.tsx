@@ -18,9 +18,9 @@ import {
   useTheme,
 } from '@/ui';
 import { useStore, useTicker } from '@/data/store';
-import { activePreparations, deadlineOf } from '@/data/selectors';
-import { prepElapsedMs, prepIsOverSla, prepProgress } from '@/data/commands';
-import { formatDuration, formatShortDuration, siteName, vehicleName, vehicleRef } from '@/data/format';
+import { activePreparations, deadlineOf, prepRequestsSinAbrir } from '@/data/selectors';
+import { idCreadoPor, prepElapsedMs, prepIsOverSla, prepProgress } from '@/data/commands';
+import { formatDuration, formatShortDuration, siteName, userName, vehicleName, vehicleRef } from '@/data/format';
 import type { CheckState, Preparation, ServiceRequest } from '@/data/types';
 import { ScreenGuard, usePerms } from '@/features/common/Guard';
 import { DeadlineChip } from '@/features/common/DeadlineChip';
@@ -58,6 +58,14 @@ export default function MyPrepScreen() {
       });
   }, [state, user, now]);
 
+  // Lo que ha pedido el comercial y todavía no ha abierto nadie. Sin esto,
+  // la solicitud se queda en la oficina y el preparador no se entera.
+  const pedidas = useMemo(
+    () => prepRequestsSinAbrir(state, user?.id ?? '', now),
+    [state, user, now]
+  );
+
+  const total = mias.length + pedidas.length;
   const abierta = openId ? state.preparations.find((p) => p.id === openId) ?? null : null;
 
   return (
@@ -66,15 +74,15 @@ export default function MyPrepScreen() {
         <View style={{ width: '100%', maxWidth: 720, alignSelf: 'center' }}>
           <H1>Mi preparación</H1>
           <Muted>
-            {mias.length === 0
+            {total === 0
               ? 'No tienes preparaciones pendientes.'
-              : `${mias.length} ${mias.length === 1 ? 'vehículo' : 'vehículos'} por preparar, lo más urgente arriba.`}
+              : `${total} ${total === 1 ? 'vehículo' : 'vehículos'} por preparar, lo más urgente arriba.`}
           </Muted>
 
           {toast ? <Notice>{toast}</Notice> : null}
           <Spacer />
 
-          {mias.length === 0 ? (
+          {total === 0 ? (
             <Panel>
               <Muted>
                 Cuando te asignen una preparación aparecerá aquí. Mientras tanto puedes buscar un vehículo
@@ -82,7 +90,14 @@ export default function MyPrepScreen() {
               </Muted>
             </Panel>
           ) : (
-            mias.map((p) => <PrepCard key={p.id} prep={p} onOpen={() => setOpenId(p.id)} />)
+            <>
+              {pedidas.map((r) => (
+                <PedidaCard key={r.id} request={r} onAbierta={(id) => setOpenId(id)} />
+              ))}
+              {mias.map((p) => (
+                <PrepCard key={p.id} prep={p} onOpen={() => setOpenId(p.id)} />
+              ))}
+            </>
           )}
         </View>
 
@@ -102,6 +117,77 @@ export default function MyPrepScreen() {
 }
 
 /* --------------------------------------------------------------- cola */
+
+/**
+ * Preparación pedida por el comercial y aún sin abrir.
+ *
+ * Al empezarla se abre la preparación y arranca el cronómetro en el mismo
+ * gesto: para el preparador es un botón, no dos pasos con una oficina en
+ * medio.
+ */
+function PedidaCard({
+  request,
+  onAbierta,
+}: {
+  request: ServiceRequest;
+  onAbierta: (prepId: string) => void;
+}) {
+  const { state, run, user } = useStore();
+  const { c } = useTheme();
+  const now = useTicker(1000);
+  const { can } = usePerms();
+
+  const vehicle = state.vehicles.find((v) => v.id === request.vehicleId);
+  const plazo = deadlineOf(state, request, now);
+
+  const empezar = () => {
+    const creada = run({
+      type: 'prep.create',
+      vehicleId: request.vehicleId,
+      siteId: request.siteId,
+      preparerId: user?.id ?? null,
+    });
+    // El id de la preparación se deriva del id del comando, así que se
+    // puede encadenar sin esperar respuesta del servidor.
+    const prepId = idCreadoPor('prep', creada);
+    run({ type: 'prep.start', prepId });
+    onAbierta(prepId);
+  };
+
+  return (
+    <View
+      style={{
+        borderWidth: 1,
+        borderColor: c.border,
+        backgroundColor: c.surface,
+        borderRadius: radius.lg,
+        padding: space.lg,
+        marginBottom: space.md,
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <Text style={{ fontSize: 20, fontWeight: '900', color: c.text, flex: 1, minWidth: 130 }}>
+          {vehicle ? vehicleRef(vehicle) : request.vehicleId}
+        </Text>
+        <DeadlineChip deadline={plazo} />
+        {request.urgent ? <Pill tone="red">Urgente</Pill> : <Pill tone="amber">Sin empezar</Pill>}
+      </View>
+
+      <Text style={{ fontSize: 13, color: c.textMuted, marginTop: 2 }}>
+        {vehicle ? vehicleName(vehicle) : ''} · {siteName(state, request.siteId)}
+      </Text>
+      <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 4 }}>
+        Pedida por {userName(state, request.createdBy)}
+        {request.note ? ` · ${request.note}` : ''}
+      </Text>
+
+      <Spacer h={space.md} />
+      <Btn variant="primary" full onPress={empezar} disabled={!can('preparacion.ejecutar')}>
+        Empezar preparación
+      </Btn>
+    </View>
+  );
+}
 
 function PrepCard({ prep, onOpen }: { prep: Preparation; onOpen: () => void }) {
   const { state } = useStore();

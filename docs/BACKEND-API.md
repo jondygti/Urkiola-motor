@@ -188,7 +188,7 @@ permiso correspondiente:
 | `request.update` | `solicitudes.gestionar`, **o** `traslados.propios` si el traslado es de su empresa (o suyo) y el nuevo estado es `en_ruta` o `terminada` |
 | `vehicle.setDelivery` | `entregas.gestionar` |
 | `carrier.upsert`, `carrier.delete` | `admin.configurar` |
-| `prep.create` | `preparacion.gestionar` |
+| `prep.create` | `preparacion.gestionar`, **o** `preparacion.ejecutar` si ya hay una solicitud de preparación abierta para ese vehículo (el preparador abre lo que le han pedido, no se inventa trabajo) |
 | `prep.start` / `pause` / `resume` / `item` | `preparacion.ejecutar` |
 | `prep.finish` | `preparacion.ejecutar`; si trae `to`, también `movimientos.registrar` |
 | `count.*` | `recuentos.ejecutar` |

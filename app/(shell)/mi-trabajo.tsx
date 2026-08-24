@@ -71,9 +71,9 @@ export default function MyWorkScreen() {
       <Grid cols={4} minWidth={160}>
         <Kpi
           label="Preparaciones"
-          value={work.preparations.length}
+          value={work.preparations.length + work.prepRequests.length}
           hint="pendientes"
-          onPress={() => router.push('/preparacion')}
+          onPress={() => router.push('/mi-preparacion')}
         />
         <Kpi
           label="Traslados"
@@ -162,9 +162,23 @@ export default function MyWorkScreen() {
       <Spacer h={space.lg} />
 
       <Grid cols={2} minWidth={400}>
-        <Panel title={`🧽 Preparaciones pendientes (${work.preparations.length})`}>
+        <Panel
+          title={`🧽 Preparaciones pendientes (${work.preparations.length + work.prepRequests.length})`}
+        >
+          {work.prepRequests.length ? (
+            <Notice>
+              {work.prepRequests.length === 1
+                ? '1 preparación pedida y sin empezar.'
+                : `${work.prepRequests.length} preparaciones pedidas y sin empezar.`}{' '}
+              Se empiezan desde «Mi preparación».
+            </Notice>
+          ) : null}
           {work.preparations.length === 0 ? (
-            <Muted>No tienes preparaciones asignadas ahora mismo.</Muted>
+            <Muted>
+              {work.prepRequests.length
+                ? 'Ninguna abierta todavía.'
+                : 'No tienes preparaciones asignadas ahora mismo.'}
+            </Muted>
           ) : (
             work.preparations.slice(0, 6).map((p) => {
               const v = state.vehicles.find((x) => x.id === p.vehicleId);

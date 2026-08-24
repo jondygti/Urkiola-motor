@@ -79,6 +79,20 @@ export async function entrarComo(browser, usuario, width = 420) {
   return { context, page, errores };
 }
 
+/**
+ * Cambia de usuario en el MISMO dispositivo, sin perder los datos.
+ *
+ * Hay que hacerlo con otro `addInitScript`: el de `entrarComo` se ejecuta en
+ * cada navegación y volvería a dejar al usuario anterior. El último que se
+ * añade es el que manda.
+ */
+export async function cambiarDeUsuario(context, page, usuario, destino) {
+  await context.addInitScript((u) => {
+    localStorage.setItem('urkiola.session.v1', JSON.stringify(u));
+  }, usuario);
+  await page.goto(destino, { waitUntil: 'networkidle' });
+}
+
 /** Lo que la app ha guardado en el dispositivo, para comprobar el resultado. */
 export const estadoGuardado = (page) =>
   page.evaluate(() => {

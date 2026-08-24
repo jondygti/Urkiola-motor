@@ -320,13 +320,14 @@ function ManageModal({
             <Btn
               full
               onPress={() => {
+                // Abrir la preparación ya deja la solicitud en curso y a
+                // nombre de quien la prepara: lo hace `prep.create`.
                 run({
                   type: 'prep.create',
                   vehicleId: request.vehicleId,
                   siteId: request.siteId,
                   preparerId: assignedTo,
                 });
-                run({ type: 'request.update', requestId: request.id, status: 'en_curso', assignedTo });
                 onDone('Preparación abierta y solicitud en curso.');
               }}
             >

@@ -19,7 +19,8 @@ import {
 } from '@/ui';
 import { useAppState, useStore, useTicker } from '@/data/store';
 import { dashboardKpis, attentionItems, recentActivity, sitePerformance } from '@/data/selectors';
-import { mobileHome } from '@/features/shell/nav';
+import { homeFor, mobileHome } from '@/features/shell/nav';
+import { usePerms } from '@/features/common/Guard';
 import { formatDateTime, formatShortDuration, vehicleTitle } from '@/data/format';
 
 export default function DashboardScreen() {
@@ -28,11 +29,17 @@ export default function DashboardScreen() {
   const router = useRouter();
   const now = useTicker(15_000);
   const { c, isDesktop } = useTheme();
+  const { can } = usePerms();
 
-  // En el teléfono la app es más sencilla: si el rol no tiene el panel de
-  // gestión entre sus secciones, se abre directamente en su trabajo del día.
-  const home = mobileHome(state, user);
-  if (!isDesktop && home !== '/') return <Redirect href={home as never} />;
+  // El panel de control es de dirección: se ve solo con permiso. Quien no
+  // lo tenga entra directamente a la primera pantalla que sí puede usar, no
+  // a un aviso de «no tienes acceso» nada más abrir la aplicación.
+  if (!can('panel.ver')) return <Redirect href={homeFor(state, user, isDesktop) as never} />;
+
+  // En el teléfono, además, la app es más corta: si el rol no tiene el
+  // panel entre sus secciones, se abre en su trabajo del día.
+  const enElMovil = mobileHome(state, user);
+  if (!isDesktop && enElMovil !== '/') return <Redirect href={enElMovil as never} />;
 
   const kpis = dashboardKpis(state);
   const perf = sitePerformance(state, now);

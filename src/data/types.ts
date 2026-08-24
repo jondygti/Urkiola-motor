@@ -393,6 +393,7 @@ export const BUILTIN_ROLES = [
 
 /** Todo lo que se puede permitir o denegar a un rol. */
 export type Permission =
+  | 'panel.ver'
   | 'flota.ver'
   | 'flota.editar'
   | 'campa.ver'
@@ -411,6 +412,7 @@ export type Permission =
   | 'admin.configurar';
 
 export const PERMISSION_LABEL: Record<Permission, string> = {
+  'panel.ver': 'Ver el panel de control',
   'flota.ver': 'Ver la flota y las fichas',
   'flota.editar': 'Editar campos propios del vehículo',
   'campa.ver': 'Ver campas y plazas',
