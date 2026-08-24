@@ -22,7 +22,10 @@ const OUT = join(OUT_DIR, 'urkiola-car-service-demo.html');
 
 console.log('· Compilando la web como página única…');
 rmSync(BUILD, { recursive: true, force: true });
-execFileSync('npx', ['expo', 'export', '--platform', 'web', '--output-dir', BUILD], {
+// `--clear` no es opcional: Metro cachea el valor de EXPO_PUBLIC_API_URL de
+// la compilación anterior, y una demostración que intenta hablar con un
+// servidor que no existe no sirve para enseñar nada.
+execFileSync('npx', ['expo', 'export', '--platform', 'web', '--output-dir', BUILD, '--clear'], {
   cwd: ROOT,
   stdio: 'inherit',
   env: { ...process.env, EXPO_WEB_OUTPUT: 'single' },
