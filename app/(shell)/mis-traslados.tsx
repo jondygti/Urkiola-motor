@@ -87,7 +87,9 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
 
   const recoger = () => {
     run({ type: 'request.update', requestId: request.id, status: 'en_ruta' });
-    onDone(`${vehicle ? vehicleRef(vehicle) : 'Vehículo'} marcado como recogido.`);
+    onDone(
+      `${vehicle ? vehicleRef(vehicle) : 'Vehículo'} · llaves recogidas. Empiezan las ${state.config.transferDeadlineHours} h.`
+    );
   };
 
   const entregar = () => {
@@ -118,7 +120,7 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
         <Text style={{ fontSize: 22, fontWeight: '900', color: c.text, flex: 1, minWidth: 140 }}>
           {vehicle ? vehicleRef(vehicle) : request.vehicleId}
         </Text>
-        {enRuta ? <Pill tone="blue">En ruta</Pill> : <Pill tone="amber">Por recoger</Pill>}
+        {enRuta ? <Pill tone="blue">En ruta</Pill> : <Pill tone="amber">Llaves sin recoger</Pill>}
         {request.urgent ? <Pill tone="red">Urgente</Pill> : null}
         <DeadlineChip deadline={plazo} compact />
       </View>
@@ -143,18 +145,23 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
 
       <Spacer h={space.md} />
 
-      {/* Un solo botón: el que toca según dónde esté el viaje. */}
+      {/* Un solo botón: el que toca según dónde esté el viaje. Se habla de
+          llaves y no de vehículo porque es lo que arranca el plazo: el
+          transportista pasa por la oficina, coge las llaves y desde ahí
+          cuentan las horas, aunque cargue el coche más tarde. */}
       <Btn variant="primary" full onPress={enRuta ? entregar : recoger}>
-        {enRuta ? '✓ He entregado el vehículo' : '▶ He recogido el vehículo'}
+        {enRuta ? '✓ He entregado el vehículo' : '🔑 He recogido las llaves'}
       </Btn>
-      {!enRuta ? (
-        <>
-          <Spacer h={space.xs} />
-          <Muted>
-            Al recoger las llaves empiezan a contar {state.config.transferDeadlineHours} h para entregarlo.
-          </Muted>
-        </>
-      ) : null}
+      <Spacer h={space.xs} />
+      {enRuta ? (
+        <Muted>
+          🔑 Llaves recogidas {request.pickedUpAt ? formatDateTime(request.pickedUpAt) : '—'}.
+        </Muted>
+      ) : (
+        <Muted>
+          Al recogerlas empiezan a contar {state.config.transferDeadlineHours} h para entregarlo.
+        </Muted>
+      )}
 
       <Spacer h={space.sm} />
       <Btn full onPress={() => setProblemOpen(true)}>

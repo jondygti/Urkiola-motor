@@ -132,9 +132,14 @@ export default function RequestsScreen() {
     {
       key: 'due',
       header: 'Plazo',
-      width: 140,
+      width: 160,
       value: (r) => (r.dueAt ? new Date(r.dueAt).toISOString() : ''),
-      render: (r) => <DeadlineChip deadline={deadlineOf(state, r)} />,
+      render: (r) => (
+        <DeadlineChip
+          deadline={deadlineOf(state, r)}
+          emptyLabel={r.type === 'traslado' ? '🔑 Llaves sin recoger' : undefined}
+        />
+      ),
     },
     {
       key: 'assigned',
@@ -298,6 +303,19 @@ function ManageModal({
           >
             Guardar cambios
           </Btn>
+          {request.type === 'traslado' && !request.pickedUpAt && request.status !== 'terminada' ? (
+            <Btn
+              full
+              onPress={() => {
+                run({ type: 'request.update', requestId: request.id, status: 'en_ruta', assignedTo, carrierId });
+                onDone(
+                  `Llaves entregadas. Empiezan las ${state.config.transferDeadlineHours} h del transportista.`
+                );
+              }}
+            >
+              🔑 Han recogido las llaves
+            </Btn>
+          ) : null}
           {request.type === 'preparacion' && status !== 'terminada' && puedePreparar ? (
             <Btn
               full
@@ -335,6 +353,21 @@ function ManageModal({
           title="Estado"
         />
       </Field>
+      {request.type === 'traslado' ? (
+        <Field label="Llaves">
+          {request.pickedUpAt ? (
+            <Muted>
+              🔑 Recogidas {formatDateTime(request.pickedUpAt)} · entrega antes de{' '}
+              {request.dueAt ? formatDateTime(request.dueAt) : '—'}
+            </Muted>
+          ) : (
+            <Notice tone="warn">
+              Sin recoger: el plazo de {state.config.transferDeadlineHours} h todavía no ha empezado. El
+              transportista lo marca desde su móvil; si no usa la app, márcalo tú con el botón de abajo.
+            </Notice>
+          )}
+        </Field>
+      ) : null}
       {request.type === 'traslado' ? (
         <Field label="Empresa de transporte">
           <Select

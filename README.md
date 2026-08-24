@@ -163,7 +163,8 @@ Salen del mockup y se han mantenido tal cual:
 - **Objetivos configurables**: VN 2 h, VO 2 h 30 min, aviso a las 72 h sin
   comprobación física. Todo editable en Administración.
 - **Plazos comprometidos, distintos del objetivo de trabajo**: el
-  transportista tiene **48 h desde que recoge las llaves**, y el comercial
+  transportista tiene **48 h desde que recoge las llaves** —lo marca él en
+  su móvil, o la oficina por él si llama por teléfono—, y el comercial
   debe dar **48 h mínimo** para preparar un vehículo. El objetivo de 2 h es
   cuánto debe durar el trabajo; las 48 h son cuándo tiene que estar. Las dos
   cifras se configuran por separado.

@@ -75,7 +75,7 @@ versión completa siempre disponible en la web:
 
 | Pantalla | Para quién | Cómo funciona |
 |---|---|---|
-| `/mis-traslados` | Transportista | Una tarjeta por traslado y un solo botón, que cambia de «He recogido» a «He entregado» |
+| `/mis-traslados` | Transportista | Una tarjeta por traslado y un solo botón, que cambia de «He recogido las llaves» a «He entregado el vehículo» |
 | `/entregas` | Comercial y logística | Entregas comprometidas agrupadas por día, con lo que le falta a cada una |
 | `/mi-preparacion` | Preparador | Cola ordenada por plazo; al abrir, cronómetro y checklist donde **cada línea se marca de un toque** |
 | `/mi-recepcion` | Recepción | Bucle de descarga: identificar, plaza propuesta automáticamente y «Descargado · siguiente» |
@@ -133,6 +133,25 @@ Dos relojes distintos, que conviene no mezclar:
 |---|---|---|
 | Objetivo de preparación (2 h / 2 h 30) | Cuánto debe durar el **trabajo** | Al empezar a preparar |
 | Plazo comprometido (48 h) | Cuándo tiene que **estar hecho** | Traslado: al recoger las llaves. Preparación: al pedirla |
+
+#### Quién marca que se han recogido las llaves
+
+El reloj del traslado no corre hasta que alguien dice que las llaves ya
+están en manos del transportista. Se puede registrar por los dos lados:
+
+| Quién | Dónde |
+|---|---|
+| El transportista | «Mis traslados» → **🔑 He recogido las llaves** |
+| La oficina | Solicitudes → Gestionar → **🔑 Han recogido las llaves** |
+
+Lo segundo hace falta más de lo que parece: hay transportistas que llaman
+por teléfono o pasan por el mostrador sin abrir la app, y alguien tiene que
+poder arrancar el plazo igual.
+
+Mientras nadie lo marque, la solicitud aparece como **«🔑 Llaves sin
+recoger»** en vez de con una cuenta atrás, para que se vea de un vistazo
+que ese traslado no tiene reloj todavía. Al marcarlo queda la hora, quién
+lo hizo, y una línea en la trazabilidad del vehículo.
 
 Si el vehículo tiene **fecha de entrega al cliente**, esa manda: el plazo
 de la preparación pasa a ser el día de la entrega, y el coche sube o baja

@@ -34,6 +34,7 @@ import type {
   CustomField,
   Carrier,
 } from './types';
+import { REQUEST_STATUS_LABEL } from './types';
 import { CONFIG } from './seed';
 import { locationLabel, siteName, userName, vehicleTitle } from './format';
 
@@ -435,7 +436,11 @@ export function applyCommand(state: AppState, cmd: Command): AppState {
       return addEvent(next, {
         vehicleId: req.vehicleId,
         kind: 'solicitud',
-        title: `Solicitud ${cmd.status}`,
+        // La recogida de llaves es el hecho que arranca el plazo, así que
+        // en la trazabilidad se nombra por lo que es y no por el estado.
+        title: recoge
+          ? `Llaves recogidas · empiezan ${state.config.transferDeadlineHours} h`
+          : `Solicitud ${REQUEST_STATUS_LABEL[cmd.status].toLowerCase()}`,
         detail: `${req.type === 'traslado' ? 'Traslado' : 'Preparación'} · ${userName(state, cmd.userId)}`,
         at: cmd.at,
         userId: cmd.userId,

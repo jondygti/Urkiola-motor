@@ -17,13 +17,24 @@ export function formatRemaining(ms: number): string {
  * Cuenta atrás del plazo comprometido. El color dice lo único que
  * importa de un vistazo: si llegas o no.
  */
-export function DeadlineChip({ deadline, compact }: { deadline: Deadline; compact?: boolean }) {
+export function DeadlineChip({
+  deadline,
+  compact,
+  emptyLabel,
+}: {
+  deadline: Deadline;
+  compact?: boolean;
+  /** Qué poner cuando el reloj no ha arrancado. Por defecto, «Sin plazo aún». */
+  emptyLabel?: string;
+}) {
   const { c } = useTheme();
   if (deadline.remainingMs === null) {
     if (compact) return null;
     return (
       <View style={{ backgroundColor: c.surfaceSunken, borderRadius: radius.pill, paddingVertical: 4, paddingHorizontal: 9 }}>
-        <Text style={{ fontSize: 10, fontWeight: '800', color: c.textMuted }}>Sin plazo aún</Text>
+        <Text style={{ fontSize: 10, fontWeight: '800', color: c.textMuted }}>
+          {emptyLabel ?? 'Sin plazo aún'}
+        </Text>
       </View>
     );
   }
