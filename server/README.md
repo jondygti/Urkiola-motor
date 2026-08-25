@@ -27,7 +27,7 @@ EXPO_PUBLIC_API_URL=http://127.0.0.1:8080 npx expo start --web --clear
 ## Comprobaciones
 
 ```bash
-npm test                 # dentro de server/: 58 comprobaciones
+npm test                 # dentro de server/: 79 comprobaciones
 npm run verify:api       # en la raíz: la app real contra este servidor
 ```
 
@@ -106,6 +106,14 @@ cambiar es `servicio.ts`, no la app ni las reglas de negocio.
 | `URKIOLA_DATOS` | Fichero del almacén local | `datos/estado.json` |
 | `URKIOLA_FOTO_CADA` | Comandos entre foto y foto | `50` |
 | `EXPO_PUSH` | `0` para no mandar avisos | activado |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Supabase Storage para las fotos. Sin esto se guardan en disco | *(vacío)* |
+| `SUPABASE_BUCKET` | Bucket de las fotos | `urkiola-fotos` |
+| `URKIOLA_FOTOS` | Carpeta de las fotos en disco | `datos/fotos` |
+| `URKIOLA_MAX_FOTO_MB` | Tamaño máximo de una foto | `8` |
+| `EMAIL_API_KEY` | Proveedor de correo para el enlace de restablecer. Sin esto, el correo sale por consola | *(vacío)* |
+| `EMAIL_API_URL` / `EMAIL_FROM` | Dirección del proveedor y remitente | Resend |
+| `PUBLIC_URL` | Dirección del panel, para armar el enlace del correo | *(vacío)* |
+| `URKIOLA_MINUTOS_ENLACE` | Lo que vale el enlace de restablecer | `60` |
 | `URKIOLA_CLAVE_PRUEBAS` | Contraseña única de los usuarios de ejemplo | `urkiola` |
 
 Genera el secreto con `openssl rand -hex 32`. En producción, sin
@@ -120,6 +128,10 @@ Genera el secreto con `openssl rand -hex 32`. En producción, sin
 | `POST` | `/auth/password` | quien ha entrado (la suya) o un administrador (la de otro) |
 | `GET` | `/state` | quien ha entrado |
 | `POST` | `/commands` | quien ha entrado |
+| `POST` | `/auth/olvidada` | cualquiera (siempre contesta lo mismo) |
+| `POST` | `/auth/restablecer` | quien tenga el código del correo |
+| `POST` | `/fotos` | quien ha entrado |
+| `GET` | `/fotos/:id` | quien ha entrado |
 | `POST` | `/push/token` | quien ha entrado |
 
 Los códigos de respuesta importan: la app **descarta** el trabajo del
@@ -129,10 +141,6 @@ a poder aplicarse.
 
 ## Lo que todavía no hace
 
-- **Fotos.** Las de incidencias y albaranes se guardan hoy como una
-  dirección local del móvil, así que no las ve nadie más. Hace falta
-  almacenamiento de objetos (Supabase Storage o S3) y subirlas antes de
-  mandar el comando.
 - **Importación de Quiter** (`POST /import/quiter`). Está pendiente de que
   Jon consiga un export real; sin verlo no se escribe el importador.
 - **Consultas para informes.** Hoy la app pide el estado entero, que le

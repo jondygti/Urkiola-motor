@@ -114,7 +114,9 @@ está en [`server/README.md`](../server/README.md):
 | `URKIOLA_SEMILLA` | `vacia` en producción. `demo` carga el parque de ejemplo |
 | `URKIOLA_ADMIN_EMAIL` / `URKIOLA_ADMIN_PASSWORD` | El primer administrador, que se crea al arrancar. Sin él nadie podría entrar en un sistema recién instalado |
 | `CORS_ORIGEN` | El dominio del panel web |
-| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Para Storage, cuando se suban las fotos. **Solo en el servidor**, nunca en la app |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Para las fotos de daños y albaranes. **Solo en el servidor**, nunca en la app: con esa clave se lee el almacén entero |
+| `PUBLIC_URL` | Dirección del panel. Sale en el enlace del correo de restablecer contraseña |
+| `EMAIL_API_KEY` | Proveedor de correo (Resend por defecto) para el enlace de restablecer. Sin esto, la contraseña la sigue restableciendo un administrador |
 
 **Una sola instancia (réplicas = 1).** El servidor aplica los comandos en
 fila y coge un cerrojo en la base de datos: un segundo proceso espera a que
@@ -214,6 +216,9 @@ hacer la API, y en Cloudflare Pages o Netlify, su regla de reescritura.
    comprobaciones. Se puede arrancar y probar en un portátil sin contratar
    nada (`npm run server`).
 2. Crear el proyecto de Supabase **en región europea** y guardar las claves.
+   Crear también un **bucket privado** para las fotos (`urkiola-fotos`): las
+   fotos no se sirven nunca directamente desde ahí, siempre pasan por la API,
+   que es donde se comprueba quién las pide.
    El esquema lo crea el propio servidor al arrancar
    (`server/src/almacen/esquema.sql`): no hay migraciones que ejecutar a
    mano todavía.
@@ -224,5 +229,12 @@ hacer la API, y en Cloudflare Pages o Netlify, su regla de reescritura.
 7. Volcado semanal fuera de Supabase y primera restauración de prueba.
 8. Firmar los DPA y anotar los dos proveedores en el registro de
    tratamientos.
+9. Dar de alta un proveedor de correo si se quiere que la gente pueda
+   recuperar su contraseña sola. Sin él todo funciona igual, pero la
+   restablece un administrador.
+
+Antes de meter datos de clientes reales, leer
+[`SEGURIDAD.md`](SEGURIDAD.md): dice qué está resuelto y qué hay que pedirle
+a la auditoría externa.
 
 Del 2 al 4 hace falta que las cuentas existan; el resto es trabajo nuestro.

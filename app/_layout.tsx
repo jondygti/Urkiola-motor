@@ -14,6 +14,7 @@ export default function RootLayout() {
           <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
             <Stack.Screen name="(shell)" />
             <Stack.Screen name="login" options={{ animation: 'fade' }} />
+            <Stack.Screen name="restablecer" options={{ animation: 'fade' }} />
           </Stack>
         </StoreProvider>
       </ThemeProvider>

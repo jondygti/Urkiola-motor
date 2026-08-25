@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { AppState, Id } from '../../../src/data/types';
 import type { Command } from '../../../src/data/commands';
-import type { Almacen, Credencial, TokenPush } from './tipos';
+import type { Almacen, Credencial, EnlaceRestablecer, TokenPush } from './tipos';
 
 /** Número fijo del cerrojo. Cualquiera vale mientras sea siempre el mismo. */
 const CERROJO = 8_140_2025;
@@ -135,7 +135,7 @@ export class AlmacenPostgres implements Almacen {
 
   async credencialPorEmail(email: string) {
     const r = await this.pool.query<Credencial>(
-      'select usuario as "userId", email, hash from credenciales where lower(email) = lower($1)',
+      'select usuario as "userId", email, hash, actualizado as "cambiadaEn" from credenciales where lower(email) = lower($1)',
       [email.trim()]
     );
     return r.rows[0] ?? null;
@@ -143,7 +143,7 @@ export class AlmacenPostgres implements Almacen {
 
   async credencialPorUsuario(userId: Id) {
     const r = await this.pool.query<Credencial>(
-      'select usuario as "userId", email, hash from credenciales where usuario = $1',
+      'select usuario as "userId", email, hash, actualizado as "cambiadaEn" from credenciales where usuario = $1',
       [userId]
     );
     return r.rows[0] ?? null;
@@ -162,6 +162,32 @@ export class AlmacenPostgres implements Almacen {
   async hayCredenciales() {
     const r = await this.pool.query('select 1 from credenciales limit 1');
     return r.rowCount ? r.rowCount > 0 : false;
+  }
+
+  async guardarEnlace(e: EnlaceRestablecer) {
+    // Solo uno por persona: pedir otro invalida el anterior.
+    await this.pool.query('delete from enlaces_restablecer where usuario = $1', [e.userId]);
+    await this.pool.query(
+      'insert into enlaces_restablecer (hash, usuario, caduca) values ($1, $2, $3)',
+      [e.hash, e.userId, e.caduca]
+    );
+  }
+
+  async gastarEnlace(hash: string) {
+    // Se borra al leerlo, en la misma consulta: así no hay forma de usarlo
+    // dos veces aunque lleguen dos peticiones a la vez.
+    const r = await this.pool.query<{ userId: Id; caduca: Date }>(
+      'delete from enlaces_restablecer where hash = $1 returning usuario as "userId", caduca',
+      [hash]
+    );
+    const fila = r.rows[0];
+    if (!fila) return null;
+    if (new Date(fila.caduca).getTime() < Date.now()) return null;
+    return { hash, userId: fila.userId, caduca: new Date(fila.caduca).toISOString() };
+  }
+
+  async borrarEnlacesDe(userId: Id) {
+    await this.pool.query('delete from enlaces_restablecer where usuario = $1', [userId]);
   }
 
   async guardarTokenPush(t: TokenPush) {

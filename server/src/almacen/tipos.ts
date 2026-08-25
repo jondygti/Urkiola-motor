@@ -22,6 +22,28 @@ export interface Credencial {
   email: string;
   /** `scrypt$N$r$p$sal$hash`. */
   hash: string;
+  /**
+   * Cuándo se cambió por última vez.
+   *
+   * Sirve para tirar las sesiones antiguas: si alguien cambia la contraseña
+   * porque cree que se la han visto, las sesiones abiertas en otros
+   * dispositivos tienen que dejar de valer. Sin esto seguirían funcionando
+   * treinta días.
+   */
+  cambiadaEn?: string;
+}
+
+/**
+ * Enlace de un solo uso para restablecer la contraseña.
+ *
+ * Se guarda el **hash** del código, no el código: si alguien se llevara la
+ * base de datos, no podría entrar en las cuentas que tuvieran un enlace a
+ * medias.
+ */
+export interface EnlaceRestablecer {
+  hash: string;
+  userId: Id;
+  caduca: string;
 }
 
 /** Token de avisos de un dispositivo. */
@@ -51,6 +73,11 @@ export interface Almacen {
   credencialPorUsuario(userId: Id): Promise<Credencial | null>;
   guardarCredencial(c: Credencial): Promise<void>;
   hayCredenciales(): Promise<boolean>;
+
+  guardarEnlace(e: EnlaceRestablecer): Promise<void>;
+  /** Lo busca y lo borra a la vez: un enlace vale una sola vez. */
+  gastarEnlace(hash: string): Promise<EnlaceRestablecer | null>;
+  borrarEnlacesDe(userId: Id): Promise<void>;
 
   guardarTokenPush(t: TokenPush): Promise<void>;
   borrarTokenPush(token: string): Promise<void>;

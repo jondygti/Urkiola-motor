@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Image, Text, View } from 'react-native';
 import {
   Btn,
   Column,
@@ -18,13 +18,16 @@ import {
   Select,
   Spacer,
   Toolbar,
+  radius,
   space,
   useTheme,
 } from '@/ui';
 import { useAppState, useStore } from '@/data/store';
 import { formatDateTime, locationLabel, vehicleName } from '@/data/format';
 import type { Reception, ReceptionLine } from '@/data/types';
-import { capturePhoto } from '@/features/actions/photos';
+import { CampoFotos, Fotos } from '@/features/actions/CampoFotos';
+import { capturarYSubir } from '@/features/actions/photos';
+import { urlDeFoto } from '@/data/api';
 import { Cell, useOpenVehicle } from '@/features/common/bits';
 import { ScreenGuard } from '@/features/common/Guard';
 import { NuevoVehiculoModal } from '@/features/actions/NuevoVehiculo';
@@ -42,6 +45,7 @@ export default function ReceptionScreen() {
   const [newOpen, setNewOpen] = useState(false);
   const [lineOpen, setLineOpen] = useState<ReceptionLine | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [albaran, setAlbaran] = useState<string | null>(null);
 
   const stats = useMemo(() => {
     const lines = reception?.lines ?? [];
@@ -171,18 +175,25 @@ export default function ReceptionScreen() {
               <Btn
                 variant="primary"
                 onPress={async () => {
-                  const uri = await capturePhoto('camera');
-                  if (uri) {
-                    run({ type: 'reception.albaran', receptionId: reception.id, uri });
-                    setToast('Albarán adjuntado.');
-                  }
+                  // El albarán se sube como cualquier otra foto: si se queda
+                  // en el móvil de quien lo escanea, no sirve de prueba.
+                  const foto = await capturarYSubir('camera');
+                  if (!foto) return;
+                  run({ type: 'reception.albaran', receptionId: reception.id, uri: foto.ref });
+                  setToast(
+                    foto.subida
+                      ? 'Albarán adjuntado.'
+                      : 'Albarán guardado en este móvil: sin cobertura no ha subido, repítelo luego.'
+                  );
                 }}
               >
                 📷 Adjuntar albarán
               </Btn>
-              <Btn onPress={() => setToast(reception.albaranUri ? `Albarán: ${reception.albaranUri}` : 'Todavía no hay albarán adjunto.')}>
-                Ver albarán
-              </Btn>
+              {reception.albaranUri ? (
+                <Btn onPress={() => setAlbaran(urlDeFoto(reception.albaranUri!))}>Ver albarán</Btn>
+              ) : (
+                <Btn onPress={() => setToast('Todavía no hay albarán adjunto.')}>Ver albarán</Btn>
+              )}
               {!reception.closedAt ? (
                 <Btn
                   onPress={() => {
@@ -212,6 +223,16 @@ export default function ReceptionScreen() {
       )}
 
       <NewReceptionModal visible={newOpen} onClose={() => setNewOpen(false)} onDone={setToast} />
+      {albaran ? (
+        <Modal visible onClose={() => setAlbaran(null)} title="📄 Albarán del camión">
+          <Image
+            source={{ uri: albaran }}
+            style={{ width: '100%', height: 520, borderRadius: radius.md, backgroundColor: c.surfaceSunken }}
+            resizeMode="contain"
+          />
+        </Modal>
+      ) : null}
+
       {reception && lineOpen ? (
         <LineModal
           reception={reception}
@@ -412,28 +433,11 @@ function LineModal({
       <Field label="Daños detectados" hint="Déjalo vacío si el vehículo llega sin daños.">
         <Input value={damage} onChangeText={setDamage} placeholder="Ej.: golpe paragolpes trasero" multiline />
       </Field>
-      <Field label={`Fotos (${photos.length})`}>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          <Btn
-            small
-            onPress={async () => {
-              const uri = await capturePhoto('camera');
-              if (uri) setPhotos((p) => [...p, uri]);
-            }}
-          >
-            📷 Hacer foto
-          </Btn>
-          <Btn
-            small
-            onPress={async () => {
-              const uri = await capturePhoto('library');
-              if (uri) setPhotos((p) => [...p, uri]);
-            }}
-          >
-            🖼️ Galería
-          </Btn>
-        </View>
-      </Field>
+      <CampoFotos
+        fotos={photos}
+        onChange={setPhotos}
+        hint="Es la prueba para reclamar al transportista."
+      />
       <Notice>
         Al marcar el vehículo como descargado con una plaza asignada, entra en campa y queda comprobado
         físicamente con fecha, hora y usuario.

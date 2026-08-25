@@ -26,6 +26,7 @@ const CLAVE = 'urkiola';
 
 const datos = mkdtempSync(join(tmpdir(), 'urkiola-verify-'));
 let api = null;
+let registroApi = '';
 let servidorWeb = null;
 let browser = null;
 
@@ -66,6 +67,8 @@ try {
       ...process.env,
       PORT: String(PUERTO_API),
       URKIOLA_DATOS: join(datos, 'estado.json'),
+      // También las fotos: si no, se quedan en datos/fotos del repositorio.
+      URKIOLA_FOTOS: join(datos, 'fotos'),
       URKIOLA_SEMILLA: 'demo',
       JWT_SECRET: 'secreto-de-comprobacion',
       CORS_ORIGEN: WEB,
@@ -74,8 +77,15 @@ try {
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
-  api.stdout.on('data', () => {});
-  api.stderr.on('data', (d) => process.stderr.write(`[api] ${d}`));
+  // El correo de restablecer sale por consola cuando no hay proveedor: se
+  // guarda el registro para poder leer el enlace desde la prueba.
+  api.stdout.on('data', (d) => {
+    registroApi += String(d);
+  });
+  api.stderr.on('data', (d) => {
+    registroApi += String(d);
+    process.stderr.write(`[api] ${d}`);
+  });
 
   if (!(await esperarApi())) throw new Error('El servidor no ha levantado.');
 
@@ -183,7 +193,101 @@ try {
   );
   ok('6 · ni los comerciales', estadoIker.vehicles.every((v) => v.salesRep === null));
 
-  /* ----------------------------------------- 5 · reintento sin duplicar */
+  /* --------------------------- 5 · una foto la ve otro dispositivo */
+  {
+    // Un PNG de 1×1 de verdad: lo que subiría el móvil de recepción.
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64'
+    );
+    const { token: tokenNerea } = await entrar('recepcion@urkiolacarservice.com');
+    const subida = await fetch(`${API}/fotos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${tokenNerea}` },
+      body: png,
+    });
+    const { id: idFoto } = await subida.json();
+    ok('5 · recepción sube la foto de un daño', subida.status === 200 && !!idFoto, idFoto ?? 'no subió');
+
+    // Y la ve otra persona, desde otro dispositivo y con otra sesión.
+    const vista = await fetch(`${API}/fotos/${encodeURIComponent(idFoto)}`, {
+      headers: { Authorization: `Bearer ${tokenPedro}` },
+    });
+    const bytes = Buffer.from(await vista.arrayBuffer());
+    ok('5 · y otra persona la ve, no se queda en el móvil', vista.status === 200 && bytes.equals(png));
+
+    // Pero no cualquiera que dé con la dirección.
+    const sinSesion = await fetch(`${API}/fotos/${encodeURIComponent(idFoto)}`);
+    ok('5 · sin sesión no se ve', sinSesion.status === 401, String(sinSesion.status));
+  }
+
+  /* ------------------- 7 · recuperar la contraseña sin pedir permiso */
+  {
+    // Pestaña limpia: quien ha olvidado la contraseña no está dentro.
+    const ctx3 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const olvido = await ctx3.newPage();
+
+    await olvido.goto(`${WEB}/login`, { waitUntil: 'networkidle' });
+    await olvido.waitForTimeout(900);
+    await olvido.getByPlaceholder('nombre@urkiolacarservice.com').fill('ane@urkiolacarservice.com');
+    await olvido.waitForTimeout(200);
+    ok(
+      '7 · la pantalla de acceso ofrece recuperar la contraseña',
+      await olvido.getByText('He olvidado mi contraseña', { exact: false }).first().isVisible()
+    );
+
+    await olvido.getByText('He olvidado mi contraseña', { exact: false }).first().click();
+    await olvido.waitForTimeout(1500);
+    ok(
+      '7 · y no dice si ese correo existe o no',
+      (await olvido.evaluate(() => document.body.innerText)).includes('Si ese correo está dado de alta')
+    );
+
+    // Sin proveedor de correo configurado, el enlace sale por la consola del
+    // servidor: de ahí se saca el código, igual que lo sacaría la persona
+    // de su bandeja de entrada.
+    const codigo = registroApi.match(/codigo=([\w-]+)/g)?.at(-1)?.replace('codigo=', '');
+    ok('7 · el enlace sale con su código', !!codigo, codigo ? `${codigo.slice(0, 8)}…` : 'no salió');
+
+    if (codigo) {
+      await olvido.goto(`${WEB}/restablecer?codigo=${encodeURIComponent(codigo)}`, {
+        waitUntil: 'networkidle',
+      });
+      await olvido.waitForTimeout(1100);
+      await olvido.getByPlaceholder('Al menos 12 caracteres').fill('cuatro ruedas y un motor');
+      await olvido.getByPlaceholder('La misma otra vez').fill('cuatro ruedas y un motor');
+      await olvido.waitForTimeout(300);
+      await olvido.getByText('Guardar la contraseña', { exact: true }).first().click();
+      await olvido.waitForTimeout(1800);
+      ok(
+        '7 · la contraseña queda cambiada',
+        (await olvido.evaluate(() => document.body.innerText)).includes('Contraseña cambiada')
+      );
+
+      const intento = async (password) =>
+        (
+          await fetch(`${API}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: 'ane@urkiolacarservice.com', password }),
+          })
+        ).status;
+
+      ok('7 · y con ella se entra', (await intento('cuatro ruedas y un motor')) === 200);
+      ok('7 · la vieja deja de valer', (await intento(CLAVE)) === 401);
+
+      // El mismo enlace, otra vez, ya no vale.
+      const repetido = await fetch(`${API}/auth/restablecer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codigo, nueva: 'otra frase larga distinta' }),
+      });
+      ok('7 · el enlace no se puede usar dos veces', repetido.status === 410, String(repetido.status));
+    }
+    await ctx3.close();
+  }
+
+  /* ----------------------------------------- 8 · reintento sin duplicar */
   const orden = {
     type: 'vehicle.check',
     id: 'cmd-verify-reintento',
@@ -199,7 +303,7 @@ try {
     }).then((r) => r.json());
   await enviar();
   const repetido = await enviar();
-  ok('7 · un reintento no duplica el trabajo', repetido.repetido === true);
+  ok('8 · un reintento no duplica el trabajo', repetido.repetido === true);
 
   // La pantalla de acceso arrastra un aviso de hidratación de React que ya
   // estaba antes del backend: en la web compilada, React descarta el HTML
@@ -211,7 +315,7 @@ try {
   // lo apunta en la consola, pero es la respuesta correcta, no un fallo.
   const ESPERADOS = /status of 401/;
   const graves = errores.filter((e) => !HIDRATACION.test(e) && !ESPERADOS.test(e));
-  ok('8 · sin errores de JavaScript', graves.length === 0, graves[0] ?? 'ninguno');
+  ok('9 · sin errores de JavaScript', graves.length === 0, graves[0] ?? 'ninguno');
 
   const bien = resumen();
   console.log(bien ? '\n✔ La app funciona contra el servidor.' : '\n✖ Hay comprobaciones que fallan.');

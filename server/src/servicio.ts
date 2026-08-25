@@ -30,7 +30,45 @@ import { comprobarPermiso, esColaboradorExterno } from './permisos';
 import { estadoPara } from './recorte';
 import { avisosNuevos, enviarAvisos } from './push';
 import { validarComando } from './validar';
-import { demasiadosIntentos, malaPeticion, noAutenticado, noEncontrado, sinPermiso } from './errores';
+import { TIPOS_FOTO, type AlmacenFotos, type Foto } from './almacen/fotos';
+import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
+import type { Correo } from './correo';
+import {
+  ErrorHttp,
+  demasiadosIntentos,
+  malaPeticion,
+  noAutenticado,
+  noEncontrado,
+  sinPermiso,
+} from './errores';
+
+/**
+ * Un hash de mentira, para gastar el mismo tiempo cuando el correo no
+ * existe que cuando sí. Se calcula una vez al arrancar.
+ */
+const HASH_DE_RELLENO = cifrarPassword('relleno-para-igualar-el-tiempo');
+
+/** El código del correo se guarda hasheado, nunca tal cual. */
+const hashDeCodigo = (codigo: string) => createHash('sha256').update(codigo).digest('hex');
+
+/**
+ * Lo mínimo que se le pide a una contraseña.
+ *
+ * Doce caracteres y que no sea de las cuatro de siempre. No se piden
+ * mayúsculas ni símbolos a propósito: eso lleva a «Urkiola1!» apuntado en
+ * un pósit, que es peor que una frase larga.
+ */
+const PEORES = ['urkiola', 'contrasena', 'contraseña', '123456', 'password', 'qwerty', 'abc123'];
+
+function comprobarFortaleza(nueva: unknown): asserts nueva is string {
+  if (typeof nueva !== 'string' || nueva.trim().length < 12) {
+    throw malaPeticion('La contraseña tiene que tener al menos 12 caracteres. Una frase corta vale.');
+  }
+  const limpia = nueva.trim().toLowerCase();
+  if (PEORES.some((p) => limpia.includes(p))) {
+    throw malaPeticion('Esa contraseña es demasiado fácil de adivinar. Prueba con otra cosa.');
+  }
+}
 
 /** Estado inicial vacío: sin coches, sin usuarios salvo el administrador. */
 function estadoVacio(): AppState {
@@ -56,18 +94,33 @@ export class Servicio {
   private desdeFoto: number;
   /** Los comandos se aplican en fila india: nunca dos a la vez. */
   private cola: Promise<unknown> = Promise.resolve();
+  /**
+   * Cuándo cambió cada uno su contraseña, en segundos.
+   *
+   * Se lleva en memoria para poder comprobarlo sin ir a la base de datos en
+   * cada petición: es lo que permite que una sesión abierta en un móvil
+   * perdido deje de valer en cuanto se cambia la contraseña.
+   */
+  private cambiadaEn = new Map<Id, number>();
 
   private constructor(
     private readonly almacen: Almacen,
     private readonly config: Config,
     estado: AppState,
-    desdeFoto: number
+    desdeFoto: number,
+    private readonly fotos: AlmacenFotos,
+    private readonly correo: Correo
   ) {
     this.estadoActual = estado;
     this.desdeFoto = desdeFoto;
   }
 
-  static async crear(almacen: Almacen, config: Config): Promise<Servicio> {
+  static async crear(
+    almacen: Almacen,
+    config: Config,
+    fotos: AlmacenFotos,
+    correo: Correo
+  ): Promise<Servicio> {
     const { estado, comandosDesdeFoto } = await almacen.iniciar();
 
     let base = estado;
@@ -84,8 +137,9 @@ export class Servicio {
       console.log(`Rehechos ${comandosDesdeFoto.length} comandos posteriores a la última foto.`);
     }
 
-    const servicio = new Servicio(almacen, config, alDia, comandosDesdeFoto.length);
+    const servicio = new Servicio(almacen, config, alDia, comandosDesdeFoto.length, fotos, correo);
     await servicio.prepararAcceso();
+    await servicio.cargarCambiosDeContrasena();
     return servicio;
   }
 
@@ -118,11 +172,7 @@ export class Servicio {
         this.estadoActual = { ...this.estadoActual, users: [...this.estadoActual.users, admin] };
         await this.almacen.guardarFoto(this.estadoActual);
       }
-      await this.almacen.guardarCredencial({
-        userId: admin.id,
-        email: admin.email,
-        hash: cifrarPassword(config.adminPassword),
-      });
+      await this.guardarCredencial(admin.id, admin.email, config.adminPassword);
       console.log(`Administrador listo: ${admin.email}`);
       return;
     }
@@ -138,16 +188,34 @@ export class Servicio {
     }
 
     for (const u of this.estadoActual.users) {
-      await this.almacen.guardarCredencial({
-        userId: u.id,
-        email: u.email,
-        hash: cifrarPassword(config.clavePruebas),
-      });
+      await this.guardarCredencial(u.id, u.email, config.clavePruebas);
     }
     console.warn(
       `MODO PRUEBAS: los ${this.estadoActual.users.length} usuarios de ejemplo entran con la ` +
         `contraseña "${config.clavePruebas}". No usar así con datos reales.`
     );
+  }
+
+  /** Guarda la contraseña y tira las sesiones abiertas de esa persona. */
+  private async guardarCredencial(userId: Id, email: string, password: string) {
+    const cambiadaEn = new Date().toISOString();
+    await this.almacen.guardarCredencial({
+      userId,
+      email,
+      hash: cifrarPassword(password),
+      cambiadaEn,
+    });
+    this.cambiadaEn.set(userId, Math.floor(new Date(cambiadaEn).getTime() / 1000));
+  }
+
+  /** Al arrancar, cuándo cambió cada uno su contraseña. */
+  private async cargarCambiosDeContrasena() {
+    for (const u of this.estadoActual.users) {
+      const c = await this.almacen.credencialPorUsuario(u.id);
+      if (c?.cambiadaEn) {
+        this.cambiadaEn.set(u.id, Math.floor(new Date(c.cambiadaEn).getTime() / 1000));
+      }
+    }
   }
 
   async login(email: unknown, password: unknown): Promise<{ token: string; user: User }> {
@@ -164,9 +232,14 @@ export class Servicio {
       ? this.estadoActual.users.find((u) => u.id === credencial.userId)
       : undefined;
 
+    // La comprobación se hace SIEMPRE, exista el correo o no. Si solo se
+    // hiciera cuando existe, contestar antes o después diría cuáles existen:
+    // comprobar una contraseña cuesta un tiempo que se nota.
+    const correcta = comprobarPassword(password, credencial?.hash ?? HASH_DE_RELLENO);
+
     // Un solo mensaje para «no existe» y «contraseña mal»: decir cuál de
     // las dos es sirve para averiguar qué correos existen.
-    if (!credencial || !user || !user.active || !comprobarPassword(password, credencial.hash)) {
+    if (!credencial || !user || !user.active || !correcta) {
       anotarFallo(clave);
       throw noAutenticado('Correo o contraseña incorrectos.');
     }
@@ -183,13 +256,19 @@ export class Servicio {
     if (!sesion) throw noAutenticado('La sesión no vale o ha caducado.');
     const user = this.estadoActual.users.find((u) => u.id === sesion.sub);
     if (!user || !user.active) throw noAutenticado('Tu usuario ya no está activo.');
+
+    // Si la contraseña se cambió después de emitir esta sesión, la sesión ya
+    // no vale: es lo que se espera al cambiarla porque te han robado el
+    // móvil o crees que alguien la ha visto.
+    const cambiada = this.cambiadaEn.get(user.id);
+    if (cambiada !== undefined && sesion.iat < cambiada) {
+      throw noAutenticado('Se ha cambiado la contraseña de esta cuenta. Vuelve a entrar.');
+    }
     return user;
   }
 
   async cambiarPassword(quien: User, objetivo: Id, actual: unknown, nueva: unknown) {
-    if (typeof nueva !== 'string' || nueva.length < 8) {
-      throw malaPeticion('La contraseña nueva tiene que tener al menos 8 caracteres.');
-    }
+    comprobarFortaleza(nueva);
     const esOtro = objetivo !== quien.id;
     if (esOtro) {
       const permiso = comprobarPermiso(this.estadoActual, quien, {
@@ -209,11 +288,7 @@ export class Servicio {
 
     const user = this.estadoActual.users.find((u) => u.id === objetivo);
     if (!user) throw noEncontrado('Ese usuario no existe.');
-    await this.almacen.guardarCredencial({
-      userId: user.id,
-      email: user.email,
-      hash: cifrarPassword(nueva),
-    });
+    await this.guardarCredencial(user.id, user.email, nueva);
   }
 
   /* ------------------------------------------------------------- estado */
@@ -280,6 +355,109 @@ export class Servicio {
     }
 
     return { repetido: false };
+  }
+
+  /* ------------------------------------------- restablecer contraseña */
+
+  /**
+   * Manda el enlace para poner una contraseña nueva.
+   *
+   * Contesta lo mismo exista el correo o no. Decir «ese correo no está» le
+   * regala a cualquiera la lista de quién trabaja aquí, y con eso se empieza
+   * a probar contraseñas.
+   */
+  async pedirEnlace(email: unknown): Promise<void> {
+    if (typeof email !== 'string' || !email.includes('@')) return;
+    const clave = email.trim().toLowerCase();
+
+    // El mismo freno que en el acceso: que nadie use esto para tantear
+    // correos ni para llenar de mensajes el buzón de alguien.
+    if (bloqueado(`enlace:${clave}`)) return;
+    anotarFallo(`enlace:${clave}`);
+
+    const credencial = await this.almacen.credencialPorEmail(clave);
+    const user = credencial
+      ? this.estadoActual.users.find((u) => u.id === credencial.userId)
+      : undefined;
+    if (!credencial || !user || !user.active) return;
+
+    const codigo = randomBytes(32).toString('base64url');
+    await this.almacen.guardarEnlace({
+      hash: hashDeCodigo(codigo),
+      userId: user.id,
+      caduca: new Date(Date.now() + this.config.minutosEnlace * 60_000).toISOString(),
+    });
+
+    const enlace = `${this.config.urlPublica}/restablecer?codigo=${encodeURIComponent(codigo)}`;
+    const minutos = this.config.minutosEnlace;
+    await this.correo
+      .enviar(
+        user.email,
+        'Cambiar tu contraseña de Urkiola Car Service',
+        `Hola ${user.name.split(' ')[0]}:\n\n` +
+          `Alguien ha pedido cambiar la contraseña de tu cuenta. Si has sido tú, abre este enlace:\n\n` +
+          `${enlace}\n\n` +
+          `Vale durante ${minutos} minutos y una sola vez.\n\n` +
+          `Si no has sido tú, no hace falta que hagas nada: tu contraseña sigue como estaba.\n`
+      )
+      .catch((e) => {
+        // Que falle el correo no puede tumbar la petición ni contar nada a
+        // quien la hizo; queda en el registro para mirarlo.
+        console.error('No se ha podido mandar el correo de restablecer:', e);
+      });
+  }
+
+  /** Cambia la contraseña con el código del correo. */
+  async restablecer(codigo: unknown, nueva: unknown): Promise<void> {
+    if (typeof codigo !== 'string' || codigo.length < 20) {
+      throw malaPeticion('Ese enlace no vale.');
+    }
+    comprobarFortaleza(nueva);
+
+    const enlace = await this.almacen.gastarEnlace(hashDeCodigo(codigo));
+    if (!enlace) {
+      throw new ErrorHttp(410, 'Ese enlace ya se ha usado o ha caducado. Pide otro.');
+    }
+    const user = this.estadoActual.users.find((u) => u.id === enlace.userId);
+    if (!user || !user.active) throw new ErrorHttp(410, 'Ese enlace ya no vale.');
+
+    await this.guardarCredencial(user.id, user.email, nueva as string);
+    // Y se tira cualquier otro enlace pendiente de esa cuenta.
+    await this.almacen.borrarEnlacesDe(user.id);
+    limpiarFallos(user.email.toLowerCase());
+    console.log(`Contraseña restablecida por enlace: ${user.id}`);
+  }
+
+  /* -------------------------------------------------------------- fotos */
+
+  /**
+   * Guarda una foto y devuelve su referencia.
+   *
+   * El identificador es aleatorio y largo a propósito: aunque la lectura
+   * exige sesión, una dirección adivinable sería una puerta de más.
+   */
+  async guardarFoto(cuerpo: Buffer, tipo: string): Promise<string> {
+    const limpio = (tipo ?? '').split(';')[0].trim().toLowerCase();
+    if (!TIPOS_FOTO[limpio]) {
+      throw malaPeticion(`Ese tipo de fichero no se acepta (${limpio || 'sin tipo'}).`);
+    }
+    if (cuerpo.length === 0) throw malaPeticion('La foto está vacía.');
+    if (cuerpo.length > this.config.maxFotoBytes) {
+      throw malaPeticion(
+        `La foto pesa demasiado (máximo ${Math.round(this.config.maxFotoBytes / 1024 / 1024)} MB).`
+      );
+    }
+
+    const id = `${randomBytes(24).toString('base64url')}.${TIPOS_FOTO[limpio]}`;
+    await this.fotos.guardar(id, { cuerpo, tipo: limpio });
+    return id;
+  }
+
+  /** Lee una foto. Quien la pide ya ha demostrado tener sesión. */
+  async leerFoto(id: string): Promise<Foto> {
+    const foto = await this.fotos.leer(id);
+    if (!foto) throw noEncontrado('Esa foto ya no está.');
+    return foto;
   }
 
   async registrarTokenPush(user: User, token: unknown) {

@@ -34,6 +34,22 @@ export interface Config {
   push: boolean;
   /** Carpeta con la web compilada, si la sirve este mismo servidor. */
   carpetaWeb: string;
+  /** Carpeta de las fotos cuando se guardan en disco. */
+  carpetaFotos: string;
+  /** Supabase Storage, para producción. Vacío = se guardan en disco. */
+  supabaseUrl: string;
+  supabaseClave: string;
+  supabaseBucket: string;
+  /** Tamaño máximo de una foto. */
+  maxFotoBytes: number;
+  /** Proveedor de correo, para el enlace de restablecer contraseña. */
+  correoUrl: string;
+  correoClave: string;
+  correoRemitente: string;
+  /** Dirección pública de la app, para armar el enlace del correo. */
+  urlPublica: string;
+  /** Minutos que vale el enlace de restablecer. */
+  minutosEnlace: number;
   produccion: boolean;
 }
 
@@ -60,6 +76,15 @@ export function leerConfig(env: NodeJS.ProcessEnv = process.env): Config {
     .map((o) => o.trim())
     .filter(Boolean);
 
+  if (produccion && origenes.includes('*')) {
+    // Con `*` cualquier página de internet puede llamar a esta API desde el
+    // navegador de quien la visite. En pruebas es cómodo; en producción, no.
+    throw new Error(
+      'CORS_ORIGEN no puede ser "*" en producción. Pon el dominio del panel, por ejemplo ' +
+        'CORS_ORIGEN=https://urkiolacarservice.com'
+    );
+  }
+
   return {
     puerto: entero(env.PORT ?? env.PUERTO, 8080),
     databaseUrl: env.DATABASE_URL ?? '',
@@ -73,6 +98,17 @@ export function leerConfig(env: NodeJS.ProcessEnv = process.env): Config {
     clavePruebas: env.URKIOLA_CLAVE_PRUEBAS ?? 'urkiola',
     push: env.EXPO_PUSH !== '0' && env.EXPO_PUSH !== 'false',
     carpetaWeb: env.URKIOLA_WEB ?? path.join(process.cwd(), 'dist'),
+    carpetaFotos: env.URKIOLA_FOTOS ?? path.join(process.cwd(), 'datos', 'fotos'),
+    supabaseUrl: env.SUPABASE_URL ?? '',
+    supabaseClave: env.SUPABASE_SERVICE_ROLE_KEY ?? '',
+    supabaseBucket: env.SUPABASE_BUCKET ?? 'urkiola-fotos',
+    maxFotoBytes: entero(env.URKIOLA_MAX_FOTO_MB, 8) * 1024 * 1024,
+    correoUrl: env.EMAIL_API_URL ?? 'https://api.resend.com/emails',
+    correoClave: env.EMAIL_API_KEY ?? '',
+    correoRemitente: env.EMAIL_FROM ?? 'Urkiola Car Service <no-responder@urkiolacarservice.com>',
+    // `*` vale como origen permitido pero no como dirección para un enlace.
+    urlPublica: (env.PUBLIC_URL ?? (origenes[0] === '*' ? '' : origenes[0]) ?? '').replace(/\/+$/, ''),
+    minutosEnlace: entero(env.URKIOLA_MINUTOS_ENLACE, 60),
     produccion,
   };
 }

@@ -23,7 +23,7 @@ import { vehicleName, vehicleRef } from '@/data/format';
 import type { Reception } from '@/data/types';
 import { ScreenGuard } from '@/features/common/Guard';
 import { BarcodeScanner } from '@/features/scan/BarcodeScanner';
-import { capturePhoto } from '@/features/actions/photos';
+import { CampoFotos } from '@/features/actions/CampoFotos';
 import { NuevoVehiculoModal } from '@/features/actions/NuevoVehiculo';
 
 /**
@@ -392,17 +392,11 @@ function DamageModal({
       <Field label="Qué le pasa">
         <Input value={damage} onChangeText={setDamage} placeholder="Ej.: golpe en paragolpes trasero" multiline />
       </Field>
-      <Field label={`Fotos (${photos.length})`} hint="Importante: es la prueba para reclamar al transportista.">
-        <Btn
-          small
-          onPress={async () => {
-            const uri = await capturePhoto('camera');
-            if (uri) setPhotos((p) => [...p, uri]);
-          }}
-        >
-          📷 Hacer foto
-        </Btn>
-      </Field>
+      <CampoFotos
+        fotos={photos}
+        onChange={setPhotos}
+        hint="Importante: es la prueba para reclamar al transportista."
+      />
     </Modal>
   );
 }

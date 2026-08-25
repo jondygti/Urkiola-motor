@@ -10,6 +10,8 @@ import { leerConfig } from './config';
 import { AlmacenFichero } from './almacen/fichero';
 import { AlmacenPostgres } from './almacen/postgres';
 import type { Almacen } from './almacen/tipos';
+import { FotosEnFichero, FotosEnSupabase, type AlmacenFotos } from './almacen/fotos';
+import { CorreoEnRegistro, CorreoHttp, type Correo } from './correo';
 import { Servicio } from './servicio';
 import { crearServidor } from './http';
 
@@ -27,7 +29,35 @@ async function main() {
     );
   }
 
-  const servicio = await Servicio.crear(almacen, config);
+  // Las fotos van aparte de los datos: son ficheros, no filas.
+  const fotos: AlmacenFotos =
+    config.supabaseUrl && config.supabaseClave
+      ? new FotosEnSupabase(config.supabaseUrl, config.supabaseClave, config.supabaseBucket)
+      : new FotosEnFichero(config.carpetaFotos);
+
+  if (!config.supabaseUrl) {
+    console.warn(
+      `Sin SUPABASE_URL: las fotos se guardan en ${config.carpetaFotos}. ` +
+        'Vale para probar, no para producción.'
+    );
+  }
+
+  // El correo solo se usa para el enlace de restablecer la contraseña.
+  const correo: Correo = config.correoClave
+    ? new CorreoHttp(config.correoUrl, config.correoClave, config.correoRemitente)
+    : new CorreoEnRegistro();
+
+  if (!config.correoClave) {
+    console.warn(
+      'Sin EMAIL_API_KEY: los correos de restablecer contraseña salen por consola en vez de enviarse. ' +
+        'Mientras tanto, la restablece un administrador desde Administración.'
+    );
+  }
+  if (config.produccion && !config.urlPublica) {
+    console.warn('Sin PUBLIC_URL: el enlace de restablecer no sabrá a qué dirección apuntar.');
+  }
+
+  const servicio = await Servicio.crear(almacen, config, fotos, correo);
   const servidor = crearServidor(servicio, config);
 
   servidor.listen(config.puerto, () => {

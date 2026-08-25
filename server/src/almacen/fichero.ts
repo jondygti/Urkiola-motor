@@ -12,7 +12,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { AppState, Id } from '../../../src/data/types';
 import type { Command } from '../../../src/data/commands';
-import type { Almacen, Credencial, TokenPush } from './tipos';
+import type { Almacen, Credencial, EnlaceRestablecer, TokenPush } from './tipos';
 
 interface Contenido {
   version: number;
@@ -23,22 +23,35 @@ interface Contenido {
   aplicados: Id[];
   credenciales: Credencial[];
   tokensPush: TokenPush[];
+  enlaces: EnlaceRestablecer[];
 }
 
-const VACIO: Contenido = {
-  version: 1,
-  estado: null,
-  comandos: [],
-  aplicados: [],
-  credenciales: [],
-  tokensPush: [],
-};
+/**
+ * Contenido de partida.
+ *
+ * Es una función, no una constante: con `{ ...VACIO }` las listas se
+ * copiaban por referencia y todos los almacenes creados en el mismo proceso
+ * acababan compartiendo las mismas credenciales. Con un solo servidor no se
+ * notaba; en las comprobaciones, un servidor se llevaba las contraseñas del
+ * anterior.
+ */
+function vacio(): Contenido {
+  return {
+    version: 1,
+    estado: null,
+    comandos: [],
+    aplicados: [],
+    credenciales: [],
+    tokensPush: [],
+    enlaces: [],
+  };
+}
 
 /** Cuántos ids de comando se recuerdan para descartar repetidos. */
 const MEMORIA_IDS = 20_000;
 
 export class AlmacenFichero implements Almacen {
-  private datos: Contenido = { ...VACIO };
+  private datos: Contenido = vacio();
   private aplicados = new Set<Id>();
   /** Escrituras en cola: nunca dos a la vez sobre el mismo fichero. */
   private escribiendo: Promise<void> = Promise.resolve();
@@ -48,10 +61,10 @@ export class AlmacenFichero implements Almacen {
   async iniciar() {
     try {
       const crudo = await fs.readFile(this.ruta, 'utf8');
-      this.datos = { ...VACIO, ...(JSON.parse(crudo) as Contenido) };
+      this.datos = { ...vacio(), ...(JSON.parse(crudo) as Contenido) };
     } catch {
       // Primer arranque: no hay fichero todavía.
-      this.datos = { ...VACIO };
+      this.datos = vacio();
     }
     this.aplicados = new Set(this.datos.aplicados);
     return { estado: this.datos.estado, comandosDesdeFoto: this.datos.comandos };
@@ -100,6 +113,26 @@ export class AlmacenFichero implements Almacen {
 
   async hayCredenciales() {
     return this.datos.credenciales.length > 0;
+  }
+
+  async guardarEnlace(e: EnlaceRestablecer) {
+    // Solo uno por persona: pedir otro invalida el anterior.
+    this.datos.enlaces = (this.datos.enlaces ?? []).filter((x) => x.userId !== e.userId);
+    this.datos.enlaces.push(e);
+    await this.volcar();
+  }
+
+  async gastarEnlace(hash: string) {
+    const enlace = (this.datos.enlaces ?? []).find((x) => x.hash === hash) ?? null;
+    if (!enlace) return null;
+    this.datos.enlaces = this.datos.enlaces.filter((x) => x.hash !== hash);
+    await this.volcar();
+    return new Date(enlace.caduca).getTime() < Date.now() ? null : enlace;
+  }
+
+  async borrarEnlacesDe(userId: Id) {
+    this.datos.enlaces = (this.datos.enlaces ?? []).filter((x) => x.userId !== userId);
+    await this.volcar();
   }
 
   async guardarTokenPush(t: TokenPush) {

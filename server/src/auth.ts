@@ -111,15 +111,26 @@ const VENTANA_MS = 15 * 60_000;
 const MAX_INTENTOS = 10;
 const fallos = new Map<string, { n: number; hasta: number }>();
 
-export function bloqueado(clave: string, ahora = Date.now()): boolean {
+/**
+ * ¿Se ha pasado de intentos?
+ *
+ * El límite se pasa aparte porque no es el mismo para todo: diez fallos
+ * seguidos con un correo concreto es alguien probando contraseñas, pero
+ * diez peticiones desde la misma dirección son las cinco personas de una
+ * oficina entrando por la mañana. Confundirlos deja fuera a todo el mundo.
+ */
+export function bloqueado(clave: string, max = MAX_INTENTOS, ahora = Date.now()): boolean {
   const f = fallos.get(clave);
   if (!f) return false;
   if (f.hasta < ahora) {
     fallos.delete(clave);
     return false;
   }
-  return f.n >= MAX_INTENTOS;
+  return f.n >= max;
 }
+
+/** Límite por dirección de origen: mucho más alto, y solo cuenta fallos. */
+export const MAX_POR_ORIGEN = 60;
 
 export function anotarFallo(clave: string, ahora = Date.now()): void {
   const f = fallos.get(clave);

@@ -17,6 +17,7 @@ import {
 import { useStore } from '@/data/store';
 import { activeCarriers, can, suggestCarrier } from '@/data/selectors';
 import { DateField } from '@/features/common/DateField';
+import { CampoFotos } from './CampoFotos';
 import { locationLabel, vehicleTitle } from '@/data/format';
 import {
   INCIDENT_TYPE_LABEL,
@@ -25,7 +26,6 @@ import {
   type NotifyCondition,
   type Vehicle,
 } from '@/data/types';
-import { capturePhoto } from './photos';
 
 type Which = 'move' | 'transfer' | 'prep' | 'incident' | 'notify' | null;
 
@@ -384,11 +384,6 @@ export function IncidentModal({
   const [photos, setPhotos] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const addPhoto = async (source: 'camera' | 'library') => {
-    const uri = await capturePhoto(source);
-    if (uri) setPhotos((p) => [...p, uri]);
-  };
-
   const submit = () => {
     if (description.trim().length < 5) {
       setError('Describe brevemente la incidencia.');
@@ -439,27 +434,7 @@ export function IncidentModal({
           multiline
         />
       </Field>
-      <Field label={`Fotos (${photos.length})`}>
-        <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-          <Btn small onPress={() => addPhoto('camera')}>
-            📷 Hacer foto
-          </Btn>
-          <Btn small onPress={() => addPhoto('library')}>
-            🖼️ Elegir de galería
-          </Btn>
-        </View>
-        {photos.length ? (
-          <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: space.sm }}>
-            {photos.map((uri) => (
-              <Image
-                key={uri}
-                source={{ uri }}
-                style={{ width: 64, height: 64, borderRadius: radius.sm, backgroundColor: c.surfaceSunken }}
-              />
-            ))}
-          </View>
-        ) : null}
-      </Field>
+      <CampoFotos fotos={photos} onChange={setPhotos} hint="Se suben al hacerlas: así las ve todo el mundo." />
       {error ? <Notice tone="danger">{error}</Notice> : null}
     </Modal>
   );

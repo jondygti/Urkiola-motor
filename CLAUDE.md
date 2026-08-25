@@ -68,7 +68,10 @@ Cada una viene de un fallo real de este proyecto:
     se queda en la cola y se reaplica encima de un estado que ya lo traía.
     Por eso lo que crea un comando comprueba antes si ya está creado, y los
     apuntes del histórico también.
-15. **Una observación física manda sobre lo que dice la base de datos.** Al
+15. **Las fotos se suben al hacerlas, no al mandar el comando.** Si falla,
+    el operario se entera con el coche todavía delante y puede repetirla, en
+    vez de descubrirlo cuando alguien va a reclamar al transportista.
+16. **Una observación física manda sobre lo que dice la base de datos.** Al
     meter un coche en una plaza ocupada —moviéndolo, descargándolo o
     contándolo— el que estaba apuntado allí se queda **en la zona sin plaza
     confirmada**, con su apunte en el historial. Dos coches en el mismo
@@ -89,8 +92,8 @@ npm run verify:api           # la app real contra el backend real
 | `scripts/verify/rutas.mjs` | 7 perfiles × 2 anchos × 18 pantallas = 252 cargas: que ninguna se rompe para ningún rol |
 | `scripts/verify/funciones.mjs` | 84 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
 | `scripts/verify/roles.mjs` | 48 comprobaciones: la jornada entera de cada uno de los 6 roles, y que lo que no le toca no lo ve ni lo puede tocar |
-| `server/pruebas/` | 58 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios, y las **invariantes** de los datos |
-| `scripts/verify/backend.mjs` | 14 comprobaciones de la app compilada contra el servidor: entrar con contraseña, mover un coche y que **otro dispositivo lo vea** |
+| `server/pruebas/` | 79 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios, seguridad y las **invariantes** de los datos |
+| `scripts/verify/backend.mjs` | 24 comprobaciones de la app compilada contra el servidor: entrar con contraseña, mover un coche y que **otro dispositivo lo vea**, subir una foto y recuperar la contraseña por correo |
 
 `verify:api` va aparte de `verify` porque compila la web una segunda vez:
 `EXPO_PUBLIC_API_URL` se incrusta al compilar, así que la versión de
@@ -119,7 +122,8 @@ docs/               Documentación, toda en castellano
 
 Documentación de referencia: `docs/PANTALLAS.md` (qué hace cada pantalla y
 por qué), `server/README.md` (cómo arrancar y probar el servidor),
-`docs/BACKEND-API.md` (contrato del servidor), `docs/DESPLIEGUE.md`
+`docs/BACKEND-API.md` (contrato del servidor), `docs/SEGURIDAD.md` (repaso
+de seguridad propio), `docs/DESPLIEGUE.md`
 (Railway + Supabase), `docs/MANTENIMIENTO.md` (cómo se sigue cambiando esto
 en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
 `docs/DISTRIBUCION.md` (Google Play).
@@ -164,23 +168,21 @@ en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
 (sedes, plazas, roles, permisos, columnas, campos propios, checklist),
 funcionamiento sin cobertura con cola de subida, app de Android lista para
 compilar, **el backend** (`server/`, con la app entrando con contraseña de
-verdad contra él) y toda la documentación.
+verdad contra él), **las fotos** (se suben y las ve todo el mundo),
+**recuperar la contraseña por correo** y toda la documentación.
 
 **Pendiente, por orden:**
 
 1. **Alta de cuentas** de Railway y Supabase en región europea, y primer
-   despliegue. El servidor ya está listo: `docs/DESPLIEGUE.md`.
-2. **Las fotos.** Las de incidencias y albaranes se guardan como una
-   dirección local del móvil, así que hoy no las ve nadie más. Hace falta
-   subirlas a Supabase Storage antes de mandar el comando.
-3. **Recuperación de contraseña por correo.** Hoy la restablece un
-   administrador; hace falta el envío de correo para que no dependa de
-   nadie.
-4. **Integración con Quiter.** Jon tiene que conseguir un export real; sin
+   despliegue. El servidor ya está listo: `docs/DESPLIEGUE.md`. Falta
+   además crear el bucket de fotos y, si se quiere el correo de
+   restablecer, una cuenta de proveedor de correo (`EMAIL_API_KEY`).
+2. **Integración con Quiter.** Jon tiene que conseguir un export real; sin
    verlo no se escribe el importador.
-5. **Revisión de seguridad externa** antes de meter datos de clientes
-   (`docs/APOYO-TECNICO.md`).
-6. **Publicación en Google Play** (`docs/DISTRIBUCION.md`).
+3. **Revisión de seguridad externa** antes de meter datos de clientes. El
+   repaso propio ya está hecho: `docs/SEGURIDAD.md` dice qué se ha resuelto
+   y qué queda justamente para quien venga de fuera.
+4. **Publicación en Google Play** (`docs/DISTRIBUCION.md`).
 
 Menor, apuntado para no olvidarlo: la pantalla de acceso da un aviso de
 hidratación de React en la web compilada (React descarta el HTML

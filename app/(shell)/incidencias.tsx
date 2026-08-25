@@ -27,6 +27,7 @@ import { INCIDENT_TYPE_LABEL, type Incident } from '@/data/types';
 import { Cell, IncidentStatusPill, useOpenVehicle } from '@/features/common/bits';
 import { IncidentModal } from '@/features/actions/VehicleActions';
 import { IfCan, ScreenGuard, usePerms } from '@/features/common/Guard';
+import { Fotos } from '@/features/actions/CampoFotos';
 
 const ALL = '__all__';
 
@@ -41,6 +42,7 @@ export default function IncidentsScreen() {
   const [type, setType] = useState(ALL);
   const [status, setStatus] = useState(ALL);
   const [detail, setDetail] = useState<Incident | null>(null);
+  const [grande, setGrande] = useState<string | null>(null);
   const [newOpen, setNewOpen] = useState(false);
   const [ref, setRef] = useState('');
   const [toast, setToast] = useState<string | null>(null);
@@ -219,6 +221,16 @@ export default function IncidentsScreen() {
         />
       ) : null}
 
+      {grande ? (
+        <Modal visible onClose={() => setGrande(null)} title="📷 Foto de la incidencia">
+          <Image
+            source={{ uri: grande }}
+            style={{ width: '100%', height: 520, borderRadius: radius.md, backgroundColor: c.surfaceSunken }}
+            resizeMode="contain"
+          />
+        </Modal>
+      ) : null}
+
       {detail ? (
         <Modal
           visible
@@ -256,33 +268,7 @@ export default function IncidentsScreen() {
           <Muted>
             {formatDateTime(detail.createdAt)} · registrada por {userName(state, detail.createdBy)}
           </Muted>
-          {detail.photos.length ? (
-            <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: space.md }}>
-              {detail.photos.map((uri) =>
-                uri.startsWith('demo://') ? (
-                  <View
-                    key={uri}
-                    style={{
-                      width: 72,
-                      height: 72,
-                      borderRadius: radius.sm,
-                      backgroundColor: c.surfaceSunken,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Text style={{ fontSize: 20 }}>📷</Text>
-                  </View>
-                ) : (
-                  <Image
-                    key={uri}
-                    source={{ uri }}
-                    style={{ width: 72, height: 72, borderRadius: radius.sm, backgroundColor: c.surfaceSunken }}
-                  />
-                )
-              )}
-            </View>
-          ) : null}
+          <Fotos refs={detail.photos} onAbrir={setGrande} />
         </Modal>
       ) : null}
     </Screen>

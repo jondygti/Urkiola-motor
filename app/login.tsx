@@ -4,7 +4,8 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } fro
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '@/data/store';
 import { roleLabel } from '@/data/selectors';
-import { Btn, Field, Input, Muted, Panel, radius, space, useTheme } from '@/ui';
+import { Btn, Field, Input, Muted, Notice, Panel, Spacer, radius, space, useTheme } from '@/ui';
+import { api } from '@/data/api';
 
 export default function LoginScreen() {
   const { c } = useTheme();
@@ -14,6 +15,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [entrando, setEntrando] = useState(false);
+  const [olvidada, setOlvidada] = useState<string | null>(null);
 
   if (ready && user) return <Redirect href="/" />;
 
@@ -83,6 +85,36 @@ export default function LoginScreen() {
             <Btn variant="primary" full onPress={submit} disabled={entrando}>
               {entrando ? 'Entrando…' : 'Entrar'}
             </Btn>
+
+            {mode === 'api' ? (
+              <>
+                <Spacer h={space.sm} />
+                <Btn
+                  full
+                  onPress={async () => {
+                    if (!email.trim()) {
+                      setError('Escribe tu correo y vuelve a pulsar.');
+                      return;
+                    }
+                    setError(null);
+                    // La respuesta es la misma exista el correo o no: decir
+                    // cuáles existen sería regalar la lista del personal.
+                    await api.olvidada(email.trim()).catch(() => undefined);
+                    setOlvidada(
+                      'Si ese correo está dado de alta, en un momento llega un enlace para poner una contraseña nueva. Vale una hora.'
+                    );
+                  }}
+                >
+                  He olvidado mi contraseña
+                </Btn>
+                {olvidada ? (
+                  <>
+                    <Spacer h={space.sm} />
+                    <Notice>{olvidada}</Notice>
+                  </>
+                ) : null}
+              </>
+            ) : null}
 
             {mode === 'demo' ? (
               <View style={{ marginTop: space.lg }}>

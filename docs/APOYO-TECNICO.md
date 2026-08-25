@@ -1,5 +1,10 @@
 # Apoyo técnico externo: qué hace falta y qué pedir
 
+> Antes de encargar nada, léete [`SEGURIDAD.md`](SEGURIDAD.md): es el repaso
+> propio que ya está hecho, con lo que se ha resuelto y lo que queda
+> justamente para quien venga de fuera. Así no se paga por encontrar lo
+> evidente.
+
 Urkiola Car Service lo dirige Jon con mi ayuda: yo escribo el código y la
 documentación, él decide qué tiene que hacer el sistema y comprueba que
 sirve para el trabajo real. Ese reparto funciona. Este documento es sobre

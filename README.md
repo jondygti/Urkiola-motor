@@ -104,6 +104,9 @@ escritas una sola vez y no hay dos versiones que puedan discrepar.
   tablas de PostgreSQL e integración con Quiter.
 - [`server/README.md`](server/README.md) — el backend: cómo arrancarlo,
   cómo está montado, variables de entorno y qué le falta todavía.
+- [`docs/SEGURIDAD.md`](docs/SEGURIDAD.md) — **el repaso de seguridad
+  propio**: qué se ha revisado y resuelto, qué decisiones son conscientes y
+  por qué, y qué queda para la auditoría externa.
 - [`docs/MANTENIMIENTO.md`](docs/MANTENIMIENTO.md) — **cómo se sigue
   cambiando el sistema una vez está en marcha**: actualizaciones sin pasar
   por las tiendas, migraciones, entornos, copias de seguridad y qué no
@@ -121,8 +124,8 @@ escritas una sola vez y no hay dos versiones que puedan discrepar.
 ```bash
 npm run typecheck     # TypeScript en modo estricto
 npm run verify        # recorre la app con un navegador: 252 cargas + 132 comprobaciones
-npm run server:test   # el backend por dentro: 58 comprobaciones
-npm run verify:api    # la app compilada contra el servidor real: 14 comprobaciones
+npm run server:test   # el backend por dentro: 79 comprobaciones
+npm run verify:api    # la app compilada contra el servidor real: 24 comprobaciones
 npm run build:web     # genera dist/ listo para publicar
 npm run icons         # regenera los iconos de assets/
 ```

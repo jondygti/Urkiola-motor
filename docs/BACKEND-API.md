@@ -23,6 +23,10 @@ hay que tocar ninguna pantalla.
 | `POST` | `/auth/password` | `{ "ok": true }` |
 | `GET` | `/state` | El `AppState` que le corresponde ver a ese usuario |
 | `POST` | `/commands` | `{ "ok": true, "repetido": false }` |
+| `POST` | `/auth/olvidada` | `{ "ok": true, "mensaje": "..." }` |
+| `POST` | `/auth/restablecer` | `{ "ok": true }` |
+| `POST` | `/fotos` | `{ "ok": true, "id": "..." }` |
+| `GET` | `/fotos/:id` | La foto |
 | `POST` | `/push/token` | `{ "ok": true }` |
 
 La autenticación va en `Authorization: Bearer <token>`.
@@ -31,9 +35,10 @@ Las contraseñas las guarda el propio servidor con scrypt y la sesión es un
 JWT firmado con `node:crypto`. Se descartó apoyarse en Supabase Auth: los
 usuarios, los roles y los permisos ya viven en el estado de la aplicación y
 se editan desde Administración, así que tener un segundo censo de personas
-en otro sitio era más problema que ventaja. **A cambio no hay recuperación
-de contraseña por correo**: hoy la restablece un administrador desde
-`/auth/password`. Está anotado como pendiente.
+en otro sitio era más problema que ventaja. La recuperación por correo, que
+era la contrapartida, está resuelta con `/auth/olvidada` y
+`/auth/restablecer`. Los detalles y por qué de cada decisión, en
+[`SEGURIDAD.md`](SEGURIDAD.md).
 
 ## Por qué un único endpoint de escritura
 
@@ -305,6 +310,24 @@ Dos fases, como estaba previsto:
    (vehículo, comercial, stock/pedido); Urkiola manda en los logísticos
    (ubicación, movimientos, preparación, recuentos, incidencias). El
    importador nunca debe sobrescribir un campo logístico.
+
+## Las fotos
+
+Las de daños son la prueba para reclamar al transportista, así que no pueden
+quedarse en el móvil de quien las hizo.
+
+Se suben **al hacerlas**, no al mandar el comando: si falla, el operario se
+entera con el coche todavía delante y puede repetirla. `POST /fotos` con el
+binario devuelve un identificador, y el comando guarda solo `foto:<id>`, una
+referencia que no caduca.
+
+Para verlas, `GET /fotos/:id`, que **exige sesión**: las fotos no se sirven
+nunca directamente desde el almacén. Como una etiqueta `<img>` no puede
+mandar cabeceras, la sesión se acepta también en el parámetro `t` de la
+dirección; el identificador es aleatorio y largo, así que la dirección por sí
+sola tampoco se adivina.
+
+Solo se aceptan imágenes y PDF. **SVG no**: puede llevar código dentro.
 
 ## Notificaciones push
 

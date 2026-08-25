@@ -53,5 +53,6 @@ demo/
 dist-spa/
 dist-api/
 
-# datos del servidor en local
+# datos y fotos del servidor en local
 server/datos/
+datos/

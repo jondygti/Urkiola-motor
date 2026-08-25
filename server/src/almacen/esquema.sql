@@ -45,3 +45,15 @@ create table if not exists tokens_push (
 );
 
 create index if not exists tokens_push_usuario_idx on tokens_push (usuario);
+
+-- Enlaces de un solo uso para restablecer la contraseña. Se guarda el hash
+-- del código, nunca el código: con la base de datos delante no se puede
+-- entrar en una cuenta que tenga un enlace a medias.
+create table if not exists enlaces_restablecer (
+  hash    text        primary key,
+  usuario text        not null,
+  caduca  timestamptz not null,
+  creado  timestamptz not null default now()
+);
+
+create index if not exists enlaces_usuario_idx on enlaces_restablecer (usuario);

@@ -22,7 +22,7 @@ import { formatDateTime, locationLabel, timeAgo, vehicleName, vehicleRef } from 
 import type { ServiceRequest, Vehicle } from '@/data/types';
 import { ScreenGuard } from '@/features/common/Guard';
 import { DeadlineChip } from '@/features/common/DeadlineChip';
-import { capturePhoto } from '@/features/actions/photos';
+import { CampoFotos } from '@/features/actions/CampoFotos';
 
 /**
  * Pantalla del transportista externo.
@@ -253,19 +253,7 @@ function ProblemModal({
           multiline
         />
       </Field>
-      <Field label={`Fotos (${photos.length})`} hint="Opcional, pero ayuda mucho si hay un daño.">
-        <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-          <Btn
-            small
-            onPress={async () => {
-              const uri = await capturePhoto('camera');
-              if (uri) setPhotos((p) => [...p, uri]);
-            }}
-          >
-            📷 Hacer foto
-          </Btn>
-        </View>
-      </Field>
+      <CampoFotos fotos={photos} onChange={setPhotos} hint="Opcional, pero ayuda mucho si hay un daño." />
       {error ? <Notice tone="danger">{error}</Notice> : null}
     </Modal>
   );

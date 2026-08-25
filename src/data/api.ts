@@ -29,6 +29,7 @@ let authToken: string | null = null;
 export function setAuthToken(token: string | null) {
   authToken = token;
 }
+export const haySesion = () => authToken !== null;
 
 /**
  * Error de la API con el código HTTP, para poder distinguir entre
@@ -80,12 +81,43 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+/**
+ * Dirección para pintar una foto.
+ *
+ * Lo que se guarda en el comando es `foto:<id>`, una referencia estable que
+ * no caduca. La dirección con la que se pinta se arma aquí, con la sesión
+ * de quien mira: una foto de un daño no debería poder verla cualquiera que
+ * dé con el enlace.
+ *
+ * Las fotos de antes del backend (y las del modo demostración) son rutas
+ * del propio móvil y se devuelven tal cual.
+ */
+export function urlDeFoto(ref: string): string {
+  if (!ref.startsWith('foto:')) return ref;
+  const id = ref.slice('foto:'.length);
+  if (!apiEnabled) return ref;
+  const sesion = authToken ? `?t=${encodeURIComponent(authToken)}` : '';
+  return `${API_URL}/fotos/${encodeURIComponent(id)}${sesion}`;
+}
+
 export const api = {
   health: () => request<{ ok: boolean }>('/health'),
   login: (email: string, password: string) =>
     request<{ token: string; user: AppState['users'][number] }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
+    }),
+  /** Pide el enlace para poner una contraseña nueva. */
+  olvidada: (email: string) =>
+    request<{ ok: boolean; mensaje: string }>('/auth/olvidada', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+  /** Cambia la contraseña con el código que llegó por correo. */
+  restablecer: (codigo: string, nueva: string) =>
+    request<{ ok: boolean }>('/auth/restablecer', {
+      method: 'POST',
+      body: JSON.stringify({ codigo, nueva }),
     }),
   state: () => request<AppState>('/state'),
   /**
@@ -97,6 +129,30 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(command),
     }),
+  /**
+   * Sube una foto y devuelve su identificador.
+   *
+   * Se sube en cuanto se hace, no al mandar el comando: así el operario se
+   * entera en el momento si no ha subido, con el coche todavía delante, en
+   * vez de descubrirlo cuando alguien va a reclamar al transportista.
+   */
+  subirFoto: async (uri: string): Promise<string> => {
+    const origen = await fetch(uri);
+    const blob = await origen.blob();
+    const res = await fetch(`${API_URL}/fotos`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': blob.type || 'image/jpeg',
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      },
+      body: blob,
+    });
+    if (!res.ok) {
+      throw new ApiError(res.status, `${res.status} ${res.statusText}`);
+    }
+    const { id } = (await res.json()) as { id: string };
+    return `foto:${id}`;
+  },
   /** Registra el móvil para recibir avisos. */
   pushToken: (token: string) =>
     request<{ ok: boolean }>('/push/token', {
