@@ -23,7 +23,7 @@ import {
 import { useAppState, useTicker } from '@/data/store';
 import { prepElapsedMs, prepIsOverSla, prepProgress } from '@/data/commands';
 import { prepKpis } from '@/data/selectors';
-import { formatShortDuration, siteName, userName, vehicleName, vehicleRef } from '@/data/format';
+import { formatShortDuration, locationLabel, siteName, userName, vehicleName, vehicleRef } from '@/data/format';
 import { PREP_PHASES, PREP_PHASE_LABEL, PREP_RUN_STATE_LABEL, type Preparation } from '@/data/types';
 import { Cell, PrepStatePill, useOpenVehicle } from '@/features/common/bits';
 import { PrepPanel } from '@/features/prep/PrepPanel';
@@ -89,6 +89,25 @@ export default function PreparationScreen() {
         options: state.sites.filter((s) => s.prepares).map((s) => ({ value: s.name, label: s.name })),
       },
       render: (p) => <Cell>{siteName(state, p.siteId)}</Cell>,
+    },
+    {
+      // Dónde está el coche: sin esto hay que abrir la ficha uno por uno
+      // para saber a dónde ir a buscarlo.
+      key: 'ubicacion',
+      header: 'Dónde está',
+      width: 170,
+      value: (p) => locationLabel(state, state.vehicles.find((x) => x.id === p.vehicleId)?.location),
+      filter: { type: 'text' },
+      render: (p) => {
+        const v = state.vehicles.find((x) => x.id === p.vehicleId);
+        const fuera = !!v?.location?.siteId && v.location.siteId !== p.siteId;
+        return (
+          <Cell muted={!v?.location}>
+            {locationLabel(state, v?.location, true)}
+            {fuera ? ' ⚠' : ''}
+          </Cell>
+        );
+      },
     },
     {
       key: 'phase',

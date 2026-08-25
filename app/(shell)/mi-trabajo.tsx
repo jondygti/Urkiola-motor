@@ -22,6 +22,7 @@ import {
 } from '@/ui';
 import { useAppState, useStore, useTicker } from '@/data/store';
 import { myWork, vehicleByRef, countSummary, roleLabel } from '@/data/selectors';
+import { UbicacionVehiculo } from '@/features/common/Ubicacion';
 import { prepElapsedMs, prepIsOverSla, prepProgress } from '@/data/commands';
 import {
   formatDateTime,
@@ -204,6 +205,7 @@ export default function MyWorkScreen() {
                     {siteName(state, p.siteId)} · {done}/{total} requisitos ·{' '}
                     {formatShortDuration(prepElapsedMs(p, now))} de {formatShortDuration(p.targetMs)}
                   </Text>
+                  <UbicacionVehiculo vehicle={v} esperadoEn={p.siteId} compacta />
                   <ProgressBar pct={pct} tone={prepIsOverSla(p, now) ? 'red' : 'ok'} />
                   <Spacer h={space.sm} />
                   <Btn

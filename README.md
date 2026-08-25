@@ -120,7 +120,7 @@ escritas una sola vez y no hay dos versiones que puedan discrepar.
 
 ```bash
 npm run typecheck     # TypeScript en modo estricto
-npm run verify        # recorre la app con un navegador: 252 cargas + 128 comprobaciones
+npm run verify        # recorre la app con un navegador: 252 cargas + 132 comprobaciones
 npm run server:test   # el backend por dentro: 58 comprobaciones
 npm run verify:api    # la app compilada contra el servidor real: 14 comprobaciones
 npm run build:web     # genera dist/ listo para publicar

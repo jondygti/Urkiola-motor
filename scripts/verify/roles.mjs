@@ -142,6 +142,33 @@ export async function ejecutar(browser, BASE) {
     ok('PREPARADOR · abre su trabajo del día', trabajo.includes('Hola, Pedro'));
     ok('PREPARADOR · con sus preparaciones contadas', /PREPARACIONES/i.test(trabajo));
 
+    // Dónde está el coche: sin esto sabe qué le toca pero no a dónde ir.
+    await page.goto(`${BASE}/mi-preparacion`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1100);
+    const cola = await page.evaluate(() => document.body.innerText);
+    ok('PREPARADOR · su cola dice dónde está cada coche', cola.includes('📍'), cola.match(/📍[^\n]*/)?.[0] ?? '');
+    ok(
+      'PREPARADOR · con sede, zona y plaza',
+      /📍\s*\w+ · (Tej\.|P\.|Tejavana|Parking)/.test(cola),
+      cola.match(/📍[^\n]*/)?.[0] ?? ''
+    );
+
+    // Si el coche está en otra sede, se avisa: no se puede empezar todavía.
+    const enOtraSede = /📍\s*(Sondika|Galdakao|Anoeta|Irun)/.test(cola);
+    ok(
+      'PREPARADOR · y avisa si el coche aún no ha llegado',
+      !enOtraSede || cola.includes('Todavía no está en'),
+      enOtraSede ? (cola.match(/Todavía no está en [^\n.]*/)?.[0] ?? 'sin aviso') : 'todos en su sede'
+    );
+
+    // Y al abrirla para trabajar, también.
+    await pulsar(page, 'Empezar', { primero: true });
+    await page.waitForTimeout(1000);
+    const dentro = await page.evaluate(() => document.body.innerText);
+    ok('PREPARADOR · y también al abrir la preparación', dentro.includes('📍'));
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(500);
+
     // Recuento completo: crear, comprobar un coche y cerrar.
     await page.goto(`${BASE}/recuentos`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(900);

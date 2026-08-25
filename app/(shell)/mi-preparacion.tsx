@@ -25,6 +25,7 @@ import type { CheckState, Preparation, ServiceRequest } from '@/data/types';
 import { ScreenGuard, usePerms } from '@/features/common/Guard';
 import { DeadlineChip } from '@/features/common/DeadlineChip';
 import { FinishPrepModal } from '@/features/prep/FinishPrep';
+import { UbicacionVehiculo } from '@/features/common/Ubicacion';
 
 /**
  * Pantalla de trabajo del preparador.
@@ -176,6 +177,7 @@ function PedidaCard({
       <Text style={{ fontSize: 13, color: c.textMuted, marginTop: 2 }}>
         {vehicle ? vehicleName(vehicle) : ''} · {siteName(state, request.siteId)}
       </Text>
+      <UbicacionVehiculo vehicle={vehicle} esperadoEn={request.siteId} />
       <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 4 }}>
         Pedida por {userName(state, request.createdBy)}
         {request.note ? ` · ${request.note}` : ''}
@@ -227,6 +229,7 @@ function PrepCard({ prep, onOpen }: { prep: Preparation; onOpen: () => void }) {
       <Text style={{ fontSize: 13, color: c.textMuted, marginTop: 2 }}>
         {vehicle ? vehicleName(vehicle) : ''} · {siteName(state, prep.siteId)}
       </Text>
+      <UbicacionVehiculo vehicle={vehicle} esperadoEn={prep.siteId} />
 
       <Spacer h={space.sm} />
       <ProgressBar pct={pct} tone={fuera ? 'red' : 'ok'} />
@@ -308,6 +311,11 @@ function WorkModal({
         )
       }
     >
+      {/* Dónde está el coche: mientras no se ha empezado hace falta para ir
+          a por él, y después para saber de dónde salió. */}
+      <UbicacionVehiculo vehicle={vehicle} esperadoEn={prep.siteId} />
+      <Spacer h={space.sm} />
+
       {/* Cronómetro y avance, lo único que hay que mirar mientras se trabaja */}
       <View
         style={{

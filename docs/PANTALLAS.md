@@ -77,7 +77,7 @@ versión completa siempre disponible en la web:
 |---|---|---|
 | `/mis-traslados` | Transportista | Una tarjeta por traslado y un solo botón, que cambia de «He recogido las llaves» a «He entregado el vehículo» |
 | `/entregas` | Comercial y logística | Entregas comprometidas agrupadas por día, con lo que le falta a cada una. Se puede ver todo junto o una sede concreta, con el número de entregas de cada una a la vista |
-| `/mi-preparacion` | Preparador | Cola ordenada por plazo, **incluidas las preparaciones que ha pedido el comercial y todavía no ha abierto nadie**: se empiezan de un botón, sin pasar por la oficina. Al abrir, cronómetro y checklist donde **cada línea se marca de un toque** |
+| `/mi-preparacion` | Preparador | Cola ordenada por plazo, **incluidas las preparaciones que ha pedido el comercial y todavía no ha abierto nadie**: se empiezan de un botón, sin pasar por la oficina. Al abrir, cronómetro y checklist donde **cada línea se marca de un toque**. Cada coche dice **dónde está** (sede · zona · plaza), y avisa si todavía no ha llegado a la sede o si la plaza no está confirmada |
 | `/mi-recepcion` | Recepción | Bucle de descarga: identificar, plaza propuesta automáticamente y «Descargado · siguiente». Si el coche que baja del camión no está en el parque, se da de alta con el bastidor sin salir de la descarga |
 | `/mover` | Cualquiera que mueva coches | Matrícula o bastidor, dónde lo dejas, y a por el siguiente |
 

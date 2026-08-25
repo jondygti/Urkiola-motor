@@ -88,7 +88,7 @@ npm run verify:api           # la app real contra el backend real
 |---|---|
 | `scripts/verify/rutas.mjs` | 7 perfiles × 2 anchos × 18 pantallas = 252 cargas: que ninguna se rompe para ningún rol |
 | `scripts/verify/funciones.mjs` | 84 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
-| `scripts/verify/roles.mjs` | 44 comprobaciones: la jornada entera de cada uno de los 6 roles, y que lo que no le toca no lo ve ni lo puede tocar |
+| `scripts/verify/roles.mjs` | 48 comprobaciones: la jornada entera de cada uno de los 6 roles, y que lo que no le toca no lo ve ni lo puede tocar |
 | `server/pruebas/` | 58 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios, y las **invariantes** de los datos |
 | `scripts/verify/backend.mjs` | 14 comprobaciones de la app compilada contra el servidor: entrar con contraseña, mover un coche y que **otro dispositivo lo vea** |
 
@@ -143,6 +143,10 @@ en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
 - **Lo que pide el comercial llega al preparador sin pasar por la oficina**:
   la solicitud sale en «Mi preparación» y al empezarla se abre la
   preparación y arranca el cronómetro.
+- **El preparador ve dónde está cada coche** (sede · zona · plaza) en su
+  cola y dentro de la preparación, con aviso si todavía está en otra sede o
+  si la plaza no está confirmada. `UbicacionVehiculo`
+  (`src/features/common/Ubicacion.tsx`).
 - **El panel de control es de dirección** (`panel.ver`). De serie solo lo
   tiene el administrador; se puede dar a quien haga falta desde
   Administración. Quien no lo tiene entra directo a su trabajo.
