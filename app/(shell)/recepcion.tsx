@@ -439,8 +439,8 @@ function LineModal({
         hint="Es la prueba para reclamar al transportista."
       />
       <Notice>
-        Al marcar el vehículo como descargado con una plaza asignada, entra en campa y queda comprobado
-        físicamente con fecha, hora y usuario.
+        Al marcar el vehículo como descargado con una plaza asignada, queda aparcado en esa plaza y
+        comprobado físicamente con fecha, hora y usuario.
       </Notice>
 
       <NuevoVehiculoModal

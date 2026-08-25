@@ -54,7 +54,7 @@ export type Situation = 'stock' | 'pedido';
 
 export type VehicleStatus =
   | 'recepcionado'
-  | 'en_campa'
+  | 'aparcado'
   | 'traslado_solicitado'
   | 'en_traslado'
   | 'en_preparacion'
@@ -63,7 +63,10 @@ export type VehicleStatus =
 
 export const VEHICLE_STATUS_LABEL: Record<VehicleStatus, string> = {
   recepcionado: 'Recepcionado',
-  en_campa: 'En campa',
+  // «Aparcado» y no «En campa»: el coche puede estar tan aparcado en la
+  // campa de Sondika como en el parking de una concesión, y llamarlo «en
+  // campa» estando en Galdakao decía una cosa que no era.
+  aparcado: 'Aparcado',
   traslado_solicitado: 'Traslado solicitado',
   en_traslado: 'En traslado',
   en_preparacion: 'En preparación',
@@ -74,7 +77,7 @@ export const VEHICLE_STATUS_LABEL: Record<VehicleStatus, string> = {
 /** Orden del flujo que se pinta en la ficha 360º. */
 export const VEHICLE_FLOW: VehicleStatus[] = [
   'recepcionado',
-  'en_campa',
+  'aparcado',
   'traslado_solicitado',
   'en_preparacion',
   'apto_entrega',

@@ -352,7 +352,7 @@ function makeVehicle(partial: Partial<Vehicle>): Vehicle {
     logisticActive: partial.logisticActive ?? true,
     location: partial.location ?? null,
     targetSiteId: partial.targetSiteId ?? null,
-    status: partial.status ?? 'en_campa',
+    status: partial.status ?? 'aparcado',
     lastCheckAt: partial.lastCheckAt ?? iso(Math.floor(rnd() * 30) * HOUR),
     lastCheckBy: partial.lastCheckBy ?? pick(['Pedro Larrea', 'Ane Zubiaur', 'Nerea Goiri']),
     lastMovementAt: partial.lastMovementAt ?? iso(Math.floor(rnd() * 6) * DAY),
@@ -448,7 +448,7 @@ function buildFleet(positions: Position[]): Build {
     situation: 'stock',
     salesRep: null,
     location: locate('galdakao', 'galdakao-park-01-p01'),
-    status: 'en_campa',
+    status: 'aparcado',
     lastCheckAt: iso(4 * HOUR),
   });
   vehicles.push(toyota);
@@ -461,7 +461,7 @@ function buildFleet(positions: Position[]): Build {
     type: 'VN',
     situation: 'stock',
     location: locate('sondika', 'sondika-tej-01-p05'),
-    status: 'en_campa',
+    status: 'aparcado',
     lastCheckAt: iso(2 * HOUR + 10 * MIN),
   });
   vehicles.push(dmg);
@@ -504,7 +504,7 @@ function buildFleet(positions: Position[]): Build {
     model: 'Ateca',
     type: 'VO',
     location: locate('sondika'),
-    status: 'en_campa',
+    status: 'aparcado',
     lastCheckAt: iso(7 * DAY),
   });
   const stale2 = makeVehicle({
@@ -514,7 +514,7 @@ function buildFleet(positions: Position[]): Build {
     model: 'RAV4',
     type: 'VN',
     location: locate('sondika'),
-    status: 'en_campa',
+    status: 'aparcado',
     lastCheckAt: iso(3 * DAY + 4 * HOUR),
   });
   vehicles.push(stale1, stale2);
@@ -539,7 +539,7 @@ function buildFleet(positions: Position[]): Build {
     vehicles.push(
       makeVehicle({
         location,
-        status: chance(0.12) ? 'traslado_solicitado' : 'en_campa',
+        status: chance(0.12) ? 'traslado_solicitado' : 'aparcado',
         targetSiteId: chance(0.12) ? pick(PREP_SITES).id : null,
       })
     );
@@ -548,7 +548,7 @@ function buildFleet(positions: Position[]): Build {
   for (let i = 0; i < otherRemaining; i++) {
     const site = pick(PREP_SITES);
     const roll = rnd();
-    const status = roll < 0.1 ? 'en_preparacion' : roll < 0.2 ? 'apto_entrega' : 'en_campa';
+    const status = roll < 0.1 ? 'en_preparacion' : roll < 0.2 ? 'apto_entrega' : 'aparcado';
     vehicles.push(
       makeVehicle({
         location: locate(site.id),

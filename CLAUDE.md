@@ -161,6 +161,9 @@ en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
 - **El comercial de un vehículo viene de Quiter como texto** («Juan»), no
   como usuario («Juan Bilbao»). El emparejamiento está en
   `esDelComercial` (`src/data/selectors.ts`), en un solo sitio.
+- **El estado «aparcado» no dice dónde.** Un coche puede estar aparcado en
+  la campa de Sondika o en el parking de una concesión. Se llamaba «en
+  campa» y decía una cosa que no era en cuanto salía de Sondika.
 - **Un vehículo no «pertenece» a una sede.** Todos son de Urkiola Motor; las
   sedes son sitios donde el coche está o va, nada más. Hubo un campo
   «Concesión» heredado de Quiter que ponía un nombre de sede y parecía un

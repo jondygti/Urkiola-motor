@@ -472,7 +472,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
       // Al cambiar de sede el coche queda aparcado a la espera, llegue a su
       // destino previsto o a otro sitio.
-      const status: Vehicle['status'] = changedSite ? 'en_campa' : vehicle.status;
+      const status: Vehicle['status'] = changedSite ? 'aparcado' : vehicle.status;
 
       let next: AppState = {
         ...liberarPlaza(activate(state, cmd.vehicleId), cmd.to.positionId, cmd.vehicleId, cmd),
@@ -988,7 +988,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
           ...next,
           vehicles: replace(next.vehicles, matched, {
             location: { siteId: rec.siteId, zoneId, positionId: line.positionId },
-            status: 'en_campa',
+            status: 'aparcado',
             receivedAt: cmd.at,
             lastCheckAt: cmd.at,
             lastCheckBy: userName(state, cmd.userId),
@@ -1296,7 +1296,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
         logisticActive: true,
         location: cmd.location ?? null,
         targetSiteId: null,
-        status: cmd.location ? 'en_campa' : 'recepcionado',
+        status: cmd.location ? 'aparcado' : 'recepcionado',
         lastCheckAt: cmd.at,
         lastCheckBy: userName(state, cmd.userId),
         lastMovementAt: null,

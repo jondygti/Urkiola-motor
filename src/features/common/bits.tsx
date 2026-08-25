@@ -20,7 +20,7 @@ import { vehicleName, vehicleRef } from '@/data/format';
 
 const STATUS_TONE: Record<VehicleStatus, Tone> = {
   recepcionado: 'blue',
-  en_campa: 'blue',
+  aparcado: 'blue',
   traslado_solicitado: 'amber',
   en_traslado: 'amber',
   en_preparacion: 'ok',
