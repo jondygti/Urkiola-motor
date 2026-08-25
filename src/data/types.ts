@@ -92,7 +92,6 @@ export interface Vehicle {
   situation: Situation;
   /** Comercial asignado; null = sin asignar. */
   salesRep: string | null;
-  dealership: string;
   origin: string;
   /** false = está en el parque de Quiter pero sin actividad logística. */
   logisticActive: boolean;
@@ -524,7 +523,6 @@ export const BASE_COLUMNS: { key: string; label: string }[] = [
   { key: 'location', label: 'Ubicación' },
   { key: 'status', label: 'Estado' },
   { key: 'check', label: 'Última comprobación' },
-  { key: 'dealership', label: 'Concesión propietaria' },
   { key: 'target', label: 'Destino operativo' },
   { key: 'received', label: 'Fecha de recepción' },
 ];

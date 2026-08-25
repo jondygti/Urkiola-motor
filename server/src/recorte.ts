@@ -17,7 +17,6 @@ function vehiculoRecortado(v: Vehicle): Vehicle {
   return {
     ...v,
     salesRep: null,
-    dealership: '',
     custom: undefined,
     deliveryDate: null,
   };

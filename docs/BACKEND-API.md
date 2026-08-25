@@ -245,7 +245,7 @@ zones            (id, site_id, name, kind, capacity)
 positions        (id, zone_id, code)
 users            (id, name, email, role, site_ids[])
 vehicles         (id, vin8, vin, plate, brand, model, type, situation,
-                  sales_rep, dealership, origin, logistic_active,
+                  sales_rep, origin, logistic_active,
                   site_id, zone_id, position_id, target_site_id, status,
                   last_check_at, last_check_by, last_movement_at, received_at)
 movements        (id, vehicle_id, from_*, to_*, user_id, at, status, note)

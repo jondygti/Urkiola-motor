@@ -128,14 +128,6 @@ export default function VehicleScreen() {
           <Detail label="VIN-8" value={vehicle.vin8} />
           <Detail label="Bastidor" value={vehicle.vin} />
           <Detail label="Matrícula" value={vehicle.plate ?? '—'} />
-          {/* Es de Quiter y NO es dónde está el coche: dice a qué concesión
-              pertenece. Se llamaba solo «Concesión» y confundía —un coche
-              en la campa de Sondika ponía «Anoeta» y parecía un fallo. */}
-          <Detail
-            label="Concesión propietaria"
-            value={vehicle.dealership}
-            hint="De Quiter: a qué concesión pertenece el coche. No cambia al moverlo de sitio."
-          />
           <Detail label="Origen" value={`${vehicle.origin} · ${formatDateTime(vehicle.receivedAt)}`} />
         </Panel>
 

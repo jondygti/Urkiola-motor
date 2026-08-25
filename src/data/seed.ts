@@ -227,7 +227,7 @@ const CUSTOM_FIELDS: CustomField[] = [
 const FLEET_COLUMNS: ColumnPref[] = BASE_COLUMNS.map((col, i) => ({
   key: col.key,
   // De serie se ven las nueve del mockup; el resto se activan si hacen falta.
-  visible: !['dealership', 'target', 'received'].includes(col.key),
+  visible: !['target', 'received'].includes(col.key),
   order: i + 1,
 }));
 
@@ -348,7 +348,6 @@ function makeVehicle(partial: Partial<Vehicle>): Vehicle {
     type,
     situation: partial.situation ?? (chance(0.45) ? 'pedido' : 'stock'),
     salesRep: partial.salesRep !== undefined ? partial.salesRep : chance(0.6) ? pick(SALES_REPS) : null,
-    dealership: partial.dealership ?? pick(PREP_SITES).name,
     origin: partial.origin ?? 'Camión · recepción',
     logisticActive: partial.logisticActive ?? true,
     location: partial.location ?? null,
@@ -412,7 +411,6 @@ function buildFleet(positions: Position[]): Build {
     type: 'VN',
     situation: 'pedido',
     salesRep: 'Juan',
-    dealership: 'Leioa',
     origin: 'Camión 9876 JKL · recepción',
     location: locate('sondika', 'sondika-tej-01-p04'),
     targetSiteId: 'leioa',
@@ -433,7 +431,6 @@ function buildFleet(positions: Position[]): Build {
     type: 'VO',
     situation: 'pedido',
     salesRep: 'Ane',
-    dealership: 'Leioa',
     location: locate('leioa', 'leioa-park-01-p02'),
     targetSiteId: 'leioa',
     status: 'en_preparacion',
@@ -450,7 +447,6 @@ function buildFleet(positions: Position[]): Build {
     type: 'VN',
     situation: 'stock',
     salesRep: null,
-    dealership: 'Galdakao',
     location: locate('galdakao', 'galdakao-park-01-p01'),
     status: 'en_campa',
     lastCheckAt: iso(4 * HOUR),
@@ -493,7 +489,6 @@ function buildFleet(positions: Position[]): Build {
     type: 'VO',
     situation: 'pedido',
     salesRep: 'Ane',
-    dealership: 'Anoeta',
     location: locate('anoeta', 'anoeta-park-01-p01'),
     targetSiteId: 'anoeta',
     status: 'en_preparacion',
@@ -557,7 +552,6 @@ function buildFleet(positions: Position[]): Build {
     vehicles.push(
       makeVehicle({
         location: locate(site.id),
-        dealership: site.name,
         targetSiteId: site.id,
         status,
       })

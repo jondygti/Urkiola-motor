@@ -26,7 +26,7 @@ const TOKEN_KEY = 'urkiola.token.v1';
  * del servidor, que es quien manda. Los comandos pendientes de subir NO se
  * tocan: son trabajo de la persona, no caché.
  */
-const STATE_SCHEMA_VERSION = 7;
+const STATE_SCHEMA_VERSION = 8;
 
 interface StoredState {
   v: number;

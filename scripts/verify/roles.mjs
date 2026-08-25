@@ -161,8 +161,9 @@ export async function ejecutar(browser, BASE) {
       enOtraSede ? (cola.match(/Todavía no está en [^\n.]*/)?.[0] ?? 'sin aviso') : 'todos en su sede'
     );
 
-    // Y al abrirla para trabajar, también.
-    await pulsar(page, 'Empezar', { primero: true });
+    // Y al abrirla para trabajar, también. El botón de la primera tarjeta
+    // depende de si está empezada o solo pedida: vale cualquiera de ellos.
+    await pulsar(page, /Empezar|Reanudar|Seguir trabajando/, { primero: true });
     await page.waitForTimeout(1000);
     const dentro = await page.evaluate(() => document.body.innerText);
     ok('PREPARADOR · y también al abrir la preparación', dentro.includes('📍'));

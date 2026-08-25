@@ -161,11 +161,11 @@ en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
 - **El comercial de un vehículo viene de Quiter como texto** («Juan»), no
   como usuario («Juan Bilbao»). El emparejamiento está en
   `esDelComercial` (`src/data/selectors.ts`), en un solo sitio.
-- **`dealership` (concesión propietaria) no es la ubicación.** Es de Quiter:
-  dice a qué concesión pertenece el coche, y **no cambia al moverlo**.
-  Sondika almacena para toda la red, así que un coche en su campa puede
-  pertenecer a Anoeta. Se llamaba solo «Concesión» y parecía un fallo del
-  traslado.
+- **Un vehículo no «pertenece» a una sede.** Todos son de Urkiola Motor; las
+  sedes son sitios donde el coche está o va, nada más. Hubo un campo
+  «Concesión» heredado de Quiter que ponía un nombre de sede y parecía un
+  fallo del traslado; se ha quitado. Lo que hay es **dónde está**
+  (`location`) y **a dónde va** (`targetSiteId`).
 
 ## Estado y siguientes pasos
 

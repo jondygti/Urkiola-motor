@@ -167,7 +167,6 @@ export type Command =
       vehicleType?: VehicleType;
       situation?: Situation;
       salesRep?: string | null;
-      dealership?: string;
       origin?: string;
       /** Dónde está, si ya se sabe. */
       location?: LocationRef | null;
@@ -472,9 +471,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       const changedSite = vehicle.location?.siteId !== cmd.to.siteId;
 
       // Al cambiar de sede el coche queda aparcado a la espera, llegue a su
-      // destino previsto o a otro sitio. Lo que NO se toca aquí es a qué
-      // concesión pertenece (`dealership`): eso es de Quiter y no cambia
-      // porque el coche se mueva.
+      // destino previsto o a otro sitio.
       const status: Vehicle['status'] = changedSite ? 'en_campa' : vehicle.status;
 
       let next: AppState = {
@@ -1295,7 +1292,6 @@ function aplicar(state: AppState, cmd: Command): AppState {
         type: cmd.vehicleType ?? 'VN',
         situation: cmd.situation ?? 'stock',
         salesRep: cmd.salesRep?.trim() || null,
-        dealership: cmd.dealership?.trim() || '',
         origin: cmd.origin?.trim() || 'Alta manual',
         logisticActive: true,
         location: cmd.location ?? null,
