@@ -137,6 +137,7 @@ export function UsersAdmin({ onDone }: { onDone: (m: string) => void }) {
           <Grid cols={2} minWidth={280}>
             {state.config.roles.map((r) => {
               const count = state.users.filter((u) => u.active && u.role === r.id).length;
+              const bajas = state.users.filter((u) => !u.active && u.role === r.id).length;
               return (
                 <View
                   key={r.id}
@@ -156,6 +157,7 @@ export function UsersAdmin({ onDone }: { onDone: (m: string) => void }) {
                   <Text style={{ fontSize: 11, color: c.textMuted }}>
                     {r.permissions.length} permisos · {r.mobileSections.length} secciones en el móvil ·{' '}
                     {count} {count === 1 ? 'persona' : 'personas'}
+                    {bajas ? ` · ${bajas} de baja` : ''}
                   </Text>
                   <Btn small onPress={() => setRoleModal(r)}>
                     Editar permisos
@@ -311,7 +313,11 @@ function RoleModal({ role, onClose, onDone }: { role: RoleConfig; onClose: () =>
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const inUse = state.users.filter((u) => u.active && u.role === role.id).length;
+  // Cuenta también a los dados de baja: su ficha sigue guardando el rol y
+  // por eso no se puede borrar. Si aquí se contaran solo los activos, el
+  // botón diría «Borrar rol» y luego no pasaría nada.
+  const inUse = state.users.filter((u) => u.role === role.id).length;
+  const deBaja = state.users.filter((u) => u.role === role.id && !u.active).length;
   const allSections = NAV.flatMap((g) => g.items);
 
   const toggle = <T,>(list: T[], v: T): T[] =>
@@ -345,7 +351,9 @@ function RoleModal({ role, onClose, onDone }: { role: RoleConfig; onClose: () =>
             </Btn>
             {!isNew && !role.builtin ? (
               <Btn variant="danger" full onPress={() => setConfirm(true)} disabled={inUse > 0}>
-                {inUse > 0 ? `No se puede borrar: ${inUse} personas lo tienen` : 'Borrar rol'}
+                {inUse > 0
+                  ? `No se puede borrar: ${inUse} lo tienen${deBaja ? ` (${deBaja} de baja)` : ''}`
+                  : 'Borrar rol'}
               </Btn>
             ) : null}
           </>

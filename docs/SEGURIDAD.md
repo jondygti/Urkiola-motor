@@ -76,6 +76,12 @@ quien ha escrito el código, y eso tiene el límite que tiene.
   parque, ni los comerciales, ni la ocupación de las campas, ni los encargos
   de la otra empresa de transporte.
 - Quien tiene sedes asignadas recibe lo de sus sedes.
+- **Qué campos del vehículo ve un proveedor está declarado campo por campo**
+  en `CAMPOS_DEL_VEHICULO` (`server/src/recorte.ts`). El tipo obliga a que
+  estén todos: el día que el vehículo gane un campo nuevo —un precio, el
+  nombre del cliente— el servidor **no compila** hasta que alguien decida si
+  una empresa de transporte puede verlo. Así un campo nuevo no se cuela por
+  descuido, que es como se cuelan.
 
 ### Fotos
 
@@ -172,3 +178,8 @@ Cubren, entre otras cosas: que un token manipulado no cuela, que `alg: none`
 no cuela, que cambiar la contraseña tira las sesiones, que un enlace de
 restablecer no vale dos veces, que sin sesión no se ven las fotos, que no se
 puede colar un fichero que no sea una imagen, y la matriz entera de permisos.
+
+Desde la última revisión hay además **10.000 comandos al azar**
+(`aleatorio.test.ts`) que incluyen mentiras a propósito: plazas que no
+existen y plazas de otra campa, que es lo que mandaría un cliente
+trasteado. El servidor no se las cree y los datos aguantan.

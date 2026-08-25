@@ -26,7 +26,11 @@ const TOKEN_KEY = 'urkiola.token.v1';
  * del servidor, que es quien manda. Los comandos pendientes de subir NO se
  * tocan: son trabajo de la persona, no caché.
  */
-const STATE_SCHEMA_VERSION = 10;
+// 11: la revisión a fondo arregló ubicaciones que el código viejo podía
+// dejar mal guardadas (dos coches en la misma plaza, una zona que no era de
+// esa sede). El código nuevo ya no las produce, pero tampoco repara las que
+// hubiera guardadas: por eso se descartan.
+const STATE_SCHEMA_VERSION = 11;
 
 interface StoredState {
   v: number;

@@ -366,6 +366,68 @@ function activate(state: AppState, vehicleId: Id): AppState {
   return { ...state, vehicles: replace(state.vehicles, vehicleId, { logisticActive: true }) };
 }
 
+/**
+ * Activa el vehículo y le cambia lo que haga falta, en ese orden.
+ *
+ * Existe porque hacerlo a mano salía mal de una forma que no se ve leyendo:
+ *
+ *     { ...activate(state, id), vehicles: replace(state.vehicles, id, patch) }
+ *
+ * El `replace` parte de `state.vehicles` —el de antes— y pisa el resultado
+ * de `activate`, así que la activación se perdía en silencio. Pasaba en
+ * cinco comandos: pedir un traslado, abrir una preparación, poner la fecha
+ * de entrega, asignar comercial y rellenar un campo propio. El coche se
+ * quedaba fuera de la operativa con trabajo pedido encima: nadie lo veía en
+ * ninguna pantalla y el traslado no lo hacía nadie.
+ */
+function tocarVehiculo(state: AppState, vehicleId: Id, patch: Partial<Vehicle>): AppState {
+  const activo = activate(state, vehicleId);
+  return { ...activo, vehicles: replace(activo.vehicles, vehicleId, patch) };
+}
+
+/**
+ * La ubicación completa de una plaza: plaza → zona → sede.
+ *
+ * La plaza es el único dato fiable de los tres, porque es lo que el operario
+ * ve escrito en el suelo. La sede y la zona salen de ella, nunca de lo que
+ * venga en el comando ni de donde creíamos que estaba el coche: si no,
+ * confirmar un coche en una plaza de Anoeta con el coche apuntado en Sondika
+ * dejaba «Sondika · zona de Anoeta», una ubicación que no existe.
+ */
+function ubicacionDePlaza(state: AppState, positionId: Id): LocationRef | null {
+  const plaza = state.positions.find((p) => p.id === positionId);
+  if (!plaza) return null;
+  const zona = state.zones.find((z) => z.id === plaza.zoneId);
+  if (!zona) return null;
+  return { siteId: zona.siteId, zoneId: zona.id, positionId: plaza.id };
+}
+
+/**
+ * Deja una ubicación en algo que existe de verdad.
+ *
+ * El servidor no se puede creer lo que le mandan (regla: la comprobación del
+ * cliente es comodidad de interfaz, no seguridad), y aquí la mentira sale
+ * cara: una plaza inventada deja ocupado un hueco que está libre, y alguien
+ * baja a la campa a buscar un coche que no está.
+ *
+ * Manda la plaza, porque es lo único que el operario lee escrito en el
+ * suelo: si la plaza existe, de ella salen la zona y la sede. Si no existe,
+ * se cae al detalle de al lado —la zona basta— y como último recurso a la
+ * sede sola. Perder la plaza no pierde el coche; inventarla, sí.
+ */
+function normalizarUbicacion(state: AppState, ref: LocationRef | null | undefined): LocationRef | null {
+  if (!ref) return null;
+  if (ref.positionId) {
+    const porPlaza = ubicacionDePlaza(state, ref.positionId);
+    if (porPlaza) return porPlaza;
+  }
+  if (!state.sites.some((x) => x.id === ref.siteId)) return null;
+  const zona = ref.zoneId ? state.zones.find((z) => z.id === ref.zoneId) : null;
+  return zona && zona.siteId === ref.siteId
+    ? { siteId: ref.siteId, zoneId: zona.id }
+    : { siteId: ref.siteId };
+}
+
 /* ------------------------------------------------------- cálculos de prep */
 
 export function prepElapsedMs(p: Preparation, now = Date.now()): number {
@@ -437,22 +499,21 @@ function aplicar(state: AppState, cmd: Command): AppState {
     /* ------------------------------------------------ comprobación física */
     case 'vehicle.check': {
       if (!vehicle) return state;
-      let next = activate(state, cmd.vehicleId);
+      // La sede y la zona salen de la plaza, no de donde teníamos apuntado
+      // el coche: antes se mezclaban las dos y salía «Sondika · zona de
+      // Anoeta». Una plaza que no existe no mueve el coche a ningún sitio.
       const location: LocationRef | null = cmd.positionId
-        ? {
-            siteId: vehicle.location?.siteId ?? state.positions.find((p) => p.id === cmd.positionId)?.zoneId.split('-')[0] ?? '',
-            zoneId: state.positions.find((p) => p.id === cmd.positionId)?.zoneId,
-            positionId: cmd.positionId,
-          }
+        ? (ubicacionDePlaza(state, cmd.positionId) ?? vehicle.location)
         : vehicle.location;
-      next = {
-        ...next,
-        vehicles: replace(next.vehicles, cmd.vehicleId, {
-          lastCheckAt: cmd.at,
-          lastCheckBy: userName(state, cmd.userId),
-          location,
-        }),
-      };
+
+      // Comprobar un coche en una plaza es una observación física: si está
+      // aquí, el que teníamos apuntado en esta plaza ya no está.
+      let next = liberarPlaza(state, location?.positionId, cmd.vehicleId, cmd);
+      next = tocarVehiculo(next, cmd.vehicleId, {
+        lastCheckAt: cmd.at,
+        lastCheckBy: userName(state, cmd.userId),
+        location,
+      });
       return addEvent(next, {
         vehicleId: cmd.vehicleId,
         kind: 'recuento',
@@ -467,30 +528,33 @@ function aplicar(state: AppState, cmd: Command): AppState {
     case 'movement.register': {
       if (!vehicle) return state;
       if (yaCreado(state.movements, unico('mov', cmd))) return state;
+      // Mover un coche a una sede que no existe no es mover un coche.
+      const destino = normalizarUbicacion(state, cmd.to);
+      if (!destino) return state;
       const movement: Movement = {
         id: unico('mov', cmd),
         vehicleId: cmd.vehicleId,
         from: vehicle.location,
-        to: cmd.to,
+        to: destino,
         userId: cmd.userId,
         at: cmd.at,
         status: 'completado',
         note: cmd.note,
       };
-      const changedSite = vehicle.location?.siteId !== cmd.to.siteId;
+      const changedSite = vehicle.location?.siteId !== destino.siteId;
 
       // Al cambiar de sede el coche queda aparcado a la espera, llegue a su
       // destino previsto o a otro sitio.
       const status: Vehicle['status'] = changedSite ? 'aparcado' : vehicle.status;
 
       let next: AppState = {
-        ...liberarPlaza(activate(state, cmd.vehicleId), cmd.to.positionId, cmd.vehicleId, cmd),
+        ...liberarPlaza(activate(state, cmd.vehicleId), destino.positionId, cmd.vehicleId, cmd),
         movements: [movement, ...state.movements],
       };
       next = {
         ...next,
         vehicles: replace(next.vehicles, cmd.vehicleId, {
-          location: cmd.to,
+          location: destino,
           lastMovementAt: cmd.at,
           lastCheckAt: cmd.at,
           lastCheckBy: userName(state, cmd.userId),
@@ -506,16 +570,16 @@ function aplicar(state: AppState, cmd: Command): AppState {
         if (open) {
           next = { ...next, requests: replace(next.requests, open.id, { status: 'terminada' as RequestStatus }) };
           next = fireRules(next, 'traslado_completado', vehicle, {
-            siteId: cmd.to.siteId,
-            body: `${vehicleTitle(vehicle)} ha llegado a ${siteName(next, cmd.to.siteId)}.`,
+            siteId: destino.siteId,
+            body: `${vehicleTitle(vehicle)} ha llegado a ${siteName(next, destino.siteId)}.`,
           });
         }
       }
 
       if (changedSite) {
         next = fireRules(next, 'llegada_sede', vehicle, {
-          siteId: cmd.to.siteId,
-          body: `${vehicleTitle(vehicle)} ha llegado a ${siteName(next, cmd.to.siteId)}.`,
+          siteId: destino.siteId,
+          body: `${vehicleTitle(vehicle)} ha llegado a ${siteName(next, destino.siteId)}.`,
         });
       }
 
@@ -523,7 +587,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
         vehicleId: cmd.vehicleId,
         kind: 'movimiento',
         title: changedSite ? 'Traslado registrado' : 'Movimiento interno',
-        detail: `${locationLabel(state, vehicle.location)} → ${locationLabel(state, cmd.to)} · ${userName(state, cmd.userId)}`,
+        detail: `${locationLabel(state, vehicle.location)} → ${locationLabel(state, destino)} · ${userName(state, cmd.userId)}`,
         at: cmd.at,
         userId: cmd.userId,
       });
@@ -533,6 +597,12 @@ function aplicar(state: AppState, cmd: Command): AppState {
     case 'request.create': {
       if (!vehicle) return state;
       if (yaCreado(state.requests, unico('req', cmd))) return state;
+      // No se pide preparar en una sede que no prepara: la solicitud saldría
+      // en una cola que nadie mira.
+      if (cmd.requestType === 'preparacion' && !state.sites.find((x) => x.id === cmd.siteId)?.prepares) {
+        return state;
+      }
+      if (!state.sites.some((x) => x.id === cmd.siteId)) return state;
       // La preparación arranca el reloj al pedirla: es el plazo mínimo que
       // el comercial tiene que dar. Si el vehículo ya tiene fecha de entrega
       // comprometida, manda esa, que es la que de verdad importa. El
@@ -549,7 +619,9 @@ function aplicar(state: AppState, cmd: Command): AppState {
         vehicleId: cmd.vehicleId,
         siteId: cmd.siteId,
         from: vehicle.location,
-        to: cmd.to,
+        // Igual que en un movimiento: el destino tiene que existir. Si no,
+        // el transportista abre el encargo y ve un sitio que no está.
+        to: normalizarUbicacion(state, cmd.to),
         status: 'solicitada',
         urgent: cmd.urgent ?? false,
         createdAt: cmd.at,
@@ -566,9 +638,8 @@ function aplicar(state: AppState, cmd: Command): AppState {
           : { targetSiteId: cmd.siteId };
 
       let next: AppState = {
-        ...activate(state, cmd.vehicleId),
+        ...tocarVehiculo(state, cmd.vehicleId, vehiclePatch),
         requests: [request, ...state.requests],
-        vehicles: replace(state.vehicles, cmd.vehicleId, vehiclePatch),
       };
 
       return addEvent(next, {
@@ -622,6 +693,11 @@ function aplicar(state: AppState, cmd: Command): AppState {
         (p) => p.vehicleId === cmd.vehicleId && p.runState !== 'terminado'
       );
       if (existing) return state;
+      // Sondika almacena, no prepara. Estaba escrito como regla de negocio
+      // pero no puesto en el código: se podía abrir una preparación en la
+      // campa, con su cronómetro corriendo, en una sede donde no hay nadie
+      // que la haga. Qué sedes preparan se configura desde Administración.
+      if (!state.sites.find((x) => x.id === cmd.siteId)?.prepares) return state;
       const target = (state.config.prepTargetMinutes[vehicle.type] ?? 120) * 60_000;
       const prep: Preparation = {
         id: unico('prep', cmd),
@@ -641,9 +717,8 @@ function aplicar(state: AppState, cmd: Command): AppState {
         finishedAt: null,
       };
       let next: AppState = {
-        ...activate(state, cmd.vehicleId),
+        ...tocarVehiculo(state, cmd.vehicleId, { status: 'en_preparacion', targetSiteId: cmd.siteId }),
         preparations: [prep, ...state.preparations],
-        vehicles: replace(state.vehicles, cmd.vehicleId, { status: 'en_preparacion', targetSiteId: cmd.siteId }),
       };
 
       // Si esto viene de una solicitud del comercial, esa solicitud pasa a
@@ -791,7 +866,9 @@ function aplicar(state: AppState, cmd: Command): AppState {
           runningSince: null,
           waitingSince: null,
           waitReason: null,
-          finishedAt: cmd.at,
+          // Nunca antes de haber empezado: un móvil con la hora mal puesta
+          // registraría una preparación que dura menos de cero.
+          finishedAt: p.startedAt && cmd.at < p.startedAt ? p.startedAt : cmd.at,
         }),
         vehicles: replace(base.vehicles, p.vehicleId, { status: 'apto_entrega' }),
       };
@@ -853,12 +930,11 @@ function aplicar(state: AppState, cmd: Command): AppState {
         positionId: cmd.positionId ?? expectedPos,
         misplaced: !!cmd.positionId && !!expectedPos && cmd.positionId !== expectedPos,
       };
+      // Igual que en la comprobación suelta: manda la plaza. Antes se
+      // mezclaba la sede del recuento con la zona de la plaza y podía salir
+      // una ubicación que no existe en ningún sitio.
       const location: LocationRef | null = cmd.positionId
-        ? {
-            siteId: count.siteId,
-            zoneId: state.positions.find((p) => p.id === cmd.positionId)?.zoneId ?? v.location?.zoneId,
-            positionId: cmd.positionId,
-          }
+        ? (ubicacionDePlaza(state, cmd.positionId) ?? v.location)
         : v.location;
 
       // El recuento es una observación física: si el coche está aquí, el que
@@ -991,12 +1067,14 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
       // Al descargar y asignar plaza, el vehículo entra en campa.
       if (matched && line.unloaded && line.positionId) {
-        const zoneId = state.positions.find((p) => p.id === line.positionId)?.zoneId;
-        next = liberarPlaza(activate(next, matched), line.positionId, matched, cmd);
+        // La plaza manda sobre la sede del albarán: si el operario descarga
+        // en una plaza de otra campa, el coche está donde está la plaza.
+        const donde = normalizarUbicacion(state, { siteId: rec.siteId, positionId: line.positionId });
+        next = liberarPlaza(activate(next, matched), donde?.positionId, matched, cmd);
         next = {
           ...next,
           vehicles: replace(next.vehicles, matched, {
-            location: { siteId: rec.siteId, zoneId, positionId: line.positionId },
+            location: donde,
             status: 'aparcado',
             receivedAt: cmd.at,
             lastCheckAt: cmd.at,
@@ -1008,7 +1086,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
           vehicleId: matched,
           kind: 'recepcion',
           title: 'Descargado del camión',
-          detail: `Camión ${rec.truckPlate} · ${locationLabel(next, { siteId: rec.siteId, zoneId, positionId: line.positionId })}`,
+          detail: `Camión ${rec.truckPlate} · ${locationLabel(next, donde)}`,
           at: cmd.at,
           userId: cmd.userId,
         });
@@ -1045,6 +1123,18 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
     /* ------------------------------------------------------- ubicaciones */
     case 'site.upsert': {
+      // Quitarle a una sede el «aquí se prepara» con preparaciones abiertas
+      // dentro dejaría ese trabajo en tierra de nadie: se terminan primero.
+      // Lo ya terminado se queda como está: es historia y fue verdad.
+      const anterior = state.sites.find((x) => x.id === cmd.site.id);
+      if (anterior?.prepares && !cmd.site.prepares) {
+        const enMarcha =
+          state.preparations.some((p) => p.siteId === cmd.site.id && p.runState !== 'terminado') ||
+          state.requests.some(
+            (r) => r.siteId === cmd.site.id && r.type === 'preparacion' && r.status !== 'terminada'
+          );
+        if (enMarcha) return state;
+      }
       const exists = state.sites.some((x) => x.id === cmd.site.id);
       const sites = exists
         ? state.sites.map((x) => (x.id === cmd.site.id ? cmd.site : x))
@@ -1054,7 +1144,18 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
     case 'site.delete': {
       // Nunca se borra una sede con vehículos dentro: se perdería el rastro.
-      const inUse = state.vehicles.some((v) => v.location?.siteId === cmd.siteId);
+      // Ni una que aparezca en el trabajo o en el histórico, aunque esté
+      // vacía ahora mismo: había 14 traslados pedidos hacia Irun y borrarla
+      // los dejaba apuntando a una sede que ya no existe —encargos a
+      // ninguna parte, y pantallas que no saben qué nombre poner—.
+      // Una sede solo se borra si se acaba de crear por error.
+      const inUse =
+        state.vehicles.some((v) => v.location?.siteId === cmd.siteId || v.targetSiteId === cmd.siteId) ||
+        state.requests.some((r) => r.siteId === cmd.siteId || r.to?.siteId === cmd.siteId) ||
+        state.preparations.some((p) => p.siteId === cmd.siteId) ||
+        state.counts.some((x) => x.siteId === cmd.siteId) ||
+        state.receptions.some((x) => x.siteId === cmd.siteId) ||
+        state.movements.some((m) => m.to?.siteId === cmd.siteId || m.from?.siteId === cmd.siteId);
       if (inUse) return state;
       return {
         ...state,
@@ -1155,8 +1256,13 @@ function aplicar(state: AppState, cmd: Command): AppState {
     case 'role.delete': {
       const role = state.config.roles.find((r) => r.id === cmd.roleId);
       // Los roles de serie y los que tienen gente asignada no se borran.
+      // «Gente asignada» incluye a los dados de baja: su ficha guarda el rol,
+      // y al volver a darles de alta se encontrarían con un rol que ya no
+      // existe, sin permisos y con pantallas que no saben qué enseñarles.
+      // Para borrarlo hay que cambiarles el rol antes, desde «Ver dados de
+      // baja» en Administración.
       if (!role || role.builtin) return state;
-      if (state.users.some((u) => u.active && u.role === cmd.roleId)) return state;
+      if (state.users.some((u) => u.role === cmd.roleId)) return state;
       return {
         ...state,
         config: { ...state.config, roles: state.config.roles.filter((r) => r.id !== cmd.roleId) },
@@ -1190,10 +1296,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       const v = state.vehicles.find((x) => x.id === cmd.vehicleId);
       if (!v) return state;
       const custom = { ...(v.custom ?? {}), [cmd.fieldId]: cmd.value };
-      return {
-        ...activate(state, cmd.vehicleId),
-        vehicles: replace(state.vehicles, cmd.vehicleId, { custom }),
-      };
+      return tocarVehiculo(state, cmd.vehicleId, { custom });
     }
 
     /* ------------------------------------------- empresas de transporte */
@@ -1223,10 +1326,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
     /* --------------------------------------------- fecha de entrega */
     case 'vehicle.setDelivery': {
       if (!vehicle) return state;
-      let next: AppState = {
-        ...activate(state, cmd.vehicleId),
-        vehicles: replace(state.vehicles, cmd.vehicleId, { deliveryDate: cmd.deliveryDate }),
-      };
+      let next: AppState = tocarVehiculo(state, cmd.vehicleId, { deliveryDate: cmd.deliveryDate });
 
       // Si ya hay una preparación pedida, su plazo pasa a ser la entrega.
       const prepReq = next.requests.find(
@@ -1264,10 +1364,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       const nombre = cmd.salesRep?.trim() || null;
       if (nombre === (vehicle.salesRep ?? null)) return state;
 
-      const next: AppState = {
-        ...activate(state, cmd.vehicleId),
-        vehicles: replace(state.vehicles, cmd.vehicleId, { salesRep: nombre }),
-      };
+      const next: AppState = tocarVehiculo(state, cmd.vehicleId, { salesRep: nombre });
 
       return addEvent(next, {
         vehicleId: cmd.vehicleId,
@@ -1312,6 +1409,8 @@ function aplicar(state: AppState, cmd: Command): AppState {
         return { ...state, vehicles: replace(state.vehicles, existente.id, relleno) };
       }
 
+      const donde = normalizarUbicacion(state, cmd.location);
+
       const vehicle: Vehicle = {
         id,
         vin8,
@@ -1326,16 +1425,20 @@ function aplicar(state: AppState, cmd: Command): AppState {
         salesRep: cmd.salesRep?.trim() || null,
         origin: cmd.origin?.trim() || 'Alta manual',
         logisticActive: true,
-        location: cmd.location ?? null,
+        location: donde,
         targetSiteId: null,
-        status: cmd.location ? 'aparcado' : 'recepcionado',
+        status: donde ? 'aparcado' : 'recepcionado',
         lastCheckAt: cmd.at,
         lastCheckBy: userName(state, cmd.userId),
         lastMovementAt: null,
         receivedAt: cmd.at,
       };
 
-      let next: AppState = { ...state, vehicles: [vehicle, ...state.vehicles] };
+      // Dar de alta un coche en una plaza es una observación física como
+      // cualquier otra: se está delante y el coche está ahí. El que teníamos
+      // apuntado en esa plaza se queda en la zona sin plaza confirmada.
+      let next: AppState = liberarPlaza(state, donde?.positionId, vehicle.id, cmd);
+      next = { ...next, vehicles: [vehicle, ...next.vehicles] };
 
       // Si venía en un camión que se está descargando, la línea del albarán
       // deja de estar huérfana en el momento: al operario le aparece el

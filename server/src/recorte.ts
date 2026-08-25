@@ -12,6 +12,43 @@
  */
 import type { AppState, Id, User, Vehicle } from '../../src/data/types';
 
+/**
+ * Qué campos del vehículo puede ver un proveedor externo y cuáles no.
+ *
+ * Es un mapa **completo** a propósito. `Record<keyof Vehicle, …>` obliga a
+ * que estén todos: el día que se le añada un campo al vehículo —el precio,
+ * el nombre del cliente, lo que sea— esto deja de compilar hasta que alguien
+ * decida si una empresa de transporte puede verlo. Sin esto, un campo nuevo
+ * se le colaba al proveedor sin que nadie se enterase, que es como pasan
+ * estas cosas: no por una decisión, sino por un descuido.
+ */
+export const CAMPOS_DEL_VEHICULO: Record<keyof Vehicle, 'va' | 'se-borra'> = {
+  // Lo que necesita para reconocer el coche y llevarlo donde toca.
+  id: 'va',
+  vin8: 'va',
+  vin: 'va',
+  plate: 'va',
+  brand: 'va',
+  model: 'va',
+  type: 'va',
+  location: 'va',
+  targetSiteId: 'va',
+  status: 'va',
+  logisticActive: 'va',
+  lastMovementAt: 'va',
+  receivedAt: 'va',
+  origin: 'va',
+  // Comercial: a quién se lo vendemos, cuándo se entrega y a qué precio no
+  // es asunto de quien lo transporta.
+  salesRep: 'se-borra',
+  deliveryDate: 'se-borra',
+  custom: 'se-borra',
+  situation: 'se-borra',
+  // Nombres de gente de Urkiola.
+  lastCheckAt: 'se-borra',
+  lastCheckBy: 'se-borra',
+};
+
 /** Vehículo sin nada que un proveedor no necesite saber. */
 function vehiculoRecortado(v: Vehicle): Vehicle {
   return {
@@ -19,6 +56,9 @@ function vehiculoRecortado(v: Vehicle): Vehicle {
     salesRep: null,
     custom: undefined,
     deliveryDate: null,
+    situation: 'stock',
+    lastCheckAt: null,
+    lastCheckBy: null,
   };
 }
 

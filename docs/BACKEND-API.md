@@ -208,6 +208,25 @@ permiso correspondiente:
 | `vehicle.create` | `flota.editar` **o** `recepcion.ejecutar` (quien descarga camiones registra el coche que llega sin estar en el parque) |
 | `site.*`, `zone.*`, `position.*`, `user.*`, `role.*`, `customField.*`, `config.update` | `admin.configurar` |
 
+### Reglas de negocio que el servidor también aplica
+
+Los permisos dicen **quién** puede hacer algo. Aparte, `applyCommand` no
+deja hacer cosas que no pueden ser, venga el comando de donde venga:
+
+| Regla | Qué pasa si llega igual |
+|---|---|
+| Solo se prepara donde se prepara (`site.prepares`) | La preparación o la solicitud no se crean |
+| Una sede no deja de preparar con trabajo abierto dentro | El cambio de configuración no se aplica |
+| La ubicación se normaliza: manda la plaza | La plaza inventada se descarta y queda la zona; la sede inexistente anula el movimiento |
+| Una plaza, un coche | El que estaba apuntado se queda en la zona sin plaza, con su apunte |
+| Un rol con gente asignada no se borra, ni aunque esté de baja | El rol no se borra |
+| Una sede que aparece en el histórico no se borra | La sede no se borra |
+| Una preparación no termina antes de empezar | La hora de fin se ajusta a la de inicio |
+
+No son comprobaciones de interfaz: están en `src/data/commands.ts`, que es
+el mismo fichero que ejecuta el servidor, así que valen igual para un
+comando que llega de la app que para uno escrito a mano con `curl`.
+
 Además, si el usuario tiene sedes asignadas (`user.siteIds` no vacío), el
 servidor debe rechazar comandos sobre vehículos de otras sedes.
 

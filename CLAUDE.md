@@ -71,7 +71,19 @@ Cada una viene de un fallo real de este proyecto:
 15. **Las fotos se suben al hacerlas, no al mandar el comando.** Si falla,
     el operario se entera con el coche todavía delante y puede repetirla, en
     vez de descubrirlo cuando alguien va a reclamar al transportista.
-16. **Una observación física manda sobre lo que dice la base de datos.** Al
+16. **Nunca `{ ...activate(state, id), vehicles: replace(state.vehicles, …) }`.**
+    El `replace` parte del estado de antes y pisa la activación, que se
+    pierde en silencio. Para eso está `tocarVehiculo(state, id, patch)`.
+    Estaba mal en cinco comandos: pedir un traslado, abrir una preparación,
+    poner la fecha de entrega, asignar comercial y rellenar un campo propio.
+    El coche se quedaba fuera de la operativa con trabajo pedido encima, sin
+    salir en ninguna pantalla.
+17. **La ubicación se normaliza siempre con `normalizarUbicacion`**, nunca
+    se guarda la que venga en el comando. Manda la plaza —es lo único que el
+    operario lee escrito en el suelo—: de ella salen la zona y la sede. Sin
+    esto salían ubicaciones que no existen («Sondika · zona de Anoeta») y
+    plazas inventadas ocupando huecos libres.
+18. **Una observación física manda sobre lo que dice la base de datos.** Al
     meter un coche en una plaza ocupada —moviéndolo, descargándolo o
     contándolo— el que estaba apuntado allí se queda **en la zona sin plaza
     confirmada**, con su apunte en el historial. Dos coches en el mismo
@@ -92,7 +104,8 @@ npm run verify:api           # la app real contra el backend real
 | `scripts/verify/rutas.mjs` | 7 perfiles × 2 anchos × 18 pantallas = 252 cargas: que ninguna se rompe para ningún rol |
 | `scripts/verify/funciones.mjs` | 84 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
 | `scripts/verify/roles.mjs` | 53 comprobaciones: la jornada entera de cada uno de los 6 roles, y que lo que no le toca no lo ve ni lo puede tocar |
-| `server/pruebas/` | 86 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios, seguridad y las **invariantes** de los datos |
+| `server/pruebas/` | 104 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios, seguridad y las **invariantes** de los datos |
+| `server/pruebas/aleatorio.test.ts` | 10.000 comandos al azar con semilla: dispara lo que a nadie se le ocurre y comprueba las 9 invariantes después de **cada uno**. Si falla, la semilla que sale por pantalla repite la secuencia exacta |
 | `scripts/verify/backend.mjs` | 24 comprobaciones de la app compilada contra el servidor: entrar con contraseña, mover un coche y que **otro dispositivo lo vea**, subir una foto y recuperar la contraseña por correo |
 
 `verify:api` va aparte de `verify` porque compila la web una segunda vez:

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { Btn, Modal, Muted, Notice, Select, Spacer, space, useTheme } from '@/ui';
 import { useStore } from '@/data/store';
-import { esDelComercial } from '@/data/selectors';
+import { can, esDelComercial } from '@/data/selectors';
 import type { Vehicle } from '@/data/types';
 
 const SIN = '__sin__';
@@ -26,10 +26,8 @@ export function ComercialVehiculo({ vehicle, onDone }: { vehicle: Vehicle; onDon
   const { c } = useTheme();
   const [abierto, setAbierto] = useState(false);
 
-  const puedeTodo = state.config.roles.find((r) => r.id === user?.role)?.permissions.includes('flota.editar');
-  const puedeSuyos = state.config.roles
-    .find((r) => r.id === user?.role)
-    ?.permissions.includes('flota.asignarse');
+  const puedeTodo = can(state, user, 'flota.editar');
+  const puedeSuyos = can(state, user, 'flota.asignarse');
 
   const esMio = esDelComercial(vehicle, user);
   const libre = !vehicle.salesRep;
@@ -39,7 +37,7 @@ export function ComercialVehiculo({ vehicle, onDone }: { vehicle: Vehicle; onDon
   const nombres = useMemo(() => {
     const delParque = state.vehicles.map((v) => v.salesRep).filter((r): r is string => !!r);
     const deLaApp = state.users
-      .filter((u) => u.active && state.config.roles.find((r) => r.id === u.role)?.permissions.includes('flota.asignarse'))
+      .filter((u) => u.active && can(state, u, 'flota.asignarse'))
       .map((u) => u.name);
     return [...new Set([...deLaApp, ...delParque])].sort((a, b) => a.localeCompare(b, 'es'));
   }, [state.vehicles, state.users, state.config.roles]);
