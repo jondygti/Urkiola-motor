@@ -192,6 +192,8 @@ export const ROLES: RoleConfig[] = [
       'flota.ver',
       'movimientos.registrar',
       'solicitudes.crear',
+      // Se queda los coches que va a vender él, sin pasar por la oficina.
+      'flota.asignarse',
       'entregas.gestionar',
       'notificaciones.gestionar',
     ],

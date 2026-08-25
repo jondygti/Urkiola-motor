@@ -55,6 +55,7 @@ export const TIPOS: ReadonlySet<string> = new Set<Command['type']>([
   'vehicle.setDelivery',
   'vehicle.activate',
   'vehicle.create',
+  'vehicle.setSalesRep',
 ]);
 
 /**

@@ -154,6 +154,15 @@ export type Command =
     }
   | { type: 'vehicle.activate'; id: Id; at: string; userId: Id; vehicleId: Id }
   | {
+      type: 'vehicle.setSalesRep';
+      id: Id;
+      at: string;
+      userId: Id;
+      vehicleId: Id;
+      /** Nombre del comercial, o null para dejarlo sin asignar. */
+      salesRep: string | null;
+    }
+  | {
       type: 'vehicle.create';
       id: Id;
       at: string;
@@ -1248,6 +1257,29 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
     case 'vehicle.activate':
       return activate(state, cmd.vehicleId);
+
+    /* ------------------------------------------- comercial del vehículo */
+    case 'vehicle.setSalesRep': {
+      if (!vehicle) return state;
+      const nombre = cmd.salesRep?.trim() || null;
+      if (nombre === (vehicle.salesRep ?? null)) return state;
+
+      const next: AppState = {
+        ...activate(state, cmd.vehicleId),
+        vehicles: replace(state.vehicles, cmd.vehicleId, { salesRep: nombre }),
+      };
+
+      return addEvent(next, {
+        vehicleId: cmd.vehicleId,
+        kind: 'estado',
+        title: nombre ? 'Comercial asignado' : 'Comercial retirado',
+        detail: `${nombre ?? '—'}${
+          vehicle.salesRep ? ` · antes ${vehicle.salesRep}` : ''
+        } · ${userName(state, cmd.userId)}`,
+        at: cmd.at,
+        userId: cmd.userId,
+      });
+    }
 
     /* ------------------------------------------------- alta de vehículo */
     case 'vehicle.create': {

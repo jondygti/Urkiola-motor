@@ -315,6 +315,51 @@ export async function ejecutar(browser, BASE) {
     const coche = s?.vehicles?.find((v) => v.plate === placa);
     ok('COMERCIAL · la fecha queda guardada en el coche', !!coche?.deliveryDate, coche?.deliveryDate ?? '');
 
+    // Se queda un coche libre. Los coches llegan de Quiter sin comercial,
+    // así que esto es lo que hace todos los días al vender uno.
+    const libre = (s?.vehicles ?? []).find((v) => !v.salesRep && !v.archivedAt);
+    await page.goto(`${BASE}/vehiculo/${encodeURIComponent(libre?.id ?? '')}`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1000);
+    ok(
+      'COMERCIAL · puede asignarse un coche sin comercial',
+      await page.getByText('Asignármelo', { exact: true }).first().isVisible(),
+      libre?.plate ?? ''
+    );
+    await pulsar(page, 'Asignármelo', { exact: true });
+    await page.waitForTimeout(1000);
+    const tras = await estadoGuardado(page);
+    ok(
+      'COMERCIAL · queda guardado a su nombre',
+      tras?.vehicles?.find((v) => v.id === libre?.id)?.salesRep === 'Juan Bilbao',
+      String(tras?.vehicles?.find((v) => v.id === libre?.id)?.salesRep)
+    );
+    // Y con su apunte en la trazabilidad: quién lo cogió y cuándo.
+    ok(
+      'COMERCIAL · con el apunte en la trazabilidad',
+      (tras?.events ?? []).some((e) => e.vehicleId === libre?.id && e.title === 'Comercial asignado')
+    );
+
+    // Lo suelta: el coche vuelve a quedar libre para otro.
+    await pulsar(page, 'Soltarlo', { exact: true });
+    await page.waitForTimeout(1000);
+    ok(
+      'COMERCIAL · y puede soltarlo',
+      !(await estadoGuardado(page))?.vehicles?.find((v) => v.id === libre?.id)?.salesRep
+    );
+
+    // Pero un coche de otro comercial no se lo puede quitar él solo.
+    const deOtro = (tras?.vehicles ?? []).find(
+      (v) => v.salesRep && !'juan bilbao'.startsWith(v.salesRep.trim().toLowerCase())
+    );
+    await page.goto(`${BASE}/vehiculo/${encodeURIComponent(deOtro?.id ?? '')}`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1000);
+    const fichaOtro = await page.evaluate(() => document.body.innerText);
+    ok(
+      'COMERCIAL · no le quita un coche a otro comercial',
+      fichaOtro.includes('Lo lleva otro comercial') && !fichaOtro.includes('Asignármelo'),
+      deOtro?.salesRep ?? ''
+    );
+
     // Y no puede tocar la configuración ni abrir preparaciones.
     await page.goto(`${BASE}/administracion`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(800);

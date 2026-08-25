@@ -91,8 +91,8 @@ npm run verify:api           # la app real contra el backend real
 |---|---|
 | `scripts/verify/rutas.mjs` | 7 perfiles × 2 anchos × 18 pantallas = 252 cargas: que ninguna se rompe para ningún rol |
 | `scripts/verify/funciones.mjs` | 84 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
-| `scripts/verify/roles.mjs` | 48 comprobaciones: la jornada entera de cada uno de los 6 roles, y que lo que no le toca no lo ve ni lo puede tocar |
-| `server/pruebas/` | 79 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios, seguridad y las **invariantes** de los datos |
+| `scripts/verify/roles.mjs` | 53 comprobaciones: la jornada entera de cada uno de los 6 roles, y que lo que no le toca no lo ve ni lo puede tocar |
+| `server/pruebas/` | 86 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios, seguridad y las **invariantes** de los datos |
 | `scripts/verify/backend.mjs` | 24 comprobaciones de la app compilada contra el servidor: entrar con contraseña, mover un coche y que **otro dispositivo lo vea**, subir una foto y recuperar la contraseña por correo |
 
 `verify:api` va aparte de `verify` porque compila la web una segunda vez:
@@ -161,6 +161,19 @@ en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
 - **El comercial de un vehículo viene de Quiter como texto** («Juan»), no
   como usuario («Juan Bilbao»). El emparejamiento está en
   `esDelComercial` (`src/data/selectors.ts`), en un solo sitio.
+- **El comercial se asigna en cualquier momento, no solo al dar de alta.**
+  Los coches llegan de Quiter sin comercial hasta que alguien los vende. En
+  la ficha del vehículo: el que vende **se queda un coche libre** de un
+  botón y suelta el suyo (`flota.asignarse`); la oficina (`flota.editar`)
+  asigna y reasigna a cualquiera, y el cambio queda en la trazabilidad con
+  quién y cuándo. Un comercial **no le quita un coche a otro**: eso se pide
+  a la oficina, que es quien lleva la cuenta.
+- **Lo que no es físico no depende de dónde esté el coche.** Quién lo
+  vende, cuándo se entrega y pedir que lo traigan valen esté donde esté.
+  Sondika guarda el stock de toda la red: mientras el servidor midió esos
+  comandos por la ubicación del vehículo, un comercial de Leioa no podía
+  pedir que le trajeran un coche de la campa —que es justo para lo que
+  existe esa pantalla.
 - **El estado «aparcado» no dice dónde.** Un coche puede estar aparcado en
   la campa de Sondika o en el parking de una concesión. Se llamaba «en
   campa» y decía una cosa que no era en cuanto salía de Sondika.

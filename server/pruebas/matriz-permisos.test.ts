@@ -70,6 +70,10 @@ const PUEDEN: Record<string, Rol[]> = {
   'vehicle.setCustom': ['admin', 'logistica'],
   'vehicle.setDelivery': ['admin', 'logistica', 'comercial'],
   'vehicle.create': ['admin', 'logistica', 'recepcion'],
+  // Aquí el ejemplo es un coche SIN comercial y asignándoselo a sí mismo,
+  // que es lo que puede hacer un comercial. Que no pueda quitarle uno a
+  // otro está comprobado aparte, en comandos.test.ts.
+  'vehicle.setSalesRep': ['admin', 'logistica', 'comercial'],
 
   // Administración
   'config.update': ['admin'],
@@ -114,6 +118,8 @@ function ejemplos(s: AppState): Record<string, CommandInput> {
   const vehiculo = s.vehicles.find((v) => v.logisticActive && v.location)!;
   // Para `prep.create`, uno que nadie haya pedido preparar: con solicitud
   // abierta el preparador sí puede, y eso se comprueba por separado.
+  // Uno sin comercial: es el caso que un comercial puede quedarse.
+  const sinComercial = s.vehicles.find((v) => v.logisticActive && !v.salesRep)!;
   const sinPedir = s.vehicles.find(
     (v) =>
       v.logisticActive &&
@@ -200,6 +206,11 @@ function ejemplos(s: AppState): Record<string, CommandInput> {
       deliveryDate: new Date().toISOString(),
     },
     'vehicle.create': { type: 'vehicle.create', vin8: 'PRUEBA01' },
+    'vehicle.setSalesRep': {
+      type: 'vehicle.setSalesRep',
+      vehicleId: sinComercial.id,
+      salesRep: null,
+    },
     'config.update': { type: 'config.update', patch: { staleCheckHours: 48 } },
     'requirement.upsert': { type: 'requirement.upsert', requirement: requisito },
     'requirement.delete': { type: 'requirement.delete', requirementId: requisito.id },

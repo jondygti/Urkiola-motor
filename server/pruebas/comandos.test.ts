@@ -488,3 +488,156 @@ test('una configuración inválida se rechaza en vez de romper la app de todos',
   assert.equal(p.servicio.estado.config.prepTargetMinutes.VN, 90);
 });
 
+
+test('el comercial se queda un coche libre, y lo suelta', async (t) => {
+  const p = await servidorDePruebas();
+  t.after(() => p.limpiar());
+  const juan = await entrar(p.servicio, 'juan@urkiolacarservice.com');
+
+  const libre = p.servicio.estado.vehicles.find((v) => v.logisticActive && !v.salesRep)!;
+
+  await p.servicio.ejecutar(
+    cmd('vehicle.setSalesRep', { vehicleId: libre.id, salesRep: juan.name }, { id: 'c-mio', userId: juan.id }),
+    juan
+  );
+  assert.equal(p.servicio.estado.vehicles.find((v) => v.id === libre.id)?.salesRep, 'Juan Bilbao');
+
+  // Y queda el apunte de quién lo hizo.
+  assert.match(p.servicio.estado.events[0].title, /Comercial asignado/);
+
+  // Soltarlo también puede.
+  await p.servicio.ejecutar(
+    cmd('vehicle.setSalesRep', { vehicleId: libre.id, salesRep: null }, { userId: juan.id }),
+    juan
+  );
+  assert.equal(p.servicio.estado.vehicles.find((v) => v.id === libre.id)?.salesRep, null);
+});
+
+test('un comercial no le quita un coche a otro', async (t) => {
+  const p = await servidorDePruebas();
+  t.after(() => p.limpiar());
+  const juan = await entrar(p.servicio, 'juan@urkiolacarservice.com');
+
+  const deOtro = p.servicio.estado.vehicles.find(
+    (v) => v.logisticActive && v.salesRep && !/juan/i.test(v.salesRep)
+  )!;
+
+  await assert.rejects(
+    () =>
+      p.servicio.ejecutar(
+        cmd('vehicle.setSalesRep', { vehicleId: deOtro.id, salesRep: juan.name }, { userId: juan.id }),
+        juan
+      ),
+    (e: unknown) => e instanceof ErrorHttp && e.codigo === 403
+  );
+});
+
+test('un comercial tampoco se lo asigna a un tercero', async (t) => {
+  const p = await servidorDePruebas();
+  t.after(() => p.limpiar());
+  const juan = await entrar(p.servicio, 'juan@urkiolacarservice.com');
+  const libre = p.servicio.estado.vehicles.find((v) => v.logisticActive && !v.salesRep)!;
+
+  await assert.rejects(
+    () =>
+      p.servicio.ejecutar(
+        cmd('vehicle.setSalesRep', { vehicleId: libre.id, salesRep: 'Ane' }, { userId: juan.id }),
+        juan
+      ),
+    (e: unknown) => e instanceof ErrorHttp && e.codigo === 403
+  );
+});
+
+test('la oficina sí puede reasignar un coche de un comercial a otro', async (t) => {
+  const p = await servidorDePruebas();
+  t.after(() => p.limpiar());
+  const log = await entrar(p.servicio, 'logistica@urkiolacarservice.com');
+
+  const deOtro = p.servicio.estado.vehicles.find((v) => v.logisticActive && v.salesRep)!;
+  const antes = deOtro.salesRep;
+
+  await p.servicio.ejecutar(
+    cmd('vehicle.setSalesRep', { vehicleId: deOtro.id, salesRep: 'Juan Bilbao' }, { userId: log.id }),
+    log
+  );
+
+  const despues = p.servicio.estado.vehicles.find((v) => v.id === deOtro.id)!;
+  assert.equal(despues.salesRep, 'Juan Bilbao');
+  // Y la trazabilidad dice a quién lo llevaba antes.
+  assert.match(p.servicio.estado.events[0].detail ?? '', new RegExp(`antes ${antes}`));
+});
+
+test('asignar el comercial que ya estaba no ensucia el historial', async (t) => {
+  const p = await servidorDePruebas();
+  t.after(() => p.limpiar());
+  const log = await entrar(p.servicio, 'logistica@urkiolacarservice.com');
+
+  const coche = p.servicio.estado.vehicles.find((v) => v.logisticActive && v.salesRep)!;
+  const eventos = p.servicio.estado.events.length;
+
+  await p.servicio.ejecutar(
+    cmd('vehicle.setSalesRep', { vehicleId: coche.id, salesRep: coche.salesRep }, { userId: log.id }),
+    log
+  );
+  assert.equal(p.servicio.estado.events.length, eventos, 'no se apunta un cambio que no ha cambiado nada');
+});
+
+test('un comercial de Leioa pide el traslado de un coche que está en Sondika', async (t) => {
+  const p = await servidorDePruebas();
+  t.after(() => p.limpiar());
+  // Juan lleva Leioa; el stock de toda la red duerme en la campa de Sondika.
+  const juan = await entrar(p.servicio, 'juan@urkiolacarservice.com');
+  const enSondika = p.servicio.estado.vehicles.find(
+    (v) => v.logisticActive && v.location?.siteId === 'sondika'
+  )!;
+
+  const r = await p.servicio.ejecutar(
+    cmd(
+      'request.create',
+      {
+        requestType: 'traslado',
+        vehicleId: enSondika.id,
+        siteId: 'leioa',
+        to: { siteId: 'leioa' },
+        carrierId: 'gruas-francis',
+      },
+      { userId: juan.id }
+    ),
+    juan
+  );
+  assert.equal(r.repetido, false);
+
+  // Pero no puede encargar trabajo a una sede que no lleva.
+  await assert.rejects(
+    () =>
+      p.servicio.ejecutar(
+        cmd(
+          'request.create',
+          { requestType: 'preparacion', vehicleId: enSondika.id, siteId: 'irun', to: { siteId: 'irun' } },
+          { userId: juan.id }
+        ),
+        juan
+      ),
+    (e: unknown) => e instanceof ErrorHttp && e.codigo === 403
+  );
+});
+
+test('y le fija la fecha de entrega esté el coche donde esté', async (t) => {
+  const p = await servidorDePruebas();
+  t.after(() => p.limpiar());
+  const juan = await entrar(p.servicio, 'juan@urkiolacarservice.com');
+  const enSondika = p.servicio.estado.vehicles.find(
+    (v) => v.logisticActive && v.location?.siteId === 'sondika'
+  )!;
+
+  const r = await p.servicio.ejecutar(
+    cmd(
+      'vehicle.setDelivery',
+      { vehicleId: enSondika.id, deliveryDate: new Date(Date.now() + 7 * 86_400_000).toISOString() },
+      { userId: juan.id }
+    ),
+    juan
+  );
+  assert.equal(r.repetido, false);
+  assert.ok(p.servicio.estado.vehicles.find((v) => v.id === enSondika.id)?.deliveryDate);
+});

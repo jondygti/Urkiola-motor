@@ -47,6 +47,7 @@ import { PrepPanel } from '@/features/prep/PrepPanel';
 import { CustomFields } from '@/features/common/CustomFields';
 import { DateField } from '@/features/common/DateField';
 import { IfCan, ScreenGuard, usePerms } from '@/features/common/Guard';
+import { ComercialVehiculo } from '@/features/actions/ComercialVehiculo';
 import { IncidentStatusPill, SituationPill, TypePill, RequestStatusPill } from '@/features/common/bits';
 
 export default function VehicleScreen() {
@@ -123,7 +124,7 @@ export default function VehicleScreen() {
         <Panel title="🚗 Identificación">
           <Detail label="Tipo" value={<TypePill type={vehicle.type} />} />
           <Detail label="Situación" value={<SituationPill situation={vehicle.situation} />} />
-          <Detail label="Comercial" value={vehicle.salesRep ? `${vehicle.salesRep} · Asignado` : 'Sin asignar'} />
+          <ComercialVehiculo vehicle={vehicle} onDone={setToast} />
           <Detail label="Estado logístico" value={vehicle.logisticActive ? 'Activo' : 'Solo parque Quiter'} />
           <Detail label="VIN-8" value={vehicle.vin8} />
           <Detail label="Bastidor" value={vehicle.vin} />

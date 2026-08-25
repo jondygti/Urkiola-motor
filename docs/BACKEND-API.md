@@ -169,6 +169,7 @@ que esto **no es opcional**, es parte del contrato:
 | `inbox.read` / `inbox.readAll` | Bandeja de avisos |
 | `reception.create` / `reception.line` / `reception.albaran` / `reception.close` | Recepción de camiones |
 | `vehicle.create` | Alta manual de un vehículo por su bastidor. El id sale del VIN-8 (`v-<vin8>`), así que darlo de alta dos veces no duplica nada |
+| `vehicle.setSalesRep` | Quién lleva la venta del coche. Se puede poner y quitar en cualquier momento: los coches llegan de Quiter sin comercial hasta que alguien los vende |
 | `config.update` / `requirement.upsert` / `requirement.delete` / `zone.upsert` | Administración |
 
 Las definiciones exactas de cada uno están tipadas en
@@ -203,11 +204,20 @@ permiso correspondiente:
 | `reception.*` | `recepcion.ejecutar` |
 | `rule.*` | `notificaciones.gestionar` |
 | `vehicle.setCustom` | `flota.editar` |
+| `vehicle.setSalesRep` | `flota.editar` (la oficina asigna a cualquiera), **o** `flota.asignarse` para quedarse un coche **libre** o soltar el suyo. Con `flota.asignarse` no se le puede quitar un coche a otro comercial ni asignárselo a un tercero: eso pasa por la oficina, que lleva la cuenta |
 | `vehicle.create` | `flota.editar` **o** `recepcion.ejecutar` (quien descarga camiones registra el coche que llega sin estar en el parque) |
 | `site.*`, `zone.*`, `position.*`, `user.*`, `role.*`, `customField.*`, `config.update` | `admin.configurar` |
 
 Además, si el usuario tiene sedes asignadas (`user.siteIds` no vacío), el
 servidor debe rechazar comandos sobre vehículos de otras sedes.
+
+Con una excepción: **las decisiones que no son físicas no dependen de dónde
+esté el coche**. Quién lo vende (`vehicle.setSalesRep`), cuándo se entrega
+(`vehicle.setDelivery`) y pedir que lo traigan (`request.create`, que se
+mide por la sede que atiende la solicitud, `cmd.siteId`) valen esté el coche
+donde esté. Sondika guarda el stock de toda la red: atar esos comandos a la
+ubicación dejaba a un comercial de Leioa sin poder pedir que le trajeran un
+coche de la campa, que es justo para lo que existe esa pantalla.
 
 ### Colaboradores externos
 

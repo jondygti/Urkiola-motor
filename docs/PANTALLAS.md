@@ -7,7 +7,7 @@ y dónde está ahora.
 |---|---|---|---|
 | ▦ Dashboard | `/` | `app/(shell)/index.tsx` | Los KPI se calculan de los datos reales y son pulsables; la tabla de rendimiento por sede y los avisos de «Atención» se recalculan solos. **Necesita el permiso `panel.ver`**, que de serie solo tiene el administrador: quien no lo tenga entra directamente a su primera pantalla de trabajo |
 | 🚗 Flota | `/flota` | `app/(shell)/flota.tsx` | Buscador y 6 filtros superiores (incluido el estado) + filtro por columna, combinables; carga por páginas; alternar entre activos y parque Quiter completo. Desde aquí se **da de alta un coche a mano** con solo el bastidor, y el comercial tiene el atajo **«Mis coches en preparación»**, que resume cuántos tiene pedidos sin empezar, en curso y listos |
-| 🔎 Ficha vehículo | `/vehiculo/[id]` | `app/(shell)/vehiculo/[id].tsx` | Ficha 360º real de cualquier vehículo, con acciones que modifican los datos y trazabilidad viva |
+| 🔎 Ficha vehículo | `/vehiculo/[id]` | `app/(shell)/vehiculo/[id].tsx` | Ficha 360º real de cualquier vehículo, con acciones que modifican los datos y trazabilidad viva. El **comercial se asigna aquí en cualquier momento**: el que vende se queda un coche libre de un botón, y la oficina reasigna cualquiera (`ComercialVehiculo`) |
 | 🚚 Recepción | `/recepcion` | `app/(shell)/recepcion.tsx` | Varias recepciones, alta de camión, líneas de albarán, foto del albarán, daños con fotos y asignación de plaza |
 | 📍 Campa Sondika | `/campa` | `app/(shell)/campa.tsx` | Sirve para cualquier sede y zona; ocupación por tejavana/parking; plaza a plaza |
 | 📋 Solicitudes | `/solicitudes` | `app/(shell)/solicitudes.tsx` | Cambio de estado, asignación a persona y apertura de la preparación desde la propia solicitud |
@@ -32,6 +32,7 @@ y dónde está ahora.
 | 🚚 Solicitar traslado | `VehicleActions` |
 | 🧽 Solicitar preparación | `VehicleActions` |
 | 📸 Incidencia | `VehicleActions` e Incidencias |
+| 👤 Comercial del vehículo | Ficha del vehículo (`ComercialVehiculo`); solo lo abre quien puede reasignar |
 
 ## Qué se configura sin tocar código
 

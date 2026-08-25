@@ -398,6 +398,7 @@ export type Permission =
   | 'panel.ver'
   | 'flota.ver'
   | 'flota.editar'
+  | 'flota.asignarse'
   | 'campa.ver'
   | 'movimientos.registrar'
   | 'traslados.propios'
@@ -417,6 +418,7 @@ export const PERMISSION_LABEL: Record<Permission, string> = {
   'panel.ver': 'Ver el panel de control',
   'flota.ver': 'Ver la flota y las fichas',
   'flota.editar': 'Editar campos propios del vehículo',
+  'flota.asignarse': 'Asignarse vehículos como comercial',
   'campa.ver': 'Ver campas y plazas',
   'movimientos.registrar': 'Registrar movimientos',
   'traslados.propios': 'Ver y completar solo sus traslados asignados',

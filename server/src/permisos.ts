@@ -10,7 +10,14 @@
  */
 import type { AppState, Id, Permission, User } from '../../src/data/types';
 import type { Command } from '../../src/data/commands';
-import { can, isSimpleRole } from '../../src/data/selectors';
+import { can, esDelComercial, isSimpleRole } from '../../src/data/selectors';
+
+/** Dos formas de escribir el mismo nombre: «Juan» y «Juan Bilbao». */
+function mismoNombre(a: string, b: string): boolean {
+  const x = a.trim().toLowerCase();
+  const y = b.trim().toLowerCase();
+  return x === y || x.startsWith(`${y} `) || y.startsWith(`${x} `);
+}
 
 /** Motivo del rechazo, o null si el comando se puede ejecutar. */
 export type Rechazo = string | null;
@@ -50,6 +57,18 @@ function vehiculoDeSuTraslado(s: AppState, u: User, vehicleId: Id): boolean {
 function sedeAfectada(s: AppState, cmd: Command): Id | null | undefined {
   // Un alta manual todavía no tiene vehículo al que mirar.
   if (cmd.type === 'vehicle.create') return cmd.location?.siteId ?? null;
+
+  // Hay decisiones que no son físicas y no dependen de dónde esté el coche:
+  // quién lo vende y cuándo se entrega al cliente. Sondika guarda el stock
+  // de toda la red, así que atarlas a la ubicación dejaría a un comercial
+  // de Leioa sin poder tocar sus propios coches por estar en la campa.
+  if (cmd.type === 'vehicle.setSalesRep' || cmd.type === 'vehicle.setDelivery') return undefined;
+
+  // Y una solicitud se mide por la sede que la tiene que atender, no por
+  // dónde está el coche ahora: pedir que traigan a Leioa un coche que está
+  // en Sondika es justo para lo que existe la pantalla.
+  if (cmd.type === 'request.create') return cmd.siteId;
+
   if ('vehicleId' in cmd && cmd.vehicleId) {
     const v = s.vehicles.find((x) => x.id === cmd.vehicleId);
     if (v) return v.location?.siteId ?? v.targetSiteId ?? null;
@@ -196,6 +215,25 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
 
     case 'vehicle.setCustom':
       return tiene(s, u, 'flota.editar') ? null : 'No puedes editar campos del vehículo.';
+
+    case 'vehicle.setSalesRep': {
+      // Quien administra la flota asigna a quien sea.
+      if (tiene(s, u, 'flota.editar')) return null;
+
+      // Y un comercial coge los suyos: puede quedarse un coche que no tiene
+      // comercial y puede soltar el suyo, pero no quitarle uno a otro. Eso
+      // último se pide a la oficina, que para eso lleva la cuenta.
+      if (!tiene(s, u, 'flota.asignarse')) return 'No puedes asignar el comercial de un vehículo.';
+
+      const vehiculo = s.vehicles.find((v) => v.id === cmd.vehicleId);
+      const actual = vehiculo?.salesRep?.trim() ?? '';
+      const suyo = esDelComercial(vehiculo ?? ({} as never), u);
+      const nuevo = cmd.salesRep?.trim() ?? '';
+
+      if (actual && !suyo) return 'Ese vehículo ya lo lleva otro comercial. Pídeselo a la oficina.';
+      if (nuevo && !mismoNombre(nuevo, u.name)) return 'Solo puedes asignarte a ti mismo.';
+      return null;
+    }
 
     case 'vehicle.create':
       // También quien descarga camiones: si llega un coche que no está en
