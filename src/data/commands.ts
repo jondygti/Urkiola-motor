@@ -470,11 +470,12 @@ function aplicar(state: AppState, cmd: Command): AppState {
         note: cmd.note,
       };
       const changedSite = vehicle.location?.siteId !== cmd.to.siteId;
-      const arrivedAtTarget = vehicle.targetSiteId === cmd.to.siteId;
 
-      let status: Vehicle['status'] = vehicle.status;
-      if (changedSite) status = arrivedAtTarget ? 'en_campa' : 'en_campa';
-      if (vehicle.status === 'traslado_solicitado' && changedSite) status = 'en_campa';
+      // Al cambiar de sede el coche queda aparcado a la espera, llegue a su
+      // destino previsto o a otro sitio. Lo que NO se toca aquí es a qué
+      // concesión pertenece (`dealership`): eso es de Quiter y no cambia
+      // porque el coche se mueva.
+      const status: Vehicle['status'] = changedSite ? 'en_campa' : vehicle.status;
 
       let next: AppState = {
         ...liberarPlaza(activate(state, cmd.vehicleId), cmd.to.positionId, cmd.vehicleId, cmd),

@@ -370,7 +370,16 @@ export function Kpi({
 }
 
 /** Par etiqueta/valor de las fichas (`.detail`). */
-export function Detail({ label, value }: { label: string; value: React.ReactNode }) {
+export function Detail({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: React.ReactNode;
+  /** Una línea para explicar el dato cuando el nombre no basta. */
+  hint?: string;
+}) {
   const { c } = useTheme();
   return (
     <View style={{ paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: c.borderSoft }}>
@@ -382,6 +391,9 @@ export function Detail({ label, value }: { label: string; value: React.ReactNode
       ) : (
         value
       )}
+      {hint ? (
+        <Text style={{ fontSize: 11, color: c.textMuted, marginTop: 3 }}>{hint}</Text>
+      ) : null}
     </View>
   );
 }

@@ -487,3 +487,29 @@ test('una configuración inválida se rechaza en vez de romper la app de todos',
   );
   assert.equal(p.servicio.estado.config.prepTargetMinutes.VN, 90);
 });
+
+test('mover un coche cambia dónde está, no a quién pertenece', async (t) => {
+  const p = await servidorDePruebas();
+  t.after(() => p.limpiar());
+  const log = await entrar(p.servicio, 'logistica@urkiolacarservice.com');
+
+  // Un coche en la campa de Sondika que pertenece a otra concesión: es lo
+  // normal, Sondika almacena para toda la red.
+  const coche = p.servicio.estado.vehicles.find(
+    (v) => v.logisticActive && v.location?.siteId === 'sondika' && v.dealership !== 'Sondika'
+  )!;
+  const concesion = coche.dealership;
+
+  await p.servicio.ejecutar(
+    cmd('movement.register', { vehicleId: coche.id, to: { siteId: 'galdakao' } }, { userId: log.id }),
+    log
+  );
+
+  const despues = p.servicio.estado.vehicles.find((v) => v.id === coche.id)!;
+  assert.equal(despues.location?.siteId, 'galdakao', 'el coche está donde lo han dejado');
+  assert.equal(
+    despues.dealership,
+    concesion,
+    'la concesión propietaria es de Quiter: moverlo no la cambia'
+  );
+});

@@ -204,7 +204,9 @@ export default function FleetScreen() {
     },
     dealership: {
       key: 'dealership',
-      header: 'Concesión',
+      // A quién pertenece el coche, no dónde está: son dos cosas distintas
+      // y llamarlas igual confunde.
+      header: 'Concesión propietaria',
       width: 130,
       value: (v) => v.dealership,
       filter: { type: 'select', options: state.sites.map((x) => ({ value: x.name, label: x.name })) },
