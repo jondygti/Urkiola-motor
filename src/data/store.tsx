@@ -30,7 +30,11 @@ const TOKEN_KEY = 'urkiola.token.v1';
 // dejar mal guardadas (dos coches en la misma plaza, una zona que no era de
 // esa sede). El código nuevo ya no las produce, pero tampoco repara las que
 // hubiera guardadas: por eso se descartan.
-const STATE_SCHEMA_VERSION = 11;
+// 12: se quitó «Mi trabajo» y entró «Mis coches». Las secciones del móvil de
+// cada rol están guardadas en la configuración, así que sin esto los
+// dispositivos seguirían con un menú que apunta a una pantalla que ya no
+// existe.
+const STATE_SCHEMA_VERSION = 12;
 
 interface StoredState {
   v: number;

@@ -136,11 +136,10 @@ export async function ejecutar(browser, BASE) {
   {
     const { context, page, errores } = await entrarComo(browser, USUARIOS.preparador, 420);
 
-    await page.goto(`${BASE}/mi-trabajo`, { waitUntil: 'networkidle' });
-    await page.waitForTimeout(900);
-    const trabajo = await page.evaluate(() => document.body.innerText);
-    ok('PREPARADOR · abre su trabajo del día', trabajo.includes('Hola, Pedro'));
-    ok('PREPARADOR · con sus preparaciones contadas', /PREPARACIONES/i.test(trabajo));
+    // Su pantalla de inicio es su cola de trabajo, no un panel intermedio.
+    await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1100);
+    ok('PREPARADOR · la app le abre directamente en su cola', page.url().includes('/mi-preparacion'), page.url());
 
     // Dónde está el coche: sin esto sabe qué le toca pero no a dónde ir.
     await page.goto(`${BASE}/mi-preparacion`, { waitUntil: 'networkidle' });
@@ -358,6 +357,37 @@ export async function ejecutar(browser, BASE) {
       'COMERCIAL · no le quita un coche a otro comercial',
       fichaOtro.includes('Lo lleva otro comercial') && !fichaOtro.includes('Asignármelo'),
       deOtro?.salesRep ?? ''
+    );
+
+    // «Mis coches»: lo suyo, en un sitio y sin el trabajo de los demás.
+    await page.goto(`${BASE}/mis-coches`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1200);
+    const mios = await page.evaluate(() => document.body.innerText);
+    ok('COMERCIAL · tiene una pantalla con sus coches', mios.includes('Mis coches'));
+    ok(
+      'COMERCIAL · con el punto en el que está cada uno',
+      /LISTO PARA ENTREGAR|PREPARÁNDOSE|DE CAMINO|SIN PEDIR NADA/.test(mios),
+      mios.match(/LISTO PARA ENTREGAR|PREPARÁNDOSE|DE CAMINO|SIN PEDIR NADA/)?.[0] ?? ''
+    );
+    ok('COMERCIAL · y dónde está el coche', mios.includes('📍'), mios.match(/📍[^\n]*/)?.[0] ?? '');
+    // Solo los suyos: el coche de otro comercial no puede salir aquí.
+    ok(
+      'COMERCIAL · y solo los suyos',
+      !!deOtro && !mios.includes(deOtro.plate ?? '###'),
+      deOtro?.plate ?? ''
+    );
+
+    // La app le abre ahí: es su pantalla de todos los días.
+    await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1100);
+    ok('COMERCIAL · la app le abre en sus coches', page.url().includes('/mis-coches'), page.url());
+
+    // Y ya no le sale el tablón de encargos de toda la red.
+    await page.goto(`${BASE}/solicitudes`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(900);
+    ok(
+      'COMERCIAL · no ve el tablón de solicitudes de toda la red',
+      /no tiene (acceso|permiso)/.test(await page.evaluate(() => document.body.innerText))
     );
 
     // Y no puede tocar la configuración ni abrir preparaciones.

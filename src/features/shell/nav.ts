@@ -57,7 +57,10 @@ export const NAV: NavGroup[] = [
         label: 'Solicitudes',
         icon: '📋',
         short: 'Tareas',
-        anyOf: ['solicitudes.crear', 'solicitudes.gestionar'],
+        // Es la pantalla de la oficina: los encargos de toda la red, para
+        // repartirlos. Quien solo los *pide* —el comercial— no necesita ver
+        // los de los demás: los suyos los tiene en «Mis coches».
+        anyOf: ['solicitudes.gestionar'],
       },
       {
         href: '/preparacion',
@@ -71,7 +74,10 @@ export const NAV: NavGroup[] = [
         label: 'Movimientos',
         icon: '↔',
         short: 'Histórico',
-        anyOf: ['movimientos.registrar'],
+        // El histórico de toda la flota es una herramienta de oficina. Quien
+        // mueve coches lo que necesita es «Mover coche», y el recorrido de
+        // un coche concreto está en su ficha.
+        anyOf: ['solicitudes.gestionar'],
       },
       { href: '/recuentos', label: 'Recuentos', icon: '📋', short: 'Recuento', anyOf: ['recuentos.ejecutar'] },
     ],
@@ -87,7 +93,17 @@ export const NAV: NavGroup[] = [
   {
     title: 'OPERATIVA',
     items: [
-      { href: '/mi-trabajo', label: 'Mi trabajo', icon: '📱', short: 'Inicio' },
+      // La pantalla de cada uno: lo suyo y nada más. «Mi trabajo» se quitó
+      // porque no era de nadie: repetía en peor lo que ya hacían estas
+      // —la cola del preparador, los encargos del transportista— y al
+      // comercial le enseñaba el trabajo de los demás.
+      {
+        href: '/mis-coches',
+        label: 'Mis coches',
+        icon: '🚗',
+        short: 'Míos',
+        anyOf: ['flota.asignarse'],
+      },
       {
         href: '/mis-traslados',
         label: 'Mis traslados',
@@ -138,8 +154,9 @@ export function mobileNav(state: AppState, user: User | null): NavItem[] {
     .map((href) => ALL_ITEMS.find((i) => i.href === href))
     .filter((i): i is NavItem => !!i && allowed(state, user, i));
 
-  // Si el rol no tiene nada configurado, al menos su trabajo del día.
-  if (items.length === 0) return ALL_ITEMS.filter((i) => i.href === '/mi-trabajo');
+  // Si el rol no tiene nada configurado, al menos la flota: es lo único
+  // que sirve para cualquiera y no depende de tener trabajo asignado.
+  if (items.length === 0) return ALL_ITEMS.filter((i) => i.href === '/flota');
   return items;
 }
 
@@ -157,7 +174,7 @@ export function titleForPath(path: string): string {
 
 /** Primera sección del rol en el móvil: es donde debe abrirse la app. */
 export function mobileHome(state: AppState, user: User | null): string {
-  return mobileNav(state, user)[0]?.href ?? '/mi-trabajo';
+  return mobileNav(state, user)[0]?.href ?? '/flota';
 }
 
 /**
@@ -169,10 +186,13 @@ export function mobileHome(state: AppState, user: User | null): string {
  */
 export function homeFor(state: AppState, user: User | null, isDesktop: boolean): string {
   if (!isDesktop) return mobileHome(state, user);
-  const primera = visibleNav(state, user)
-    .flatMap((g) => g.items)
-    .find((i) => i.href !== '/');
-  return primera?.href ?? '/mi-trabajo';
+  // En la web, quien lleva el panel de dirección entra por el panel.
+  if (can(state, user, 'panel.ver')) return '/';
+  // Y el resto entra por **su** pantalla: la primera que tenga marcada el
+  // rol en Administración. Antes entraba por la primera del menú, que es
+  // Flota para casi todos: al comercial le abría el parque entero en vez de
+  // sus coches, y a la oficina la flota en vez de los encargos del día.
+  return mobileHome(state, user);
 }
 
 /** Permisos que exige una ruta según el menú. Vacío = abierta a cualquiera. */

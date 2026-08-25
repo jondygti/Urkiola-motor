@@ -130,7 +130,7 @@ export const ROLES: RoleConfig[] = [
     id: 'admin',
     label: 'Administrador',
     permissions: [...ALL_PERMISSIONS],
-    mobileSections: ['/mi-trabajo', '/mover', '/flota', '/solicitudes', '/recuentos', '/incidencias'],
+    mobileSections: ['/flota', '/solicitudes', '/mover', '/recuentos', '/incidencias'],
     builtin: true,
   },
   {
@@ -139,7 +139,7 @@ export const ROLES: RoleConfig[] = [
     // Todo menos administrar y menos el panel de control, que es de
     // dirección. Si hace falta, se le marca desde Administración.
     permissions: ALL_PERMISSIONS.filter((p) => p !== 'admin.configurar' && p !== 'panel.ver'),
-    mobileSections: ['/mi-trabajo', '/mover', '/entregas', '/solicitudes', '/flota'],
+    mobileSections: ['/solicitudes', '/entregas', '/mover', '/flota'],
     builtin: true,
   },
   {
@@ -155,7 +155,7 @@ export const ROLES: RoleConfig[] = [
       'incidencias.crear',
     ],
     // En el móvil entra directo a su cola de trabajo.
-    mobileSections: ['/mi-preparacion', '/mover', '/mi-trabajo', '/flota'],
+    mobileSections: ['/mi-preparacion', '/mover', '/flota'],
     builtin: true,
   },
   {
@@ -180,7 +180,7 @@ export const ROLES: RoleConfig[] = [
       'recuentos.ejecutar',
     ],
     // En el móvil entra directo a la descarga del camión.
-    mobileSections: ['/mi-recepcion', '/mover', '/mi-trabajo', '/flota'],
+    mobileSections: ['/mi-recepcion', '/mover', '/flota'],
     builtin: true,
   },
   {
@@ -197,7 +197,7 @@ export const ROLES: RoleConfig[] = [
       'entregas.gestionar',
       'notificaciones.gestionar',
     ],
-    mobileSections: ['/entregas', '/mover', '/mi-trabajo', '/flota'],
+    mobileSections: ['/mis-coches', '/entregas', '/mover', '/flota'],
     builtin: true,
   },
 ];

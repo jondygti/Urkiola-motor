@@ -3,6 +3,7 @@ import type {
   ColumnPref,
   CustomField,
   FleetCount,
+  Incident,
   Id,
   Permission,
   Preparation,
@@ -226,6 +227,83 @@ export function requestsFor(s: AppState, vehicleId: Id) {
 export function movementsFor(s: AppState, vehicleId: Id) {
   return s.movements.filter((m) => m.vehicleId === vehicleId);
 }
+
+/* --------------------------------------------------- los coches de uno */
+
+/** Un coche del comercial con todo lo que está pasando con él. */
+export interface CocheMio {
+  vehicle: Vehicle;
+  /** Traslado pedido y sin terminar, si lo hay. */
+  traslado: ServiceRequest | null;
+  /** Preparación pedida y todavía sin abrir por nadie. */
+  prepPedida: ServiceRequest | null;
+  /** Preparación abierta, con su cronómetro. */
+  preparacion: Preparation | null;
+  /** Incidencias abiertas: es lo que puede retrasar una entrega. */
+  incidencias: Incident[];
+  /** En qué punto está, contado como lo cuenta el comercial. */
+  fase: 'listo' | 'preparando' | 'trasladando' | 'parado';
+}
+
+/**
+ * Los coches que lleva un comercial, con lo que está pasando con cada uno.
+ *
+ * El comercial no quiere una lista de solicitudes: quiere saber en qué punto
+ * está **su** coche, que es otra pregunta. Antes tenía que mirar en tres
+ * sitios —Solicitudes para lo pedido, Flota para dónde está, Entregas para
+ * el compromiso— y ninguno de los tres le enseñaba solo lo suyo.
+ *
+ * Las fases son las suyas, no las del sistema:
+ *
+ * - **listo**: apto para entregar, no hay que hacer nada más.
+ * - **preparando**: pedida o en marcha; da igual quién la tenga.
+ * - **trasladando**: viene de camino o está pedido que venga.
+ * - **parado**: no se ha pedido nada. Si tiene fecha de entrega, corre prisa.
+ */
+export function misCoches(s: AppState, user: User | null): CocheMio[] {
+  if (!user) return [];
+
+  const abiertas = s.preparations.filter((p) => p.runState !== 'terminado');
+  const conPrepAbierta = new Set(abiertas.map((p) => p.vehicleId));
+
+  return s.vehicles
+    .filter((v) => esDelComercial(v, user))
+    .map((v): CocheMio => {
+      const preparacion = abiertas.find((p) => p.vehicleId === v.id) ?? null;
+      const traslado =
+        s.requests.find((r) => r.vehicleId === v.id && r.type === 'traslado' && r.status !== 'terminada') ??
+        null;
+      const prepPedida = conPrepAbierta.has(v.id)
+        ? null
+        : (s.requests.find(
+            (r) => r.vehicleId === v.id && r.type === 'preparacion' && r.status !== 'terminada'
+          ) ?? null);
+      const incidencias = s.incidents.filter((i) => i.vehicleId === v.id && i.status !== 'cerrada');
+
+      const fase: CocheMio['fase'] =
+        v.status === 'apto_entrega'
+          ? 'listo'
+          : preparacion || prepPedida
+            ? 'preparando'
+            : traslado
+              ? 'trasladando'
+              : 'parado';
+
+      return { vehicle: v, traslado, prepPedida, preparacion, incidencias, fase };
+    })
+    .sort((a, b) => {
+      // Delante lo que tiene fecha de entrega comprometida y más cerca está:
+      // es lo único con una fecha de verdad delante de un cliente.
+      const fa = a.vehicle.deliveryDate;
+      const fb = b.vehicle.deliveryDate;
+      if (fa && fb) return fa.localeCompare(fb);
+      if (fa) return -1;
+      if (fb) return 1;
+      return vehicleOrden(a.vehicle).localeCompare(vehicleOrden(b.vehicle));
+    });
+}
+
+const vehicleOrden = (v: Vehicle) => `${v.brand} ${v.model} ${v.plate ?? v.vin8}`;
 
 /* ------------------------------------------------------- tareas del día */
 

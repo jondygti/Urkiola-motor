@@ -62,7 +62,7 @@ export function UsersAdmin({ onDone }: { onDone: (m: string) => void }) {
     id: '',
     label: '',
     permissions: ['flota.ver'],
-    mobileSections: ['/mi-trabajo', '/flota'],
+    mobileSections: ['/flota'],
     simple: false,
     builtin: false,
   });

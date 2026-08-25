@@ -10,15 +10,15 @@ y dónde está ahora.
 | 🔎 Ficha vehículo | `/vehiculo/[id]` | `app/(shell)/vehiculo/[id].tsx` | Ficha 360º real de cualquier vehículo, con acciones que modifican los datos y trazabilidad viva. El **comercial se asigna aquí en cualquier momento**: el que vende se queda un coche libre de un botón, y la oficina reasigna cualquiera (`ComercialVehiculo`) |
 | 🚚 Recepción | `/recepcion` | `app/(shell)/recepcion.tsx` | Varias recepciones, alta de camión, líneas de albarán, foto del albarán, daños con fotos y asignación de plaza |
 | 📍 Campa Sondika | `/campa` | `app/(shell)/campa.tsx` | Sirve para cualquier sede y zona; ocupación por tejavana/parking; plaza a plaza |
-| 📋 Solicitudes | `/solicitudes` | `app/(shell)/solicitudes.tsx` | Cambio de estado, asignación a persona y apertura de la preparación desde la propia solicitud |
+| 📋 Solicitudes | `/solicitudes` | `app/(shell)/solicitudes.tsx` | Cambio de estado, asignación a persona y apertura de la preparación desde la propia solicitud. **Es la pantalla de la oficina** (`solicitudes.gestionar`): quien solo los pide ve los suyos en «Mis coches» |
 | 🧽 Preparación | `/preparacion` | `app/(shell)/preparacion.tsx` | Cronómetros en marcha, SLA calculado, checklist de tres estados, motivos de espera y bloqueo |
-| ↔ Movimientos | `/movimientos` | `app/(shell)/movimientos.tsx` | Histórico con filtros y alta de movimiento buscando por matrícula o VIN-8 |
+| ↔ Movimientos | `/movimientos` | `app/(shell)/movimientos.tsx` | Histórico con filtros y alta de movimiento buscando por matrícula o VIN-8. **De oficina** (`solicitudes.gestionar`): quien mueve coches usa «Mover coche», y el recorrido de un coche concreto está en su ficha |
 | *(nuevo)* 📍 Mover coche | `/mover` | `app/(shell)/mover.tsx` | Alta de movimientos en cadena, pensada para el móvil: matrícula y destino, sin tablas |
 | 📋 Recuentos | `/recuentos` | `app/(shell)/recuentos.tsx` | Recuento real: esperados/encontrados/faltan, escaneo con cámara en móvil, corrección de plaza, histórico |
 | ⚠ Incidencias | `/incidencias` | `app/(shell)/incidencias.tsx` | Alta con fotos de cámara o galería, cierre de incidencia |
 | 🔔 Notificaciones | `/notificaciones` | `app/(shell)/notificaciones.tsx` | Bandeja de avisos + reglas configurables; alta, pausa y borrado; alta de push en el dispositivo |
 | ⚙ Administración | `/administracion` | `app/(shell)/administracion.tsx` + `src/features/admin/` | Cinco pestañas: preparación, ubicaciones, flota y columnas, usuarios y roles, sistema. Ver abajo |
-| 📱 App móvil | `/mi-trabajo` | `app/(shell)/mi-trabajo.tsx` | En el mockup era una *simulación* dibujada; aquí es la pantalla de inicio real del operario, con sus tareas del día |
+| *(nuevo)* 🚗 Mis coches | `/mis-coches` | `app/(shell)/mis-coches.tsx` | La pantalla del comercial: sus coches y en qué punto está cada uno —lo pedido, cómo va, dónde está y la fecha comprometida— con lo que puede pedir desde ahí mismo. Sustituye a «Mi trabajo», que repetía en peor la cola del preparador, los encargos del transportista y los recuentos, y al comercial le enseñaba el trabajo de los demás |
 | *(nuevo)* Acceso | `/login` | `app/login.tsx` | No estaba en el mockup: hace falta para saber quién registra cada acción |
 
 ## Los modales del mockup
@@ -64,10 +64,18 @@ Por ejemplo, con la configuración de serie:
 
 | Rol | Menú del móvil | Abre en |
 |---|---|---|
-| Preparador | Mi preparación · Mover coche · Mi trabajo · Flota | Su cola de trabajo |
-| Recepción | Descargar camión · Mover coche · Mi trabajo · Flota | La descarga en curso |
+| Preparador | Mi preparación · Mover coche · Flota | Su cola de trabajo |
+| Recepción | Descargar camión · Mover coche · Flota | La descarga en curso |
 | Transportista (externo) | Solo «Mis traslados», sin menú | Sus traslados |
-| Comercial | Entregas · Mover coche · Mi trabajo · Flota | Sus entregas |
+| Comercial | Mis coches · Entregas · Mover coche · Flota | Sus coches |
+| Logística | Solicitudes · Entregas · Mover coche · Flota | Los encargos del día |
+| Administrador | Flota · Solicitudes · Mover coche · Recuentos · Incidencias | El panel de control |
+
+**Cada uno entra por su pantalla, también en la web.** Quien tiene el panel
+de dirección entra por el panel; el resto, por la primera sección que su rol
+tenga marcada en Administración. Antes todos entraban por la primera del
+menú —Flota para casi todos—, así que al comercial la app le abría el parque
+entero en vez de sus coches.
 
 ### Pantallas rápidas de campo
 

@@ -103,7 +103,7 @@ npm run verify:api           # la app real contra el backend real
 |---|---|
 | `scripts/verify/rutas.mjs` | 7 perfiles × 2 anchos × 18 pantallas = 252 cargas: que ninguna se rompe para ningún rol |
 | `scripts/verify/funciones.mjs` | 84 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
-| `scripts/verify/roles.mjs` | 53 comprobaciones: la jornada entera de cada uno de los 6 roles, y que lo que no le toca no lo ve ni lo puede tocar |
+| `scripts/verify/roles.mjs` | 58 comprobaciones: la jornada entera de cada uno de los 6 roles, y que lo que no le toca no lo ve ni lo puede tocar |
 | `server/pruebas/` | 104 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios, seguridad y las **invariantes** de los datos |
 | `server/pruebas/aleatorio.test.ts` | 10.000 comandos al azar con semilla: dispara lo que a nadie se le ocurre y comprueba las 9 invariantes después de **cada uno**. Si falla, la semilla que sale por pantalla repite la secuencia exacta |
 | `scripts/verify/backend.mjs` | 24 comprobaciones de la app compilada contra el servidor: entrar con contraseña, mover un coche y que **otro dispositivo lo vea**, subir una foto y recuperar la contraseña por correo |
@@ -174,6 +174,18 @@ en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
 - **El comercial de un vehículo viene de Quiter como texto** («Juan»), no
   como usuario («Juan Bilbao»). El emparejamiento está en
   `esDelComercial` (`src/data/selectors.ts`), en un solo sitio.
+- **Cada rol tiene una pantalla suya y entra por ella**, en el móvil y en
+  la web: la primera sección que tenga marcada en Administración (quien
+  lleva el panel de dirección entra por el panel). El comercial tiene
+  **«Mis coches»** (`/mis-coches`): sus coches, qué ha pedido para cada uno,
+  cómo va, dónde está y la fecha comprometida, todo junto. Antes eso estaba
+  repartido en tres pantallas y ninguna enseñaba solo lo suyo.
+- **«Solicitudes» y «Movimientos» son de oficina** (`solicitudes.gestionar`).
+  Quien solo *pide* encargos no necesita el tablón de toda la red, y quien
+  mueve coches usa «Mover coche»; el recorrido de un coche concreto está en
+  su ficha. Se quitó **«Mi trabajo»**: repetía en peor la cola del
+  preparador, los encargos del transportista y los recuentos, y al comercial
+  le enseñaba el trabajo de los demás.
 - **El comercial se asigna en cualquier momento, no solo al dar de alta.**
   Los coches llegan de Quiter sin comercial hasta que alguien los vende. En
   la ficha del vehículo: el que vende **se queda un coche libre** de un

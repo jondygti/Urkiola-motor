@@ -3,7 +3,7 @@ import { USUARIOS, entrarComo } from './entorno.mjs';
 const RUTAS = [
   '/', '/flota', '/entregas', '/recepcion', '/mi-recepcion', '/campa', '/solicitudes',
   '/preparacion', '/movimientos', '/mover', '/recuentos', '/incidencias', '/notificaciones',
-  '/administracion', '/mi-trabajo', '/mis-traslados', '/mi-preparacion', '/vehiculo/v-12345678',
+  '/administracion', '/mis-coches', '/mis-traslados', '/mi-preparacion', '/vehiculo/v-12345678',
 ];
 
 /**
