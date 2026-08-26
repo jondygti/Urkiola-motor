@@ -67,7 +67,11 @@ export const NAV: NavGroup[] = [
         label: 'Preparación',
         icon: '🧽',
         short: 'Preparar',
-        anyOf: ['preparacion.ejecutar', 'preparacion.gestionar'],
+        // El panel de todas las preparaciones de la red es de oficina. El
+        // preparador tiene «Mi preparación», que es su cola ordenada por
+        // plazo: tener las dos le hacía elegir entre dos pantallas que
+        // decían lo mismo, y una de ellas era el trabajo de los demás.
+        anyOf: ['preparacion.gestionar'],
       },
       {
         href: '/traslados',

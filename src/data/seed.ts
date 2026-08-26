@@ -129,11 +129,14 @@ export const ROLES: RoleConfig[] = [
   {
     id: 'admin',
     label: 'Administrador',
-    // Todo menos «vende coches»: ese permiso marca a quien lleva ventas y
-    // es lo que hace aparecer «Mis coches», que sin coches propios sale
-    // vacío. Si algún día el administrador también vende, se le marca desde
-    // Administración como cualquier otro permiso.
-    permissions: ALL_PERMISSIONS.filter((p) => p !== 'flota.asignarse'),
+    // Todo menos los dos permisos que marcan un oficio concreto: «vende
+    // coches» (`flota.asignarse`) y «lleva traslados» (`traslados.propios`).
+    // Son los que hacen aparecer «Mis coches» y «Mis traslados», que a quien
+    // no vende ni conduce le salen vacías. Si algún día hacen falta, se
+    // marcan desde Administración como cualquier otro permiso.
+    permissions: ALL_PERMISSIONS.filter(
+      (p) => p !== 'flota.asignarse' && p !== 'traslados.propios'
+    ),
     mobileSections: ['/flota', '/solicitudes', '/mover', '/recuentos', '/incidencias'],
     builtin: true,
   },
@@ -145,7 +148,11 @@ export const ROLES: RoleConfig[] = [
     // `flota.editar`, que es su herramienta; `flota.asignarse` es para
     // quedarse uno mismo un coche, y eso lo hace quien vende.
     permissions: ALL_PERMISSIONS.filter(
-      (p) => p !== 'admin.configurar' && p !== 'panel.ver' && p !== 'flota.asignarse'
+      (p) =>
+        p !== 'admin.configurar' &&
+        p !== 'panel.ver' &&
+        p !== 'flota.asignarse' &&
+        p !== 'traslados.propios'
     ),
     mobileSections: ['/solicitudes', '/entregas', '/mover', '/flota'],
     builtin: true,

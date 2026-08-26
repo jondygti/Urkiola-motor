@@ -236,7 +236,16 @@ export async function ejecutar(browser, BASE) {
     const cerrado = (await estadoGuardado(page))?.counts?.find((c) => c.id === nuevo?.id);
     ok('PREPARADOR · y lo cierra al terminar', !!cerrado?.closedAt);
 
-    // Lo que no le toca, no lo ve.
+    // Lo que no le toca, no lo ve. Empezando por el panel de todas las
+    // preparaciones de la red: él tiene su cola, que es la misma
+    // información ordenada por lo que le toca a él.
+    await page.goto(`${BASE}/preparacion`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(800);
+    ok(
+      'PREPARADOR · no ve el panel de toda la red, tiene su cola',
+      /no tiene (acceso|permiso)/.test(await page.evaluate(() => document.body.innerText))
+    );
+
     await page.goto(`${BASE}/administracion`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(1200);
     const bloqueo = await page.evaluate(() => document.body.innerText);

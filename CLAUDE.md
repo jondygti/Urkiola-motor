@@ -103,7 +103,7 @@ npm run verify:api           # la app real contra el backend real
 |---|---|
 | `scripts/verify/rutas.mjs` | 7 perfiles × 2 anchos × 19 pantallas = 266 cargas: que ninguna se rompe para ningún rol |
 | `scripts/verify/funciones.mjs` | 85 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
-| `scripts/verify/roles.mjs` | 69 comprobaciones: la jornada entera de cada uno de los 6 roles, y que lo que no le toca no lo ve ni lo puede tocar |
+| `scripts/verify/roles.mjs` | 70 comprobaciones: la jornada entera de cada uno de los 6 roles, y que lo que no le toca no lo ve ni lo puede tocar |
 | `server/pruebas/` | 108 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios, seguridad y las **invariantes** de los datos |
 | `server/pruebas/aleatorio.test.ts` | 10.000 comandos al azar con semilla: dispara lo que a nadie se le ocurre y comprueba las 9 invariantes después de **cada uno**. Si falla, la semilla que sale por pantalla repite la secuencia exacta |
 | `scripts/verify/backend.mjs` | 24 comprobaciones de la app compilada contra el servidor: entrar con contraseña, mover un coche y que **otro dispositivo lo vea**, subir una foto y recuperar la contraseña por correo |
@@ -196,7 +196,16 @@ en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
   **«Mis coches»** (`/mis-coches`): sus coches, qué ha pedido para cada uno,
   cómo va, dónde está y la fecha comprometida, todo junto. Antes eso estaba
   repartido en tres pantallas y ninguna enseñaba solo lo suyo.
-- **«Solicitudes» y «Movimientos» son de oficina** (`solicitudes.gestionar`).
+- **Los permisos que marcan un oficio no se dan de serie a quien no lo
+  hace.** `flota.asignarse` («vende coches») y `traslados.propios` («lleva
+  traslados») hacen aparecer «Mis coches» y «Mis traslados»; al
+  administrador y a logística les salían las dos vacías. Se marcan desde
+  Administración si algún día hacen falta.
+- **«Solicitudes», «Movimientos» y «Preparación» son de oficina.** Las tres
+  enseñan el trabajo de toda la red para repartirlo. Quien lo ejecuta tiene
+  su propia pantalla con lo suyo —«Mi preparación», «Mis coches», «Mis
+  traslados»— y tener las dos le obligaba a elegir entre dos pantallas que
+  decían lo mismo, una de ellas con el trabajo de los demás.
   Quien solo *pide* encargos no necesita el tablón de toda la red, y quien
   mueve coches usa «Mover coche»; el recorrido de un coche concreto está en
   su ficha. Se quitó **«Mi trabajo»**: repetía en peor la cola del
