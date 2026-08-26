@@ -1,4 +1,4 @@
-import { USUARIOS, cambiarDeUsuario, entrarComo, elegirEnLista, estadoGuardado, marcador } from './entorno.mjs';
+import { USUARIOS, cambiarDeUsuario, entrarComo, elegirEnLista, estadoGuardado, marcador, pulsar } from './entorno.mjs';
 
 /**
  * Comprobaciones de la operativa: no que las pantallas carguen, sino que
@@ -204,10 +204,14 @@ export async function ejecutar(browser, BASE) {
       (s?.events?.[0]?.title ?? '').startsWith('Llaves recogidas'),
       s?.events?.[0]?.title ?? ''
     );
-    ok(
-      '10 · y la tarjeta dice cuándo se recogieron',
-      (await page.evaluate(() => document.body.innerText)).includes('Llaves recogidas')
-    );
+    // Al recoger las llaves el traslado cambia de fase: pasa de «por
+    // recoger» a los que lleva encima, que es donde tiene que buscarlo
+    // cuando vaya a entregarlo.
+    await pulsar(page, 'Los llevo yo');
+    await page.waitForTimeout(800);
+    const enRuta = await page.evaluate(() => document.body.innerText);
+    ok('10 · el traslado pasa a los que lleva encima', enRuta.includes('En ruta'));
+    ok('10 · y la tarjeta dice cuándo se recogieron', enRuta.includes('Llaves recogidas'));
     ok('10 · sin errores de JavaScript', errores.length === 0, errores[0] ?? '');
     await context.close();
   }

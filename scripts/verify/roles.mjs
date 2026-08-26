@@ -120,6 +120,14 @@ export async function ejecutar(browser, BASE) {
       `${reglasAntes} → ${reglasDespues}`
     );
 
+    // «Mis coches» es de quien vende: a logística no le sale.
+    await page.goto(`${BASE}/mis-coches`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(800);
+    ok(
+      'LOGÍSTICA · no ve «Mis coches», que es del comercial',
+      /no tiene (acceso|permiso)/.test(await page.evaluate(() => document.body.innerText))
+    );
+
     // 4 · El registro de lo que han hecho las empresas de transporte.
     await page.goto(`${BASE}/traslados`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(1100);
@@ -432,16 +440,36 @@ export async function ejecutar(browser, BASE) {
     ok('TRANSPORTISTA · ve sus traslados', suyos.includes('traslado') || suyos.includes('Traslados'));
     ok('TRANSPORTISTA · sin menú lateral ni pestañas', !suyos.includes('Administración') && !suyos.includes('Recuentos'));
 
-    // Su registro de trabajo: lo que ya ha hecho, sin salir de su pantalla.
-    await pulsar(page, 'Hechos ·');
+    // Las tres fases del viaje, separadas: ir a por las llaves, llevarlo y
+    // lo ya entregado. Son tres trabajos distintos.
+    ok(
+      'TRANSPORTISTA · sus traslados van por fases',
+      suyos.includes('Por recoger') && suyos.includes('Los llevo yo') && suyos.includes('Entregados')
+    );
+
+    await pulsar(page, 'Los llevo yo');
+    await page.waitForTimeout(900);
+    const encima = await page.evaluate(() => document.body.innerText);
+    ok(
+      'TRANSPORTISTA · los que lleva encima piden entregarlos',
+      encima.includes('He entregado') || encima.includes('No llevas ningún coche'),
+      encima.match(/He entregado[^\n]*/)?.[0] ?? 'ninguno en ruta'
+    );
+
+    // Su registro de trabajo: lo que ya ha entregado, sin salir de su pantalla.
+    await pulsar(page, 'Entregados ·');
     await page.waitForTimeout(900);
     const hechos = await page.evaluate(() => document.body.innerText);
-    ok('TRANSPORTISTA · ve los traslados que ya ha hecho', /TRASLADOS\s*\n?\s*\d+/.test(hechos) || hechos.includes('Resumen'));
+    ok('TRANSPORTISTA · ve los traslados que ya ha entregado', /ENTREGADOS\s*\n?\s*\d+/.test(hechos));
     ok(
-      'TRANSPORTISTA · con la recogida y la entrega de cada uno',
-      hechos.includes('🔑') && hechos.includes('🏁'),
-      hechos.match(/🔑[^\n]*/)?.[0] ?? ''
+      'TRANSPORTISTA · y puede mirar mes a mes',
+      hechos.includes('Todos los meses'),
+      hechos.match(/Todos los meses[^\n]*/)?.[0] ?? ''
     );
+    // La línea de cada traslado, no el icono de la pestaña: hora de
+    // recogida, hora de entrega y lo que tardó.
+    const linea = hechos.match(/🔑 [^\n]*🏁[^\n]*/)?.[0] ?? '';
+    ok('TRANSPORTISTA · con la recogida y la entrega de cada uno', !!linea, linea);
     ok(
       'TRANSPORTISTA · y si fue en plazo o no',
       hechos.includes('En plazo') || hechos.includes('Fuera de plazo')
@@ -452,7 +480,7 @@ export async function ejecutar(browser, BASE) {
     const otra = await entrarComo(browser, USUARIOS.transportista2, 420);
     await otra.page.goto(`${BASE}/mis-traslados`, { waitUntil: 'networkidle' });
     await otra.page.waitForTimeout(900);
-    await pulsar(otra.page, 'Hechos ·');
+    await pulsar(otra.page, 'Entregados ·');
     await otra.page.waitForTimeout(900);
     const hechosOtra = await otra.page.evaluate(() => document.body.innerText);
     const placaAjena = hechosOtra.match(/\b\d{4}\s?[A-Z]{3}\b/)?.[0] ?? null;

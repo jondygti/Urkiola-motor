@@ -228,6 +228,30 @@ export function movementsFor(s: AppState, vehicleId: Id) {
   return s.movements.filter((m) => m.vehicleId === vehicleId);
 }
 
+/* ---------------------------------------------- las tres fases del viaje */
+
+/**
+ * Los meses que tienen traslados entregados, del más reciente al más
+ * antiguo. Es lo que llena el desplegable de «Entregados».
+ */
+export function mesesConEntregas(hechos: TrasladoHecho[]): string[] {
+  const meses = new Set<string>();
+  for (const h of hechos) {
+    if (h.request.deliveredAt) meses.add(h.request.deliveredAt.slice(0, 7));
+  }
+  return [...meses].sort().reverse();
+}
+
+/** Nombre del mes tal como se dice: «agosto de 2026». */
+export function nombreDeMes(mes: string): string {
+  const [ano, m] = mes.split('-');
+  const nombres = [
+    'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+  ];
+  return `${nombres[Number(m) - 1] ?? m} de ${ano}`;
+}
+
 /* ------------------------------------------------- traslados hechos */
 
 /** Un traslado ya entregado, con lo que tardó. */
@@ -610,6 +634,26 @@ export function customValue(v: Vehicle, field: CustomField): string {
  * asignado a él en concreto. Nunca los de otra empresa ni los que aún no se
  * han repartido.
  */
+/**
+ * Los traslados de una persona, separados por la fase del viaje.
+ *
+ * Son tres momentos distintos y hasta ahora salían mezclados en una lista:
+ * los que están esperando a que pase a por las llaves, los que lleva encima
+ * ahora mismo y los que ya entregó. El transportista no trabaja igual en los
+ * tres: los primeros los planifica, el segundo lo tiene que cerrar hoy y los
+ * terceros son su registro de trabajo.
+ */
+export function misTrasladosPorFase(
+  s: AppState,
+  userId: Id
+): { porRecoger: ServiceRequest[]; recogidos: ServiceRequest[] } {
+  const pendientes = myTransfers(s, userId);
+  return {
+    porRecoger: pendientes.filter((r) => !r.pickedUpAt),
+    recogidos: pendientes.filter((r) => !!r.pickedUpAt),
+  };
+}
+
 export function myTransfers(s: AppState, userId: Id): ServiceRequest[] {
   const user = s.users.find((u) => u.id === userId);
   const carrierId = user?.carrierId ?? null;

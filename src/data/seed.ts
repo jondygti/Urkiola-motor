@@ -129,16 +129,24 @@ export const ROLES: RoleConfig[] = [
   {
     id: 'admin',
     label: 'Administrador',
-    permissions: [...ALL_PERMISSIONS],
+    // Todo menos «vende coches»: ese permiso marca a quien lleva ventas y
+    // es lo que hace aparecer «Mis coches», que sin coches propios sale
+    // vacío. Si algún día el administrador también vende, se le marca desde
+    // Administración como cualquier otro permiso.
+    permissions: ALL_PERMISSIONS.filter((p) => p !== 'flota.asignarse'),
     mobileSections: ['/flota', '/solicitudes', '/mover', '/recuentos', '/incidencias'],
     builtin: true,
   },
   {
     id: 'logistica',
     label: 'Logística',
-    // Todo menos administrar y menos el panel de control, que es de
-    // dirección. Si hace falta, se le marca desde Administración.
-    permissions: ALL_PERMISSIONS.filter((p) => p !== 'admin.configurar' && p !== 'panel.ver'),
+    // Todo menos administrar, el panel de control —que es de dirección— y
+    // «vende coches». La oficina asigna comercial a cualquiera con
+    // `flota.editar`, que es su herramienta; `flota.asignarse` es para
+    // quedarse uno mismo un coche, y eso lo hace quien vende.
+    permissions: ALL_PERMISSIONS.filter(
+      (p) => p !== 'admin.configurar' && p !== 'panel.ver' && p !== 'flota.asignarse'
+    ),
     mobileSections: ['/solicitudes', '/entregas', '/mover', '/flota'],
     builtin: true,
   },
@@ -799,7 +807,9 @@ export function buildSeedState(): AppState {
     const v = pool[i];
     const esTraslado = chance(0.55);
     const destino = pick(PREP_SITES).id;
-    const pedidoHace = Math.floor(24 + rnd() * 900);
+    // Repartidos por unos cinco meses: el transportista mira su trabajo por
+    // meses, y con todo dentro del mismo el selector de mes no diría nada.
+    const pedidoHace = Math.floor(24 + rnd() * 3600);
     const recogidoHace = pedidoHace - Math.floor(1 + rnd() * 8);
     // La mayoría llega dentro de plazo; uno de cada seis se pasa.
     const tardado = chance(1 / 6) ? 48 + Math.floor(rnd() * 30) : Math.floor(2 + rnd() * 40);

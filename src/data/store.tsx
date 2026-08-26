@@ -37,7 +37,10 @@ const TOKEN_KEY = 'urkiola.token.v1';
 // 13: el traslado guarda ahora cuándo se entregó y quién lo entregó. Lo
 // guardado antes no lo tiene, y sin eso el registro de traslados saldría
 // medio vacío sin que se entienda por qué.
-const STATE_SCHEMA_VERSION = 13;
+// 14: el administrador y logística dejan de llevar «vende coches» de serie,
+// que es lo que hacía aparecerles «Mis coches». Los permisos de los roles
+// están guardados en la configuración del dispositivo.
+const STATE_SCHEMA_VERSION = 14;
 
 interface StoredState {
   v: number;

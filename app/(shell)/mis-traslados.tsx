@@ -12,6 +12,7 @@ import {
   Pill,
   Screen,
   Segmented,
+  Select,
   Spacer,
   radius,
   space,
@@ -21,7 +22,9 @@ import { useStore } from '@/data/store';
 import {
   carrierName,
   deadlineOf,
-  myTransfers,
+  mesesConEntregas,
+  misTrasladosPorFase,
+  nombreDeMes,
   resumenTransporte,
   trasladosHechos,
 } from '@/data/selectors';
@@ -38,16 +41,21 @@ import { CampoFotos } from '@/features/actions/CampoFotos';
  * traslado. Nada de flota, campas ni menús. El botón cambia según dónde
  * esté el viaje, así que siempre hay una sola cosa que pulsar.
  */
+type Fase = 'porRecoger' | 'recogidos' | 'entregados';
+
+const TODOS_LOS_MESES = '__todos__';
+
 export default function MyTransfersScreen() {
   const { state, user } = useStore();
   const [toast, setToast] = useState<string | null>(null);
-  const [pestana, setPestana] = useState<'pendientes' | 'hechos'>('pendientes');
+  const [pestana, setPestana] = useState<Fase>('porRecoger');
 
-  const transfers = myTransfers(state, user?.id ?? '');
-  // Lo que ya ha hecho: los suyos y los de su empresa. Un traslado terminado
+  // Las tres fases del viaje, que son tres trabajos distintos: ir a por las
+  // llaves, llevar el coche y lo que ya está entregado.
+  const { porRecoger, recogidos } = misTrasladosPorFase(state, user?.id ?? '');
+  // Lo entregado: lo suyo y lo de su empresa. Un traslado terminado
   // desaparecía de aquí y no volvía a verse; es su registro de trabajo.
   const hechos = trasladosHechos(state, { carrierId: user?.carrierId ?? null });
-  const resumen = resumenTransporte(hechos);
 
   return (
     <ScreenGuard href="/mis-traslados" title="Mis traslados">
@@ -57,9 +65,9 @@ export default function MyTransfersScreen() {
         <View style={{ width: '100%', maxWidth: 640, alignSelf: 'center' }}>
         <H1>Mis traslados</H1>
         <Muted>
-          {transfers.length === 0
-            ? 'No tienes traslados asignados ahora mismo.'
-            : `Tienes ${transfers.length} ${transfers.length === 1 ? 'traslado pendiente' : 'traslados pendientes'}, ordenados por recorrido.`}
+          {porRecoger.length + recogidos.length === 0
+            ? 'No tienes traslados pendientes ahora mismo.'
+            : `Tienes ${recogidos.length} ${recogidos.length === 1 ? 'coche encima' : 'coches encima'} y ${porRecoger.length} por recoger.`}
         </Muted>
 
         {toast ? <Notice>{toast}</Notice> : null}
@@ -68,28 +76,40 @@ export default function MyTransfersScreen() {
 
         <Segmented
           value={pestana}
-          onChange={(v) => setPestana(v as 'pendientes' | 'hechos')}
+          onChange={(v) => setPestana(v as Fase)}
           options={[
-            { value: 'pendientes', label: `Por hacer · ${transfers.length}` },
-            { value: 'hechos', label: `Hechos · ${hechos.length}` },
+            { value: 'porRecoger', label: `🔑 Por recoger · ${porRecoger.length}` },
+            { value: 'recogidos', label: `🚚 Los llevo yo · ${recogidos.length}` },
+            { value: 'entregados', label: `✓ Entregados · ${hechos.length}` },
           ]}
         />
 
         <Spacer />
 
-        {pestana === 'pendientes' ? (
-          transfers.length === 0 ? (
+        {pestana === 'porRecoger' ? (
+          porRecoger.length === 0 ? (
             <Panel>
               <Muted>
-                Cuando logística te asigne un traslado aparecerá aquí. Puedes cerrar la app: te llegará un
-                aviso.
+                Nada por recoger. Cuando logística te asigne un traslado aparecerá aquí; puedes cerrar la
+                app, que te llegará un aviso.
               </Muted>
             </Panel>
           ) : (
-            transfers.map((r) => <TransferCard key={r.id} request={r} onDone={setToast} />)
+            porRecoger.map((r) => <TransferCard key={r.id} request={r} onDone={setToast} />)
+          )
+        ) : pestana === 'recogidos' ? (
+          recogidos.length === 0 ? (
+            <Panel>
+              <Muted>
+                No llevas ningún coche encima ahora mismo. Los que recojas aparecerán aquí hasta que los
+                entregues.
+              </Muted>
+            </Panel>
+          ) : (
+            recogidos.map((r) => <TransferCard key={r.id} request={r} onDone={setToast} />)
           )
         ) : (
-          <Hechos hechos={hechos} resumen={resumen} />
+          <Entregados hechos={hechos} />
         )}
 
         <Spacer h={space.lg} />
@@ -287,35 +307,56 @@ function ProblemModal({
 }
 
 /**
- * Lo que ya ha hecho este transportista.
+ * Lo que ya ha entregado este transportista, mes a mes.
  *
- * Sirve para lo mismo a los dos lados: él tiene su parte de trabajo por
- * escrito y Urkiola ve lo mismo que ve él, sin versiones distintas de la
- * misma semana.
+ * El mes es la unidad en la que se habla con una empresa de transporte: «en
+ * agosto me hiciste 14». Por eso se elige el mes y no un rango de días, y
+ * por eso el resumen se recalcula con lo que hay dentro del mes elegido.
+ *
+ * Urkiola ve exactamente lo mismo en «Traslados hechos». A propósito: si
+ * cada uno mira una lista distinta, la conversación se convierte en
+ * discutir cuál de las dos vale.
  */
-function Hechos({
-  hechos,
-  resumen,
-}: {
-  hechos: ReturnType<typeof trasladosHechos>;
-  resumen: ReturnType<typeof resumenTransporte>;
-}) {
+function Entregados({ hechos }: { hechos: ReturnType<typeof trasladosHechos> }) {
   const { state } = useStore();
   const { c } = useTheme();
+  const meses = mesesConEntregas(hechos);
+  const [mes, setMes] = useState<string>(TODOS_LOS_MESES);
+
+  const lista = mes === TODOS_LOS_MESES ? hechos : hechos.filter((h) => h.request.deliveredAt?.startsWith(mes));
+  const resumen = resumenTransporte(lista);
 
   if (hechos.length === 0) {
     return (
       <Panel>
-        <Muted>Todavía no hay traslados terminados a tu nombre.</Muted>
+        <Muted>Todavía no has entregado ningún traslado.</Muted>
       </Panel>
     );
   }
 
   return (
     <>
-      <Panel title="Resumen">
+      <Panel>
+        <Select
+          full
+          value={mes}
+          onChange={setMes}
+          title="Mes"
+          options={[
+            { value: TODOS_LOS_MESES, label: `Todos los meses · ${hechos.length}` },
+            ...meses.map((m) => ({
+              value: m,
+              label: `${nombreDeMes(m)} · ${hechos.filter((h) => h.request.deliveredAt?.startsWith(m)).length}`,
+            })),
+          ]}
+        />
+      </Panel>
+
+      <Spacer h={space.md} />
+
+      <Panel title={mes === TODOS_LOS_MESES ? 'Todo lo entregado' : nombreDeMes(mes)}>
         <View style={{ flexDirection: 'row', gap: space.md, flexWrap: 'wrap' }}>
-          <Dato label="Traslados" valor={String(resumen.total)} />
+          <Dato label="Entregados" valor={String(resumen.total)} />
           <Dato label="En plazo" valor={`${resumen.enPlazo} de ${resumen.total}`} />
           <Dato
             label="Tiempo medio"
@@ -326,37 +367,41 @@ function Hechos({
 
       <Spacer h={space.md} />
 
-      {hechos.map(({ request, vehicle, horas, fueraDePlazo }) => (
-        <View
-          key={request.id}
-          style={{
-            borderWidth: 1,
-            borderColor: c.border,
-            borderRadius: radius.md,
-            padding: 12,
-            marginBottom: space.sm,
-            gap: 3,
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <Text style={{ fontSize: 15, fontWeight: '800', color: c.text, flex: 1, minWidth: 120 }}>
-              {vehicle ? vehicleRef(vehicle) : request.vehicleId}
+      {lista.length === 0 ? (
+        <Panel>
+          <Muted>Ese mes no entregaste ningún coche.</Muted>
+        </Panel>
+      ) : (
+        lista.map(({ request, vehicle, horas, fueraDePlazo }) => (
+          <View
+            key={request.id}
+            style={{
+              borderWidth: 1,
+              borderColor: c.border,
+              borderRadius: radius.md,
+              padding: 12,
+              marginBottom: space.sm,
+              gap: 3,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: c.text, flex: 1, minWidth: 120 }}>
+                {vehicle ? vehicleRef(vehicle) : request.vehicleId}
+              </Text>
+              {fueraDePlazo ? <Pill tone="red">Fuera de plazo</Pill> : <Pill tone="ok">En plazo</Pill>}
+            </View>
+            <Text style={{ fontSize: 12, color: c.textMuted }}>{vehicle ? vehicleName(vehicle) : ''}</Text>
+            <Text style={{ fontSize: 12, color: c.text }}>
+              {locationLabel(state, request.from, true)} → {locationLabel(state, request.to, true)}
             </Text>
-            {fueraDePlazo ? <Pill tone="red">Fuera de plazo</Pill> : <Pill tone="ok">En plazo</Pill>}
+            <Text style={{ fontSize: 11, color: c.textFaint }}>
+              🔑 {request.pickedUpAt ? formatDateTime(request.pickedUpAt) : 'Sin recogida apuntada'} · 🏁{' '}
+              {request.deliveredAt ? formatDateTime(request.deliveredAt) : 'Sin entrega apuntada'}
+              {horas === null ? '' : ` · ${Math.round(horas)} h`}
+            </Text>
           </View>
-          <Text style={{ fontSize: 12, color: c.textMuted }}>
-            {vehicle ? vehicleName(vehicle) : ''}
-          </Text>
-          <Text style={{ fontSize: 12, color: c.text }}>
-            {locationLabel(state, request.from, true)} → {locationLabel(state, request.to, true)}
-          </Text>
-          <Text style={{ fontSize: 11, color: c.textFaint }}>
-            🔑 {request.pickedUpAt ? formatDateTime(request.pickedUpAt) : 'Sin recogida apuntada'} · 🏁{' '}
-            {request.deliveredAt ? formatDateTime(request.deliveredAt) : 'Sin entrega apuntada'}
-            {horas === null ? '' : ` · ${Math.round(horas)} h`}
-          </Text>
-        </View>
-      ))}
+        ))
+      )}
     </>
   );
 }

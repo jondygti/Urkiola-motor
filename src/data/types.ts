@@ -427,7 +427,7 @@ export const PERMISSION_LABEL: Record<Permission, string> = {
   'panel.ver': 'Ver el panel de control',
   'flota.ver': 'Ver la flota y las fichas',
   'flota.editar': 'Editar campos propios del vehículo',
-  'flota.asignarse': 'Asignarse vehículos como comercial',
+  'flota.asignarse': 'Vende coches: se los asigna y ve «Mis coches»',
   'campa.ver': 'Ver campas y plazas',
   'movimientos.registrar': 'Registrar movimientos',
   'traslados.propios': 'Ver y completar solo sus traslados asignados',
