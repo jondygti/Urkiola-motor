@@ -107,3 +107,26 @@ test('ningún campo marcado como comercial sale hacia el transportista', async (
     }
   }
 });
+
+test('el transportista recibe también los traslados que ya ha hecho', async (t) => {
+  // Su registro de trabajo tiene que llegarle del servidor: si el recorte
+  // solo mandara los pendientes, la pestaña «Hechos» saldría vacía contra el
+  // backend aunque en la demostración se vea llena.
+  const p = await servidorDePruebas();
+  t.after(() => p.limpiar());
+
+  const { user: iker } = await p.servicio.login('transporte@urkiolacarservice.com', CLAVE);
+  const visto = p.servicio.estadoDe(iker);
+
+  const hechos = visto.requests.filter((r) => r.type === 'traslado' && r.status === 'terminada');
+  assert.ok(hechos.length > 0, 'tiene que recibir sus traslados terminados');
+  assert.ok(
+    hechos.every((r) => !!r.deliveredAt),
+    'y cada uno con la fecha de entrega, que es lo que se le enseña'
+  );
+  // Y ninguno de la otra empresa.
+  assert.ok(
+    visto.requests.every((r) => r.carrierId === null || r.carrierId === iker.carrierId),
+    'no puede recibir traslados de la otra empresa de transporte'
+  );
+});

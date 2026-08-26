@@ -228,6 +228,84 @@ export function movementsFor(s: AppState, vehicleId: Id) {
   return s.movements.filter((m) => m.vehicleId === vehicleId);
 }
 
+/* ------------------------------------------------- traslados hechos */
+
+/** Un traslado ya entregado, con lo que tardó. */
+export interface TrasladoHecho {
+  request: ServiceRequest;
+  vehicle: Vehicle | undefined;
+  /** Horas entre recoger las llaves y entregar. Null si falta algún dato. */
+  horas: number | null;
+  /** Se pasó del plazo comprometido. */
+  fueraDePlazo: boolean;
+}
+
+/**
+ * Los traslados que ya se han hecho.
+ *
+ * Un traslado terminado desaparecía de todas las pantallas: dejaba de estar
+ * pendiente y ahí se acababa. Ni el transportista podía ver lo que había
+ * hecho ni Urkiola lo que le habían hecho, y eso es justo lo que hay que
+ * poder mirar cuando hay que hablar con el proveedor.
+ *
+ * Se ordenan por fecha de entrega, lo último primero.
+ */
+export function trasladosHechos(
+  s: AppState,
+  filtro: { carrierId?: Id | null; userId?: Id | null; desde?: string; hasta?: string } = {}
+): TrasladoHecho[] {
+  return s.requests
+    .filter((r) => r.type === 'traslado' && r.status === 'terminada')
+    .filter((r) => (filtro.carrierId ? r.carrierId === filtro.carrierId : true))
+    .filter((r) => (filtro.userId ? r.assignedTo === filtro.userId || r.deliveredBy === filtro.userId : true))
+    .filter((r) => {
+      // Sin fecha de entrega no se puede situar en el tiempo: son los
+      // traslados que se cerraron antes de que esto se registrara.
+      if (!filtro.desde && !filtro.hasta) return true;
+      if (!r.deliveredAt) return false;
+      if (filtro.desde && r.deliveredAt < filtro.desde) return false;
+      if (filtro.hasta && r.deliveredAt > filtro.hasta) return false;
+      return true;
+    })
+    .map((request): TrasladoHecho => {
+      const horas =
+        request.pickedUpAt && request.deliveredAt
+          ? (new Date(request.deliveredAt).getTime() - new Date(request.pickedUpAt).getTime()) / 3_600_000
+          : null;
+      return {
+        request,
+        vehicle: s.vehicles.find((v) => v.id === request.vehicleId),
+        horas,
+        // Manda el plazo que se comprometió, no el de hoy: si mañana cambia
+        // en Administración, lo ya hecho no se vuelve bueno ni malo.
+        fueraDePlazo: !!request.dueAt && !!request.deliveredAt && request.deliveredAt > request.dueAt,
+      };
+    })
+    .sort((a, b) => (b.request.deliveredAt ?? '').localeCompare(a.request.deliveredAt ?? ''));
+}
+
+/** Lo que resume a un transportista: cuántos, cuántos en plazo y cuánto tarda. */
+export interface ResumenTransporte {
+  total: number;
+  enPlazo: number;
+  fueraDePlazo: number;
+  /** Horas medias de puerta a puerta, de los que tienen las dos fechas. */
+  horasMedia: number | null;
+}
+
+export function resumenTransporte(hechos: TrasladoHecho[]): ResumenTransporte {
+  const conHoras = hechos.filter((x) => x.horas !== null);
+  const fuera = hechos.filter((x) => x.fueraDePlazo).length;
+  return {
+    total: hechos.length,
+    enPlazo: hechos.length - fuera,
+    fueraDePlazo: fuera,
+    horasMedia: conHoras.length
+      ? conHoras.reduce((a, x) => a + (x.horas ?? 0), 0) / conHoras.length
+      : null,
+  };
+}
+
 /* --------------------------------------------------- los coches de uno */
 
 /** Un coche del comercial con todo lo que está pasando con él. */

@@ -165,6 +165,15 @@ export interface ServiceRequest {
   dueAt: ISODate | null;
   /** Cuándo se recogieron las llaves (solo traslados). */
   pickedUpAt: ISODate | null;
+  /**
+   * Cuándo se entregó de verdad, y quién lo dio por entregado.
+   *
+   * Sin esto un traslado terminado no dice cuándo se hizo: solo que ya no
+   * está pendiente. Y sin la fecha no hay registro que mirar cuando hay que
+   * hablar con la empresa de transporte.
+   */
+  deliveredAt: ISODate | null;
+  deliveredBy: Id | null;
   /** Empresa de transporte a la que se encarga el traslado. */
   carrierId: Id | null;
   /** Sede responsable de atender la solicitud. */

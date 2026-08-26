@@ -120,7 +120,21 @@ export async function ejecutar(browser, BASE) {
       `${reglasAntes} → ${reglasDespues}`
     );
 
-    // 4 · El histórico de movimientos.
+    // 4 · El registro de lo que han hecho las empresas de transporte.
+    await page.goto(`${BASE}/traslados`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1100);
+    const registro = await page.evaluate(() => document.body.innerText);
+    ok('LOGÍSTICA · ve los traslados hechos por los transportistas', registro.includes('Traslados hechos'));
+    ok(
+      'LOGÍSTICA · con el reparto por empresa',
+      registro.includes('Grúas Francis') || registro.includes('Grúas Betigoiz'),
+      registro.match(/Grúas [A-Za-z]+/)?.[0] ?? ''
+    );
+    ok(
+      'LOGÍSTICA · y cuántos se pasaron de plazo',
+      /FUERA DE PLAZO/i.test(registro) && /EN PLAZO/i.test(registro)
+    );
+
     await page.goto(`${BASE}/movimientos`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(900);
     ok(
@@ -417,6 +431,38 @@ export async function ejecutar(browser, BASE) {
     const suyos = await page.evaluate(() => document.body.innerText);
     ok('TRANSPORTISTA · ve sus traslados', suyos.includes('traslado') || suyos.includes('Traslados'));
     ok('TRANSPORTISTA · sin menú lateral ni pestañas', !suyos.includes('Administración') && !suyos.includes('Recuentos'));
+
+    // Su registro de trabajo: lo que ya ha hecho, sin salir de su pantalla.
+    await pulsar(page, 'Hechos ·');
+    await page.waitForTimeout(900);
+    const hechos = await page.evaluate(() => document.body.innerText);
+    ok('TRANSPORTISTA · ve los traslados que ya ha hecho', /TRASLADOS\s*\n?\s*\d+/.test(hechos) || hechos.includes('Resumen'));
+    ok(
+      'TRANSPORTISTA · con la recogida y la entrega de cada uno',
+      hechos.includes('🔑') && hechos.includes('🏁'),
+      hechos.match(/🔑[^\n]*/)?.[0] ?? ''
+    );
+    ok(
+      'TRANSPORTISTA · y si fue en plazo o no',
+      hechos.includes('En plazo') || hechos.includes('Fuera de plazo')
+    );
+    // Solo los de su empresa. Se comprueba con la otra empresa delante: se
+    // abre la app del transportista de Grúas Betigoiz, se coge una matrícula
+    // de las suyas y no puede aparecer en la lista de este.
+    const otra = await entrarComo(browser, USUARIOS.transportista2, 420);
+    await otra.page.goto(`${BASE}/mis-traslados`, { waitUntil: 'networkidle' });
+    await otra.page.waitForTimeout(900);
+    await pulsar(otra.page, 'Hechos ·');
+    await otra.page.waitForTimeout(900);
+    const hechosOtra = await otra.page.evaluate(() => document.body.innerText);
+    const placaAjena = hechosOtra.match(/\b\d{4}\s?[A-Z]{3}\b/)?.[0] ?? null;
+    await otra.context.close();
+
+    ok(
+      'TRANSPORTISTA · y solo los de su empresa',
+      !!placaAjena && !hechos.includes(placaAjena),
+      placaAjena ?? 'la otra empresa no tiene traslados hechos'
+    );
 
     // Ni la flota, ni la campa, ni las incidencias de los demás.
     for (const ruta of ['/flota', '/campa', '/incidencias', '/administracion', '/']) {

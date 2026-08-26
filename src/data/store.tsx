@@ -34,7 +34,10 @@ const TOKEN_KEY = 'urkiola.token.v1';
 // cada rol están guardadas en la configuración, así que sin esto los
 // dispositivos seguirían con un menú que apunta a una pantalla que ya no
 // existe.
-const STATE_SCHEMA_VERSION = 12;
+// 13: el traslado guarda ahora cuándo se entregó y quién lo entregó. Lo
+// guardado antes no lo tiene, y sin eso el registro de traslados saldría
+// medio vacío sin que se entienda por qué.
+const STATE_SCHEMA_VERSION = 13;
 
 interface StoredState {
   v: number;

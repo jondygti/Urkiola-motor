@@ -11,13 +11,20 @@ import {
   Panel,
   Pill,
   Screen,
+  Segmented,
   Spacer,
   radius,
   space,
   useTheme,
 } from '@/ui';
 import { useStore } from '@/data/store';
-import { carrierName, deadlineOf, myTransfers } from '@/data/selectors';
+import {
+  carrierName,
+  deadlineOf,
+  myTransfers,
+  resumenTransporte,
+  trasladosHechos,
+} from '@/data/selectors';
 import { formatDateTime, locationLabel, timeAgo, vehicleName, vehicleRef } from '@/data/format';
 import type { ServiceRequest, Vehicle } from '@/data/types';
 import { ScreenGuard } from '@/features/common/Guard';
@@ -34,8 +41,13 @@ import { CampoFotos } from '@/features/actions/CampoFotos';
 export default function MyTransfersScreen() {
   const { state, user } = useStore();
   const [toast, setToast] = useState<string | null>(null);
+  const [pestana, setPestana] = useState<'pendientes' | 'hechos'>('pendientes');
 
   const transfers = myTransfers(state, user?.id ?? '');
+  // Lo que ya ha hecho: los suyos y los de su empresa. Un traslado terminado
+  // desaparecía de aquí y no volvía a verse; es su registro de trabajo.
+  const hechos = trasladosHechos(state, { carrierId: user?.carrierId ?? null });
+  const resumen = resumenTransporte(hechos);
 
   return (
     <ScreenGuard href="/mis-traslados" title="Mis traslados">
@@ -54,15 +66,30 @@ export default function MyTransfersScreen() {
 
         <Spacer />
 
-        {transfers.length === 0 ? (
-          <Panel>
-            <Muted>
-              Cuando logística te asigne un traslado aparecerá aquí. Puedes cerrar la app: te llegará un
-              aviso.
-            </Muted>
-          </Panel>
+        <Segmented
+          value={pestana}
+          onChange={(v) => setPestana(v as 'pendientes' | 'hechos')}
+          options={[
+            { value: 'pendientes', label: `Por hacer · ${transfers.length}` },
+            { value: 'hechos', label: `Hechos · ${hechos.length}` },
+          ]}
+        />
+
+        <Spacer />
+
+        {pestana === 'pendientes' ? (
+          transfers.length === 0 ? (
+            <Panel>
+              <Muted>
+                Cuando logística te asigne un traslado aparecerá aquí. Puedes cerrar la app: te llegará un
+                aviso.
+              </Muted>
+            </Panel>
+          ) : (
+            transfers.map((r) => <TransferCard key={r.id} request={r} onDone={setToast} />)
+          )
         ) : (
-          transfers.map((r) => <TransferCard key={r.id} request={r} onDone={setToast} />)
+          <Hechos hechos={hechos} resumen={resumen} />
         )}
 
         <Spacer h={space.lg} />
@@ -256,5 +283,90 @@ function ProblemModal({
       <CampoFotos fotos={photos} onChange={setPhotos} hint="Opcional, pero ayuda mucho si hay un daño." />
       {error ? <Notice tone="danger">{error}</Notice> : null}
     </Modal>
+  );
+}
+
+/**
+ * Lo que ya ha hecho este transportista.
+ *
+ * Sirve para lo mismo a los dos lados: él tiene su parte de trabajo por
+ * escrito y Urkiola ve lo mismo que ve él, sin versiones distintas de la
+ * misma semana.
+ */
+function Hechos({
+  hechos,
+  resumen,
+}: {
+  hechos: ReturnType<typeof trasladosHechos>;
+  resumen: ReturnType<typeof resumenTransporte>;
+}) {
+  const { state } = useStore();
+  const { c } = useTheme();
+
+  if (hechos.length === 0) {
+    return (
+      <Panel>
+        <Muted>Todavía no hay traslados terminados a tu nombre.</Muted>
+      </Panel>
+    );
+  }
+
+  return (
+    <>
+      <Panel title="Resumen">
+        <View style={{ flexDirection: 'row', gap: space.md, flexWrap: 'wrap' }}>
+          <Dato label="Traslados" valor={String(resumen.total)} />
+          <Dato label="En plazo" valor={`${resumen.enPlazo} de ${resumen.total}`} />
+          <Dato
+            label="Tiempo medio"
+            valor={resumen.horasMedia === null ? '—' : `${Math.round(resumen.horasMedia)} h`}
+          />
+        </View>
+      </Panel>
+
+      <Spacer h={space.md} />
+
+      {hechos.map(({ request, vehicle, horas, fueraDePlazo }) => (
+        <View
+          key={request.id}
+          style={{
+            borderWidth: 1,
+            borderColor: c.border,
+            borderRadius: radius.md,
+            padding: 12,
+            marginBottom: space.sm,
+            gap: 3,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: c.text, flex: 1, minWidth: 120 }}>
+              {vehicle ? vehicleRef(vehicle) : request.vehicleId}
+            </Text>
+            {fueraDePlazo ? <Pill tone="red">Fuera de plazo</Pill> : <Pill tone="ok">En plazo</Pill>}
+          </View>
+          <Text style={{ fontSize: 12, color: c.textMuted }}>
+            {vehicle ? vehicleName(vehicle) : ''}
+          </Text>
+          <Text style={{ fontSize: 12, color: c.text }}>
+            {locationLabel(state, request.from, true)} → {locationLabel(state, request.to, true)}
+          </Text>
+          <Text style={{ fontSize: 11, color: c.textFaint }}>
+            🔑 {request.pickedUpAt ? formatDateTime(request.pickedUpAt) : 'Sin recogida apuntada'} · 🏁{' '}
+            {request.deliveredAt ? formatDateTime(request.deliveredAt) : 'Sin entrega apuntada'}
+            {horas === null ? '' : ` · ${Math.round(horas)} h`}
+          </Text>
+        </View>
+      ))}
+    </>
+  );
+}
+
+function Dato({ label, valor }: { label: string; valor: string }) {
+  const { c } = useTheme();
+  return (
+    <View style={{ minWidth: 90 }}>
+      <Text style={{ fontSize: 9, fontWeight: '800', color: c.textFaint }}>{label.toUpperCase()}</Text>
+      <Text style={{ fontSize: 18, fontWeight: '900', color: c.text, marginTop: 2 }}>{valor}</Text>
+    </View>
   );
 }

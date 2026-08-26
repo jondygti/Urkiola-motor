@@ -70,6 +70,15 @@ export const NAV: NavGroup[] = [
         anyOf: ['preparacion.ejecutar', 'preparacion.gestionar'],
       },
       {
+        href: '/traslados',
+        label: 'Traslados hechos',
+        icon: '🚚',
+        short: 'Hechos',
+        // El registro de lo que han hecho las empresas de transporte. El
+        // transportista ve lo mismo en su propia app, en «Hechos».
+        anyOf: ['solicitudes.gestionar'],
+      },
+      {
         href: '/movimientos',
         label: 'Movimientos',
         icon: '↔',

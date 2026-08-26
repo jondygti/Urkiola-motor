@@ -249,3 +249,91 @@ test('una preparación no termina antes de haber empezado', () => {
   assert.ok(fin.finishedAt! >= fin.startedAt!, `${fin.finishedAt} no puede ser anterior a ${fin.startedAt}`);
   assert.deepEqual(revisar(s), []);
 });
+
+/* ═══════════ 7 · El registro de traslados ═══════════ */
+
+test('entregar un traslado deja apuntado cuándo y quién', () => {
+  // Un traslado terminado no decía cuándo se hizo, solo que ya no estaba
+  // pendiente. Sin fecha de entrega no hay registro que enseñar a nadie.
+  let s = buildSeedState();
+  const v = s.vehicles.find((x) => x.location?.siteId === 'sondika')!;
+  const crear = orden({
+    type: 'request.create',
+    requestType: 'traslado',
+    vehicleId: v.id,
+    siteId: 'leioa',
+    to: { siteId: 'leioa' },
+  });
+  s = applyCommand(s, crear);
+  const req = s.requests.find((r) => r.vehicleId === v.id && r.type === 'traslado')!;
+
+  s = applyCommand(s, orden({ type: 'request.update', requestId: req.id, status: 'en_ruta' }));
+  const entrega = orden({ type: 'request.update', requestId: req.id, status: 'terminada' });
+  s = applyCommand(s, entrega);
+
+  const fin = s.requests.find((r) => r.id === req.id)!;
+  assert.equal(fin.status, 'terminada');
+  assert.equal(fin.deliveredAt, entrega.at);
+  assert.equal(fin.deliveredBy, entrega.userId);
+  assert.deepEqual(revisar(s), []);
+});
+
+test('y también cuando lo cierra el movimiento que deja el coche en destino', () => {
+  // Es el camino de verdad: el transportista pulsa «he entregado» y lo que
+  // se manda es un movimiento, no un cambio de estado.
+  let s = buildSeedState();
+  const v = s.vehicles.find((x) => x.location?.siteId === 'sondika')!;
+  s = applyCommand(
+    s,
+    orden({
+      type: 'request.create',
+      requestType: 'traslado',
+      vehicleId: v.id,
+      siteId: 'leioa',
+      to: { siteId: 'leioa' },
+    })
+  );
+  const req = s.requests.find((r) => r.vehicleId === v.id && r.type === 'traslado')!;
+  s = applyCommand(s, orden({ type: 'request.update', requestId: req.id, status: 'en_ruta' }));
+
+  const mov = orden({
+    type: 'movement.register',
+    vehicleId: v.id,
+    to: { siteId: 'leioa' },
+    completesTransfer: true,
+  });
+  s = applyCommand(s, mov);
+
+  const fin = s.requests.find((r) => r.id === req.id)!;
+  assert.equal(fin.status, 'terminada');
+  assert.equal(fin.deliveredAt, mov.at);
+  assert.equal(fin.deliveredBy, mov.userId);
+  assert.deepEqual(revisar(s), []);
+});
+
+test('la hora de entrega no se reescribe si el comando llega dos veces', () => {
+  // Regla de siempre: aplicarlo dos veces tiene que dar lo mismo. Aquí
+  // importa el doble, porque la fecha es lo que se le enseña al proveedor.
+  let s = buildSeedState();
+  const v = s.vehicles.find((x) => x.location?.siteId === 'sondika')!;
+  s = applyCommand(
+    s,
+    orden({
+      type: 'request.create',
+      requestType: 'traslado',
+      vehicleId: v.id,
+      siteId: 'leioa',
+      to: { siteId: 'leioa' },
+    })
+  );
+  const req = s.requests.find((r) => r.vehicleId === v.id && r.type === 'traslado')!;
+  const entrega = orden({ type: 'request.update', requestId: req.id, status: 'terminada' });
+
+  s = applyCommand(s, entrega);
+  const primera = s.requests.find((r) => r.id === req.id)!.deliveredAt;
+
+  // Otra vez, más tarde: la hora buena es la de la primera entrega.
+  const masTarde = { ...entrega, id: 'rev-otro', at: new Date(Date.now() + 7_200_000).toISOString() } as Command;
+  s = applyCommand(s, masTarde);
+  assert.equal(s.requests.find((r) => r.id === req.id)!.deliveredAt, primera);
+});

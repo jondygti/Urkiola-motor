@@ -101,10 +101,10 @@ npm run verify:api           # la app real contra el backend real
 
 | Suite | Qué comprueba |
 |---|---|
-| `scripts/verify/rutas.mjs` | 7 perfiles × 2 anchos × 18 pantallas = 252 cargas: que ninguna se rompe para ningún rol |
+| `scripts/verify/rutas.mjs` | 7 perfiles × 2 anchos × 19 pantallas = 266 cargas: que ninguna se rompe para ningún rol |
 | `scripts/verify/funciones.mjs` | 84 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
-| `scripts/verify/roles.mjs` | 58 comprobaciones: la jornada entera de cada uno de los 6 roles, y que lo que no le toca no lo ve ni lo puede tocar |
-| `server/pruebas/` | 104 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios, seguridad y las **invariantes** de los datos |
+| `scripts/verify/roles.mjs` | 65 comprobaciones: la jornada entera de cada uno de los 6 roles, y que lo que no le toca no lo ve ni lo puede tocar |
+| `server/pruebas/` | 108 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios, seguridad y las **invariantes** de los datos |
 | `server/pruebas/aleatorio.test.ts` | 10.000 comandos al azar con semilla: dispara lo que a nadie se le ocurre y comprueba las 9 invariantes después de **cada uno**. Si falla, la semilla que sale por pantalla repite la secuencia exacta |
 | `scripts/verify/backend.mjs` | 24 comprobaciones de la app compilada contra el servidor: entrar con contraseña, mover un coche y que **otro dispositivo lo vea**, subir una foto y recuperar la contraseña por correo |
 
@@ -152,6 +152,13 @@ en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
 - El comercial debe dar **48 h mínimo** para preparar; con menos, la app
   avisa y obliga a confirmar.
 - La **fecha de entrega al cliente manda** sobre el plazo por defecto.
+- **Un traslado terminado deja registro**: cuándo se recogieron las llaves,
+  cuándo se entregó y quién lo entregó (`deliveredAt`, `deliveredBy`). Antes
+  un traslado terminado solo dejaba de estar pendiente, y sin fecha de
+  entrega no hay nada que enseñarle al proveedor. Lo ven los dos lados y es
+  **la misma lista**: el transportista en «Mis traslados → Hechos» y la
+  oficina en «Traslados hechos» (`/traslados`). Si cada uno mirase una lista
+  distinta, la conversación sería discutir cuál de las dos vale.
 - Los traslados se encargan a una **empresa de transporte** según la zona
   (Bizkaia: Grúas Francis; fuera: Grúas Betigoiz), y cada transportista ve
   solo los de la suya.
@@ -210,7 +217,7 @@ en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
 
 ## Estado y siguientes pasos
 
-**Hecho:** las 18 pantallas, configuración completa desde Administración
+**Hecho:** las 19 pantallas, configuración completa desde Administración
 (sedes, plazas, roles, permisos, columnas, campos propios, checklist),
 funcionamiento sin cobertura con cola de subida, app de Android lista para
 compilar, **el backend** (`server/`, con la app entrando con contraseña de

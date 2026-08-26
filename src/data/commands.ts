@@ -568,7 +568,16 @@ function aplicar(state: AppState, cmd: Command): AppState {
           (r) => r.vehicleId === cmd.vehicleId && r.type === 'traslado' && r.status !== 'terminada'
         );
         if (open) {
-          next = { ...next, requests: replace(next.requests, open.id, { status: 'terminada' as RequestStatus }) };
+          next = {
+            ...next,
+            requests: replace(next.requests, open.id, {
+              status: 'terminada' as RequestStatus,
+              // El traslado se cierra por el movimiento que deja el coche en
+              // destino: esa es la hora de entrega y ese, quien lo entregó.
+              deliveredAt: open.deliveredAt ?? cmd.at,
+              deliveredBy: open.deliveredBy ?? cmd.userId,
+            }),
+          };
           next = fireRules(next, 'traslado_completado', vehicle, {
             siteId: destino.siteId,
             body: `${vehicleTitle(vehicle)} ha llegado a ${siteName(next, destino.siteId)}.`,
@@ -630,6 +639,8 @@ function aplicar(state: AppState, cmd: Command): AppState {
         note: cmd.note,
         dueAt,
         pickedUpAt: null,
+        deliveredAt: null,
+        deliveredBy: null,
         carrierId: cmd.requestType === 'traslado' ? (cmd.carrierId ?? null) : null,
       };
       const vehiclePatch: Partial<Vehicle> =
@@ -668,6 +679,14 @@ function aplicar(state: AppState, cmd: Command): AppState {
         patch.dueAt = new Date(
           new Date(cmd.at).getTime() + state.config.transferDeadlineHours * 3_600_000
         ).toISOString();
+      }
+      // Cuándo se entregó y quién lo dio por entregado. Sin esto, un
+      // traslado terminado no dice cuándo se hizo —solo que ya no está
+      // pendiente— y sin fecha no hay registro que enseñar ni al
+      // transportista ni a nadie.
+      if (cmd.status === 'terminada' && !req.deliveredAt) {
+        patch.deliveredAt = cmd.at;
+        patch.deliveredBy = cmd.userId;
       }
 
       const next: AppState = { ...state, requests: replace(state.requests, cmd.requestId, patch) };

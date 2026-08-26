@@ -12,6 +12,7 @@ y dónde está ahora.
 | 📍 Campa Sondika | `/campa` | `app/(shell)/campa.tsx` | Sirve para cualquier sede y zona; ocupación por tejavana/parking; plaza a plaza |
 | 📋 Solicitudes | `/solicitudes` | `app/(shell)/solicitudes.tsx` | Cambio de estado, asignación a persona y apertura de la preparación desde la propia solicitud. **Es la pantalla de la oficina** (`solicitudes.gestionar`): quien solo los pide ve los suyos en «Mis coches» |
 | 🧽 Preparación | `/preparacion` | `app/(shell)/preparacion.tsx` | Cronómetros en marcha, SLA calculado, checklist de tres estados, motivos de espera y bloqueo |
+| *(nuevo)* 🚚 Traslados hechos | `/traslados` | `app/(shell)/traslados.tsx` | El registro de lo que han hecho las empresas de transporte: por empresa y periodo, cuántos traslados, cuántos dentro de las 48 h y cuánto tardan de media, con la lista de cada uno. El transportista ve exactamente lo mismo de lo suyo en «Mis traslados → Hechos» |
 | ↔ Movimientos | `/movimientos` | `app/(shell)/movimientos.tsx` | Histórico con filtros y alta de movimiento buscando por matrícula o VIN-8. **De oficina** (`solicitudes.gestionar`): quien mueve coches usa «Mover coche», y el recorrido de un coche concreto está en su ficha |
 | *(nuevo)* 📍 Mover coche | `/mover` | `app/(shell)/mover.tsx` | Alta de movimientos en cadena, pensada para el móvil: matrícula y destino, sin tablas |
 | 📋 Recuentos | `/recuentos` | `app/(shell)/recuentos.tsx` | Recuento real: esperados/encontrados/faltan, escaneo con cámara en móvil, corrección de plaza, histórico |

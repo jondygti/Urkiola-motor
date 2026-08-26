@@ -689,6 +689,8 @@ export function buildSeedState(): AppState {
     // 48 h desde que la pidió el comercial: quedan 38.
     dueAt: iso(-38 * HOUR),
     pickedUpAt: null,
+    deliveredAt: null,
+    deliveredBy: null,
     carrierId: null,
   });
   requests.push({
@@ -706,6 +708,8 @@ export function buildSeedState(): AppState {
     // Aún sin recoger: el plazo del transportista no ha empezado.
     dueAt: null,
     pickedUpAt: null,
+    deliveredAt: null,
+    deliveredBy: null,
     // Sondika → Leioa: dentro de Bizkaia.
     carrierId: 'gruas-francis',
   });
@@ -724,6 +728,8 @@ export function buildSeedState(): AppState {
     // Pedida hace 28 h: quedan 20 y sigue bloqueada.
     dueAt: iso(-20 * HOUR),
     pickedUpAt: null,
+    deliveredAt: null,
+    deliveredBy: null,
     carrierId: null,
   });
 
@@ -747,6 +753,8 @@ export function buildSeedState(): AppState {
       // 48 h desde la solicitud; algunas ya se han pasado.
       dueAt: iso((hoursAgo - 48) * HOUR),
       pickedUpAt: null,
+      deliveredAt: null,
+      deliveredBy: null,
       carrierId: null,
     });
   }
@@ -773,28 +781,51 @@ export function buildSeedState(): AppState {
         ? new Date(new Date(pickedUpAt).getTime() + 48 * HOUR).toISOString()
         : null,
       pickedUpAt,
+      deliveredAt: null,
+      deliveredBy: null,
       // Se reparte por zona, como en la realidad.
       carrierId: carrierForRoute(CARRIERS, v.location?.siteId, site)?.id ?? null,
     });
   }
   // Solicitudes ya cerradas, para el histórico.
+  //
+  // Los traslados terminados llevan empresa, recogida y entrega de verdad:
+  // son los que forman el registro de lo que ha hecho cada transportista.
+  // Sin ellos la pantalla de traslados hechos estaría vacía y no se vería si
+  // funciona. Algunos se pasan de las 48 h a propósito, porque en la
+  // realidad también pasa y es justo lo que hay que poder enseñar.
+  const transportistas = USERS.filter((u) => u.role === 'transportista');
   for (let i = 30; i < 59; i++) {
     const v = pool[i];
+    const esTraslado = chance(0.55);
+    const destino = pick(PREP_SITES).id;
+    const pedidoHace = Math.floor(24 + rnd() * 900);
+    const recogidoHace = pedidoHace - Math.floor(1 + rnd() * 8);
+    // La mayoría llega dentro de plazo; uno de cada seis se pasa.
+    const tardado = chance(1 / 6) ? 48 + Math.floor(rnd() * 30) : Math.floor(2 + rnd() * 40);
+    const entregadoHace = Math.max(0, recogidoHace - tardado);
+    const empresa = esTraslado ? carrierForRoute(CARRIERS, v.location?.siteId, destino) : null;
+    const conductor = empresa
+      ? (transportistas.find((u) => u.carrierId === empresa.id) ?? transportistas[0])
+      : null;
+
     requests.push({
       id: nextId('req'),
-      type: chance(0.6) ? 'preparacion' : 'traslado',
+      type: esTraslado ? 'traslado' : 'preparacion',
       vehicleId: v.id,
-      siteId: pick(PREP_SITES).id,
+      siteId: destino,
       from: v.location,
-      to: { siteId: pick(PREP_SITES).id },
+      to: { siteId: destino },
       status: 'terminada',
       urgent: false,
-      createdAt: iso(Math.floor(24 + rnd() * 120) * HOUR),
+      createdAt: iso(pedidoHace * HOUR),
       createdBy: 'u-log',
-      assignedTo: 'u-iker',
-      dueAt: null,
-      pickedUpAt: null,
-      carrierId: null,
+      assignedTo: esTraslado ? (conductor?.id ?? null) : 'u-pedro',
+      dueAt: esTraslado ? iso((recogidoHace - 48) * HOUR) : null,
+      pickedUpAt: esTraslado ? iso(recogidoHace * HOUR) : null,
+      deliveredAt: iso(entregadoHace * HOUR),
+      deliveredBy: esTraslado ? (conductor?.id ?? null) : 'u-pedro',
+      carrierId: empresa?.id ?? null,
     });
   }
 
