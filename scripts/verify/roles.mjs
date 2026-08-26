@@ -236,6 +236,17 @@ export async function ejecutar(browser, BASE) {
     const cerrado = (await estadoGuardado(page))?.counts?.find((c) => c.id === nuevo?.id);
     ok('PREPARADOR · y lo cierra al terminar', !!cerrado?.closedAt);
 
+    // El aviso de que le han pedido una preparación le llega a él.
+    await page.goto(`${BASE}/notificaciones`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1100);
+    const bandeja = await page.evaluate(() => document.body.innerText);
+    ok('PREPARADOR · tiene su bandeja de avisos', bandeja.includes('Bandeja de avisos'));
+    ok(
+      'PREPARADOR · y no le llegan los de las entregas del comercial',
+      !bandeja.includes('listo para entregar'),
+      'sin avisos de coches listos'
+    );
+
     // Lo que no le toca, no lo ve. Empezando por el panel de todas las
     // preparaciones de la red: él tiene su cola, que es la misma
     // información ordenada por lo que le toca a él.
@@ -406,6 +417,16 @@ export async function ejecutar(browser, BASE) {
       'COMERCIAL · y solo los suyos',
       !!deOtro && !mios.includes(deOtro.plate ?? '###'),
       deOtro?.plate ?? ''
+    );
+
+    // Los avisos que le llegan son los suyos: los de sus coches.
+    await page.goto(`${BASE}/notificaciones`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1100);
+    const avisos = await page.evaluate(() => document.body.innerText);
+    ok(
+      'COMERCIAL · su bandeja de avisos es la suya',
+      avisos.includes('Bandeja de avisos') && !avisos.includes('preparación pedida'),
+      'sin avisos de la cola del preparador'
     );
 
     // La app le abre ahí: es su pantalla de todos los días.

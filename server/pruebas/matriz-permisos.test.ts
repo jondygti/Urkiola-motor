@@ -38,11 +38,15 @@ const PUEDEN: Record<string, Rol[]> = {
   // coche que nadie ha pedido preparar. Que el preparador SÍ pueda abrir la
   // que le han pedido está comprobado aparte, en comandos.test.ts.
   'prep.create': ['admin', 'logistica'],
-  'prep.start': ['admin', 'logistica', 'preparador'],
-  'prep.pause': ['admin', 'logistica', 'preparador'],
-  'prep.resume': ['admin', 'logistica', 'preparador'],
-  'prep.item': ['admin', 'logistica', 'preparador'],
-  'prep.finish': ['admin', 'logistica', 'preparador'],
+  // Trabajar una preparación es del preparador. El administrador y logística
+  // la abren y la reparten (`prep.create`), pero de serie no la ejecutan: ese
+  // permiso es el que marca el oficio y se les puede dar desde
+  // Administración el día que haya que cubrir a alguien.
+  'prep.start': ['preparador'],
+  'prep.pause': ['preparador'],
+  'prep.resume': ['preparador'],
+  'prep.item': ['preparador'],
+  'prep.finish': ['preparador'],
 
   // Recuentos
   'count.create': ['admin', 'logistica', 'preparador', 'recepcion'],
@@ -59,6 +63,10 @@ const PUEDEN: Record<string, Rol[]> = {
   'rule.delete': ['admin', 'logistica', 'comercial'],
   'inbox.read': ROLES,
   'inbox.readAll': ROLES,
+  // No es la acción de nadie: es el repaso del reloj, y lo lanza la app al
+  // abrirse. El colaborador externo no: los avisos que salen de ahí son de
+  // casa y él no los ve, así que tampoco tiene por qué dispararlos.
+  'alerts.sweep': ROLES.filter((r) => r !== 'transportista'),
 
   // Recepción de camiones
   'reception.create': ['admin', 'logistica', 'recepcion'],
@@ -184,6 +192,7 @@ function ejemplos(s: AppState): Record<string, CommandInput> {
     'rule.toggle': { type: 'rule.toggle', ruleId: regla.id },
     'rule.delete': { type: 'rule.delete', ruleId: regla.id },
     'inbox.read': { type: 'inbox.read', eventId: s.inbox[0]?.id ?? 'nev-x' },
+    'alerts.sweep': { type: 'alerts.sweep' },
     'inbox.readAll': { type: 'inbox.readAll' },
     'reception.create': {
       type: 'reception.create',

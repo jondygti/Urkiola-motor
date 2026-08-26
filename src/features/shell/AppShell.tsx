@@ -18,7 +18,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const insets = useSafeAreaInsets();
-  const unread = unreadCount(state);
+  // Solo los suyos: la campana que cuenta avisos de otros no la mira nadie.
+  const unread = unreadCount(state, user);
 
   // Al navegar, el menú deslizante se cierra solo.
   useEffect(() => {

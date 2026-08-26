@@ -5,6 +5,7 @@ import type {
   Carrier,
   ColumnPref,
   CustomField,
+  DelayReason,
   RoleConfig,
   FleetCount,
   Id,
@@ -129,13 +130,15 @@ export const ROLES: RoleConfig[] = [
   {
     id: 'admin',
     label: 'Administrador',
-    // Todo menos los dos permisos que marcan un oficio concreto: «vende
-    // coches» (`flota.asignarse`) y «lleva traslados» (`traslados.propios`).
-    // Son los que hacen aparecer «Mis coches» y «Mis traslados», que a quien
-    // no vende ni conduce le salen vacías. Si algún día hacen falta, se
-    // marcan desde Administración como cualquier otro permiso.
+    // Todo menos los tres permisos que marcan un oficio concreto: «vende
+    // coches» (`flota.asignarse`), «lleva traslados» (`traslados.propios`) y
+    // «trabaja preparaciones» (`preparacion.ejecutar`). Son los que hacen
+    // aparecer «Mis coches», «Mis traslados» y «Mi preparación», que a quien
+    // no hace ese trabajo le salen vacías o con el trabajo de otros. Si
+    // alguna vez hace falta —cubrir una preparación un sábado— se marca
+    // desde Administración como cualquier otro permiso.
     permissions: ALL_PERMISSIONS.filter(
-      (p) => p !== 'flota.asignarse' && p !== 'traslados.propios'
+      (p) => p !== 'flota.asignarse' && p !== 'traslados.propios' && p !== 'preparacion.ejecutar'
     ),
     mobileSections: ['/flota', '/solicitudes', '/mover', '/recuentos', '/incidencias'],
     builtin: true,
@@ -152,7 +155,8 @@ export const ROLES: RoleConfig[] = [
         p !== 'admin.configurar' &&
         p !== 'panel.ver' &&
         p !== 'flota.asignarse' &&
-        p !== 'traslados.propios'
+        p !== 'traslados.propios' &&
+        p !== 'preparacion.ejecutar'
     ),
     mobileSections: ['/solicitudes', '/entregas', '/mover', '/flota'],
     builtin: true,
@@ -328,6 +332,7 @@ const REQUIREMENTS: Requirement[] = [
 export const CONFIG: AdminConfig = {
   prepTargetMinutes: { VN: 120, VO: 150 },
   staleCheckHours: 72,
+  pickupAlertHours: 24,
   waitReasons: ['Material', 'Matrículas', 'Documentación', 'Accesorios', 'Autorización', 'Incidencia', 'Otro'],
   requirements: REQUIREMENTS,
   transferDeadlineHours: 48,
@@ -809,6 +814,8 @@ export function buildSeedState(): AppState {
   // Sin ellos la pantalla de traslados hechos estaría vacía y no se vería si
   // funciona. Algunos se pasan de las 48 h a propósito, porque en la
   // realidad también pasa y es justo lo que hay que poder enseñar.
+  // Repartidos como se reparten de verdad: casi siempre son las llaves.
+  const MOTIVOS_RETRASO: DelayReason[] = ['llaves', 'llaves', 'llaves', 'cliente', 'averia', 'trafico'];
   const transportistas = USERS.filter((u) => u.role === 'transportista');
   for (let i = 30; i < 59; i++) {
     const v = pool[i];
@@ -842,6 +849,9 @@ export function buildSeedState(): AppState {
       pickedUpAt: esTraslado ? iso(recogidoHace * HOUR) : null,
       deliveredAt: iso(entregadoHace * HOUR),
       deliveredBy: esTraslado ? (conductor?.id ?? null) : 'u-pedro',
+      // Los que llegaron tarde traen su motivo, que es lo que convierte
+      // «llegan tarde» en algo que se puede arreglar.
+      delayReason: esTraslado && tardado > 48 ? pick(MOTIVOS_RETRASO) : null,
       carrierId: empresa?.id ?? null,
     });
   }
@@ -1068,6 +1078,43 @@ export function buildSeedState(): AppState {
       active: true,
       createdAt: iso(80 * HOUR),
     },
+    // Las tres que ahorran más trabajo, puestas de serie y dirigidas. Se
+    // pueden desactivar o cambiar desde Notificaciones como cualquier otra.
+    {
+      id: 'rule-listo',
+      scopeKind: 'fleet',
+      scopeRef: null,
+      condition: 'preparacion_terminada',
+      // Al comercial del coche, no a todos: si no, cada uno recibe los
+      // avisos de los coches de los demás y deja de mirar la campana.
+      audience: { kind: 'comercial' },
+      recipient: 'Comercial del coche',
+      channels: ['push', 'web'],
+      active: true,
+      createdAt: iso(200 * HOUR),
+    },
+    {
+      id: 'rule-prep-pedida',
+      scopeKind: 'fleet',
+      scopeRef: null,
+      condition: 'preparacion_pedida',
+      audience: { kind: 'rol', roleId: 'preparador' },
+      recipient: 'Preparadores',
+      channels: ['push', 'web'],
+      active: true,
+      createdAt: iso(200 * HOUR),
+    },
+    {
+      id: 'rule-sin-recoger',
+      scopeKind: 'fleet',
+      scopeRef: null,
+      condition: 'traslado_sin_recoger',
+      audience: { kind: 'rol', roleId: 'logistica' },
+      recipient: 'Logística',
+      channels: ['push', 'web'],
+      active: true,
+      createdAt: iso(200 * HOUR),
+    },
     {
       id: 'rule-0003',
       scopeKind: 'site',
@@ -1075,7 +1122,9 @@ export function buildSeedState(): AppState {
       condition: 'preparacion_terminada',
       recipient: 'Comerciales',
       channels: ['push', 'web'],
-      active: true,
+      // Apagada: la sustituye `rule-listo`, que avisa solo al comercial de
+      // ese coche en vez de a todos.
+      active: false,
       createdAt: iso(120 * HOUR),
     },
     {

@@ -23,6 +23,7 @@ import {
   INCIDENT_TYPE_LABEL,
   NOTIFY_CONDITION_LABEL,
   type IncidentType,
+  type NotifyAudience,
   type NotifyCondition,
   type Vehicle,
 } from '@/data/types';
@@ -458,19 +459,29 @@ export function NotificationRuleModal({
   const [scopeRef, setScopeRef] = useState<string | null>(vehicle?.id ?? null);
   const [condition, setCondition] = useState<NotifyCondition>('llegada_sede');
   const [targetSiteId, setTargetSiteId] = useState<string>(state.sites[0].id);
-  const [recipient, setRecipient] = useState<string>('Logística');
+  // A quién le llega. Antes esto era un nombre escrito y el aviso lo veía
+  // todo el mundo igual; ahora decide de verdad quién lo recibe.
+  const [destino, setDestino] = useState<string>('rol:logistica');
 
-  const recipients = useMemo(
+  const destinos = useMemo(
     () => [
-      ...(vehicle?.salesRep ? [`Comercial asignado · ${vehicle.salesRep}`] : []),
-      'Logística',
-      'Responsable de sede',
-      ...state.users.map((u) => u.name),
+      { value: 'comercial', label: 'Al comercial de ese coche' },
+      ...state.config.roles
+        .filter((r) => !r.simple)
+        .map((r) => ({ value: `rol:${r.id}`, label: `A todo el equipo de ${r.label}` })),
+      { value: 'todos', label: 'A todo el mundo' },
     ],
-    [state.users, vehicle]
+    [state.config.roles]
   );
 
   const submit = () => {
+    const audience: NotifyAudience =
+      destino === 'todos'
+        ? { kind: 'todos' }
+        : destino === 'comercial'
+          ? { kind: 'comercial' }
+          : { kind: 'rol', roleId: destino.slice(4) };
+
     run({
       type: 'rule.create',
       rule: {
@@ -478,7 +489,9 @@ export function NotificationRuleModal({
         scopeRef: scopeKind === 'fleet' ? null : scopeRef,
         condition,
         targetSiteId: condition === 'llegada_sede' ? targetSiteId : null,
-        recipient,
+        audience,
+        // El nombre que se lee en la lista de reglas y en el propio aviso.
+        recipient: destinos.find((d) => d.value === destino)?.label ?? 'Todo el mundo',
         channels: ['push', 'web'],
         active: true,
       },
@@ -550,14 +563,16 @@ export function NotificationRuleModal({
         </Field>
       ) : null}
 
-      <Field label="Destinatario">
+      <Field
+        label="¿A quién le llega?"
+        hint="Solo lo verá quien esté aquí. Un aviso que le llega a todos deja de mirarlo todo el mundo."
+      >
         <Select
           full
-          value={recipient}
-          onChange={setRecipient}
-          options={recipients.map((r) => ({ value: r, label: r }))}
-          title="Destinatario"
-          searchable
+          value={destino}
+          onChange={setDestino}
+          options={destinos}
+          title="¿A quién le llega?"
         />
       </Field>
 

@@ -28,6 +28,7 @@ export const TIPOS: ReadonlySet<string> = new Set<Command['type']>([
   'rule.create',
   'rule.toggle',
   'rule.delete',
+  'alerts.sweep',
   'inbox.read',
   'inbox.readAll',
   'reception.create',

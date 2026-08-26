@@ -29,7 +29,7 @@ import {
   trasladosHechos,
 } from '@/data/selectors';
 import { formatDateTime, locationLabel, timeAgo, vehicleName, vehicleRef } from '@/data/format';
-import type { ServiceRequest, Vehicle } from '@/data/types';
+import { DELAY_REASON_LABEL, type DelayReason, type ServiceRequest, type Vehicle } from '@/data/types';
 import { ScreenGuard } from '@/features/common/Guard';
 import { DeadlineChip } from '@/features/common/DeadlineChip';
 import { CampoFotos } from '@/features/actions/CampoFotos';
@@ -127,6 +127,7 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
   const { state, run } = useStore();
   const { c } = useTheme();
   const [problemOpen, setProblemOpen] = useState(false);
+  const [motivoOpen, setMotivoOpen] = useState(false);
 
   const vehicle = state.vehicles.find((v) => v.id === request.vehicleId);
   const enRuta = request.status === 'en_ruta';
@@ -139,7 +140,11 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
     );
   };
 
-  const entregar = () => {
+  // Si se pasa del plazo se pregunta por qué, en el momento y con el coche
+  // delante. Preguntarlo después es preguntarlo a la memoria de alguien.
+  const tarde = !!request.dueAt && new Date(request.dueAt).getTime() < Date.now();
+
+  const entregar = (delayReason?: DelayReason | null, delayNote?: string | null) => {
     // El movimiento deja el vehículo en el destino y cierra la solicitud.
     run({
       type: 'movement.register',
@@ -147,8 +152,11 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
       to: request.to ?? { siteId: request.siteId },
       completesTransfer: true,
       note: 'Entregado por el transportista',
+      delayReason: delayReason ?? null,
+      delayNote: delayNote ?? null,
     });
     onDone(`${vehicle ? vehicleRef(vehicle) : 'Vehículo'} entregado. ¡Gracias!`);
+    setMotivoOpen(false);
   };
 
   return (
@@ -196,7 +204,11 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
           llaves y no de vehículo porque es lo que arranca el plazo: el
           transportista pasa por la oficina, coge las llaves y desde ahí
           cuentan las horas, aunque cargue el coche más tarde. */}
-      <Btn variant="primary" full onPress={enRuta ? entregar : recoger}>
+      <Btn
+        variant="primary"
+        full
+        onPress={enRuta ? (tarde ? () => setMotivoOpen(true) : () => entregar()) : recoger}
+      >
         {enRuta ? '✓ He entregado el vehículo' : '🔑 He recogido las llaves'}
       </Btn>
       <Spacer h={space.xs} />
@@ -219,6 +231,13 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
       <Text style={{ fontSize: 11, color: c.textFaint }}>
         Asignado {timeAgo(request.createdAt)} · {formatDateTime(request.createdAt)}
       </Text>
+
+      {motivoOpen ? (
+        <MotivoRetrasoModal
+          onClose={() => setMotivoOpen(false)}
+          onConfirm={(motivo, nota) => entregar(motivo, nota)}
+        />
+      ) : null}
 
       {problemOpen && vehicle ? (
         <ProblemModal
@@ -399,6 +418,12 @@ function Entregados({ hechos }: { hechos: ReturnType<typeof trasladosHechos> }) 
               {request.deliveredAt ? formatDateTime(request.deliveredAt) : 'Sin entrega apuntada'}
               {horas === null ? '' : ` · ${Math.round(horas)} h`}
             </Text>
+            {fueraDePlazo && request.delayReason ? (
+              <Text style={{ fontSize: 11, color: c.amberFg }}>
+                ⏱ {DELAY_REASON_LABEL[request.delayReason]}
+                {request.delayNote ? ` · ${request.delayNote}` : ''}
+              </Text>
+            ) : null}
           </View>
         ))
       )}
@@ -413,5 +438,73 @@ function Dato({ label, valor }: { label: string; valor: string }) {
       <Text style={{ fontSize: 9, fontWeight: '800', color: c.textFaint }}>{label.toUpperCase()}</Text>
       <Text style={{ fontSize: 18, fontWeight: '900', color: c.text, marginTop: 2 }}>{valor}</Text>
     </View>
+  );
+}
+
+/**
+ * Por qué llega tarde.
+ *
+ * Solo sale cuando el traslado se ha pasado del plazo, y con el coche
+ * todavía delante: preguntarlo al día siguiente es preguntarle a la memoria
+ * de alguien. No bloquea la entrega —el coche está entregado igual— pero
+ * pide un toque más, que es lo justo para que el dato exista.
+ */
+function MotivoRetrasoModal({
+  onClose,
+  onConfirm,
+}: {
+  onClose: () => void;
+  onConfirm: (motivo: DelayReason, nota: string | null) => void;
+}) {
+  const [motivo, setMotivo] = useState<DelayReason | null>(null);
+  const [nota, setNota] = useState('');
+  const { c } = useTheme();
+
+  return (
+    <Modal
+      visible
+      onClose={onClose}
+      title="⏱ Ha llegado fuera de plazo"
+      footer={
+        <>
+          <Btn
+            variant="primary"
+            full
+            disabled={!motivo}
+            onPress={() => motivo && onConfirm(motivo, nota.trim() || null)}
+          >
+            ✓ Entregar
+          </Btn>
+          <Spacer h={space.xs} />
+          <Btn full onPress={onClose}>
+            Cancelar
+          </Btn>
+        </>
+      }
+    >
+      <Muted>
+        Este traslado se ha pasado de las horas comprometidas. Marca por qué: no es para señalar a nadie,
+        es para que se vea dónde se pierde el tiempo de verdad.
+      </Muted>
+      <Spacer h={space.md} />
+      {(Object.keys(DELAY_REASON_LABEL) as DelayReason[]).map((k) => (
+        <Btn
+          key={k}
+          full
+          variant={motivo === k ? 'primary' : undefined}
+          onPress={() => setMotivo(k)}
+        >
+          {DELAY_REASON_LABEL[k]}
+        </Btn>
+      ))}
+      {motivo === 'otro' ? (
+        <>
+          <Spacer h={space.sm} />
+          <Field label="¿Qué pasó?">
+            <Input value={nota} onChangeText={setNota} placeholder="En dos palabras" />
+          </Field>
+        </>
+      ) : null}
+    </Modal>
   );
 }

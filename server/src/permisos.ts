@@ -247,6 +247,12 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
       return tiene(s, u, 'entregas.gestionar') ? null : 'No puedes fijar fechas de entrega.';
 
     // La bandeja es de cada uno: leerla no necesita permiso.
+    case 'alerts.sweep':
+      // No es una acción de nadie: es el repaso del reloj. Cualquiera con
+      // sesión lo puede disparar al abrir la app y no cambia datos de la
+      // flota, solo genera avisos que ya estaban configurados.
+      return null;
+
     case 'inbox.read':
     case 'inbox.readAll':
       return null;

@@ -6,6 +6,7 @@ import { applyAll, applyCommand, newId, type Command, type CommandInput } from '
 import { ApiError, api, apiEnabled, setAuthToken } from './api';
 import { buildSeedState } from './seed';
 import { registerForPush } from './push';
+import { isSimpleRole } from './selectors';
 import type { AppState, Id, User } from './types';
 
 const STATE_KEY = 'urkiola.state.v1';
@@ -40,7 +41,11 @@ const TOKEN_KEY = 'urkiola.token.v1';
 // 14: el administrador y logística dejan de llevar «vende coches» de serie,
 // que es lo que hacía aparecerles «Mis coches». Los permisos de los roles
 // están guardados en la configuración del dispositivo.
-const STATE_SCHEMA_VERSION = 14;
+// 15: los avisos ahora saben a quién van (`userIds`) y las reglas llevan
+// destinatario. Lo guardado antes no lo tiene y se le vería a todo el mundo,
+// que es justo lo que se ha arreglado. Cambian también los permisos de
+// serie de dos roles y hay un campo nuevo de configuración.
+const STATE_SCHEMA_VERSION = 15;
 
 interface StoredState {
   v: number;
@@ -301,6 +306,28 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Solo al montar.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* --------------------------------------------- avisos por paso del tiempo */
+
+  /**
+   * Un repaso de las condiciones que dispara el reloj y no una persona: un
+   * coche que lleva días sin comprobar, un traslado que nadie ha ido a
+   * recoger. Se lanza una vez por sesión, al abrir, y es idempotente por
+   * día: aunque se abra la app quince veces, el aviso sale una.
+   *
+   * Se hace aquí y no solo en el servidor porque la demostración no tiene
+   * servidor, y ahí también hay que ver que los avisos funcionan.
+   */
+  const barridoHecho = useRef(false);
+  useEffect(() => {
+    if (!ready || !user || barridoHecho.current) return;
+    // El colaborador externo no dispara un repaso de toda la flota: los
+    // avisos que salen de ahí son de casa y él no los ve.
+    if (isSimpleRole(state, user)) return;
+    barridoHecho.current = true;
+    run({ type: 'alerts.sweep' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, user?.id]);
 
   /* ------------------------------------------- reintentos y conectividad */
 

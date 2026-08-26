@@ -2,7 +2,9 @@ import type {
   AppState,
   ColumnPref,
   CustomField,
+  DelayReason,
   FleetCount,
+  NotificationEvent,
   Incident,
   Id,
   Permission,
@@ -62,7 +64,21 @@ export const staleVehicles = (s: AppState): Vehicle[] =>
     .filter((v) => hoursSince(v.lastCheckAt) > s.config.staleCheckHours)
     .sort((a, b) => hoursSince(b.lastCheckAt) - hoursSince(a.lastCheckAt));
 
-export const unreadCount = (s: AppState): number => s.inbox.filter((n) => !n.read).length;
+/**
+ * Los avisos que le tocan a esta persona.
+ *
+ * Un aviso sin destinatarios es de casa y lo ve todo el mundo; el resto solo
+ * quien está apuntado. Antes la bandeja era una sola para todos: al
+ * preparador le llegaban los avisos de las entregas del comercial, y a los
+ * dos meses ya nadie miraba la campana.
+ */
+export function bandejaDe(s: AppState, user: User | null): NotificationEvent[] {
+  if (!user) return [];
+  return s.inbox.filter((n) => !n.userIds || n.userIds.length === 0 || n.userIds.includes(user.id));
+}
+
+export const unreadCount = (s: AppState, user?: User | null): number =>
+  (user === undefined ? s.inbox : bandejaDe(s, user)).filter((n) => !n.read).length;
 
 export function vehiclesAtSite(s: AppState, siteId: Id): Vehicle[] {
   return activeVehicles(s).filter((v) => v.location?.siteId === siteId);
@@ -306,6 +322,24 @@ export function trasladosHechos(
       };
     })
     .sort((a, b) => (b.request.deliveredAt ?? '').localeCompare(a.request.deliveredAt ?? ''));
+}
+
+/**
+ * Los motivos de los retrasos, contados y ordenados por frecuencia.
+ *
+ * Es lo que convierte doce discusiones en un dato: «ocho de doce fue que no
+ * estaban las llaves» se puede arreglar; «llegan tarde» no.
+ */
+export function motivosDeRetraso(hechos: TrasladoHecho[]): { motivo: DelayReason; veces: number }[] {
+  const cuenta = new Map<DelayReason, number>();
+  for (const h of hechos) {
+    if (!h.fueraDePlazo) continue;
+    const m = h.request.delayReason;
+    if (m) cuenta.set(m, (cuenta.get(m) ?? 0) + 1);
+  }
+  return [...cuenta.entries()]
+    .map(([motivo, veces]) => ({ motivo, veces }))
+    .sort((a, b) => b.veces - a.veces);
 }
 
 /** Lo que resume a un transportista: cuántos, cuántos en plazo y cuánto tarda. */

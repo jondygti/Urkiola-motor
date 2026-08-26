@@ -147,6 +147,24 @@ export const REQUEST_STATUS_LABEL: Record<RequestStatus, string> = {
   bloqueada: 'Bloqueada',
 };
 
+/**
+ * Los motivos por los que un traslado llega tarde.
+ *
+ * Salen de lo que pasa de verdad en la campa, no de una lista teórica: si
+ * las opciones no son las suyas, el transportista marca «otro» siempre y el
+ * dato no sirve para nada.
+ */
+export type DelayReason = 'llaves' | 'averia' | 'cliente' | 'trafico' | 'carga' | 'otro';
+
+export const DELAY_REASON_LABEL: Record<DelayReason, string> = {
+  llaves: 'No estaban las llaves',
+  averia: 'Avería o problema con el coche',
+  cliente: 'El cliente o la sede no estaba',
+  trafico: 'Tráfico o carretera cortada',
+  carga: 'Sin sitio en el camión',
+  otro: 'Otro motivo',
+};
+
 export interface ServiceRequest {
   id: Id;
   type: RequestType;
@@ -174,6 +192,19 @@ export interface ServiceRequest {
    */
   deliveredAt: ISODate | null;
   deliveredBy: Id | null;
+  /**
+   * Por qué se entregó fuera de plazo.
+   *
+   * Queda registrado *que* se pasó de las 48 h, pero sin el motivo la
+   * conversación con el transportista es su palabra contra la nuestra. Con
+   * el motivo apuntado en el momento, doce retrasos dejan de ser doce
+   * discusiones y pasan a ser un dato: «ocho de doce fue que no estaban las
+   * llaves». Solo se pide cuando llega tarde: al que llega a tiempo no se le
+   * pregunta nada.
+   */
+  delayReason?: DelayReason | null;
+  /** Lo que escriba el transportista cuando el motivo es «otro». */
+  delayNote?: string | null;
   /** Empresa de transporte a la que se encarga el traslado. */
   carrierId: Id | null;
   /** Sede responsable de atender la solicitud. */
@@ -305,20 +336,50 @@ export type NotifyScopeKind = 'vehicle' | 'site' | 'fleet';
 
 export type NotifyCondition =
   | 'llegada_sede'
+  | 'preparacion_pedida'
   | 'preparacion_terminada'
   | 'sin_comprobar_72h'
+  | 'traslado_sin_recoger'
   | 'incidencia_abierta'
   | 'traslado_completado'
   | 'preparacion_bloqueada';
 
 export const NOTIFY_CONDITION_LABEL: Record<NotifyCondition, string> = {
   llegada_sede: 'Cuando llegue a la sede',
-  preparacion_terminada: 'Cuando termine la preparación',
+  preparacion_pedida: 'Cuando se pida una preparación',
+  preparacion_terminada: 'Cuando el coche quede listo para entregar',
   sin_comprobar_72h: 'Si lleva más de 72 h sin comprobación',
+  traslado_sin_recoger: 'Si un traslado lleva 24 h sin que recojan las llaves',
   incidencia_abierta: 'Cuando se abra una incidencia',
   traslado_completado: 'Cuando se complete el traslado',
   preparacion_bloqueada: 'Cuando una preparación se bloquee',
 };
+
+/**
+ * Las condiciones que no las dispara nadie al hacer algo, sino el paso del
+ * tiempo. Las revisa `alerts.sweep` (ver `commands.ts`).
+ *
+ * Antes `sin_comprobar_72h` estaba en la lista y en la configuración de
+ * ejemplo, pero **no la disparaba nada**: la regla se podía crear y no
+ * avisaba nunca. Es el motivo de que exista este apartado.
+ */
+export const CONDICIONES_POR_TIEMPO: NotifyCondition[] = ['sin_comprobar_72h', 'traslado_sin_recoger'];
+
+/**
+ * A quién va el aviso.
+ *
+ * Hasta ahora `recipient` era solo un nombre escrito y la bandeja la veía
+ * todo el mundo: el aviso «Juan · llegó tu coche» le salía también al
+ * preparador y al de recepción. Un aviso que le llega a todos no se lo cree
+ * nadie, y en un mes ya nadie mira la campana.
+ */
+export type NotifyAudience =
+  /** Todo el que entre: avisos de casa, como una incidencia grave. */
+  | { kind: 'todos' }
+  /** A todos los de un rol: los preparadores de la sede, la oficina. */
+  | { kind: 'rol'; roleId: Role }
+  /** Al comercial que lleva ese coche, sea quien sea en ese momento. */
+  | { kind: 'comercial' };
 
 export interface NotificationRule {
   id: Id;
@@ -328,6 +389,8 @@ export interface NotificationRule {
   condition: NotifyCondition;
   /** Sede de referencia para la condición "llegada_sede". */
   targetSiteId?: Id | null;
+  /** A quién le llega. Sin esto, a todo el mundo. */
+  audience?: NotifyAudience;
   recipient: string;
   channels: ('push' | 'web' | 'email')[];
   active: boolean;
@@ -338,6 +401,13 @@ export interface NotificationEvent {
   id: Id;
   ruleId: Id | null;
   vehicleId: Id | null;
+  /**
+   * Quién tiene que verlo. Vacío o ausente = todo el mundo.
+   *
+   * Se resuelve al crear el aviso y no al leerlo: el comercial de un coche
+   * puede cambiar mañana, y el aviso de hoy era para el de hoy.
+   */
+  userIds?: Id[] | null;
   title: string;
   body: string;
   at: ISODate;
@@ -546,6 +616,13 @@ export interface AdminConfig {
   prepTargetMinutes: Record<VehicleType, number>;
   /** Horas sin comprobación física a partir de las que se avisa. */
   staleCheckHours: number;
+  /**
+   * Horas que puede estar un traslado encargado sin que nadie recoja las
+   * llaves antes de avisar. Es donde se pierden los días: el plazo de 48 h
+   * del transportista no empieza hasta la recogida, así que un traslado
+   * olvidado no llega tarde nunca, simplemente no avanza.
+   */
+  pickupAlertHours: number;
   waitReasons: string[];
   requirements: Requirement[];
   /** Horas que tiene el transportista desde que recoge las llaves. */

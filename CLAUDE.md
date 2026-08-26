@@ -89,6 +89,23 @@ Cada una viene de un fallo real de este proyecto:
     confirmada**, con su apunte en el historial. Dos coches en el mismo
     hueco se paga abajo, en la campa, buscando uno que no está.
 
+20. **Quien ejecuta ve lo suyo; quien reparte ve el panel.** Es la regla
+    que ha salido sola cuatro veces —solicitudes, movimientos, preparación,
+    traslados— y cada vez costó una pantalla de más. Cuando aparezca un
+    trabajo nuevo se decide de entrada de qué lado está, en vez de dar las
+    dos pantallas y que la persona elija entre una que dice lo suyo y otra
+    que dice lo de todos. Y **el permiso que marca un oficio no se da de
+    serie a quien no lo hace**: `flota.asignarse` (vende), `traslados.propios`
+    (conduce) y `preparacion.ejecutar` (prepara) no los llevan ni el
+    administrador ni logística, aunque lo demás sí.
+21. **Un aviso que le llega a todos no se lo cree nadie.** Cada regla dice a
+    quién va (`audience`) y la bandeja de cada uno es la suya. Antes el aviso
+    «Juan, tu coche está listo» le salía también al de recepción, y en dos
+    meses nadie mira la campana. Y **lo que dispara el reloj hay que
+    dispararlo**: `sin_comprobar_72h` estaba en la configuración de ejemplo
+    y no avisaba nunca porque no había nada que la evaluara; para eso está
+    `alerts.sweep`, que lanza la app al abrirse y es idempotente por día.
+
 ## Comprobar antes de dar algo por bueno
 
 ```bash
@@ -103,8 +120,8 @@ npm run verify:api           # la app real contra el backend real
 |---|---|
 | `scripts/verify/rutas.mjs` | 7 perfiles × 2 anchos × 19 pantallas = 266 cargas: que ninguna se rompe para ningún rol |
 | `scripts/verify/funciones.mjs` | 85 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
-| `scripts/verify/roles.mjs` | 70 comprobaciones: la jornada entera de cada uno de los 6 roles, y que lo que no le toca no lo ve ni lo puede tocar |
-| `server/pruebas/` | 108 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios, seguridad y las **invariantes** de los datos |
+| `scripts/verify/roles.mjs` | 73 comprobaciones: la jornada entera de cada uno de los 6 roles, y que lo que no le toca no lo ve ni lo puede tocar |
+| `server/pruebas/` | 116 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios, seguridad y las **invariantes** de los datos |
 | `server/pruebas/aleatorio.test.ts` | 10.000 comandos al azar con semilla: dispara lo que a nadie se le ocurre y comprueba las 9 invariantes después de **cada uno**. Si falla, la semilla que sale por pantalla repite la secuencia exacta |
 | `scripts/verify/backend.mjs` | 24 comprobaciones de la app compilada contra el servidor: entrar con contraseña, mover un coche y que **otro dispositivo lo vea**, subir una foto y recuperar la contraseña por correo |
 
@@ -161,6 +178,17 @@ en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
   marca de «vende coches» y de serie solo lleva el comercial: al
   administrador y a logística les salía vacía. La oficina asigna comercial a
   cualquiera con `flota.editar`, que es su herramienta.
+- **Un traslado que llega tarde dice por qué.** Se le pregunta al
+  transportista en el momento, con el coche delante —preguntarlo al día
+  siguiente es preguntarle a la memoria de alguien— y solo si se ha pasado
+  del plazo. Doce retrasos son doce discusiones; doce motivos son un dato:
+  «ocho de doce fue que no estaban las llaves» se puede arreglar.
+- **Tres avisos puestos de serie**, que son los que más trabajo ahorran: al
+  comercial cuando su coche queda listo, al preparador cuando le piden una
+  preparación, y a logística cuando un traslado lleva 24 h sin que nadie
+  recoja las llaves —que es donde se pierden los días, porque el plazo del
+  transportista no empieza hasta la recogida y un traslado olvidado no
+  llega tarde nunca.
 - **Un traslado terminado deja registro**: cuándo se recogieron las llaves,
   cuándo se entregó y quién lo entregó (`deliveredAt`, `deliveredBy`). Antes
   un traslado terminado solo dejaba de estar pendiente, y sin fecha de

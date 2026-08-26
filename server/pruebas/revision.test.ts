@@ -15,6 +15,7 @@ import assert from 'node:assert/strict';
 import { applyCommand, type Command } from '../../src/data/commands';
 import { buildSeedState } from '../../src/data/seed';
 import { revisar } from './invariantes';
+import { bandejaDe } from '../../src/data/selectors';
 import type { AppState, Id } from '../../src/data/types';
 
 let n = 0;
@@ -336,4 +337,168 @@ test('la hora de entrega no se reescribe si el comando llega dos veces', () => {
   const masTarde = { ...entrega, id: 'rev-otro', at: new Date(Date.now() + 7_200_000).toISOString() } as Command;
   s = applyCommand(s, masTarde);
   assert.equal(s.requests.find((r) => r.id === req.id)!.deliveredAt, primera);
+});
+
+/* ═══════════ 8 · Los avisos llegan a quien tienen que llegar ═══════════ */
+
+test('el aviso de coche listo va al comercial de ese coche, no a todos', () => {
+  // Un aviso que le llega a todo el mundo no se lo cree nadie: en dos meses
+  // deja de mirarse la campana.
+  let s = buildSeedState();
+  const juan = s.users.find((u) => u.name === 'Juan Bilbao')!;
+  const v = s.vehicles.find((x) => x.logisticActive && !x.salesRep)!;
+  s = aplicar(s, { type: 'vehicle.setSalesRep', vehicleId: v.id, salesRep: juan.name });
+
+  const antes = s.inbox.length;
+  s = aplicar(s, { type: 'prep.create', vehicleId: v.id, siteId: 'leioa' });
+  const prep = s.preparations.find((p) => p.vehicleId === v.id)!;
+  s = aplicar(s, { type: 'prep.start', prepId: prep.id });
+  s = aplicar(s, { type: 'prep.finish', prepId: prep.id });
+
+  const nuevos = s.inbox.slice(0, s.inbox.length - antes);
+  const listo = nuevos.find((n) => n.vehicleId === v.id && n.body.includes('listo'));
+  assert.ok(listo, `tenía que haber un aviso de coche listo: ${nuevos.map((n) => n.body).join(' | ')}`);
+  assert.deepEqual(listo.userIds, [juan.id], 'solo al comercial de ese coche');
+});
+
+test('un coche sin comercial no genera un aviso que no va a leer nadie', () => {
+  let s = buildSeedState();
+  const v = s.vehicles.find((x) => x.logisticActive && !x.salesRep)!;
+  const antes = s.inbox.length;
+  s = aplicar(s, { type: 'prep.create', vehicleId: v.id, siteId: 'leioa' });
+  const prep = s.preparations.find((p) => p.vehicleId === v.id)!;
+  s = aplicar(s, { type: 'prep.start', prepId: prep.id });
+  s = aplicar(s, { type: 'prep.finish', prepId: prep.id });
+  const nuevos = s.inbox.slice(0, s.inbox.length - antes);
+  assert.equal(
+    nuevos.filter((n) => n.userIds && n.userIds.length === 0).length,
+    0,
+    'no se crean avisos sin destinatario'
+  );
+});
+
+test('pedir una preparación avisa a los preparadores', () => {
+  let s = buildSeedState();
+  const v = s.vehicles.find((x) => x.logisticActive)!;
+  const antes = s.inbox.length;
+  s = aplicar(s, {
+    type: 'request.create',
+    requestType: 'preparacion',
+    vehicleId: v.id,
+    siteId: 'leioa',
+    to: null,
+  });
+  const nuevos = s.inbox.slice(0, s.inbox.length - antes);
+  const aviso = nuevos.find((n) => n.body.includes('preparación pedida'));
+  assert.ok(aviso, 'el preparador tiene que enterarse sin entrar a mirar la cola');
+  const preparadores = s.users.filter((u) => u.active && u.role === 'preparador').map((u) => u.id);
+  assert.deepEqual([...(aviso.userIds ?? [])].sort(), preparadores.sort());
+});
+
+test('un traslado que nadie recoge acaba avisando a logística', () => {
+  // Es donde se pierden los días: el plazo del transportista no empieza
+  // hasta la recogida, así que un traslado olvidado no llega tarde nunca.
+  let s = buildSeedState();
+  const v = s.vehicles.find((x) => x.location?.siteId === 'sondika')!;
+  const hace30h = new Date(Date.now() - 30 * 3_600_000).toISOString();
+  s = applyCommand(s, {
+    ...orden({
+      type: 'request.create',
+      requestType: 'traslado',
+      vehicleId: v.id,
+      siteId: 'leioa',
+      to: { siteId: 'leioa' },
+    }),
+    at: hace30h,
+  } as Command);
+
+  const antes = s.inbox.length;
+  s = aplicar(s, { type: 'alerts.sweep' });
+  const nuevos = s.inbox.slice(0, s.inbox.length - antes);
+  const aviso = nuevos.find((n) => n.vehicleId === v.id && n.body.includes('recogido las llaves'));
+  assert.ok(aviso, 'tenía que avisar de que lleva 30 h sin recoger');
+  const logistica = s.users.filter((u) => u.active && u.role === 'logistica').map((u) => u.id);
+  assert.deepEqual([...(aviso.userIds ?? [])].sort(), logistica.sort());
+});
+
+test('el barrido no repite el mismo aviso aunque se lance veinte veces', () => {
+  // La app lo lanza al abrirse: si cada apertura repitiera los avisos, la
+  // bandeja se llenaría de lo mismo y dejaría de servir.
+  let s = buildSeedState();
+  s = aplicar(s, { type: 'alerts.sweep' });
+  const despuesDelPrimero = s.inbox.length;
+  for (let i = 0; i < 20; i++) s = aplicar(s, { type: 'alerts.sweep' });
+  assert.equal(s.inbox.length, despuesDelPrimero, 'el mismo día no vuelve a avisar');
+});
+
+test('la bandeja de cada uno es la suya', () => {
+  let s = buildSeedState();
+  s = aplicar(s, { type: 'alerts.sweep' });
+  const juan = s.users.find((u) => u.name === 'Juan Bilbao')!;
+  const pedro = s.users.find((u) => u.name === 'Pedro Larrea')!;
+
+  const deJuan = bandejaDe(s, juan);
+  const dePedro = bandejaDe(s, pedro);
+  // Ninguno puede ver un aviso dirigido en exclusiva al otro.
+  assert.ok(
+    !deJuan.some((n) => n.userIds?.length && !n.userIds.includes(juan.id)),
+    'Juan no ve avisos que no son suyos'
+  );
+  assert.ok(
+    !dePedro.some((n) => n.userIds?.length && !n.userIds.includes(pedro.id)),
+    'Pedro no ve avisos que no son suyos'
+  );
+});
+
+/* ═══════════ 9 · El motivo del retraso ═══════════ */
+
+test('entregar fuera de plazo guarda el motivo; a tiempo no guarda nada', () => {
+  let s = buildSeedState();
+  const v = s.vehicles.find((x) => x.location?.siteId === 'sondika')!;
+  s = aplicar(s, {
+    type: 'request.create',
+    requestType: 'traslado',
+    vehicleId: v.id,
+    siteId: 'leioa',
+    to: { siteId: 'leioa' },
+  });
+  const req = s.requests.find((r) => r.vehicleId === v.id && r.type === 'traslado')!;
+  // Recoge las llaves hace tres días: el plazo de 48 h ya se ha pasado.
+  s = applyCommand(s, {
+    ...orden({ type: 'request.update', requestId: req.id, status: 'en_ruta' }),
+    at: new Date(Date.now() - 72 * 3_600_000).toISOString(),
+  } as Command);
+
+  s = aplicar(s, {
+    type: 'request.update',
+    requestId: req.id,
+    status: 'terminada',
+    delayReason: 'llaves',
+    delayNote: '  ',
+  });
+  const fin = s.requests.find((r) => r.id === req.id)!;
+  assert.equal(fin.delayReason, 'llaves');
+  assert.equal(fin.delayNote, null, 'una nota en blanco no se guarda');
+});
+
+test('un traslado entregado a tiempo no guarda motivo aunque lo manden', () => {
+  // Sería la explicación de algo que no pasó.
+  let s = buildSeedState();
+  const v = s.vehicles.find((x) => x.location?.siteId === 'sondika')!;
+  s = aplicar(s, {
+    type: 'request.create',
+    requestType: 'traslado',
+    vehicleId: v.id,
+    siteId: 'leioa',
+    to: { siteId: 'leioa' },
+  });
+  const req = s.requests.find((r) => r.vehicleId === v.id && r.type === 'traslado')!;
+  s = aplicar(s, { type: 'request.update', requestId: req.id, status: 'en_ruta' });
+  s = aplicar(s, {
+    type: 'request.update',
+    requestId: req.id,
+    status: 'terminada',
+    delayReason: 'trafico',
+  });
+  assert.equal(s.requests.find((r) => r.id === req.id)!.delayReason, undefined);
 });

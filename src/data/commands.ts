@@ -33,6 +33,7 @@ import type {
   Zone,
   CustomField,
   Carrier,
+  DelayReason,
   VehicleType,
   Situation,
 } from './types';
@@ -53,6 +54,9 @@ export type Command =
       to: LocationRef;
       note?: string;
       completesTransfer?: boolean;
+      /** Por qué llega tarde, cuando este movimiento cierra un traslado. */
+      delayReason?: DelayReason | null;
+      delayNote?: string | null;
     }
   | {
       type: 'request.create';
@@ -77,6 +81,9 @@ export type Command =
       status: RequestStatus;
       assignedTo?: Id | null;
       carrierId?: Id | null;
+      /** Por qué llega tarde. Solo se pide si se pasa del plazo. */
+      delayReason?: DelayReason | null;
+      delayNote?: string | null;
     }
   | { type: 'prep.create'; id: Id; at: string; userId: Id; vehicleId: Id; siteId: Id; preparerId?: Id | null }
   | { type: 'prep.start'; id: Id; at: string; userId: Id; prepId: Id }
@@ -109,6 +116,21 @@ export type Command =
   | { type: 'rule.create'; id: Id; at: string; userId: Id; rule: Omit<NotificationRule, 'id' | 'createdAt'> }
   | { type: 'rule.toggle'; id: Id; at: string; userId: Id; ruleId: Id }
   | { type: 'rule.delete'; id: Id; at: string; userId: Id; ruleId: Id }
+  | {
+      /**
+       * Repasa las condiciones que no dispara nadie al hacer algo, sino el
+       * paso del tiempo: un coche que lleva 72 h sin comprobar, un traslado
+       * que lleva 24 h sin que nadie recoja las llaves.
+       *
+       * Lo lanza el servidor cada hora y la app al abrirse. Es idempotente
+       * por el día: el mismo coche no avisa dos veces el mismo día aunque el
+       * barrido pase veinte veces.
+       */
+      type: 'alerts.sweep';
+      id: Id;
+      at: string;
+      userId: Id;
+    }
   | { type: 'inbox.read'; id: Id; at: string; userId: Id; eventId: Id }
   | { type: 'inbox.readAll'; id: Id; at: string; userId: Id }
   | { type: 'reception.create'; id: Id; at: string; userId: Id; truckPlate: string; carrier: string; siteId: Id }
@@ -274,8 +296,20 @@ function addEvent(state: AppState, ev: Omit<TraceEvent, 'id'>): AppState {
   return { ...state, events: [event, ...state.events].slice(0, 4000) };
 }
 
-function addInbox(state: AppState, ev: Omit<NotificationEvent, 'id' | 'read'>): AppState {
-  const item: NotificationEvent = { id: derivado('nev'), read: false, ...ev };
+/**
+ * Mete un aviso en la bandeja.
+ *
+ * El `sufijo` es para el barrido por tiempo: allí el id no puede salir del
+ * comando —cada barrido es un comando distinto— sino de *qué* se avisa y de
+ * *qué día*, o el mismo coche sin comprobar avisaría en cada barrido hasta
+ * llenar la bandeja de lo mismo.
+ */
+function addInbox(
+  state: AppState,
+  ev: Omit<NotificationEvent, 'id' | 'read'>,
+  sufijo?: string
+): AppState {
+  const item: NotificationEvent = { id: sufijo ?? derivado('nev'), read: false, ...ev };
   if (yaCreado(state.inbox, item.id)) return state;
   return { ...state, inbox: [item, ...state.inbox].slice(0, 500) };
 }
@@ -290,11 +324,37 @@ function transcurrido(desde: string | null, cmd: Command): number {
 }
 
 /** Evalúa las reglas activas y genera avisos en la bandeja. */
+/**
+ * A quién le llega este aviso, resuelto en el momento de crearlo.
+ *
+ * `null` quiere decir «a todo el mundo». Se resuelve aquí y no al leer la
+ * bandeja porque el comercial de un coche puede cambiar mañana, y el aviso
+ * de hoy era para el de hoy.
+ */
+function destinatarios(state: AppState, rule: NotificationRule, vehicle: Vehicle | null): Id[] | null {
+  const audiencia = rule.audience ?? { kind: 'todos' as const };
+  if (audiencia.kind === 'todos') return null;
+  if (audiencia.kind === 'rol') {
+    return state.users.filter((u) => u.active && u.role === audiencia.roleId).map((u) => u.id);
+  }
+  // El comercial del coche: se busca por nombre, que es como viene de
+  // Quiter, con el mismo emparejamiento que usa el resto de la aplicación.
+  if (!vehicle?.salesRep) return [];
+  const rep = vehicle.salesRep.trim().toLowerCase();
+  return state.users
+    .filter((u) => {
+      if (!u.active) return false;
+      const nombre = u.name.trim().toLowerCase();
+      return rep === nombre || nombre.startsWith(`${rep} `) || rep.startsWith(`${nombre} `);
+    })
+    .map((u) => u.id);
+}
+
 function fireRules(
   state: AppState,
   condition: NotifyCondition,
   vehicle: Vehicle | null,
-  ctx: { siteId?: Id | null; body: string; tone?: NotificationEvent['tone'] }
+  ctx: { siteId?: Id | null; body: string; tone?: NotificationEvent['tone']; sufijo?: string }
 ): AppState {
   let next = state;
   for (const rule of state.rules) {
@@ -302,9 +362,16 @@ function fireRules(
     if (rule.scopeKind === 'vehicle' && rule.scopeRef !== vehicle?.id) continue;
     if (rule.scopeKind === 'site' && rule.scopeRef !== ctx.siteId) continue;
     if (condition === 'llegada_sede' && rule.targetSiteId && rule.targetSiteId !== ctx.siteId) continue;
+
+    const userIds = destinatarios(next, rule, vehicle);
+    // Una regla dirigida a alguien que no existe no genera un aviso que no
+    // va a leer nadie: un coche sin comercial no avisa a ningún comercial.
+    if (userIds !== null && userIds.length === 0) continue;
+
     next = addInbox(next, {
       ruleId: rule.id,
       vehicleId: vehicle?.id ?? null,
+      userIds,
       title: `${rule.recipient} · aviso`,
       body: ctx.body,
       // La fecha del comando, no la de ahora: si el servidor rehace su
@@ -312,7 +379,7 @@ function fireRules(
       // que tenían y no con la del reinicio.
       at: enCurso?.at ?? new Date().toISOString(),
       tone: ctx.tone ?? 'info',
-    });
+    }, ctx.sufijo);
   }
   return next;
 }
@@ -576,6 +643,9 @@ function aplicar(state: AppState, cmd: Command): AppState {
               // destino: esa es la hora de entrega y ese, quien lo entregó.
               deliveredAt: open.deliveredAt ?? cmd.at,
               deliveredBy: open.deliveredBy ?? cmd.userId,
+              ...(cmd.delayReason && open.dueAt && cmd.at > open.dueAt
+                ? { delayReason: cmd.delayReason, delayNote: cmd.delayNote?.trim() || null }
+                : {}),
             }),
           };
           next = fireRules(next, 'traslado_completado', vehicle, {
@@ -653,6 +723,17 @@ function aplicar(state: AppState, cmd: Command): AppState {
         requests: [request, ...state.requests],
       };
 
+      if (cmd.requestType === 'preparacion') {
+        // El preparador se entera al momento en vez de descubrirlo cuando
+        // entra a mirar la cola: es el aviso que más tiempo ahorra, porque
+        // el coche está parado desde que se pide.
+        next = fireRules(next, 'preparacion_pedida', vehicle, {
+          siteId: cmd.siteId,
+          body: `${vehicleTitle(vehicle)}: preparación pedida en ${siteName(state, cmd.siteId)}${cmd.urgent ? ' · URGENTE' : ''}.`,
+          tone: cmd.urgent ? 'warn' : 'info',
+        });
+      }
+
       return addEvent(next, {
         vehicleId: cmd.vehicleId,
         kind: 'solicitud',
@@ -687,6 +768,12 @@ function aplicar(state: AppState, cmd: Command): AppState {
       if (cmd.status === 'terminada' && !req.deliveredAt) {
         patch.deliveredAt = cmd.at;
         patch.deliveredBy = cmd.userId;
+        // El motivo solo se guarda si de verdad llegó tarde: si no, sería
+        // una explicación de algo que no pasó.
+        if (cmd.delayReason && req.dueAt && cmd.at > req.dueAt) {
+          patch.delayReason = cmd.delayReason;
+          patch.delayNote = cmd.delayNote?.trim() || null;
+        }
       }
 
       const next: AppState = { ...state, requests: replace(state.requests, cmd.requestId, patch) };
@@ -899,7 +986,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       const v = next.vehicles.find((x) => x.id === p.vehicleId) ?? null;
       next = fireRules(next, 'preparacion_terminada', v, {
         siteId: p.siteId,
-        body: `${v ? vehicleTitle(v) : 'Vehículo'} apto para entrega en ${siteName(state, p.siteId)}.`,
+        body: `${v ? vehicleTitle(v) : 'Vehículo'} ya está listo para entregar en ${siteName(state, p.siteId)}.`,
       });
       return addEvent(next, {
         vehicleId: p.vehicleId,
@@ -1041,6 +1128,47 @@ function aplicar(state: AppState, cmd: Command): AppState {
     }
     case 'rule.delete':
       return { ...state, rules: state.rules.filter((r) => r.id !== cmd.ruleId) };
+
+    case 'alerts.sweep': {
+      const ahora = new Date(cmd.at).getTime();
+      const dia = cmd.at.slice(0, 10);
+      let next = state;
+
+      // Coches que llevan demasiado sin que nadie confirme dónde están.
+      const limiteComprobacion = state.config.staleCheckHours ?? 72;
+      for (const v of state.vehicles) {
+        if (!v.logisticActive) continue;
+        const desde = v.lastCheckAt ?? v.receivedAt;
+        if (!desde) continue;
+        const horas = (ahora - new Date(desde).getTime()) / 3_600_000;
+        if (horas < limiteComprobacion) continue;
+        next = fireRules(next, 'sin_comprobar_72h', v, {
+          siteId: v.location?.siteId ?? null,
+          body: `${vehicleTitle(v)} lleva ${Math.floor(horas)} h sin que nadie confirme dónde está (${locationLabel(next, v.location, true)}).`,
+          tone: 'warn',
+          // Uno por coche y día: si no, cada barrido repetiría el mismo
+          // aviso hasta que la bandeja no sirviera para nada.
+          sufijo: `nev-stale-${v.id}-${dia}`,
+        });
+      }
+
+      // Traslados encargados que nadie ha ido a recoger.
+      const limiteRecogida = state.config.pickupAlertHours ?? 24;
+      for (const r of state.requests) {
+        if (r.type !== 'traslado' || r.status === 'terminada' || r.pickedUpAt) continue;
+        const horas = (ahora - new Date(r.createdAt).getTime()) / 3_600_000;
+        if (horas < limiteRecogida) continue;
+        const v = state.vehicles.find((x) => x.id === r.vehicleId) ?? null;
+        next = fireRules(next, 'traslado_sin_recoger', v, {
+          siteId: r.siteId,
+          body: `${v ? vehicleTitle(v) : r.vehicleId}: encargado hace ${Math.floor(horas)} h y todavía nadie ha recogido las llaves.`,
+          tone: 'warn',
+          sufijo: `nev-recogida-${r.id}-${dia}`,
+        });
+      }
+
+      return next;
+    }
 
     case 'inbox.read':
       return { ...state, inbox: replace(state.inbox, cmd.eventId, { read: true }) };

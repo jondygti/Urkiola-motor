@@ -19,7 +19,7 @@ import {
   useTheme,
 } from '@/ui';
 import { useAppState, useStore } from '@/data/store';
-import { unreadCount } from '@/data/selectors';
+import { bandejaDe, unreadCount } from '@/data/selectors';
 import { formatDateTime, siteName, timeAgo, vehicleTitle } from '@/data/format';
 import { NOTIFY_CONDITION_LABEL, type NotificationRule } from '@/data/types';
 import { Cell, useOpenVehicle } from '@/features/common/bits';
@@ -29,7 +29,7 @@ import { IfCan, usePerms } from '@/features/common/Guard';
 
 export default function NotificationsScreen() {
   const state = useAppState();
-  const { run } = useStore();
+  const { run, user } = useStore();
   const { c } = useTheme();
   const openVehicle = useOpenVehicle();
   const { can } = usePerms();
@@ -39,7 +39,10 @@ export default function NotificationsScreen() {
   const [newOpen, setNewOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  const unread = unreadCount(state);
+  // La bandeja es la suya: un aviso dirigido al comercial de un coche no
+  // le sirve de nada al preparador, y de tanto llegarle deja de mirarla.
+  const bandeja = bandejaDe(state, user);
+  const unread = unreadCount(state, user);
 
   const ruleColumns: Column<NotificationRule>[] = [
     {
@@ -165,17 +168,17 @@ export default function NotificationsScreen() {
         <>
           <Grid cols={3} minWidth={200}>
             <Kpi label="Sin leer" value={unread} tone={unread > 0 ? 'amber' : 'ok'} />
-            <Kpi label="Total avisos" value={state.inbox.length} />
+            <Kpi label="Total avisos" value={bandeja.length} />
             <Kpi label="Reglas activas" value={state.rules.filter((r) => r.active).length} />
           </Grid>
 
           <Spacer h={space.lg} />
 
           <Panel title="Bandeja de avisos">
-            {state.inbox.length === 0 ? (
-              <Muted>No hay avisos todavía.</Muted>
+            {bandeja.length === 0 ? (
+              <Muted>No tienes avisos.</Muted>
             ) : (
-              state.inbox.map((n) => (
+              bandeja.map((n) => (
                 <Notice
                   key={n.id}
                   tone={n.tone}

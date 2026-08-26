@@ -17,8 +17,9 @@ import {
   useTheme,
 } from '@/ui';
 import { useAppState } from '@/data/store';
-import { carrierName, resumenTransporte, trasladosHechos } from '@/data/selectors';
+import { carrierName, motivosDeRetraso, resumenTransporte, trasladosHechos } from '@/data/selectors';
 import { formatDateTime, locationLabel, matchesSearch, userName, vehicleName, vehicleRef } from '@/data/format';
+import { DELAY_REASON_LABEL } from '@/data/types';
 import { ScreenGuard } from '@/features/common/Guard';
 import { useOpenVehicle } from '@/features/common/bits';
 
@@ -69,6 +70,7 @@ export default function TransfersDoneScreen() {
   );
 
   const resumen = resumenTransporte(hechos);
+  const motivos = motivosDeRetraso(hechos);
 
   // Cuántos ha hecho cada empresa en este periodo, para verlo sin ir
   // cambiando el filtro una por una.
@@ -133,6 +135,39 @@ export default function TransfersDoneScreen() {
             autoCapitalize="characters"
           />
         </Panel>
+
+        {motivos.length ? (
+          <>
+            <Spacer h={space.md} />
+            <Panel title="Por qué llegaron tarde">
+              {motivos.map(({ motivo, veces }) => (
+                <View
+                  key={motivo}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 8,
+                    paddingVertical: 6,
+                    borderBottomWidth: 1,
+                    borderBottomColor: c.borderSoft,
+                  }}
+                >
+                  <Text style={{ fontSize: 13, color: c.text, flex: 1 }}>
+                    {DELAY_REASON_LABEL[motivo]}
+                  </Text>
+                  <Pill tone={veces > 1 ? 'amber' : 'neutral'}>
+                    {veces} {veces === 1 ? 'vez' : 'veces'}
+                  </Pill>
+                </View>
+              ))}
+              <Spacer h={space.sm} />
+              <Muted>
+                Doce retrasos son doce discusiones; doce motivos son un dato. Lo que se repite es lo que se
+                puede arreglar.
+              </Muted>
+            </Panel>
+          </>
+        ) : null}
 
         {porEmpresa.length > 1 && empresa === TODAS ? (
           <>
@@ -211,6 +246,12 @@ export default function TransfersDoneScreen() {
                   {horas === null ? '' : ` · ${Math.round(horas)} h`}
                   {request.deliveredBy ? ` · ${userName(state, request.deliveredBy)}` : ''}
                 </Text>
+                {fueraDePlazo && request.delayReason ? (
+                  <Text style={{ fontSize: 11, color: c.amberFg }}>
+                    ⏱ {DELAY_REASON_LABEL[request.delayReason]}
+                    {request.delayNote ? ` · ${request.delayNote}` : ''}
+                  </Text>
+                ) : null}
               </View>
             ))}
             {hechos.length > 200 ? (
