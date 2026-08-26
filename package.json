@@ -8,7 +8,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "build:web": "expo export --platform web --output-dir dist --clear",
+    "build:web": "npm run fuente && expo export --platform web --output-dir dist --clear",
     "typecheck": "tsc --noEmit",
     "verify": "node scripts/verify/run.mjs",
     "verify:api": "node scripts/verify/backend.mjs",
@@ -16,9 +16,11 @@
     "server:test": "npm --prefix server test",
     "lint": "expo lint",
     "icons": "node scripts/generate-icons.mjs",
-    "build:demo": "node scripts/build-demo.mjs"
+    "build:demo": "node scripts/build-demo.mjs",
+    "fuente": "node scripts/generar-fuente.mjs"
   },
   "dependencies": {
+    "@expo-google-fonts/inter": "^0.4.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/netinfo": "12.0.1",
     "expo": "~57.0.15",

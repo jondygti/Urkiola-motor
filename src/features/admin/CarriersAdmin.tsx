@@ -1,21 +1,6 @@
 import React, { useState } from 'react';
 import { Text, View } from 'react-native';
-import {
-  Btn,
-  Checkbox,
-  ConfirmDialog,
-  Field,
-  Input,
-  Modal,
-  Muted,
-  Notice,
-  Panel,
-  Pill,
-  Toolbar,
-  radius,
-  space,
-  useTheme,
-} from '@/ui';
+import { Btn, Checkbox, ConfirmDialog, Field, Input, Modal, Muted, Notice, Panel, Pill, Toolbar, radius, space, tipografia, useTheme } from '@/ui';
 import { useStore } from '@/data/store';
 import type { Carrier } from '@/data/types';
 
@@ -73,20 +58,20 @@ export function CarriersAdmin({ onDone }: { onDone: (m: string) => void }) {
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <Text style={{ fontSize: 15, fontWeight: '800', color: c.text, flex: 1, minWidth: 140 }}>
+                <Text style={{ fontSize: tipografia.strong, fontWeight: '800', color: c.text, flex: 1, minWidth: 140 }}>
                   {x.name}
                 </Text>
                 {!x.active ? <Pill tone="neutral">Inactiva</Pill> : null}
                 {abiertos > 0 ? <Pill tone="blue">{abiertos} en curso</Pill> : null}
               </View>
 
-              <Text style={{ fontSize: 12, color: c.textMuted }}>
+              <Text style={{ fontSize: tipografia.small, color: c.textMuted }}>
                 Cubre:{' '}
                 {x.siteIds.length
                   ? x.siteIds.map((id) => state.sites.find((s) => s.id === id)?.name ?? id).join(', ')
                   : 'ninguna sede marcada'}
               </Text>
-              <Text style={{ fontSize: 11, color: c.textFaint }}>
+              <Text style={{ fontSize: tipografia.micro, color: c.textFaint }}>
                 {conductores.length
                   ? `Conductores: ${conductores.map((u) => u.name).join(', ')}`
                   : 'Sin conductores dados de alta'}

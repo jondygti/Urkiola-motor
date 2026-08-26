@@ -2,7 +2,7 @@ import React from 'react';
 import { Text, View } from 'react-native';
 import { useAppState } from '@/data/store';
 import { locationLabel } from '@/data/format';
-import { useTheme } from '@/ui';
+import { useTheme, tipografia } from '@/ui';
 import type { Id, Vehicle } from '@/data/types';
 
 /**
@@ -47,7 +47,7 @@ export function UbicacionVehiculo({
     <View style={{ marginTop: 4, gap: 2 }}>
       <Text style={{ fontSize: compacta ? 12 : 13, fontWeight: '700', color: tono }}>📍 {texto}</Text>
       {fuera ? (
-        <Text style={{ fontSize: 11, color: c.amberFg }}>
+        <Text style={{ fontSize: tipografia.micro, color: c.amberFg }}>
           Todavía no está en {state.sites.find((s) => s.id === esperadoEn)?.name ?? 'la sede'}.
         </Text>
       ) : null}

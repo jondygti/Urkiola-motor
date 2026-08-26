@@ -1,22 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
-import {
-  Column,
-  DataTable,
-  Grid,
-  H1,
-  Kpi,
-  Muted,
-  Panel,
-  Pill,
-  ProgressBar,
-  Screen,
-  Select,
-  Spacer,
-  Toolbar,
-  space,
-  useTheme,
-} from '@/ui';
+import { Column, DataTable, Grid, H1, Kpi, Muted, Panel, Pill, ProgressBar, Screen, Select, Spacer, Toolbar, space, tipografia, useTheme } from '@/ui';
 import { useAppState } from '@/data/store';
 import { siteOccupancy, vehiclesAtSite, vehiclesInZone, zoneOccupancy } from '@/data/selectors';
 import { formatDateTime, timeAgo, vehicleName, vehicleRef } from '@/data/format';
@@ -54,7 +38,7 @@ export default function CampScreen() {
       primary: true,
       value: (p) => p.code,
       filter: { type: 'text' },
-      render: (p) => <Text style={{ fontSize: 13, fontWeight: '800', color: c.text }}>{p.code}</Text>,
+      render: (p) => <Text style={{ fontSize: tipografia.body, fontWeight: '800', color: c.text }}>{p.code}</Text>,
     },
     {
       key: 'vehicle',
@@ -70,8 +54,8 @@ export default function CampScreen() {
         if (!v) return <Cell muted>Libre</Cell>;
         return (
           <View>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: c.text }}>{vehicleRef(v)}</Text>
-            <Text style={{ fontSize: 11, color: c.textMuted }}>{vehicleName(v)}</Text>
+            <Text style={{ fontSize: tipografia.body, fontWeight: '700', color: c.text }}>{vehicleRef(v)}</Text>
+            <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>{vehicleName(v)}</Text>
           </View>
         );
       },
@@ -98,7 +82,7 @@ export default function CampScreen() {
           ? (Date.now() - new Date(v.lastCheckAt).getTime()) / 3_600_000 > state.config.staleCheckHours
           : true;
         return (
-          <Text style={{ fontSize: 12, color: stale ? c.redFg : c.text }}>
+          <Text style={{ fontSize: tipografia.small, color: stale ? c.redFg : c.text }}>
             {formatDateTime(v.lastCheckAt)} · {timeAgo(v.lastCheckAt)}
           </Text>
         );
@@ -188,11 +172,11 @@ export default function CampScreen() {
                   backgroundColor: c.surface,
                 }}
               >
-                <Text style={{ fontSize: 12, fontWeight: '800', color: c.text }}>{z.name}</Text>
-                <Text style={{ fontSize: 24, fontWeight: '900', color: c.text, marginVertical: 4 }}>
+                <Text style={{ fontSize: tipografia.small, fontWeight: '800', color: c.text }}>{z.name}</Text>
+                <Text style={{ fontSize: tipografia.display, fontWeight: '900', color: c.text, marginVertical: 4 }}>
                   {o.occupied}
                 </Text>
-                <Text style={{ fontSize: 11, color: c.textMuted, marginBottom: 6 }}>de {o.capacity} plazas</Text>
+                <Text style={{ fontSize: tipografia.micro, color: c.textMuted, marginBottom: 6 }}>de {o.capacity} plazas</Text>
                 <ProgressBar pct={o.pct} tone={o.pct > 90 ? 'red' : o.pct > 75 ? 'amber' : 'ok'} />
               </View>
             );

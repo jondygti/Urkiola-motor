@@ -1,23 +1,6 @@
 import React, { useState } from 'react';
 import { Text, View } from 'react-native';
-import {
-  Btn,
-  Column,
-  DataTable,
-  Grid,
-  H1,
-  Kpi,
-  Muted,
-  Notice,
-  Panel,
-  Pill,
-  Screen,
-  Segmented,
-  Spacer,
-  Toolbar,
-  space,
-  useTheme,
-} from '@/ui';
+import { Btn, Column, DataTable, Grid, H1, Kpi, Muted, Notice, Panel, Pill, Screen, Segmented, Spacer, Toolbar, space, tipografia, useTheme } from '@/ui';
 import { useAppState, useStore } from '@/data/store';
 import { bandejaDe, unreadCount } from '@/data/selectors';
 import { formatDateTime, siteName, timeAgo, vehicleTitle } from '@/data/format';
@@ -189,11 +172,11 @@ export default function NotificationsScreen() {
                 >
                   <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 12, fontWeight: n.read ? '600' : '900', color: c.text }}>
+                      <Text style={{ fontSize: tipografia.small, fontWeight: n.read ? '600' : '900', color: c.text }}>
                         {n.title}
                       </Text>
-                      <Text style={{ fontSize: 12, color: c.text, marginTop: 2 }}>{n.body}</Text>
-                      <Text style={{ fontSize: 11, color: c.textMuted, marginTop: 3 }}>
+                      <Text style={{ fontSize: tipografia.small, color: c.text, marginTop: 2 }}>{n.body}</Text>
+                      <Text style={{ fontSize: tipografia.micro, color: c.textMuted, marginTop: 3 }}>
                         {formatDateTime(n.at)} · {timeAgo(n.at)}
                       </Text>
                     </View>

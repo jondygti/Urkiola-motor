@@ -4,7 +4,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } fro
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '@/data/store';
 import { roleLabel } from '@/data/selectors';
-import { Btn, Field, Input, Muted, Notice, Panel, Spacer, radius, space, useTheme } from '@/ui';
+import { Btn, Field, Input, Muted, Notice, Panel, Spacer, radius, space, useTheme, tipografia } from '@/ui';
 import { api } from '@/data/api';
 
 export default function LoginScreen() {
@@ -53,10 +53,10 @@ export default function LoginScreen() {
         }}
       >
         <View style={{ width: '100%', maxWidth: 460, alignSelf: 'center' }}>
-          <Text style={{ color: '#fff', fontSize: 26, fontWeight: '900', lineHeight: 30 }}>
+          <Text style={{ color: '#fff', fontSize: tipografia.display, fontWeight: '900', lineHeight: 30 }}>
             URKIOLA{'\n'}CAR SERVICE
           </Text>
-          <Text style={{ color: c.navBrandSub, fontSize: 12, marginTop: 6, marginBottom: space.xl }}>
+          <Text style={{ color: c.navBrandSub, fontSize: tipografia.small, marginTop: 6, marginBottom: space.xl }}>
             Gestión logística de flota · Sondika · Leioa · Galdakao · Anoeta · Irun
           </Text>
 
@@ -78,7 +78,7 @@ export default function LoginScreen() {
 
             {error ? (
               <View style={{ backgroundColor: c.noticeDangerBg, borderRadius: radius.md, padding: 10, marginBottom: space.sm }}>
-                <Text style={{ color: c.redFg, fontSize: 12 }}>{error}</Text>
+                <Text style={{ color: c.redFg, fontSize: tipografia.small }}>{error}</Text>
               </View>
             ) : null}
 
@@ -140,10 +140,10 @@ export default function LoginScreen() {
                       })}
                     >
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: c.text }}>{u.name}</Text>
-                        <Text style={{ fontSize: 11, color: c.textMuted }}>{u.email}</Text>
+                        <Text style={{ fontSize: tipografia.body, fontWeight: '700', color: c.text }}>{u.name}</Text>
+                        <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>{u.email}</Text>
                       </View>
-                      <Text style={{ fontSize: 11, color: c.primary, fontWeight: '800' }}>
+                      <Text style={{ fontSize: tipografia.micro, color: c.primary, fontWeight: '800' }}>
                         {roleLabel(state, u.role)}
                       </Text>
                     </Pressable>
@@ -153,7 +153,7 @@ export default function LoginScreen() {
             ) : null}
           </Panel>
 
-          <Text style={{ color: c.navBrandSub, fontSize: 10, textAlign: 'center', marginTop: space.lg }}>
+          <Text style={{ color: c.navBrandSub, fontSize: tipografia.label, textAlign: 'center', marginTop: space.lg }}>
             {mode === 'demo'
               ? 'Sin servidor configurado · los cambios se guardan en este dispositivo'
               : 'Conectado al servidor de Urkiola Car Service'}

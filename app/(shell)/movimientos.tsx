@@ -1,23 +1,7 @@
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
-import {
-  Btn,
-  Column,
-  DataTable,
-  H1,
-  Kpi,
-  Grid,
-  Muted,
-  Notice,
-  Panel,
-  Screen,
-  Select,
-  Spacer,
-  Toolbar,
-  space,
-  useTheme,
-} from '@/ui';
+import { Btn, Column, DataTable, H1, Kpi, Grid, Muted, Notice, Panel, Screen, Select, Spacer, Toolbar, space, tipografia, useTheme } from '@/ui';
 import { useAppState } from '@/data/store';
 import { formatDateTime, locationLabel, userName, vehicleName, vehicleRef } from '@/data/format';
 import type { Movement } from '@/data/types';
@@ -82,8 +66,8 @@ export default function MovementsScreen() {
         const v = state.vehicles.find((x) => x.id === m.vehicleId);
         return (
           <View>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: c.text }}>{v ? vehicleRef(v) : '—'}</Text>
-            <Text style={{ fontSize: 11, color: c.textMuted }}>{v ? vehicleName(v) : ''}</Text>
+            <Text style={{ fontSize: tipografia.body, fontWeight: '700', color: c.text }}>{v ? vehicleRef(v) : '—'}</Text>
+            <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>{v ? vehicleName(v) : ''}</Text>
           </View>
         );
       },

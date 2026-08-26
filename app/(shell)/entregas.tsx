@@ -1,22 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
-import {
-  Btn,
-  Grid,
-  H1,
-  Kpi,
-  Muted,
-  Notice,
-  Panel,
-  Pill,
-  Screen,
-  Segmented,
-  Select,
-  Spacer,
-  radius,
-  space,
-  useTheme,
-} from '@/ui';
+import { Btn, Grid, H1, Kpi, Muted, Notice, Panel, Pill, Screen, Segmented, Select, Spacer, radius, space, tipografia, useTheme } from '@/ui';
 import { useAppState, useTicker } from '@/data/store';
 import { deliveryStatus, sedeDeEntrega, upcomingDeliveries } from '@/data/selectors';
 import { formatDate, siteName, vehicleName, vehicleRef } from '@/data/format';
@@ -153,7 +137,7 @@ export default function DeliveriesScreen() {
         ) : (
           porDia.map(([clave, lista]) => (
             <View key={clave} style={{ marginBottom: space.lg }}>
-              <Text style={{ fontSize: 13, fontWeight: '900', color: c.textFaint, marginBottom: space.sm }}>
+              <Text style={{ fontSize: tipografia.body, fontWeight: '900', color: c.textFaint, marginBottom: space.sm }}>
                 {etiquetaDia(clave).toUpperCase()} · {lista.length}
               </Text>
 
@@ -175,7 +159,7 @@ export default function DeliveriesScreen() {
                     }}
                   >
                     <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                      <Text style={{ fontSize: 15, fontWeight: '800', color: c.text, flex: 1, minWidth: 130 }}>
+                      <Text style={{ fontSize: tipografia.strong, fontWeight: '800', color: c.text, flex: 1, minWidth: 130 }}>
                         {vehicleRef(v)}
                       </Text>
                       {e.ready ? (
@@ -189,7 +173,7 @@ export default function DeliveriesScreen() {
                       )}
                     </View>
 
-                    <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 2 }}>
+                    <Text style={{ fontSize: tipografia.small, color: c.textMuted, marginTop: 2 }}>
                       {vehicleName(v)} · {v.salesRep ?? 'sin comercial'} ·{' '}
                       {siteName(state, v.targetSiteId ?? v.location?.siteId)}
                     </Text>

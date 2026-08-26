@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
-import { radius, space, useTheme } from './theme';
+import { radius, space, tipografia, useTheme } from './theme';
 import { EmptyState, Label } from './primitives';
 import { Input, Option, Select } from './controls';
 
@@ -133,7 +133,7 @@ export function DataTable<T>({
           >
             {columns.map((col) => (
               <View key={col.key} style={{ width: col.width ?? 150, paddingHorizontal: 8 }}>
-                <Text style={{ fontSize: 11, fontWeight: '800', color: c.textFaint }}>{col.header}</Text>
+                <Text style={{ fontSize: tipografia.micro, fontWeight: '800', color: c.textFaint }}>{col.header}</Text>
                 {hasFilters && col.filter ? (
                   <View style={{ marginTop: 5 }}>
                     {col.filter.type === 'text' ? (
@@ -209,7 +209,7 @@ function ShowMore({ more, onPress }: { more: number; onPress: () => void }) {
         paddingHorizontal: 16,
       })}
     >
-      <Text style={{ fontSize: 12, fontWeight: '700', color: c.text }}>
+      <Text style={{ fontSize: tipografia.small, fontWeight: '700', color: c.text }}>
         Mostrar {Math.min(more, 40)} más · quedan {more}
       </Text>
     </Pressable>
@@ -220,7 +220,7 @@ function ResultCount({ shown, total }: { shown: number; total: number }) {
   const { c } = useTheme();
   if (total === 0) return null;
   return (
-    <Text style={{ fontSize: 11, color: c.textFaint, marginTop: space.sm, textAlign: 'center' }}>
+    <Text style={{ fontSize: tipografia.micro, color: c.textFaint, marginTop: space.sm, textAlign: 'center' }}>
       {shown === total ? `${total} registros` : `${shown} de ${total} registros`}
     </Text>
   );
@@ -256,10 +256,10 @@ function MobileFilters<T>({
           paddingHorizontal: 12,
         }}
       >
-        <Text style={{ fontSize: 12, fontWeight: '700', color: c.text }}>
+        <Text style={{ fontSize: tipografia.small, fontWeight: '700', color: c.text }}>
           Filtros por columna{activeCount ? ` · ${activeCount} activos` : ''}
         </Text>
-        <Text style={{ color: c.textFaint, fontSize: 11 }}>{open ? '▲' : '▼'}</Text>
+        <Text style={{ color: c.textFaint, fontSize: tipografia.micro }}>{open ? '▲' : '▼'}</Text>
       </Pressable>
 
       {open ? (

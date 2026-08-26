@@ -18,6 +18,10 @@ export default function Root({ children }: { children: React.ReactNode }) {
         />
         <title>Urkiola Car Service</title>
         <ScrollViewStyleReset />
+        {/* La fuente va incrustada en su propio fichero, generado al
+            compilar: así se cachea aparte del programa y no hay que
+            descargarla otra vez en cada versión nueva. */}
+        <link rel="stylesheet" href="/fuente.css" />
         <style dangerouslySetInnerHTML={{ __html: bodyStyle }} />
       </head>
       <body>{children}</body>

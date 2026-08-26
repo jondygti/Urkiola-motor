@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { TextInput, View } from 'react-native';
-import { Detail, Field, Muted, Segmented, Select, radius, useTheme } from '@/ui';
+import { Detail, Field, Muted, Segmented, Select, radius, useTheme, tipografia } from '@/ui';
 import { customValue } from '@/data/selectors';
 import { usePerms } from '@/features/common/Guard';
 import { useStore } from '@/data/store';
@@ -111,7 +111,7 @@ function CommitOnBlurInput({
         borderRadius: radius.md,
         paddingVertical: 10,
         paddingHorizontal: 12,
-        fontSize: 13,
+        fontSize: tipografia.body,
         color: c.text,
       }}
     />

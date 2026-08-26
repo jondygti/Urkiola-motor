@@ -1,23 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
-import {
-  Btn,
-  Column,
-  DataTable,
-  Field,
-  Grid,
-  H1,
-  Modal,
-  Muted,
-  Notice,
-  Panel,
-  Screen,
-  Select,
-  Spacer,
-  Toolbar,
-  space,
-  useTheme,
-} from '@/ui';
+import { Btn, Column, DataTable, Field, Grid, H1, Modal, Muted, Notice, Panel, Screen, Select, Spacer, Toolbar, space, tipografia, useTheme } from '@/ui';
 import { useAppState, useStore } from '@/data/store';
 import { activeCarriers, carrierName, deadlineOf, requestsBySite } from '@/data/selectors';
 import { formatDateTime, locationLabel, siteName, userName, vehicleName, vehicleRef } from '@/data/format';
@@ -82,8 +65,8 @@ export default function RequestsScreen() {
         const v = state.vehicles.find((x) => x.id === r.vehicleId);
         return (
           <View>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: c.text }}>{v ? vehicleRef(v) : '—'}</Text>
-            <Text style={{ fontSize: 11, color: c.textMuted }}>{v ? vehicleName(v) : ''}</Text>
+            <Text style={{ fontSize: tipografia.body, fontWeight: '700', color: c.text }}>{v ? vehicleRef(v) : '—'}</Text>
+            <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>{v ? vehicleName(v) : ''}</Text>
           </View>
         );
       },
@@ -228,9 +211,9 @@ export default function RequestsScreen() {
               padding: 13,
             }}
           >
-            <Text style={{ fontSize: 13, fontWeight: '800', color: c.text }}>{row.site.name}</Text>
-            <Text style={{ fontSize: 28, fontWeight: '900', color: c.text, marginVertical: 4 }}>{row.total}</Text>
-            <Text style={{ fontSize: 11, color: c.textMuted }}>
+            <Text style={{ fontSize: tipografia.body, fontWeight: '800', color: c.text }}>{row.site.name}</Text>
+            <Text style={{ fontSize: tipografia.display, fontWeight: '900', color: c.text, marginVertical: 4 }}>{row.total}</Text>
+            <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>
               {row.prep} prep. · {row.transfers} traslados
             </Text>
           </View>

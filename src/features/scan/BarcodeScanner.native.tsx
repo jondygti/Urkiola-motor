@@ -1,7 +1,7 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import React, { useRef } from 'react';
 import { Text, View } from 'react-native';
-import { Btn, Notice, radius, useTheme } from '@/ui';
+import { Btn, Notice, radius, useTheme, tipografia } from '@/ui';
 
 export interface BarcodeScannerProps {
   onScan: (value: string) => void;
@@ -58,7 +58,7 @@ export function BarcodeScanner({ onScan, height = 220 }: BarcodeScannerProps) {
         }}
       />
       <View style={{ position: 'absolute', bottom: 8, left: 0, right: 0, alignItems: 'center' }}>
-        <Text style={{ color: '#fff', fontSize: 11, backgroundColor: '#0008', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+        <Text style={{ color: '#fff', fontSize: tipografia.micro, backgroundColor: '#0008', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
           Apunta al código del parabrisas
         </Text>
       </View>

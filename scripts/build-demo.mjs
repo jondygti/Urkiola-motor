@@ -12,6 +12,7 @@
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cssDeLaFuente } from './fuente.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -43,6 +44,11 @@ if (bundle.includes('</script')) {
 }
 
 const html = `<title>Urkiola Car Service</title>
+<style>
+/* La fuente va dentro del propio fichero: la demostración se abre con doble
+   clic y tiene que verse igual sin conexión. */
+${cssDeLaFuente()}
+</style>
 <style>
   /* La aplicación pinta su propio fondo; estos tokens solo evitan un
      destello del color equivocado mientras carga el bundle. */

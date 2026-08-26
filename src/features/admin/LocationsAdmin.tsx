@@ -1,26 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
-import {
-  Btn,
-  Checkbox,
-  ConfirmDialog,
-  Field,
-  Grid,
-  Input,
-  Modal,
-  Muted,
-  Notice,
-  Panel,
-  Pill,
-  ProgressBar,
-  Segmented,
-  Select,
-  Spacer,
-  Toolbar,
-  radius,
-  space,
-  useTheme,
-} from '@/ui';
+import { Btn, Checkbox, ConfirmDialog, Field, Grid, Input, Modal, Muted, Notice, Panel, Pill, ProgressBar, Segmented, Select, Spacer, Toolbar, radius, space, tipografia, useTheme } from '@/ui';
 import { useStore } from '@/data/store';
 import { siteOccupancy, vehiclesInZone, zoneOccupancy } from '@/data/selectors';
 import type { Position, Site, Zone, ZoneKind } from '@/data/types';
@@ -89,15 +69,15 @@ export function LocationsAdmin({ onDone }: { onDone: (m: string) => void }) {
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                  <Text style={{ fontSize: 14, fontWeight: '800', color: c.text, flex: 1 }}>{s.name}</Text>
+                  <Text style={{ fontSize: tipografia.body, fontWeight: '800', color: c.text, flex: 1 }}>{s.name}</Text>
                   <Pill tone={s.kind === 'campa' ? 'blue' : 'ok'}>
                     {s.kind === 'campa' ? 'Campa' : 'Concesión'}
                   </Pill>
                 </View>
-                <Text style={{ fontSize: 11, color: c.textMuted }}>
+                <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>
                   {s.prepares ? 'Prepara vehículos' : 'Solo almacena'} · {occ.zones} zonas
                 </Text>
-                <Text style={{ fontSize: 20, fontWeight: '900', color: c.text }}>
+                <Text style={{ fontSize: tipografia.title, fontWeight: '900', color: c.text }}>
                   {occ.occupied}/{occ.capacity}
                 </Text>
                 <ProgressBar pct={occ.pct} tone={occ.pct > 90 ? 'red' : occ.pct > 75 ? 'amber' : 'ok'} />
@@ -146,11 +126,11 @@ export function LocationsAdmin({ onDone }: { onDone: (m: string) => void }) {
                   }}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: c.text, flex: 1, minWidth: 120 }}>
+                    <Text style={{ fontSize: tipografia.body, fontWeight: '800', color: c.text, flex: 1, minWidth: 120 }}>
                       {z.name}
                     </Text>
                     <Pill tone="neutral">{z.kind}</Pill>
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: c.text }}>
+                    <Text style={{ fontSize: tipografia.body, fontWeight: '700', color: c.text }}>
                       {occ.occupied}/{plazas} plazas
                     </Text>
                   </View>
@@ -448,16 +428,16 @@ function PositionsModal({
                 gap: 6,
               }}
             >
-              <Text style={{ fontSize: 12, fontWeight: '700', color: v ? c.amberFg : c.text }}>{p.code}</Text>
+              <Text style={{ fontSize: tipografia.small, fontWeight: '700', color: v ? c.amberFg : c.text }}>{p.code}</Text>
               {v ? (
-                <Text style={{ fontSize: 10, color: c.amberFg }}>ocupada</Text>
+                <Text style={{ fontSize: tipografia.label, color: c.amberFg }}>ocupada</Text>
               ) : (
                 <Text
                   onPress={() => {
                     run({ type: 'position.delete', positionId: p.id });
                     onDone(`Plaza ${p.code} borrada.`);
                   }}
-                  style={{ fontSize: 14, color: c.textMuted }}
+                  style={{ fontSize: tipografia.body, color: c.textMuted }}
                 >
                   ×
                 </Text>

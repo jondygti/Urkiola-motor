@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
-import { Btn, Modal, Muted, Notice, Select, Spacer, space, useTheme } from '@/ui';
+import { Btn, Modal, Muted, Notice, Select, Spacer, space, useTheme, tipografia } from '@/ui';
 import { useStore } from '@/data/store';
 import { can, esDelComercial } from '@/data/selectors';
 import type { Vehicle } from '@/data/types';
@@ -51,9 +51,9 @@ export function ComercialVehiculo({ vehicle, onDone }: { vehicle: Vehicle; onDon
   return (
     <>
       <View style={{ paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: c.borderSoft }}>
-        <Text style={{ fontSize: 9, fontWeight: '800', color: c.textFaint, marginBottom: 3 }}>COMERCIAL</Text>
+        <Text style={{ fontSize: tipografia.label, fontWeight: '800', color: c.textFaint, marginBottom: 3 }}>COMERCIAL</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <Text style={{ fontSize: 13, color: vehicle.salesRep ? c.text : c.textMuted, flex: 1, minWidth: 120 }}>
+          <Text style={{ fontSize: tipografia.body, color: vehicle.salesRep ? c.text : c.textMuted, flex: 1, minWidth: 120 }}>
             {vehicle.salesRep ? `${vehicle.salesRep}${esMio ? ' · tú' : ''}` : 'Sin asignar'}
           </Text>
 
@@ -76,7 +76,7 @@ export function ComercialVehiculo({ vehicle, onDone }: { vehicle: Vehicle; onDon
         </View>
 
         {puedeSuyos && !puedeTodo && !libre && !esMio ? (
-          <Text style={{ fontSize: 11, color: c.textMuted, marginTop: 3 }}>
+          <Text style={{ fontSize: tipografia.micro, color: c.textMuted, marginTop: 3 }}>
             Lo lleva otro comercial. Si tiene que pasar a ti, pídeselo a la oficina.
           </Text>
         ) : null}

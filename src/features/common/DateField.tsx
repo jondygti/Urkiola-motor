@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
-import { radius, space, useTheme } from '@/ui';
+import { radius, space, useTheme, tipografia } from '@/ui';
 
 /** "2026-08-25T00:00:00.000Z" → "25/08/2026" */
 function toText(iso: string | null): string {
@@ -87,12 +87,12 @@ export function DateField({
           borderRadius: radius.md,
           paddingVertical: 10,
           paddingHorizontal: 12,
-          fontSize: 15,
+          fontSize: tipografia.strong,
           color: c.text,
         }}
       />
       {error ? (
-        <Text style={{ fontSize: 11, color: c.redFg, marginTop: 4 }}>
+        <Text style={{ fontSize: tipografia.micro, color: c.redFg, marginTop: 4 }}>
           Escríbela como 25/08/2026.
         </Text>
       ) : null}
@@ -111,7 +111,7 @@ export function DateField({
               paddingHorizontal: 11,
             })}
           >
-            <Text style={{ fontSize: 12, color: c.text }}>{a.label}</Text>
+            <Text style={{ fontSize: tipografia.small, color: c.text }}>{a.label}</Text>
           </Pressable>
         ))}
         {allowClear && value ? (
@@ -119,7 +119,7 @@ export function DateField({
             onPress={() => onChange(null)}
             style={{ paddingVertical: 6, paddingHorizontal: 11 }}
           >
-            <Text style={{ fontSize: 12, color: c.textMuted }}>Quitar fecha</Text>
+            <Text style={{ fontSize: tipografia.small, color: c.textMuted }}>Quitar fecha</Text>
           </Pressable>
         ) : null}
       </View>

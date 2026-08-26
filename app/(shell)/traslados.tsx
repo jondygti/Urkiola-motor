@@ -1,21 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
-import {
-  Grid,
-  H1,
-  Input,
-  Kpi,
-  Muted,
-  Panel,
-  Pill,
-  Screen,
-  Segmented,
-  Select,
-  Spacer,
-  radius,
-  space,
-  useTheme,
-} from '@/ui';
+import { Grid, H1, Input, Kpi, Muted, Panel, Pill, Screen, Segmented, Select, Spacer, radius, space, tipografia, useTheme } from '@/ui';
 import { useAppState } from '@/data/store';
 import { carrierName, motivosDeRetraso, resumenTransporte, trasladosHechos } from '@/data/selectors';
 import { formatDateTime, locationLabel, matchesSearch, userName, vehicleName, vehicleRef } from '@/data/format';
@@ -152,7 +137,7 @@ export default function TransfersDoneScreen() {
                     borderBottomColor: c.borderSoft,
                   }}
                 >
-                  <Text style={{ fontSize: 13, color: c.text, flex: 1 }}>
+                  <Text style={{ fontSize: tipografia.body, color: c.text, flex: 1 }}>
                     {DELAY_REASON_LABEL[motivo]}
                   </Text>
                   <Pill tone={veces > 1 ? 'amber' : 'neutral'}>
@@ -186,10 +171,10 @@ export default function TransfersDoneScreen() {
                     borderBottomColor: c.borderSoft,
                   }}
                 >
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: c.text, flex: 1, minWidth: 140 }}>
+                  <Text style={{ fontSize: tipografia.body, fontWeight: '800', color: c.text, flex: 1, minWidth: 140 }}>
                     {emp.name}
                   </Text>
-                  <Text style={{ fontSize: 12, color: c.textMuted }}>
+                  <Text style={{ fontSize: tipografia.small, color: c.textMuted }}>
                     {r.total} {r.total === 1 ? 'traslado' : 'traslados'} ·{' '}
                     {r.horasMedia === null ? '—' : `${Math.round(r.horasMedia)} h de media`}
                   </Text>
@@ -229,7 +214,7 @@ export default function TransfersDoneScreen() {
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <Text
-                    style={{ fontSize: 14, fontWeight: '800', color: c.text, flex: 1, minWidth: 130 }}
+                    style={{ fontSize: tipografia.body, fontWeight: '800', color: c.text, flex: 1, minWidth: 130 }}
                     onPress={() => vehicle && openVehicle(vehicle.id)}
                   >
                     {vehicle ? `${vehicleRef(vehicle)} · ${vehicleName(vehicle)}` : request.vehicleId}
@@ -237,17 +222,17 @@ export default function TransfersDoneScreen() {
                   {request.carrierId ? <Pill tone="blue">{carrierName(state, request.carrierId)}</Pill> : null}
                   {fueraDePlazo ? <Pill tone="red">Fuera de plazo</Pill> : <Pill tone="ok">En plazo</Pill>}
                 </View>
-                <Text style={{ fontSize: 12, color: c.text }}>
+                <Text style={{ fontSize: tipografia.small, color: c.text }}>
                   {locationLabel(state, request.from, true)} → {locationLabel(state, request.to, true)}
                 </Text>
-                <Text style={{ fontSize: 11, color: c.textFaint }}>
+                <Text style={{ fontSize: tipografia.micro, color: c.textFaint }}>
                   🔑 {request.pickedUpAt ? formatDateTime(request.pickedUpAt) : 'Sin recogida apuntada'} · 🏁{' '}
                   {request.deliveredAt ? formatDateTime(request.deliveredAt) : 'Sin entrega apuntada'}
                   {horas === null ? '' : ` · ${Math.round(horas)} h`}
                   {request.deliveredBy ? ` · ${userName(state, request.deliveredBy)}` : ''}
                 </Text>
                 {fueraDePlazo && request.delayReason ? (
-                  <Text style={{ fontSize: 11, color: c.amberFg }}>
+                  <Text style={{ fontSize: tipografia.micro, color: c.amberFg }}>
                     ⏱ {DELAY_REASON_LABEL[request.delayReason]}
                     {request.delayNote ? ` · ${request.delayNote}` : ''}
                   </Text>

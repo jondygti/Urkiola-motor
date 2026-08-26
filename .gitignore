@@ -56,3 +56,5 @@ dist-api/
 # datos y fotos del servidor en local
 server/datos/
 datos/
+public/
+capturas/

@@ -106,6 +106,16 @@ Cada una viene de un fallo real de este proyecto:
     y no avisaba nunca porque no había nada que la evaluara; para eso está
     `alerts.sweep`, que lanza la app al abrirse y es idempotente por día.
 
+22. **Los tamaños de letra salen de `tipografia` o de `campo`**
+    (`src/ui/theme.tsx`), nunca escritos a mano. Había 222 sueltos, nueve
+    valores distintos y el más usado un 11: letra pequeña para leer un móvil
+    con guantes, y ningún sitio donde subirla toda a la vez. Las pantallas
+    de campo —mi preparación, mover coche, mis traslados, descargar camión,
+    mis coches— usan `campo`, que es la misma escala un punto por encima.
+    **La tabla es la excepción**: `Cell` usa `micro` a propósito, porque su
+    gracia es ver muchas filas de un vistazo y se mira sentado.
+    Lo vigila `scripts/verify/estilo.mjs`.
+
 ## Comprobar antes de dar algo por bueno
 
 ```bash
@@ -118,6 +128,7 @@ npm run verify:api           # la app real contra el backend real
 
 | Suite | Qué comprueba |
 |---|---|
+| `scripts/verify/estilo.mjs` | 3 comprobaciones del sistema de diseño, leyendo el código: que nadie escriba un tamaño de letra a mano, que el mínimo no baje de 11 y que las pantallas de campo usen su escala |
 | `scripts/verify/rutas.mjs` | 7 perfiles × 2 anchos × 19 pantallas = 266 cargas: que ninguna se rompe para ningún rol |
 | `scripts/verify/funciones.mjs` | 85 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
 | `scripts/verify/roles.mjs` | 73 comprobaciones: la jornada entera de cada uno de los 6 roles, y que lo que no le toca no lo ve ni lo puede tocar |

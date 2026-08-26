@@ -98,6 +98,62 @@ const dark: typeof light = {
 
 export type Colors = typeof light;
 
+/**
+ * La escala de letra.
+ *
+ * Existe porque no existía: había 222 tamaños escritos a mano por las
+ * pantallas, nueve valores distintos, y los dos más usados eran 11 y 12
+ * píxeles. Dos problemas de golpe: letra pequeña para leer un móvil con
+ * guantes y con sol de cara, y ningún sitio donde subirla toda a la vez.
+ *
+ * Ocho tamaños con nombre, y el nombre dice **para qué sirve**, no cuánto
+ * mide: así una pantalla de campo puede elegir `body` donde una tabla de
+ * oficina elige `small`, sin inventarse números.
+ *
+ * El mínimo de la casa es 11. Por debajo de eso no se escribe nada.
+ */
+export const tipografia = {
+  /** Etiquetas en mayúsculas dentro de una tarjeta: COMERCIAL, ENTREGA… */
+  label: 11,
+  /** Pies de tarjeta y detalles de tercera línea. */
+  micro: 12,
+  /** Texto secundario: la marca y el modelo debajo de la matrícula. */
+  small: 13,
+  /** Texto normal, y el mínimo de las pantallas de campo. */
+  body: 14,
+  /** Lo que hay que leer de un vistazo, sin acercarse el móvil. */
+  strong: 16,
+  /** Título de una tarjeta. */
+  heading: 18,
+  /** Título de sección. */
+  title: 22,
+  /** Título de pantalla. */
+  display: 26,
+};
+
+/**
+ * La misma escala, un punto por encima, para las pantallas de campo.
+ *
+ * «Mi preparación», «Mover coche», «Mis traslados» y «Descargar camión» no
+ * se usan sentado en una oficina: se usan de pie, con guantes, con el móvil
+ * a un palmo y a veces con el sol de cara. Ahí la letra de una tabla de
+ * escritorio no vale.
+ *
+ * Son los mismos nombres a propósito: una pantalla de campo escribe
+ * `campo.small` donde una de oficina escribe `tipografia.small`, y no hay
+ * que decidir números en cada sitio.
+ */
+export const campo = {
+  label: 12,
+  micro: 13,
+  small: 15,
+  body: 16,
+  strong: 18,
+  heading: 20,
+  title: 24,
+  display: 28,
+};
+
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
 export const radius = { sm: 7, md: 9, lg: 12, xl: 20, pill: 999 };
 

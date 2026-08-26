@@ -1,28 +1,6 @@
 import React, { useState } from 'react';
 import { Text, View } from 'react-native';
-import {
-  Btn,
-  Checkbox,
-  Code,
-  Field,
-  Grid,
-  H1,
-  H3,
-  Input,
-  Modal,
-  Muted,
-  Notice,
-  Panel,
-  Pill,
-  Screen,
-  Segmented,
-  Spacer,
-  StatLine,
-  Toolbar,
-  radius,
-  space,
-  useTheme,
-} from '@/ui';
+import { Btn, Checkbox, Code, Field, Grid, H1, H3, Input, Modal, Muted, Notice, Panel, Pill, Screen, Segmented, Spacer, StatLine, Toolbar, radius, space, tipografia, useTheme } from '@/ui';
 import { useAppState, useStore } from '@/data/store';
 import { API_URL, apiEnabled } from '@/data/api';
 import type { Requirement, VehicleType } from '@/data/types';
@@ -196,8 +174,8 @@ export default function AdminScreen() {
                 }}
               >
                 <View style={{ flex: 1, minWidth: 160 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: c.text }}>{r.label}</Text>
-                  <Text style={{ fontSize: 11, color: c.textMuted }}>
+                  <Text style={{ fontSize: tipografia.body, fontWeight: '700', color: c.text }}>{r.label}</Text>
+                  <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>
                     {r.vehicleTypes.length ? r.vehicleTypes.join(' / ') : 'VN y VO'} ·{' '}
                     {r.siteIds.length ? r.siteIds.join(', ') : 'todas las sedes'}
                   </Text>
@@ -235,7 +213,7 @@ export default function AdminScreen() {
         <>
           <Panel title="🔄 Regla de datos: Quiter → Urkiola">
             <Notice>
-              <Text style={{ fontSize: 12, color: c.text, lineHeight: 18 }}>
+              <Text style={{ fontSize: tipografia.small, color: c.text, lineHeight: 18 }}>
                 <Text style={{ fontWeight: '800' }}>Quiter </Text>
                 aporta los datos comerciales y de vehículo.{' '}
                 <Text style={{ fontWeight: '800' }}>Urkiola Car Service </Text>
@@ -274,8 +252,8 @@ Ubicación · Movimiento · Solicitud · Preparación · Incidencia · Recuento`
                     alignItems: 'center',
                   }}
                 >
-                  <Text style={{ fontSize: 12, fontWeight: '800', color: c.text }}>{box.t}</Text>
-                  <Text style={{ fontSize: 11, color: c.textMuted, marginTop: 3, textAlign: 'center' }}>
+                  <Text style={{ fontSize: tipografia.small, fontWeight: '800', color: c.text }}>{box.t}</Text>
+                  <Text style={{ fontSize: tipografia.micro, color: c.textMuted, marginTop: 3, textAlign: 'center' }}>
                     {box.s}
                   </Text>
                 </View>

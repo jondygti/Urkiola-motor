@@ -1,23 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Text } from 'react-native';
-import {
-  Btn,
-  Column,
-  DataTable,
-  Grid,
-  H1,
-  Input,
-  Muted,
-  Notice,
-  Panel,
-  Screen,
-  Select,
-  Spacer,
-  StatLine,
-  Toolbar,
-  space,
-  useTheme,
-} from '@/ui';
+import { Btn, Column, DataTable, Grid, H1, Input, Muted, Notice, Panel, Screen, Select, Spacer, StatLine, Toolbar, space, tipografia, useTheme } from '@/ui';
 import { useAppState, useStore } from '@/data/store';
 import { customValue, esDelComercial, fleetColumns } from '@/data/selectors';
 import { formatDateTime, locationLabel, matchesSearch, siteName, timeAgo, vehicleName } from '@/data/format';
@@ -120,7 +103,7 @@ export default function FleetScreen() {
       value: (v) => v.vin8,
       filter: { type: 'text' },
       render: (v) => (
-        <Text style={{ fontSize: 13, fontWeight: '800', color: c.text }}>{v.vin8}</Text>
+        <Text style={{ fontSize: tipografia.body, fontWeight: '800', color: c.text }}>{v.vin8}</Text>
       ),
     },
     plate: {
@@ -193,7 +176,9 @@ export default function FleetScreen() {
     check: {
       key: 'check',
       header: 'Última comprobación',
-      width: 160,
+      // La fecha y el «hace tres días» necesitan sitio: apretados, la celda
+      // se parte en dos líneas y la fila entera crece.
+      width: 178,
       secondary: false,
       value: (v) => formatDateTime(v.lastCheckAt),
       render: (v) => (
@@ -349,7 +334,7 @@ export default function FleetScreen() {
         <>
           <Spacer h={space.sm} />
           <Notice>
-            <Text style={{ fontSize: 12, color: c.text }}>
+            <Text style={{ fontSize: tipografia.small, color: c.text }}>
               Tus coches con preparación pedida o en marcha:{' '}
               <Text style={{ fontWeight: '800' }}>{resumenMio.pedidas}</Text> sin empezar ·{' '}
               <Text style={{ fontWeight: '800' }}>{resumenMio.enCurso}</Text> en curso ·{' '}
@@ -361,7 +346,7 @@ export default function FleetScreen() {
 
       <Panel>
         <Notice>
-          <Text style={{ fontSize: 12, color: c.text }}>
+          <Text style={{ fontSize: tipografia.small, color: c.text }}>
             <Text style={{ fontWeight: '800' }}>Filtros por columna: </Text>
             se combinan entre sí y con la búsqueda. Las columnas que se ven, su orden y los campos propios se
             configuran en Administración → Flota y columnas.

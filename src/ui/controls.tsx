@@ -10,7 +10,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { radius, space, useTheme } from './theme';
+import { radius, space, tipografia, useTheme } from './theme';
 import { Btn, H2, Label, Muted } from './primitives';
 
 /* ---------------------------------------------------------------- modal */
@@ -69,7 +69,7 @@ export function Modal({
               hitSlop={10}
               style={{ paddingHorizontal: 8 }}
             >
-              <Text style={{ fontSize: 24, color: c.textMuted, lineHeight: 26 }}>×</Text>
+              <Text style={{ fontSize: tipografia.display, color: c.textMuted, lineHeight: 26 }}>×</Text>
             </Pressable>
           </View>
           <ScrollView keyboardShouldPersistTaps="handled" style={{ flexGrow: 0 }}>
@@ -229,7 +229,7 @@ export function Select<T extends string = string>({
         >
           {current?.label ?? placeholder}
         </Text>
-        <Text style={{ fontSize: 10, color: c.textFaint }}>▼</Text>
+        <Text style={{ fontSize: tipografia.label, color: c.textFaint }}>▼</Text>
       </Pressable>
 
       <Modal visible={open} onClose={() => setOpen(false)} title={title ?? placeholder}>
@@ -256,7 +256,7 @@ export function Select<T extends string = string>({
                 marginBottom: 2,
               })}
             >
-              <Text style={{ fontSize: 14, color: active ? c.okFg : c.text, fontWeight: active ? '800' : '500' }}>
+              <Text style={{ fontSize: tipografia.body, color: active ? c.okFg : c.text, fontWeight: active ? '800' : '500' }}>
                 {o.label}
               </Text>
               {o.hint ? <Muted style={{ marginTop: 2 }}>{o.hint}</Muted> : null}
@@ -306,10 +306,10 @@ export function Checkbox({
           marginTop: 1,
         }}
       >
-        {checked ? <Text style={{ color: '#fff', fontSize: 12, fontWeight: '900' }}>✓</Text> : null}
+        {checked ? <Text style={{ color: '#fff', fontSize: tipografia.small, fontWeight: '900' }}>✓</Text> : null}
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 13, color: c.text }}>{label}</Text>
+        <Text style={{ fontSize: tipografia.body, color: c.text }}>{label}</Text>
         {hint ? <Muted style={{ marginTop: 2 }}>{hint}</Muted> : null}
       </View>
     </Pressable>
@@ -351,7 +351,7 @@ export function Segmented<T extends string>({
               backgroundColor: active ? c.surface : 'transparent',
             }}
           >
-            <Text style={{ fontSize: 12, fontWeight: active ? '800' : '600', color: active ? c.text : c.textMuted }}>
+            <Text style={{ fontSize: tipografia.small, fontWeight: active ? '800' : '600', color: active ? c.text : c.textMuted }}>
               {o.label}
             </Text>
           </Pressable>

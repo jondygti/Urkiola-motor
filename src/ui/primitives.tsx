@@ -10,14 +10,14 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { radius, space, useTheme } from './theme';
+import { radius, space, tipografia, useTheme } from './theme';
 
 /* ---------------------------------------------------------------- textos */
 
 export function H1({ children }: { children: React.ReactNode }) {
   const { c } = useTheme();
   return (
-    <Text style={{ fontSize: 26, fontWeight: '900', color: c.text, marginBottom: 4 }}>
+    <Text style={{ fontSize: tipografia.display, fontWeight: '900', color: c.text, marginBottom: 4 }}>
       {children}
     </Text>
   );
@@ -26,7 +26,7 @@ export function H1({ children }: { children: React.ReactNode }) {
 export function H2({ children, style }: { children: React.ReactNode; style?: StyleProp<TextStyle> }) {
   const { c } = useTheme();
   return (
-    <Text style={[{ fontSize: 16, fontWeight: '800', color: c.text, marginBottom: 10 }, style]}>
+    <Text style={[{ fontSize: tipografia.strong, fontWeight: '800', color: c.text, marginBottom: 10 }, style]}>
       {children}
     </Text>
   );
@@ -34,7 +34,7 @@ export function H2({ children, style }: { children: React.ReactNode; style?: Sty
 
 export function H3({ children }: { children: React.ReactNode }) {
   const { c } = useTheme();
-  return <Text style={{ fontSize: 13, fontWeight: '800', color: c.text }}>{children}</Text>;
+  return <Text style={{ fontSize: tipografia.body, fontWeight: '800', color: c.text }}>{children}</Text>;
 }
 
 export function Txt({
@@ -48,7 +48,7 @@ export function Txt({
 }) {
   const { c } = useTheme();
   return (
-    <Text numberOfLines={numberOfLines} style={[{ fontSize: 13, color: c.text }, style]}>
+    <Text numberOfLines={numberOfLines} style={[{ fontSize: tipografia.body, color: c.text }, style]}>
       {children}
     </Text>
   );
@@ -56,14 +56,14 @@ export function Txt({
 
 export function Muted({ children, style }: { children: React.ReactNode; style?: StyleProp<TextStyle> }) {
   const { c } = useTheme();
-  return <Text style={[{ fontSize: 12, color: c.textMuted, lineHeight: 17 }, style]}>{children}</Text>;
+  return <Text style={[{ fontSize: tipografia.small, color: c.textMuted, lineHeight: 17 }, style]}>{children}</Text>;
 }
 
 /** Etiqueta pequeña en mayúsculas, como los `<small>` de las tarjetas del mockup. */
 export function Label({ children }: { children: React.ReactNode }) {
   const { c } = useTheme();
   return (
-    <Text style={{ fontSize: 10, fontWeight: '800', color: c.textFaint, letterSpacing: 0.4 }}>
+    <Text style={{ fontSize: tipografia.label, fontWeight: '800', color: c.textFaint, letterSpacing: 0.4 }}>
       {String(children).toUpperCase()}
     </Text>
   );
@@ -255,7 +255,7 @@ export function Pill({ children, tone = 'ok' }: { children: React.ReactNode; ton
         alignSelf: 'flex-start',
       }}
     >
-      <Text style={{ color: fg, fontSize: 10, fontWeight: '800' }}>{children}</Text>
+      <Text style={{ color: fg, fontSize: tipografia.label, fontWeight: '800' }}>{children}</Text>
     </View>
   );
 }
@@ -275,7 +275,7 @@ export function StatLine({ items }: { items: React.ReactNode[] }) {
             paddingHorizontal: 9,
           }}
         >
-          <Text style={{ fontSize: 11, color: c.textMuted }}>{it}</Text>
+          <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>{it}</Text>
         </View>
       ))}
     </View>
@@ -298,7 +298,7 @@ export function Notice({
   const body = (
     <View style={{ backgroundColor: bg, borderRadius: radius.md, padding: 11, marginVertical: 4 }}>
       {typeof children === 'string' ? (
-        <Text style={{ fontSize: 12, color: c.text, lineHeight: 17 }}>{children}</Text>
+        <Text style={{ fontSize: tipografia.small, color: c.text, lineHeight: 17 }}>{children}</Text>
       ) : (
         children
       )}
@@ -322,7 +322,7 @@ export function TopNote({ children }: { children: React.ReactNode }) {
       }}
     >
       {typeof children === 'string' ? (
-        <Text style={{ fontSize: 12, color: c.text, lineHeight: 17 }}>{children}</Text>
+        <Text style={{ fontSize: tipografia.small, color: c.text, lineHeight: 17 }}>{children}</Text>
       ) : (
         children
       )}
@@ -363,8 +363,8 @@ export function Kpi({
       })}
     >
       <Label>{label}</Label>
-      <Text style={{ fontSize: 24, fontWeight: '900', color, marginVertical: 3 }}>{value}</Text>
-      {hint ? <Text style={{ fontSize: 11, color: c.textMuted }}>{hint}</Text> : null}
+      <Text style={{ fontSize: tipografia.display, fontWeight: '900', color, marginVertical: 3 }}>{value}</Text>
+      {hint ? <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>{hint}</Text> : null}
     </Pressable>
   );
 }
@@ -383,16 +383,16 @@ export function Detail({
   const { c } = useTheme();
   return (
     <View style={{ paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: c.borderSoft }}>
-      <Text style={{ fontSize: 9, fontWeight: '800', color: c.textFaint, marginBottom: 3 }}>
+      <Text style={{ fontSize: tipografia.label, fontWeight: '800', color: c.textFaint, marginBottom: 3 }}>
         {label.toUpperCase()}
       </Text>
       {typeof value === 'string' || typeof value === 'number' ? (
-        <Text style={{ fontSize: 13, color: c.text }}>{value}</Text>
+        <Text style={{ fontSize: tipografia.body, color: c.text }}>{value}</Text>
       ) : (
         value
       )}
       {hint ? (
-        <Text style={{ fontSize: 11, color: c.textMuted, marginTop: 3 }}>{hint}</Text>
+        <Text style={{ fontSize: tipografia.micro, color: c.textMuted, marginTop: 3 }}>{hint}</Text>
       ) : null}
     </View>
   );
@@ -428,7 +428,7 @@ export function StateFlow({ steps, activeIndex }: { steps: string[]; activeIndex
           >
             <Text
               style={{
-                fontSize: 10,
+                fontSize: tipografia.label,
                 fontWeight: '800',
                 color: i <= activeIndex ? c.okFg : c.textMuted,
               }}
@@ -471,9 +471,9 @@ export function Timeline({
               backgroundColor: c.accent,
             }}
           />
-          <Text style={{ fontSize: 12, fontWeight: '800', color: c.text }}>{e.title}</Text>
+          <Text style={{ fontSize: tipografia.small, fontWeight: '800', color: c.text }}>{e.title}</Text>
           {e.detail ? (
-            <Text style={{ fontSize: 11, color: c.textMuted, marginTop: 3 }}>{e.detail}</Text>
+            <Text style={{ fontSize: tipografia.micro, color: c.textMuted, marginTop: 3 }}>{e.detail}</Text>
           ) : null}
         </Pressable>
       ))}
@@ -543,7 +543,7 @@ export function EmptyState({ text }: { text: string }) {
   const { c } = useTheme();
   return (
     <View style={{ padding: space.xl, alignItems: 'center' }}>
-      <Text style={{ color: c.textMuted, fontSize: 13, textAlign: 'center' }}>{text}</Text>
+      <Text style={{ color: c.textMuted, fontSize: tipografia.body, textAlign: 'center' }}>{text}</Text>
     </View>
   );
 }
@@ -555,7 +555,7 @@ export function Code({ children }: { children: string }) {
       <Text
         style={{
           color: c.codeFg,
-          fontSize: 11,
+          fontSize: tipografia.micro,
           lineHeight: 17,
           fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
         }}

@@ -1,23 +1,6 @@
 import React, { useState } from 'react';
 import { Text, View } from 'react-native';
-import {
-  Btn,
-  Checkbox,
-  ConfirmDialog,
-  Field,
-  Grid,
-  Input,
-  Modal,
-  Muted,
-  Notice,
-  Panel,
-  Pill,
-  Segmented,
-  Select,
-  Toolbar,
-  radius,
-  useTheme,
-} from '@/ui';
+import { Btn, Checkbox, ConfirmDialog, Field, Grid, Input, Modal, Muted, Notice, Panel, Pill, Segmented, Select, Toolbar, radius, useTheme, tipografia } from '@/ui';
 import { useStore } from '@/data/store';
 import { roleLabel } from '@/data/selectors';
 import { NAV } from '@/features/shell/nav';
@@ -106,14 +89,14 @@ export function UsersAdmin({ onDone }: { onDone: (m: string) => void }) {
               }}
             >
               <View style={{ flex: 1, minWidth: 170 }}>
-                <Text style={{ fontSize: 13, fontWeight: '700', color: c.text }}>
+                <Text style={{ fontSize: tipografia.body, fontWeight: '700', color: c.text }}>
                   {u.name}
                   {u.id === me?.id ? ' · tú' : ''}
                 </Text>
-                <Text style={{ fontSize: 11, color: c.textMuted }}>{u.email}</Text>
+                <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>{u.email}</Text>
               </View>
               <Pill tone={u.active ? 'blue' : 'neutral'}>{roleLabel(state, u.role)}</Pill>
-              <Text style={{ fontSize: 11, color: c.textMuted, minWidth: 90 }}>
+              <Text style={{ fontSize: tipografia.micro, color: c.textMuted, minWidth: 90 }}>
                 {u.siteIds.length ? u.siteIds.map((id) => state.sites.find((s) => s.id === id)?.name ?? id).join(', ') : 'Todas las sedes'}
               </Text>
               <Btn small onPress={() => setUserModal(u)}>
@@ -150,11 +133,11 @@ export function UsersAdmin({ onDone }: { onDone: (m: string) => void }) {
                   }}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: c.text, flex: 1 }}>{r.label}</Text>
+                    <Text style={{ fontSize: tipografia.body, fontWeight: '800', color: c.text, flex: 1 }}>{r.label}</Text>
                     {r.simple ? <Pill tone="blue">Externo</Pill> : null}
                     {r.builtin ? <Pill tone="neutral">De serie</Pill> : null}
                   </View>
-                  <Text style={{ fontSize: 11, color: c.textMuted }}>
+                  <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>
                     {r.permissions.length} permisos · {r.mobileSections.length} secciones en el móvil ·{' '}
                     {count} {count === 1 ? 'persona' : 'personas'}
                     {bajas ? ` · ${bajas} de baja` : ''}

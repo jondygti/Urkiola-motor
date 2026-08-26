@@ -1,25 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Text, View } from 'react-native';
-import {
-  Btn,
-  Detail,
-  Divider,
-  EmptyState,
-  Grid,
-  H1,
-  Muted,
-  Notice,
-  Panel,
-  Pill,
-  Screen,
-  Spacer,
-  StateFlow,
-  Timeline,
-  Toolbar,
-  space,
-  useTheme,
-} from '@/ui';
+import { Btn, Detail, Divider, EmptyState, Grid, H1, Muted, Notice, Panel, Pill, Screen, Spacer, StateFlow, Timeline, Toolbar, space, tipografia, useTheme } from '@/ui';
 import { useAppState, useStore } from '@/data/store';
 import {
   deliveryStatus,
@@ -190,7 +172,7 @@ export default function VehicleScreen() {
               rules.map((rule) => (
                 <Notice key={rule.id} tone={rule.condition === 'sin_comprobar_72h' ? 'warn' : 'info'}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-                    <Text style={{ fontSize: 12, color: c.text, flex: 1 }}>
+                    <Text style={{ fontSize: tipografia.small, color: c.text, flex: 1 }}>
                       {NOTIFY_CONDITION_LABEL[rule.condition]} → {rule.recipient}
                     </Text>
                     <Pill tone={rule.active ? 'ok' : 'neutral'}>{rule.active ? 'Activa' : 'Pausada'}</Pill>
@@ -239,10 +221,10 @@ export default function VehicleScreen() {
                 <Notice key={inc.id} tone={inc.status === 'abierta' ? 'danger' : 'warn'}>
                   <View style={{ gap: 4 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
-                      <Text style={{ fontSize: 12, color: c.text, flex: 1 }}>{inc.description}</Text>
+                      <Text style={{ fontSize: tipografia.small, color: c.text, flex: 1 }}>{inc.description}</Text>
                       <IncidentStatusPill status={inc.status} />
                     </View>
-                    <Text style={{ fontSize: 11, color: c.textMuted }}>
+                    <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>
                       {formatDateTime(inc.createdAt)} · {inc.photos.length} fotos
                     </Text>
                     {inc.status !== 'cerrada' ? (
@@ -292,10 +274,10 @@ export default function VehicleScreen() {
                   }}
                 >
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 12, color: c.text, fontWeight: '700' }}>
+                    <Text style={{ fontSize: tipografia.small, color: c.text, fontWeight: '700' }}>
                       {r.type === 'traslado' ? 'Traslado' : 'Preparación'} · {siteName(state, r.siteId)}
                     </Text>
-                    <Text style={{ fontSize: 11, color: c.textMuted }}>{formatDateTime(r.createdAt)}</Text>
+                    <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>{formatDateTime(r.createdAt)}</Text>
                   </View>
                   <RequestStatusPill status={r.status} urgent={r.urgent} />
                 </View>
@@ -309,10 +291,10 @@ export default function VehicleScreen() {
             ) : (
               movements.map((m) => (
                 <View key={m.id} style={{ paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: c.borderSoft }}>
-                  <Text style={{ fontSize: 12, color: c.text }}>
+                  <Text style={{ fontSize: tipografia.small, color: c.text }}>
                     {locationLabel(state, m.from, true)} → {locationLabel(state, m.to, true)}
                   </Text>
-                  <Text style={{ fontSize: 11, color: c.textMuted }}>{formatDateTime(m.at)}</Text>
+                  <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>{formatDateTime(m.at)}</Text>
                 </View>
               ))
             )}

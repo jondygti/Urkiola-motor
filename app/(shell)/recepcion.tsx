@@ -1,27 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Image, Text, View } from 'react-native';
-import {
-  Btn,
-  Column,
-  DataTable,
-  Field,
-  Grid,
-  H1,
-  Input,
-  Kpi,
-  Modal,
-  Muted,
-  Notice,
-  Panel,
-  Pill,
-  Screen,
-  Select,
-  Spacer,
-  Toolbar,
-  radius,
-  space,
-  useTheme,
-} from '@/ui';
+import { Btn, Column, DataTable, Field, Grid, H1, Input, Kpi, Modal, Muted, Notice, Panel, Pill, Screen, Select, Spacer, Toolbar, radius, space, tipografia, useTheme } from '@/ui';
 import { useAppState, useStore } from '@/data/store';
 import { formatDateTime, locationLabel, vehicleName } from '@/data/format';
 import type { Reception, ReceptionLine } from '@/data/types';
@@ -68,8 +47,8 @@ export default function ReceptionScreen() {
         const v = state.vehicles.find((x) => x.id === l.vehicleId);
         return (
           <View>
-            <Text style={{ fontSize: 13, fontWeight: '800', color: c.text }}>{l.ref}</Text>
-            {v ? <Text style={{ fontSize: 11, color: c.textMuted }}>{vehicleName(v)}</Text> : null}
+            <Text style={{ fontSize: tipografia.body, fontWeight: '800', color: c.text }}>{l.ref}</Text>
+            {v ? <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>{vehicleName(v)}</Text> : null}
           </View>
         );
       },
@@ -96,8 +75,8 @@ export default function ReceptionScreen() {
       render: (l) =>
         l.damage ? (
           <View>
-            <Text style={{ fontSize: 12, color: c.redFg }}>⚠️ {l.damage}</Text>
-            <Text style={{ fontSize: 11, color: c.textMuted }}>{l.photos.length} fotos</Text>
+            <Text style={{ fontSize: tipografia.small, color: c.redFg }}>⚠️ {l.damage}</Text>
+            <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>{l.photos.length} fotos</Text>
           </View>
         ) : (
           <Cell muted>Sin daños</Cell>

@@ -1,23 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
-import {
-  Btn,
-  Grid,
-  H1,
-  Input,
-  Kpi,
-  Muted,
-  Notice,
-  Panel,
-  Pill,
-  ProgressBar,
-  Screen,
-  Segmented,
-  Spacer,
-  radius,
-  space,
-  useTheme,
-} from '@/ui';
+import { campo, Btn, Grid, H1, Input, Kpi, Muted, Notice, Panel, Pill, ProgressBar, Screen, Segmented, Spacer, radius, space, useTheme } from '@/ui';
 import { useAppState, useStore, useTicker } from '@/data/store';
 import { deadlineOf, misCoches, type CocheMio } from '@/data/selectors';
 import { prepElapsedMs, prepIsOverSla, prepProgress } from '@/data/commands';
@@ -114,7 +97,7 @@ export default function MyCarsScreen() {
           <>
             <Spacer h={space.md} />
             <Notice tone="warn">
-              <Text style={{ fontSize: 12, color: c.text }}>
+              <Text style={{ fontSize: campo.small, color: c.text }}>
                 <Text style={{ fontWeight: '800' }}>
                   {enRiesgo.length === 1
                     ? '1 coche con fecha de entrega y sin nada pedido: '
@@ -216,10 +199,10 @@ function FichaCoche({
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <Text style={{ fontSize: 14, fontWeight: '900', color: c.text, flex: 1, minWidth: 150 }}>
+        <Text style={{ fontSize: campo.body, fontWeight: '900', color: c.text, flex: 1, minWidth: 150 }}>
           {vehicleName(v)} · {vehicleRef(v)}
         </Text>
-        <Text style={{ fontSize: 11, fontWeight: '800', color: tono }}>
+        <Text style={{ fontSize: campo.micro, fontWeight: '800', color: tono }}>
           {fase === 'listo'
             ? '✓ LISTO PARA ENTREGAR'
             : fase === 'preparando'
@@ -250,7 +233,7 @@ function FichaCoche({
             const tarde = prepIsOverSla(preparacion, now);
             return (
               <>
-                <Text style={{ fontSize: 11, color: tarde ? c.redFg : c.textMuted }}>
+                <Text style={{ fontSize: campo.micro, color: tarde ? c.redFg : c.textMuted }}>
                   Preparación en curso · {done}/{total} requisitos ·{' '}
                   {formatShortDuration(prepElapsedMs(preparacion, now))} de{' '}
                   {formatShortDuration(preparacion.targetMs)}
@@ -263,7 +246,7 @@ function FichaCoche({
         </View>
       ) : prepPedida ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <Text style={{ fontSize: 11, color: c.textMuted }}>
+          <Text style={{ fontSize: campo.micro, color: c.textMuted }}>
             Preparación pedida, todavía sin empezar
           </Text>
           <DeadlineChip deadline={deadlineOf(state, prepPedida, now)} />
@@ -272,7 +255,7 @@ function FichaCoche({
 
       {traslado ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <Text style={{ fontSize: 11, color: c.textMuted }}>
+          <Text style={{ fontSize: campo.micro, color: c.textMuted }}>
             {traslado.status === 'en_ruta'
               ? 'Traslado en ruta'
               : traslado.status === 'asignada'
@@ -287,7 +270,7 @@ function FichaCoche({
       ) : null}
 
       {incidencias.length ? (
-        <Text style={{ fontSize: 11, fontWeight: '800', color: c.redFg }}>
+        <Text style={{ fontSize: campo.micro, fontWeight: '800', color: c.redFg }}>
           ⚠ {incidencias.length === 1 ? '1 incidencia abierta' : `${incidencias.length} incidencias abiertas`}
           : {incidencias[0].description}
         </Text>

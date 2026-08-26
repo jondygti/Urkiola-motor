@@ -2,7 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Btn, Field, Input, Muted, Notice, Panel, space, useTheme } from '@/ui';
+import { Btn, Field, Input, Muted, Notice, Panel, space, useTheme, tipografia } from '@/ui';
 import { ApiError, api, apiEnabled } from '@/data/api';
 
 /**
@@ -61,10 +61,10 @@ export default function RestablecerScreen() {
       }}
     >
       <View style={{ width: '100%', maxWidth: 460, alignSelf: 'center' }}>
-        <Text style={{ color: '#fff', fontSize: 26, fontWeight: '900', lineHeight: 30 }}>
+        <Text style={{ color: '#fff', fontSize: tipografia.display, fontWeight: '900', lineHeight: 30 }}>
           URKIOLA{'\n'}CAR SERVICE
         </Text>
-        <Text style={{ color: c.navBrandSub, fontSize: 12, marginTop: 6, marginBottom: space.xl }}>
+        <Text style={{ color: c.navBrandSub, fontSize: tipografia.small, marginTop: 6, marginBottom: space.xl }}>
           Poner una contraseña nueva
         </Text>
 

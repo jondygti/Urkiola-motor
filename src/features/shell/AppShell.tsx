@@ -2,7 +2,7 @@ import { usePathname, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { radius, space, useTheme } from '@/ui/theme';
+import { radius, space, tipografia, useTheme } from '@/ui/theme';
 import { useStore } from '@/data/store';
 import { isSimpleRole, unreadCount } from '@/data/selectors';
 import { roleLabel } from '@/data/selectors';
@@ -84,8 +84,8 @@ function SimpleShell({ children }: { children: React.ReactNode }) {
         }}
       >
         <View style={{ flex: 1 }}>
-          <Text style={{ color: '#fff', fontSize: 15, fontWeight: '900' }}>URKIOLA CAR SERVICE</Text>
-          <Text style={{ color: c.navBrandSub, fontSize: 11, marginTop: 2 }}>
+          <Text style={{ color: '#fff', fontSize: tipografia.strong, fontWeight: '900' }}>URKIOLA CAR SERVICE</Text>
+          <Text style={{ color: c.navBrandSub, fontSize: tipografia.micro, marginTop: 2 }}>
             {user?.name} · {roleLabel(state, user?.role)}
           </Text>
         </View>
@@ -99,7 +99,7 @@ function SimpleShell({ children }: { children: React.ReactNode }) {
             paddingHorizontal: 12,
           }}
         >
-          <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Salir</Text>
+          <Text style={{ color: '#fff', fontSize: tipografia.small, fontWeight: '700' }}>Salir</Text>
         </Pressable>
       </View>
       <SyncBar />
@@ -133,10 +133,10 @@ function SideMenu({
   return (
     <View style={{ flex: 1, backgroundColor: c.navBg, paddingTop: insets.top + 14 }}>
       <View style={{ paddingHorizontal: 12, paddingBottom: 18 }}>
-        <Text style={{ color: '#fff', fontSize: 19, fontWeight: '900', lineHeight: 22 }}>
+        <Text style={{ color: '#fff', fontSize: tipografia.title, fontWeight: '900', lineHeight: 22 }}>
           URKIOLA{'\n'}CAR SERVICE
         </Text>
-        <Text style={{ color: c.navBrandSub, fontSize: 10, marginTop: 5 }}>
+        <Text style={{ color: c.navBrandSub, fontSize: tipografia.label, marginTop: 5 }}>
           {compact ? roleLabel(state, user?.role) : 'Gestión logística de flota'}
         </Text>
       </View>
@@ -146,7 +146,7 @@ function SideMenu({
           <View key={group.title}>
             <Text
               style={{
-                fontSize: 9,
+                fontSize: tipografia.label,
                 color: c.navGroup,
                 fontWeight: '900',
                 letterSpacing: 1,
@@ -178,11 +178,11 @@ function SideMenu({
                   })}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
-                    <Text style={{ fontSize: 13 }}>{item.icon}</Text>
+                    <Text style={{ fontSize: tipografia.body }}>{item.icon}</Text>
                     <Text
                       style={{
                         color: active ? c.navTextActive : c.navText,
-                        fontSize: 13,
+                        fontSize: tipografia.body,
                         fontWeight: active ? '800' : '500',
                         flex: 1,
                       }}
@@ -208,8 +208,8 @@ function SideMenu({
             paddingBottom: 14 + insets.bottom,
           }}
         >
-          <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>{user.name}</Text>
-          <Text style={{ color: c.navBrandSub, fontSize: 10, marginTop: 2 }}>
+          <Text style={{ color: '#fff', fontSize: tipografia.small, fontWeight: '800' }}>{user.name}</Text>
+          <Text style={{ color: c.navBrandSub, fontSize: tipografia.label, marginTop: 2 }}>
             {roleLabel(state, user.role)} · Cerrar sesión
           </Text>
         </Pressable>
@@ -232,7 +232,7 @@ function Badge({ count }: { count: number }) {
         paddingHorizontal: 5,
       }}
     >
-      <Text style={{ color: '#06231d', fontSize: 10, fontWeight: '900' }}>{count > 99 ? '99+' : count}</Text>
+      <Text style={{ color: '#06231d', fontSize: tipografia.label, fontWeight: '900' }}>{count > 99 ? '99+' : count}</Text>
     </View>
   );
 }
@@ -276,20 +276,20 @@ function MobileBar({
           justifyContent: 'center',
         }}
       >
-        <Text style={{ color: '#fff', fontSize: 19 }}>☰</Text>
+        <Text style={{ color: '#fff', fontSize: tipografia.title }}>☰</Text>
       </Pressable>
       <View style={{ flex: 1 }}>
-        <Text numberOfLines={1} style={{ color: '#fff', fontSize: 14, fontWeight: '900' }}>
+        <Text numberOfLines={1} style={{ color: '#fff', fontSize: tipografia.body, fontWeight: '900' }}>
           {title}
         </Text>
-        <Text style={{ color: c.navBrandSub, fontSize: 9 }}>URKIOLA CAR SERVICE</Text>
+        <Text style={{ color: c.navBrandSub, fontSize: tipografia.label }}>URKIOLA CAR SERVICE</Text>
       </View>
       <Pressable
         onPress={() => router.push('/notificaciones')}
         accessibilityLabel="Notificaciones"
         style={{ paddingHorizontal: 6, flexDirection: 'row', alignItems: 'center', gap: 4 }}
       >
-        <Text style={{ fontSize: 17 }}>🔔</Text>
+        <Text style={{ fontSize: tipografia.heading }}>🔔</Text>
         {unread > 0 ? <Badge count={unread} /> : null}
       </Pressable>
     </View>
@@ -322,10 +322,10 @@ function BottomTabs({ bottomInset, onMore }: { bottomInset: number; onMore: () =
             onPress={() => router.push(tab.href as never)}
             style={{ flex: 1, alignItems: 'center', paddingVertical: 9 }}
           >
-            <Text style={{ fontSize: 16, opacity: active ? 1 : 0.55 }}>{tab.icon}</Text>
+            <Text style={{ fontSize: tipografia.strong, opacity: active ? 1 : 0.55 }}>{tab.icon}</Text>
             <Text
               style={{
-                fontSize: 9,
+                fontSize: tipografia.label,
                 marginTop: 2,
                 color: active ? c.primary : c.textMuted,
                 fontWeight: active ? '800' : '600',
@@ -337,8 +337,8 @@ function BottomTabs({ bottomInset, onMore }: { bottomInset: number; onMore: () =
         );
       })}
       <Pressable onPress={onMore} style={{ flex: 1, alignItems: 'center', paddingVertical: 9 }}>
-        <Text style={{ fontSize: 16, opacity: 0.55 }}>☰</Text>
-        <Text style={{ fontSize: 9, marginTop: 2, color: c.textMuted, fontWeight: '600' }}>Más</Text>
+        <Text style={{ fontSize: tipografia.strong, opacity: 0.55 }}>☰</Text>
+        <Text style={{ fontSize: tipografia.label, marginTop: 2, color: c.textMuted, fontWeight: '600' }}>Más</Text>
       </Pressable>
     </View>
   );
@@ -396,7 +396,7 @@ function Drawer({ open, onClose, unread }: { open: boolean; onClose: () => void;
             justifyContent: 'center',
           }}
         >
-          <Text style={{ color: '#fff', fontSize: 19 }}>×</Text>
+          <Text style={{ color: '#fff', fontSize: tipografia.title }}>×</Text>
         </Pressable>
       </Animated.View>
     </View>

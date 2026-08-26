@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
-import { Btn, Field, Notice, radius, space, useTheme } from '@/ui';
+import { Btn, Field, Notice, radius, space, useTheme, tipografia } from '@/ui';
 import { urlDeFoto } from '@/data/api';
 import { capturarYSubir, type FotoTomada } from './photos';
 
@@ -62,7 +62,7 @@ export function CampoFotos({
                   borderColor: c.amberFg,
                 }}
               />
-              <Text style={{ fontSize: 9, color: c.textFaint, textAlign: 'center', marginTop: 2 }}>
+              <Text style={{ fontSize: tipografia.label, color: c.textFaint, textAlign: 'center', marginTop: 2 }}>
                 {f.subida ? 'quitar' : 'sin subir'}
               </Text>
             </Pressable>
@@ -115,7 +115,7 @@ export function Fotos({ refs, onAbrir }: { refs: string[]; onAbrir?: (url: strin
                 justifyContent: 'center',
               }}
             >
-              <Text style={{ fontSize: 20 }}>📷</Text>
+              <Text style={{ fontSize: tipografia.title }}>📷</Text>
             </View>
           );
         }

@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { Text, View } from 'react-native';
-import { Pill, type Tone, useTheme } from '@/ui';
+import { Pill, type Tone, useTheme, tipografia } from '@/ui';
 import {
   INCIDENT_TYPE_LABEL,
   PREP_RUN_STATE_LABEL,
@@ -83,26 +83,35 @@ export function IncidentStatusPill({ status }: { status: IncidentStatus }) {
 
 export function IncidentTypeLabel({ incident }: { incident: Incident }) {
   const { c } = useTheme();
-  return <Text style={{ fontSize: 12, color: c.text }}>{INCIDENT_TYPE_LABEL[incident.type]}</Text>;
+  return <Text style={{ fontSize: tipografia.small, color: c.text }}>{INCIDENT_TYPE_LABEL[incident.type]}</Text>;
 }
 
 /** Celda de vehículo: nombre + referencia operativa. */
 export function VehicleCell({ vehicle }: { vehicle: Vehicle | undefined }) {
   const { c } = useTheme();
-  if (!vehicle) return <Text style={{ fontSize: 12, color: c.textMuted }}>—</Text>;
+  if (!vehicle) return <Text style={{ fontSize: tipografia.small, color: c.textMuted }}>—</Text>;
   return (
     <View>
-      <Text style={{ fontSize: 13, fontWeight: '700', color: c.text }}>{vehicleRef(vehicle)}</Text>
-      <Text style={{ fontSize: 11, color: c.textMuted }}>{vehicleName(vehicle)}</Text>
+      <Text style={{ fontSize: tipografia.body, fontWeight: '700', color: c.text }}>{vehicleRef(vehicle)}</Text>
+      <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>{vehicleName(vehicle)}</Text>
     </View>
   );
 }
 
 /** Texto sencillo con el estilo de tabla. */
+/**
+ * Una celda de tabla.
+ *
+ * Usa `micro` y no `small` a propósito: una tabla de flota es densa porque
+ * su gracia es ver muchas filas de un vistazo, y se mira sentado en un
+ * monitor grande, no de pie en la campa. Al subir la escala general, esta
+ * celda pasó a 13 y la columna de la última comprobación empezó a partirse
+ * en dos líneas; la tabla no necesitaba el aumento.
+ */
 export function Cell({ children, muted }: { children: React.ReactNode; muted?: boolean }) {
   const { c } = useTheme();
   return (
-    <Text style={{ fontSize: 12, color: muted ? c.textMuted : c.text }} numberOfLines={2}>
+    <Text style={{ fontSize: tipografia.micro, color: muted ? c.textMuted : c.text }} numberOfLines={2}>
       {children}
     </Text>
   );

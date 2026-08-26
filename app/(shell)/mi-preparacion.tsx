@@ -1,22 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import {
-  Btn,
-  Field,
-  H1,
-  Modal,
-  Muted,
-  Notice,
-  Panel,
-  Pill,
-  ProgressBar,
-  Screen,
-  Select,
-  Spacer,
-  radius,
-  space,
-  useTheme,
-} from '@/ui';
+import { campo, Btn, Field, H1, Modal, Muted, Notice, Panel, Pill, ProgressBar, Screen, Select, Spacer, radius, space, useTheme } from '@/ui';
 import { useStore, useTicker } from '@/data/store';
 import { activePreparations, deadlineOf, prepRequestsSinAbrir } from '@/data/selectors';
 import { idCreadoPor, prepElapsedMs, prepIsOverSla, prepProgress } from '@/data/commands';
@@ -167,18 +151,18 @@ function PedidaCard({
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <Text style={{ fontSize: 20, fontWeight: '900', color: c.text, flex: 1, minWidth: 130 }}>
+        <Text style={{ fontSize: campo.title, fontWeight: '900', color: c.text, flex: 1, minWidth: 130 }}>
           {vehicle ? vehicleRef(vehicle) : request.vehicleId}
         </Text>
         <DeadlineChip deadline={plazo} />
         {request.urgent ? <Pill tone="red">Urgente</Pill> : <Pill tone="amber">Sin empezar</Pill>}
       </View>
 
-      <Text style={{ fontSize: 13, color: c.textMuted, marginTop: 2 }}>
+      <Text style={{ fontSize: campo.body, color: c.textMuted, marginTop: 2 }}>
         {vehicle ? vehicleName(vehicle) : ''} · {siteName(state, request.siteId)}
       </Text>
       <UbicacionVehiculo vehicle={vehicle} esperadoEn={request.siteId} />
-      <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 4 }}>
+      <Text style={{ fontSize: campo.small, color: c.textMuted, marginTop: 4 }}>
         Pedida por {userName(state, request.createdBy)}
         {request.note ? ` · ${request.note}` : ''}
       </Text>
@@ -218,7 +202,7 @@ function PrepCard({ prep, onOpen }: { prep: Preparation; onOpen: () => void }) {
       })}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <Text style={{ fontSize: 20, fontWeight: '900', color: c.text, flex: 1, minWidth: 130 }}>
+        <Text style={{ fontSize: campo.title, fontWeight: '900', color: c.text, flex: 1, minWidth: 130 }}>
           {vehicle ? vehicleRef(vehicle) : prep.vehicleId}
         </Text>
         {plazo ? <DeadlineChip deadline={plazo} /> : null}
@@ -226,7 +210,7 @@ function PrepCard({ prep, onOpen }: { prep: Preparation; onOpen: () => void }) {
         {enCurso ? <Pill tone="ok">En curso</Pill> : null}
       </View>
 
-      <Text style={{ fontSize: 13, color: c.textMuted, marginTop: 2 }}>
+      <Text style={{ fontSize: campo.body, color: c.textMuted, marginTop: 2 }}>
         {vehicle ? vehicleName(vehicle) : ''} · {siteName(state, prep.siteId)}
       </Text>
       <UbicacionVehiculo vehicle={vehicle} esperadoEn={prep.siteId} />
@@ -234,7 +218,7 @@ function PrepCard({ prep, onOpen }: { prep: Preparation; onOpen: () => void }) {
       <Spacer h={space.sm} />
       <ProgressBar pct={pct} tone={fuera ? 'red' : 'ok'} />
       <Spacer h={space.xs} />
-      <Text style={{ fontSize: 12, color: c.textMuted }}>
+      <Text style={{ fontSize: campo.small, color: c.textMuted }}>
         {done}/{total} hechos ·{' '}
         <Text style={{ color: fuera ? c.redFg : c.textMuted, fontWeight: fuera ? '800' : '400' }}>
           {formatShortDuration(prepElapsedMs(prep, now))} de {formatShortDuration(prep.targetMs)}
@@ -328,10 +312,10 @@ function WorkModal({
         }}
       >
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 9, fontWeight: '800', color: c.textFaint }}>TIEMPO EFECTIVO</Text>
+          <Text style={{ fontSize: campo.label, fontWeight: '800', color: c.textFaint }}>TIEMPO EFECTIVO</Text>
           <Text
             style={{
-              fontSize: 26,
+              fontSize: campo.display,
               fontWeight: '900',
               color: fuera ? c.redFg : c.text,
               fontVariant: ['tabular-nums'],
@@ -339,13 +323,13 @@ function WorkModal({
           >
             {formatDuration(prepElapsedMs(prep, now))}
           </Text>
-          <Text style={{ fontSize: 11, color: c.textMuted }}>
+          <Text style={{ fontSize: campo.micro, color: c.textMuted }}>
             objetivo {formatShortDuration(prep.targetMs)}
           </Text>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
-          <Text style={{ fontSize: 26, fontWeight: '900', color: c.text }}>{pct}%</Text>
-          <Text style={{ fontSize: 11, color: c.textMuted }}>
+          <Text style={{ fontSize: campo.display, fontWeight: '900', color: c.text }}>{pct}%</Text>
+          <Text style={{ fontSize: campo.micro, color: c.textMuted }}>
             {done}/{total}
           </Text>
         </View>
@@ -400,12 +384,12 @@ function WorkModal({
                 justifyContent: 'center',
               }}
             >
-              {hecho ? <Text style={{ color: '#fff', fontSize: 15, fontWeight: '900' }}>✓</Text> : null}
+              {hecho ? <Text style={{ color: '#fff', fontSize: campo.strong, fontWeight: '900' }}>✓</Text> : null}
             </View>
             <View style={{ flex: 1 }}>
               <Text
                 style={{
-                  fontSize: 16,
+                  fontSize: campo.strong,
                   fontWeight: hecho ? '600' : '700',
                   color: c.text,
                   textDecorationLine: hecho ? 'line-through' : 'none',
@@ -414,7 +398,7 @@ function WorkModal({
                 {item.label}
               </Text>
               {noAplica ? (
-                <Text style={{ fontSize: 11, color: c.textMuted }}>No requerido en este vehículo</Text>
+                <Text style={{ fontSize: campo.micro, color: c.textMuted }}>No requerido en este vehículo</Text>
               ) : null}
             </View>
           </Pressable>

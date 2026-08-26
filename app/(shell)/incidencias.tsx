@@ -1,25 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Image, Text, View } from 'react-native';
-import {
-  Btn,
-  Column,
-  DataTable,
-  Grid,
-  H1,
-  Input,
-  Kpi,
-  Modal,
-  Muted,
-  Notice,
-  Panel,
-  Screen,
-  Select,
-  Spacer,
-  Toolbar,
-  radius,
-  space,
-  useTheme,
-} from '@/ui';
+import { Btn, Column, DataTable, Grid, H1, Input, Kpi, Modal, Muted, Notice, Panel, Screen, Select, Spacer, Toolbar, radius, space, tipografia, useTheme } from '@/ui';
 import { useAppState, useStore } from '@/data/store';
 import { vehicleByRef } from '@/data/selectors';
 import { formatDateTime, userName, vehicleName, vehicleRef } from '@/data/format';
@@ -81,8 +62,8 @@ export default function IncidentsScreen() {
         const v = state.vehicles.find((x) => x.id === i.vehicleId);
         return (
           <View>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: c.text }}>{v ? vehicleRef(v) : '—'}</Text>
-            <Text style={{ fontSize: 11, color: c.textMuted }}>{v ? vehicleName(v) : ''}</Text>
+            <Text style={{ fontSize: tipografia.body, fontWeight: '700', color: c.text }}>{v ? vehicleRef(v) : '—'}</Text>
+            <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>{v ? vehicleName(v) : ''}</Text>
           </View>
         );
       },

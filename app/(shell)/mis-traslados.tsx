@@ -1,23 +1,6 @@
 import React, { useState } from 'react';
 import { Text, View } from 'react-native';
-import {
-  Btn,
-  Field,
-  H1,
-  Input,
-  Modal,
-  Muted,
-  Notice,
-  Panel,
-  Pill,
-  Screen,
-  Segmented,
-  Select,
-  Spacer,
-  radius,
-  space,
-  useTheme,
-} from '@/ui';
+import { campo, Btn, Field, H1, Input, Modal, Muted, Notice, Panel, Pill, Screen, Segmented, Select, Spacer, radius, space, useTheme } from '@/ui';
 import { useStore } from '@/data/store';
 import {
   carrierName,
@@ -172,21 +155,21 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <Text style={{ fontSize: 22, fontWeight: '900', color: c.text, flex: 1, minWidth: 140 }}>
+        <Text style={{ fontSize: campo.title, fontWeight: '900', color: c.text, flex: 1, minWidth: 140 }}>
           {vehicle ? vehicleRef(vehicle) : request.vehicleId}
         </Text>
         {enRuta ? <Pill tone="blue">En ruta</Pill> : <Pill tone="amber">Llaves sin recoger</Pill>}
         {request.urgent ? <Pill tone="red">Urgente</Pill> : null}
         <DeadlineChip deadline={plazo} compact />
       </View>
-      <Text style={{ fontSize: 14, color: c.textMuted }}>{vehicle ? vehicleName(vehicle) : ''}</Text>
+      <Text style={{ fontSize: campo.body, color: c.textMuted }}>{vehicle ? vehicleName(vehicle) : ''}</Text>
 
       <Spacer h={space.md} />
 
       <Leg label="RECOGER EN" value={locationLabel(state, request.from)} icon="📍" />
       <Leg label="ENTREGAR EN" value={locationLabel(state, request.to)} icon="🏁" />
       {request.carrierId ? (
-        <Text style={{ fontSize: 11, color: c.textFaint, marginTop: 4 }}>
+        <Text style={{ fontSize: campo.micro, color: c.textFaint, marginTop: 4 }}>
           Encargado a {carrierName(state, request.carrierId)}
         </Text>
       ) : null}
@@ -228,7 +211,7 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
       </Btn>
 
       <Spacer h={space.sm} />
-      <Text style={{ fontSize: 11, color: c.textFaint }}>
+      <Text style={{ fontSize: campo.micro, color: c.textFaint }}>
         Asignado {timeAgo(request.createdAt)} · {formatDateTime(request.createdAt)}
       </Text>
 
@@ -257,10 +240,10 @@ function Leg({ label, value, icon }: { label: string; value: string; icon: strin
   const { c } = useTheme();
   return (
     <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start', paddingVertical: 6 }}>
-      <Text style={{ fontSize: 16 }}>{icon}</Text>
+      <Text style={{ fontSize: campo.strong }}>{icon}</Text>
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 9, fontWeight: '800', color: c.textFaint }}>{label}</Text>
-        <Text style={{ fontSize: 15, fontWeight: '600', color: c.text, marginTop: 2 }}>{value}</Text>
+        <Text style={{ fontSize: campo.label, fontWeight: '800', color: c.textFaint }}>{label}</Text>
+        <Text style={{ fontSize: campo.strong, fontWeight: '600', color: c.text, marginTop: 2 }}>{value}</Text>
       </View>
     </View>
   );
@@ -404,22 +387,22 @@ function Entregados({ hechos }: { hechos: ReturnType<typeof trasladosHechos> }) 
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <Text style={{ fontSize: 15, fontWeight: '800', color: c.text, flex: 1, minWidth: 120 }}>
+              <Text style={{ fontSize: campo.strong, fontWeight: '800', color: c.text, flex: 1, minWidth: 120 }}>
                 {vehicle ? vehicleRef(vehicle) : request.vehicleId}
               </Text>
               {fueraDePlazo ? <Pill tone="red">Fuera de plazo</Pill> : <Pill tone="ok">En plazo</Pill>}
             </View>
-            <Text style={{ fontSize: 12, color: c.textMuted }}>{vehicle ? vehicleName(vehicle) : ''}</Text>
-            <Text style={{ fontSize: 12, color: c.text }}>
+            <Text style={{ fontSize: campo.small, color: c.textMuted }}>{vehicle ? vehicleName(vehicle) : ''}</Text>
+            <Text style={{ fontSize: campo.small, color: c.text }}>
               {locationLabel(state, request.from, true)} → {locationLabel(state, request.to, true)}
             </Text>
-            <Text style={{ fontSize: 11, color: c.textFaint }}>
+            <Text style={{ fontSize: campo.micro, color: c.textFaint }}>
               🔑 {request.pickedUpAt ? formatDateTime(request.pickedUpAt) : 'Sin recogida apuntada'} · 🏁{' '}
               {request.deliveredAt ? formatDateTime(request.deliveredAt) : 'Sin entrega apuntada'}
               {horas === null ? '' : ` · ${Math.round(horas)} h`}
             </Text>
             {fueraDePlazo && request.delayReason ? (
-              <Text style={{ fontSize: 11, color: c.amberFg }}>
+              <Text style={{ fontSize: campo.micro, color: c.amberFg }}>
                 ⏱ {DELAY_REASON_LABEL[request.delayReason]}
                 {request.delayNote ? ` · ${request.delayNote}` : ''}
               </Text>
@@ -435,8 +418,8 @@ function Dato({ label, valor }: { label: string; valor: string }) {
   const { c } = useTheme();
   return (
     <View style={{ minWidth: 90 }}>
-      <Text style={{ fontSize: 9, fontWeight: '800', color: c.textFaint }}>{label.toUpperCase()}</Text>
-      <Text style={{ fontSize: 18, fontWeight: '900', color: c.text, marginTop: 2 }}>{valor}</Text>
+      <Text style={{ fontSize: campo.label, fontWeight: '800', color: c.textFaint }}>{label.toUpperCase()}</Text>
+      <Text style={{ fontSize: campo.heading, fontWeight: '900', color: c.text, marginTop: 2 }}>{valor}</Text>
     </View>
   );
 }

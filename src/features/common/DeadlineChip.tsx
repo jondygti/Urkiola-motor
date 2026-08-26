@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import { radius, useTheme } from '@/ui';
+import { radius, useTheme, tipografia } from '@/ui';
 import type { Deadline } from '@/data/selectors';
 
 /** "quedan 31 h" · "vencido hace 3 h". Nada de fechas que haya que interpretar. */
@@ -32,7 +32,7 @@ export function DeadlineChip({
     if (compact) return null;
     return (
       <View style={{ backgroundColor: c.surfaceSunken, borderRadius: radius.pill, paddingVertical: 4, paddingHorizontal: 9 }}>
-        <Text style={{ fontSize: 10, fontWeight: '800', color: c.textMuted }}>
+        <Text style={{ fontSize: tipografia.label, fontWeight: '800', color: c.textMuted }}>
           {emptyLabel ?? 'Sin plazo aún'}
         </Text>
       </View>
@@ -48,7 +48,7 @@ export function DeadlineChip({
 
   return (
     <View style={{ backgroundColor: bg, borderRadius: radius.pill, paddingVertical: 4, paddingHorizontal: 9 }}>
-      <Text style={{ fontSize: 10, fontWeight: '800', color: fg }}>{overdue ? '⏰ ' : ''}{texto}</Text>
+      <Text style={{ fontSize: tipografia.label, fontWeight: '800', color: fg }}>{overdue ? '⏰ ' : ''}{texto}</Text>
     </View>
   );
 }

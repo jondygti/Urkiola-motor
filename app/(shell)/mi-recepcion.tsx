@@ -1,22 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
-import {
-  Btn,
-  Field,
-  H1,
-  Input,
-  Modal,
-  Muted,
-  Notice,
-  Panel,
-  Pill,
-  ProgressBar,
-  Screen,
-  Select,
-  Spacer,
-  space,
-  useTheme,
-} from '@/ui';
+import { campo, Btn, Field, H1, Input, Modal, Muted, Notice, Panel, Pill, ProgressBar, Screen, Select, Spacer, space, useTheme } from '@/ui';
 import { useStore } from '@/data/store';
 import { vehicleByRef } from '@/data/selectors';
 import { vehicleName, vehicleRef } from '@/data/format';
@@ -160,14 +144,14 @@ function UnloadFlow({
   return (
     <>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <Text style={{ fontSize: 18, fontWeight: '900', color: c.text, flex: 1 }}>
+        <Text style={{ fontSize: campo.heading, fontWeight: '900', color: c.text, flex: 1 }}>
           🚚 {reception.truckPlate}
         </Text>
         <Pill tone={descargados === total && total > 0 ? 'ok' : 'amber'}>
           {descargados}/{total || '—'} descargados
         </Pill>
       </View>
-      <Text style={{ fontSize: 12, color: c.textMuted }}>{reception.carrier}</Text>
+      <Text style={{ fontSize: campo.small, color: c.textMuted }}>{reception.carrier}</Text>
 
       <Spacer h={space.sm} />
       <ProgressBar pct={total ? (descargados / total) * 100 : 0} />
@@ -289,9 +273,9 @@ function UnloadFlow({
                     borderBottomColor: c.borderSoft,
                   }}
                 >
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: c.text, flex: 1 }}>{l.ref}</Text>
+                  <Text style={{ fontSize: campo.body, fontWeight: '700', color: c.text, flex: 1 }}>{l.ref}</Text>
                   {l.damage ? <Pill tone="red">Daños</Pill> : null}
-                  <Text style={{ fontSize: 12, color: c.textMuted }}>{pos?.code ?? '—'}</Text>
+                  <Text style={{ fontSize: campo.small, color: c.textMuted }}>{pos?.code ?? '—'}</Text>
                 </View>
               );
             })}

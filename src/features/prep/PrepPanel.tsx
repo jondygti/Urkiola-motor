@@ -1,22 +1,6 @@
 import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import {
-  Btn,
-  Field,
-  Modal,
-  Muted,
-  Notice,
-  Panel,
-  Pill,
-  ProgressBar,
-  Select,
-  Spacer,
-  StateFlow,
-  Toolbar,
-  radius,
-  space,
-  useTheme,
-} from '@/ui';
+import { Btn, Field, Modal, Muted, Notice, Panel, Pill, ProgressBar, Select, Spacer, StateFlow, Toolbar, radius, space, tipografia, useTheme } from '@/ui';
 import { useStore, useTicker } from '@/data/store';
 import { prepElapsedMs, prepIsOverSla, prepProgress, prepWaitingMs } from '@/data/commands';
 import { formatDuration, formatShortDuration, siteName, userName, vehicleTitle } from '@/data/format';
@@ -102,7 +86,7 @@ export function PrepPanel({
       <Spacer h={space.sm} />
 
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-        <Text style={{ fontSize: 13, fontWeight: '900', color: c.text }}>{pct}%</Text>
+        <Text style={{ fontSize: tipografia.body, fontWeight: '900', color: c.text }}>{pct}%</Text>
         <Muted>
           {done}/{total} requisitos · {PREP_PHASE_LABEL[prep.phase]}
         </Muted>
@@ -152,11 +136,11 @@ export function PrepPanel({
                 onPress={() => !bloqueado && cycle(item.requirementId, item.state)}
                 disabled={bloqueado || item.state === 'no_requerido'}
               >
-                <Text style={{ fontSize: 13, color: c.text, fontWeight: '600' }}>
+                <Text style={{ fontSize: tipografia.body, color: c.text, fontWeight: '600' }}>
                   {STATE_LABEL[item.state].split(' ')[0]} {item.label}
                   {!item.timed ? '  ·  simple check' : ''}
                 </Text>
-                <Text style={{ fontSize: 11, color: c.textMuted, marginTop: 3 }}>
+                <Text style={{ fontSize: tipografia.micro, color: c.textMuted, marginTop: 3 }}>
                   {item.state === 'completado'
                     ? `${item.by ?? '—'}${item.at ? ` · ${new Date(item.at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}` : ''}`
                     : item.state === 'no_requerido'
@@ -181,7 +165,7 @@ export function PrepPanel({
                     >
                       <Text
                         style={{
-                          fontSize: 10,
+                          fontSize: tipografia.label,
                           fontWeight: '800',
                           color: item.state === st ? '#fff' : c.textMuted,
                         }}
@@ -261,7 +245,7 @@ export function PrepPanel({
           />
         </Field>
         <Pressable onPress={() => setBlocked((b) => !b)} style={{ paddingVertical: 8 }}>
-          <Text style={{ fontSize: 13, color: c.text }}>
+          <Text style={{ fontSize: tipografia.body, color: c.text }}>
             {blocked ? '☑' : '☐'} Marcar como <Text style={{ fontWeight: '800' }}>bloqueado</Text> (avisa a
             logística)
           </Text>
@@ -279,8 +263,8 @@ function Timer({ label, value, tone }: { label: string; value: string; tone: str
   const { c } = useTheme();
   return (
     <View>
-      <Text style={{ fontSize: 9, fontWeight: '800', color: c.textFaint }}>{label}</Text>
-      <Text style={{ fontSize: 21, fontWeight: '900', color: tone, fontVariant: ['tabular-nums'] }}>{value}</Text>
+      <Text style={{ fontSize: tipografia.label, fontWeight: '800', color: c.textFaint }}>{label}</Text>
+      <Text style={{ fontSize: tipografia.title, fontWeight: '900', color: tone, fontVariant: ['tabular-nums'] }}>{value}</Text>
     </View>
   );
 }

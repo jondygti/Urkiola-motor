@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { Field, Muted, Notice, Select, radius, useTheme } from '@/ui';
+import { Field, Muted, Notice, Select, radius, useTheme, tipografia } from '@/ui';
 import { useAppState } from '@/data/store';
 import type { AppState, Id, LocationRef } from '@/data/types';
 import { locationLabel } from '@/data/format';
@@ -111,10 +111,10 @@ export function DestinationFields({
                   paddingHorizontal: 12,
                 })}
               >
-                <Text style={{ fontSize: 12, fontWeight: '800', color: activo ? c.primary : c.text }}>
+                <Text style={{ fontSize: tipografia.small, fontWeight: '800', color: activo ? c.primary : c.text }}>
                   {s.label}
                 </Text>
-                {s.hint ? <Text style={{ fontSize: 10, color: c.textMuted }}>{s.hint}</Text> : null}
+                {s.hint ? <Text style={{ fontSize: tipografia.label, color: c.textMuted }}>{s.hint}</Text> : null}
               </Pressable>
             );
           })}

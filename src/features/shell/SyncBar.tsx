@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { radius, space, useTheme } from '@/ui/theme';
+import { radius, space, tipografia, useTheme } from '@/ui/theme';
 import { useStore } from '@/data/store';
 import { timeAgo } from '@/data/format';
 
@@ -72,10 +72,10 @@ export function SyncBar() {
         gap: 10,
       }}
     >
-      <Text style={{ fontSize: 15 }}>{icon}</Text>
+      <Text style={{ fontSize: tipografia.strong }}>{icon}</Text>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={{ fontSize: 12, fontWeight: '800', color: fg }}>{title}</Text>
-        <Text style={{ fontSize: 11, color: fg, opacity: 0.85, marginTop: 1 }}>
+        <Text style={{ fontSize: tipografia.small, fontWeight: '800', color: fg }}>{title}</Text>
+        <Text style={{ fontSize: tipografia.micro, color: fg, opacity: 0.85, marginTop: 1 }}>
           {detail}
           {lastSyncAt ? ` · última subida ${timeAgo(lastSyncAt)}` : ''}
         </Text>
@@ -92,7 +92,7 @@ export function SyncBar() {
             opacity: pressed ? 0.6 : 1,
           })}
         >
-          <Text style={{ fontSize: 11, fontWeight: '800', color: fg }}>Reintentar</Text>
+          <Text style={{ fontSize: tipografia.micro, fontWeight: '800', color: fg }}>Reintentar</Text>
         </Pressable>
       ) : null}
     </View>

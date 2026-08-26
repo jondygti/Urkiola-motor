@@ -5,6 +5,7 @@ import { servirEstatico } from './servidor.mjs';
 import { ejecutar as barrerRutas } from './rutas.mjs';
 import { ejecutar as probarFunciones } from './funciones.mjs';
 import { ejecutar as probarRoles } from './roles.mjs';
+import { ejecutar as revisarEstilo } from './estilo.mjs';
 
 /**
  * Comprobación completa de la aplicación web: compila, la sirve y la
@@ -28,7 +29,10 @@ const browser = await abrirNavegador();
 let todoBien = true;
 
 try {
-  console.log('══ Barrido de pantallas ' + '═'.repeat(30));
+  console.log('══ Sistema de diseño ' + '═'.repeat(33));
+  todoBien = revisarEstilo() && todoBien;
+
+  console.log('\n══ Barrido de pantallas ' + '═'.repeat(30));
   todoBien = (await barrerRutas(browser, servidor.url)) && todoBien;
 
   console.log('\n══ Operativa ' + '═'.repeat(41));

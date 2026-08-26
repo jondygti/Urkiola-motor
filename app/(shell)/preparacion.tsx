@@ -1,25 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
-import {
-  Btn,
-  Column,
-  DataTable,
-  Grid,
-  H1,
-  Kpi,
-  Modal,
-  Muted,
-  Notice,
-  Panel,
-  Screen,
-  Select,
-  Spacer,
-  StateFlow,
-  StatLine,
-  Toolbar,
-  space,
-  useTheme,
-} from '@/ui';
+import { Btn, Column, DataTable, Grid, H1, Kpi, Modal, Muted, Notice, Panel, Screen, Select, Spacer, StateFlow, StatLine, Toolbar, space, tipografia, useTheme } from '@/ui';
 import { useAppState, useTicker } from '@/data/store';
 import { prepElapsedMs, prepIsOverSla, prepProgress } from '@/data/commands';
 import { prepKpis } from '@/data/selectors';
@@ -73,8 +54,8 @@ export default function PreparationScreen() {
         const v = state.vehicles.find((x) => x.id === p.vehicleId);
         return (
           <View>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: c.text }}>{v ? vehicleRef(v) : '—'}</Text>
-            <Text style={{ fontSize: 11, color: c.textMuted }}>{v ? vehicleName(v) : ''}</Text>
+            <Text style={{ fontSize: tipografia.body, fontWeight: '700', color: c.text }}>{v ? vehicleRef(v) : '—'}</Text>
+            <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>{v ? vehicleName(v) : ''}</Text>
           </View>
         );
       },
@@ -125,10 +106,10 @@ export default function PreparationScreen() {
         const { done, total, pct } = prepProgress(p);
         return (
           <View>
-            <Text style={{ fontSize: 12, color: c.text }}>
+            <Text style={{ fontSize: tipografia.small, color: c.text }}>
               {done}/{total}
             </Text>
-            <Text style={{ fontSize: 11, color: c.textMuted }}>{pct}%</Text>
+            <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>{pct}%</Text>
           </View>
         );
       },
@@ -141,7 +122,7 @@ export default function PreparationScreen() {
       render: (p) => (
         <Text
           style={{
-            fontSize: 12,
+            fontSize: tipografia.small,
             fontWeight: '700',
             color: prepIsOverSla(p, now) ? c.redFg : c.text,
             fontVariant: ['tabular-nums'],
@@ -199,7 +180,7 @@ export default function PreparationScreen() {
       <Muted>Leioa, Galdakao, Anoeta e Irun. Cada equipo tiene su propia cola de trabajo.</Muted>
 
       <Notice>
-        <Text style={{ fontSize: 12, color: c.text, lineHeight: 18 }}>
+        <Text style={{ fontSize: tipografia.small, color: c.text, lineHeight: 18 }}>
           Cada requisito tiene tres estados: <Text style={{ fontWeight: '800' }}>Completado</Text>,{' '}
           <Text style={{ fontWeight: '800' }}>Pendiente</Text> o{' '}
           <Text style={{ fontWeight: '800' }}>No requerido</Text>. «Preentrega cliente» es un simple check sin

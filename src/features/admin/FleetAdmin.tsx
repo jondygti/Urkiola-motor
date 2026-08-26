@@ -1,22 +1,6 @@
 import React, { useState } from 'react';
 import { Text, View } from 'react-native';
-import {
-  Btn,
-  Checkbox,
-  ConfirmDialog,
-  Field,
-  Input,
-  Modal,
-  Muted,
-  Notice,
-  Panel,
-  Pill,
-  Select,
-  Spacer,
-  Toolbar,
-  space,
-  useTheme,
-} from '@/ui';
+import { Btn, Checkbox, ConfirmDialog, Field, Input, Modal, Muted, Notice, Panel, Pill, Select, Spacer, Toolbar, space, tipografia, useTheme } from '@/ui';
 import { useStore } from '@/data/store';
 import { allColumns } from '@/data/selectors';
 import {
@@ -135,8 +119,8 @@ export function FleetAdmin({ onDone }: { onDone: (m: string) => void }) {
                 }}
               >
                 <View style={{ flex: 1, minWidth: 160 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: c.text }}>{f.label}</Text>
-                  <Text style={{ fontSize: 11, color: c.textMuted }}>
+                  <Text style={{ fontSize: tipografia.body, fontWeight: '700', color: c.text }}>{f.label}</Text>
+                  <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>
                     {CUSTOM_FIELD_TYPE_LABEL[f.type]}
                     {f.type === 'lista' ? ` · ${f.options.length} opciones` : ''} · relleno en {usados}{' '}
                     vehículos

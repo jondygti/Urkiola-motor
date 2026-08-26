@@ -1,20 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
-import {
-  Btn,
-  Field,
-  H1,
-  Input,
-  Muted,
-  Notice,
-  Panel,
-  Pill,
-  Screen,
-  Spacer,
-  radius,
-  space,
-  useTheme,
-} from '@/ui';
+import { campo, Btn, Field, H1, Input, Muted, Notice, Panel, Pill, Screen, Spacer, radius, space, useTheme } from '@/ui';
 import { useStore } from '@/data/store';
 import { vehicleByRef } from '@/data/selectors';
 import { locationLabel, matchesSearch, vehicleName, vehicleRef } from '@/data/format';
@@ -140,10 +126,10 @@ export default function QuickMoveScreen() {
                   padding: 12,
                 }}
               >
-                <Text style={{ fontSize: 15, fontWeight: '900', color: c.text }}>
+                <Text style={{ fontSize: campo.strong, fontWeight: '900', color: c.text }}>
                   {vehicleName(vehiculo)} · {vehicleRef(vehiculo)}
                 </Text>
-                <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 3 }}>
+                <Text style={{ fontSize: campo.small, color: c.textMuted, marginTop: 3 }}>
                   Ahora en {locationLabel(state, vehiculo.location, true)}
                 </Text>
               </View>
@@ -204,7 +190,7 @@ export default function QuickMoveScreen() {
                       borderBottomColor: c.borderSoft,
                     }}
                   >
-                    <Text style={{ fontSize: 13, fontWeight: '800', color: c.text, flex: 1 }}>{h.ref}</Text>
+                    <Text style={{ fontSize: campo.body, fontWeight: '800', color: c.text, flex: 1 }}>{h.ref}</Text>
                     <Pill tone="ok">{h.label}</Pill>
                   </View>
                 ))}

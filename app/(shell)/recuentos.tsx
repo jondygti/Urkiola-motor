@@ -1,27 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
-import {
-  Btn,
-  Column,
-  DataTable,
-  Field,
-  Grid,
-  H1,
-  Input,
-  Kpi,
-  Modal,
-  Muted,
-  Notice,
-  Panel,
-  Pill,
-  ProgressBar,
-  Screen,
-  Select,
-  Spacer,
-  Toolbar,
-  space,
-  useTheme,
-} from '@/ui';
+import { Btn, Column, DataTable, Field, Grid, H1, Input, Kpi, Modal, Muted, Notice, Panel, Pill, ProgressBar, Screen, Select, Spacer, Toolbar, space, tipografia, useTheme } from '@/ui';
 import { useAppState, useStore } from '@/data/store';
 import { countSummary, openCount, staleVehicles, vehicleByRef } from '@/data/selectors';
 import { formatDateTime, hoursSince, locationLabel, timeAgo, userName, vehicleName, vehicleRef } from '@/data/format';
@@ -54,7 +33,7 @@ export default function CountsScreen() {
       primary: true,
       value: (x) => x.code,
       filter: { type: 'text' },
-      render: (x) => <Text style={{ fontSize: 13, fontWeight: '800', color: c.text }}>{x.code}</Text>,
+      render: (x) => <Text style={{ fontSize: tipografia.body, fontWeight: '800', color: c.text }}>{x.code}</Text>,
     },
     {
       key: 'location',
@@ -172,7 +151,7 @@ export default function CountsScreen() {
               {summary.missing > 0 ? (
                 <>
                   <Spacer h={space.md} />
-                  <Text style={{ fontSize: 12, fontWeight: '800', color: c.text }}>
+                  <Text style={{ fontSize: tipografia.small, fontWeight: '800', color: c.text }}>
                     Pendientes de encontrar ({summary.missing})
                   </Text>
                   <Spacer h={space.sm} />
@@ -201,7 +180,7 @@ export default function CountsScreen() {
               const days = Math.floor(hoursSince(v.lastCheckAt) / 24);
               return (
                 <Notice key={v.id} tone={days >= 5 ? 'danger' : 'warn'} onPress={() => openVehicle(v.id)}>
-                  <Text style={{ fontSize: 12, color: c.text }}>
+                  <Text style={{ fontSize: tipografia.small, color: c.text }}>
                     <Text style={{ fontWeight: '800' }}>{vehicleRef(v)}</Text> · última comprobación{' '}
                     {formatDateTime(v.lastCheckAt)} · {timeAgo(v.lastCheckAt)} ·{' '}
                     {locationLabel(state, v.location, true)}
@@ -386,13 +365,13 @@ function ScanModal({
         <>
           <Notice tone="info">
             <View>
-              <Text style={{ fontSize: 13, fontWeight: '800', color: c.text }}>
+              <Text style={{ fontSize: tipografia.body, fontWeight: '800', color: c.text }}>
                 {vehicleName(found)} · {vehicleRef(found)}
               </Text>
-              <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 3 }}>
+              <Text style={{ fontSize: tipografia.small, color: c.textMuted, marginTop: 3 }}>
                 Ubicación registrada: {locationLabel(state, found.location)}
               </Text>
-              <Text style={{ fontSize: 12, color: c.textMuted }}>
+              <Text style={{ fontSize: tipografia.small, color: c.textMuted }}>
                 Última comprobación: {formatDateTime(found.lastCheckAt)} · {timeAgo(found.lastCheckAt)}
               </Text>
             </View>
