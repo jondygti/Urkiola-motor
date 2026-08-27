@@ -130,3 +130,45 @@ test('el transportista recibe también los traslados que ya ha hecho', async (t)
     'no puede recibir traslados de la otra empresa de transporte'
   );
 });
+
+test('los avisos de cada uno no salen del móvil de cada uno', async (t) => {
+  // La pantalla ya los filtraba, pero eso es comodidad de interfaz: si el
+  // aviso llega al dispositivo, está en el dispositivo.
+  const p = await servidorDePruebas();
+  t.after(() => p.limpiar());
+
+  const { user: pedro } = await p.servicio.login('pedro@urkiolacarservice.com', CLAVE);
+  const { user: juan } = await p.servicio.login('juan@urkiolacarservice.com', CLAVE);
+  const { user: admin } = await p.servicio.login('admin@urkiolacarservice.com', CLAVE);
+
+  // El repaso del reloj y la operativa del día generan avisos dirigidos.
+  await p.servicio.ejecutar({ type: 'alerts.sweep', id: 'sweep-1', at: new Date().toISOString() }, admin);
+
+  for (const u of [pedro, juan, admin]) {
+    const visto = p.servicio.estadoDe(u);
+    const ajenos = visto.inbox.filter((n) => n.userIds?.length && !n.userIds.includes(u.id));
+    assert.equal(ajenos.length, 0, `${u.name} recibe ${ajenos.length} avisos que no son suyos`);
+  }
+
+  // Y que de verdad hay avisos dirigidos, o esto no probaría nada.
+  const todos = p.servicio.estado.inbox;
+  assert.ok(
+    todos.some((n) => n.userIds && n.userIds.length > 0),
+    'el parque de ejemplo tiene que generar algún aviso dirigido'
+  );
+});
+
+test('al transportista no le llegan los avisos de los comerciales', async (t) => {
+  // Es de fuera: «el coche de Juan está listo para entregar» le dice a un
+  // proveedor quién vende qué.
+  const p = await servidorDePruebas();
+  t.after(() => p.limpiar());
+
+  const { user: admin } = await p.servicio.login('admin@urkiolacarservice.com', CLAVE);
+  await p.servicio.ejecutar({ type: 'alerts.sweep', id: 'sweep-2', at: new Date().toISOString() }, admin);
+
+  const { user: iker } = await p.servicio.login('transporte@urkiolacarservice.com', CLAVE);
+  const visto = p.servicio.estadoDe(iker);
+  const ajenos = visto.inbox.filter((n) => n.userIds?.length && !n.userIds.includes(iker.id));
+  assert.equal(ajenos.length, 0, 'un proveedor no recibe avisos dirigidos a personal de Urkiola');
+});

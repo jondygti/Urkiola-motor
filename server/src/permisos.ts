@@ -209,7 +209,7 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
       return tiene(s, u, 'recepcion.ejecutar') ? null : 'No puedes recepcionar camiones.';
 
     case 'rule.create':
-    case 'rule.toggle':
+    case 'rule.setActive':
     case 'rule.delete':
       return tiene(s, u, 'notificaciones.gestionar') ? null : 'No puedes configurar avisos.';
 

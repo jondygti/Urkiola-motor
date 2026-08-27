@@ -1063,7 +1063,8 @@ export function buildSeedState(): AppState {
       scopeRef: 'v-12345678',
       condition: 'llegada_sede',
       targetSiteId: 'sondika',
-      recipient: 'Juan Bilbao',
+      audience: { kind: 'comercial' },
+      recipient: 'Comercial del coche',
       channels: ['push', 'web'],
       active: true,
       createdAt: iso(30 * HOUR),
@@ -1073,6 +1074,9 @@ export function buildSeedState(): AppState {
       scopeKind: 'site',
       scopeRef: 'sondika',
       condition: 'sin_comprobar_72h',
+      // A logística, que es quien va a mandar a alguien a mirar. Al
+      // comercial le llegaban ocho avisos de coches que no son suyos.
+      audience: { kind: 'rol', roleId: 'logistica' },
       recipient: 'Logística',
       channels: ['push', 'web'],
       active: true,
@@ -1120,6 +1124,7 @@ export function buildSeedState(): AppState {
       scopeKind: 'site',
       scopeRef: 'leioa',
       condition: 'preparacion_terminada',
+      audience: { kind: 'comercial' },
       recipient: 'Comerciales',
       channels: ['push', 'web'],
       // Apagada: la sustituye `rule-listo`, que avisa solo al comercial de
@@ -1132,18 +1137,23 @@ export function buildSeedState(): AppState {
       scopeKind: 'vehicle',
       scopeRef: 'v-12345678',
       condition: 'preparacion_terminada',
-      recipient: 'Juan Bilbao',
+      audience: { kind: 'comercial' },
+      recipient: 'Comercial del coche',
       channels: ['push', 'web'],
       active: true,
       createdAt: iso(30 * HOUR),
     },
   ];
 
+  // Los avisos de ejemplo también van dirigidos, como los de verdad: sin
+  // destinatario le salían a todo el mundo, y al comercial le aparecían
+  // coches que no son suyos.
   const inbox: NotificationEvent[] = [
     {
       id: 'nev-0001',
       ruleId: 'rule-0002',
       vehicleId: 'v-87654321',
+      userIds: ['u-log'],
       title: 'Vehículo sin comprobar',
       body: '87654321 lleva 7 días sin comprobación física en Sondika.',
       at: iso(1 * HOUR),
@@ -1154,6 +1164,8 @@ export function buildSeedState(): AppState {
       id: 'nev-0002',
       ruleId: 'rule-0001',
       vehicleId: 'v-12345678',
+      // 12345678 lo lleva Juan: el aviso de que su coche sale es suyo.
+      userIds: ['u-juan'],
       title: 'Traslado en ruta',
       body: 'BMW X1 · 12345678 ha salido de Sondika hacia Leioa.',
       at: iso(7 * HOUR),
@@ -1164,6 +1176,7 @@ export function buildSeedState(): AppState {
       id: 'nev-0003',
       ruleId: null,
       vehicleId: 'v-9032MTR',
+      userIds: ['u-log'],
       title: 'Preparación bloqueada',
       body: '9032 MTR en Anoeta está bloqueado por: Matrículas.',
       at: iso(55 * MIN),

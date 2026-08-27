@@ -59,7 +59,7 @@ const PUEDEN: Record<string, Rol[]> = {
 
   // Avisos
   'rule.create': ['admin', 'logistica', 'comercial'],
-  'rule.toggle': ['admin', 'logistica', 'comercial'],
+  'rule.setActive': ['admin', 'logistica', 'comercial'],
   'rule.delete': ['admin', 'logistica', 'comercial'],
   'inbox.read': ROLES,
   'inbox.readAll': ROLES,
@@ -189,7 +189,7 @@ function ejemplos(s: AppState): Record<string, CommandInput> {
         active: true,
       },
     },
-    'rule.toggle': { type: 'rule.toggle', ruleId: regla.id },
+    'rule.setActive': { type: 'rule.setActive', ruleId: regla.id, active: false },
     'rule.delete': { type: 'rule.delete', ruleId: regla.id },
     'inbox.read': { type: 'inbox.read', eventId: s.inbox[0]?.id ?? 'nev-x' },
     'alerts.sweep': { type: 'alerts.sweep' },

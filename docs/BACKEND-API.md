@@ -165,7 +165,7 @@ que esto **no es opcional**, es parte del contrato:
 | `prep.item` | Cambia un requisito a completado / pendiente / no requerido |
 | `count.create` / `count.finding` / `count.close` | Recuentos de flota |
 | `incident.create` / `incident.close` | Incidencias |
-| `rule.create` / `rule.toggle` / `rule.delete` | Reglas de notificación |
+| `rule.create` / `rule.setActive` / `rule.delete` | Reglas de notificación. `setActive` lleva el valor que tiene que quedar, no «lo contrario»: un comando que invierte no se puede reintentar |
 | `inbox.read` / `inbox.readAll` | Bandeja de avisos |
 | `reception.create` / `reception.line` / `reception.albaran` / `reception.close` | Recepción de camiones |
 | `vehicle.create` | Alta manual de un vehículo por su bastidor. El id sale del VIN-8 (`v-<vin8>`), así que darlo de alta dos veces no duplica nada |

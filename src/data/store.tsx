@@ -48,7 +48,10 @@ const TOKEN_KEY = 'urkiola.token.v1';
 // 16: Recuentos entra en el menú del móvil del preparador y de recepción,
 // que son quienes cuentan. Las secciones del móvil de cada rol están
 // guardadas en la configuración del dispositivo.
-const STATE_SCHEMA_VERSION = 16;
+// 17: las reglas de aviso de ejemplo ya dicen a quién van. Las guardadas
+// antes no lo decían, así que le llegaban a todo el mundo: al comercial le
+// salían ocho avisos de coches que no son suyos.
+const STATE_SCHEMA_VERSION = 17;
 
 interface StoredState {
   v: number;

@@ -502,3 +502,78 @@ test('un traslado entregado a tiempo no guarda motivo aunque lo manden', () => {
   });
   assert.equal(s.requests.find((r) => r.id === req.id)!.delayReason, undefined);
 });
+
+/* ═══════════ 10 · Lo que encontró la segunda revisión a fondo ═══════════ */
+
+/** Un traslado creado, recogido y entregado, con las horas que se le digan. */
+function trasladoEntregado(hRecoge: number, hEntrega: number) {
+  let s = buildSeedState();
+  const v = s.vehicles.find((x) => x.location?.siteId === 'sondika')!;
+  const hace = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
+
+  s = applyCommand(s, {
+    ...orden({
+      type: 'request.create',
+      requestType: 'traslado',
+      vehicleId: v.id,
+      siteId: 'leioa',
+      to: { siteId: 'leioa' },
+    }),
+    at: hace(hRecoge + 1),
+  } as Command);
+  const req = s.requests.find((r) => r.vehicleId === v.id && r.type === 'traslado')!;
+
+  const recoger = { ...orden({ type: 'request.update', requestId: req.id, status: 'en_ruta' }), at: hace(hRecoge) } as Command;
+  s = applyCommand(s, recoger);
+  s = applyCommand(s, {
+    ...orden({ type: 'movement.register', vehicleId: v.id, to: { siteId: 'leioa' }, completesTransfer: true }),
+    at: hace(hEntrega),
+  } as Command);
+
+  return { estado: s, reqId: req.id, recoger };
+}
+
+test('un comando atrasado no resucita un traslado ya entregado', () => {
+  // Pasa así: el transportista marca «he recogido las llaves» en un sótano
+  // sin cobertura, entrega el coche una hora después ya con señal, y el
+  // primer comando sube al final. Si se aplicara, el coche volvería a «los
+  // llevo yo» y desaparecería del registro de entregados.
+  const { estado, reqId, recoger } = trasladoEntregado(9, 5);
+  assert.equal(estado.requests.find((r) => r.id === reqId)!.status, 'terminada');
+
+  const despues = applyCommand(estado, recoger);
+  const req = despues.requests.find((r) => r.id === reqId)!;
+  assert.equal(req.status, 'terminada', 'el traslado sigue entregado');
+  assert.ok(req.deliveredAt);
+  assert.deepEqual(revisar(despues), []);
+});
+
+test('pero la oficina sí puede reabrirlo hoy, y entonces se borra la entrega', () => {
+  // Si vuelve a estar pendiente es que no se entregó. Dejar la fecha puesta
+  // metería en «Traslados hechos» un viaje que no está hecho, y ese registro
+  // es lo que se le enseña a la empresa de transporte.
+  const { estado, reqId } = trasladoEntregado(9, 5);
+  const reabrir = aplicar(estado, { type: 'request.update', requestId: reqId, status: 'en_ruta' });
+
+  const req = reabrir.requests.find((r) => r.id === reqId)!;
+  assert.equal(req.status, 'en_ruta');
+  assert.equal(req.deliveredAt, null, 'sin fecha de entrega');
+  assert.equal(req.deliveredBy, null);
+  assert.equal(req.delayReason, null, 'ni motivo de retraso de un retraso que ya no existe');
+  assert.deepEqual(revisar(reabrir), []);
+});
+
+test('activar o pausar un aviso dos veces lo deja igual que una', () => {
+  // Antes era un comando que invertía el valor: si la respuesta se perdía y
+  // el comando se reintentaba, la regla volvía a como estaba y el aviso se
+  // apagaba solo sin que nadie lo hubiera tocado.
+  let s = buildSeedState();
+  const regla = s.rules.find((r) => r.active)!;
+  const pausar = orden({ type: 'rule.setActive', ruleId: regla.id, active: false });
+
+  s = applyCommand(s, pausar);
+  assert.equal(s.rules.find((r) => r.id === regla.id)!.active, false);
+
+  s = applyCommand(s, pausar);
+  assert.equal(s.rules.find((r) => r.id === regla.id)!.active, false, 'sigue pausada');
+});

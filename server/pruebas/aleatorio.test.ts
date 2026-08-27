@@ -122,6 +122,11 @@ const GENERADORES: { peso: number; gen: Generador }[] = [
         requestId: req.id,
         status: estado,
         assignedTo: aVeces(r) ? (uno(r, s.users)?.id ?? null) : null,
+        // A veces con motivo de retraso, aunque el traslado no llegue tarde:
+        // el servidor tiene que quedarse solo con los que de verdad lo son.
+        delayReason: aVeces(r, 0.3)
+          ? uno(r, ['llaves', 'averia', 'cliente', 'trafico', 'carga', 'otro'] as const)
+          : null,
       };
     },
   },
@@ -304,6 +309,74 @@ const GENERADORES: { peso: number; gen: Generador }[] = [
   { peso: 1, gen: (s, r) => { const req = uno(r, s.config.requirements); return req ? { type: 'requirement.delete', requirementId: req.id } : null; } },
   { peso: 1, gen: (s, r) => { const c = uno(r, s.carriers); return c ? { type: 'carrier.delete', carrierId: c.id } : null; } },
   { peso: 1, gen: (s, r) => ({ type: 'config.update', patch: { prepTargetMinutes: { VN: entre(r, 300), VO: entre(r, 300) } } }) },
+
+  /* ------------------------------------------------ avisos y bandeja */
+  // El repaso del reloj, que crea avisos por su cuenta. Es lo más nuevo del
+  // sistema y hasta ahora no lo disparaba nadie aquí.
+  { peso: 4, gen: () => ({ type: 'alerts.sweep' }) },
+  {
+    peso: 3,
+    gen: (s, r) => {
+      const cond = uno(r, [
+        'llegada_sede', 'preparacion_pedida', 'preparacion_terminada', 'sin_comprobar_72h',
+        'traslado_sin_recoger', 'incidencia_abierta', 'traslado_completado', 'preparacion_bloqueada',
+      ] as const);
+      const ambito = uno(r, ['vehicle', 'site', 'fleet'] as const);
+      const rol = uno(r, s.config.roles);
+      if (!cond || !ambito || !rol) return null;
+      // Las tres audiencias, incluida la de un rol que puede haberse quedado
+      // sin gente: un aviso sin destinatarios no se debe crear.
+      const audience = aVeces(r, 0.4)
+        ? ({ kind: 'comercial' } as const)
+        : aVeces(r)
+          ? ({ kind: 'rol', roleId: rol.id } as const)
+          : ({ kind: 'todos' } as const);
+      return {
+        type: 'rule.create',
+        rule: {
+          scopeKind: ambito,
+          scopeRef:
+            ambito === 'vehicle'
+              ? (vehiculo(s, r)?.id ?? null)
+              : ambito === 'site'
+                ? (uno(r, s.sites)?.id ?? null)
+                : null,
+          condition: cond,
+          targetSiteId: uno(r, s.sites)?.id ?? null,
+          audience,
+          recipient: 'Quien sea',
+          channels: ['web'],
+          active: true,
+        },
+      };
+    },
+  },
+  { peso: 2, gen: (s, r) => { const x = uno(r, s.rules); return x ? { type: 'rule.setActive', ruleId: x.id, active: aVeces(r) } : null; } },
+  { peso: 1, gen: (s, r) => { const x = uno(r, s.rules); return x ? { type: 'rule.delete', ruleId: x.id } : null; } },
+  { peso: 2, gen: (s, r) => { const n = uno(r, s.inbox); return n ? { type: 'inbox.read', eventId: n.id } : null; } },
+  { peso: 1, gen: () => ({ type: 'inbox.readAll' }) },
+
+  /* ------------------------------------------- campos propios y demás */
+  {
+    peso: 2,
+    gen: (s, r) => {
+      const v = vehiculo(s, r);
+      const propio = uno(r, s.config.customFields);
+      return v && propio
+        ? { type: 'vehicle.setCustom', vehicleId: v.id, fieldId: propio.id, value: `x${entre(r, 99)}` }
+        : null;
+    },
+  },
+  {
+    peso: 1,
+    gen: (s, r) => {
+      const propio = uno(r, s.config.customFields);
+      return propio ? { type: 'customField.upsert', field: { ...propio, showInTable: aVeces(r) } } : null;
+    },
+  },
+  { peso: 1, gen: (s, r) => { const x = uno(r, s.config.customFields); return x ? { type: 'customField.delete', fieldId: x.id } : null; } },
+  { peso: 1, gen: (s, r) => { const x = uno(r, s.carriers); return x ? { type: 'carrier.upsert', carrier: { ...x, active: aVeces(r, 0.8) } } : null; } },
+  { peso: 2, gen: (s, r) => { const rec = uno(r, s.receptions); return rec ? { type: 'reception.albaran', receptionId: rec.id, uri: `albaran-${entre(r, 999)}` } : null; } },
 ];
 
 /** La ruleta con pesos, montada una sola vez. */

@@ -10,7 +10,7 @@
  * implicados (sin los datos comerciales), las sedes y las plazas que
  * necesita para leer una ubicación, y su propio rol.
  */
-import type { AppState, Id, User, Vehicle } from '../../src/data/types';
+import type { AppState, Id, NotificationEvent, User, Vehicle } from '../../src/data/types';
 
 /**
  * Qué campos del vehículo puede ver un proveedor externo y cuáles no.
@@ -107,7 +107,12 @@ export function estadoParaColaborador(s: AppState, u: User): AppState {
     counts: [],
     incidents: [],
     rules: [],
-    inbox: s.inbox.filter((n) => n.vehicleId !== null && idsVehiculos.has(n.vehicleId)),
+    // Los avisos que van dirigidos a alguien de casa no salen de casa,
+    // aunque hablen de un coche que él ha movido: «el coche de Juan está
+    // listo para entregar» le dice a un proveedor quién vende qué.
+    inbox: s.inbox.filter(
+      (n) => n.vehicleId !== null && idsVehiculos.has(n.vehicleId) && paraEste(n, u)
+    ),
     receptions: [],
     events: [],
     config: {
@@ -127,8 +132,24 @@ export function estadoParaColaborador(s: AppState, u: User): AppState {
  * proveedores— pero evita mandar al móvil de Irun los 400 coches de
  * Sondika cada vez que arranca.
  */
+/**
+ * ¿Este aviso es para esta persona?
+ *
+ * Sin destinatarios es de casa y lo ve todo el mundo; con ellos, solo quien
+ * esté apuntado. La pantalla ya lo filtraba, pero eso es comodidad de
+ * interfaz: si el aviso llega al dispositivo, está en el dispositivo. Y al
+ * transportista, que es de fuera, le llegaban los de los comerciales.
+ */
+function paraEste(n: NotificationEvent, u: User): boolean {
+  return !n.userIds || n.userIds.length === 0 || n.userIds.includes(u.id);
+}
+
 export function estadoParaSedes(s: AppState, u: User): AppState {
-  if (!u.siteIds || u.siteIds.length === 0) return s;
+  // Los avisos se filtran para todos, tengan sedes o no: el administrador
+  // tampoco necesita en el móvil los avisos dirigidos a otra persona.
+  const conSusAvisos = { ...s, inbox: s.inbox.filter((n) => paraEste(n, u)) };
+  if (!u.siteIds || u.siteIds.length === 0) return conSusAvisos;
+  s = conSusAvisos;
   const suyas = new Set(u.siteIds);
   const dentro = (siteId: Id | null | undefined) => !siteId || suyas.has(siteId);
 
@@ -147,6 +168,9 @@ export function estadoParaSedes(s: AppState, u: User): AppState {
     incidents: s.incidents.filter((i) => ids.has(i.vehicleId)),
     receptions: s.receptions.filter((r) => suyas.has(r.siteId)),
     events: s.events.filter((e) => !e.vehicleId || ids.has(e.vehicleId)),
+    // Cada uno recibe sus avisos y no los de los demás. Mandarlos todos y
+    // esconderlos en la pantalla es dejarlos en el móvil de cualquiera.
+    inbox: s.inbox.filter((n) => paraEste(n, u)),
   };
 }
 

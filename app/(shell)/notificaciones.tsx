@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Text, View } from 'react-native';
-import { Btn, Column, DataTable, Grid, H1, Kpi, Muted, Notice, Panel, Pill, Screen, Segmented, Spacer, Toolbar, space, tipografia, useTheme } from '@/ui';
+import { campo, Btn, Column, DataTable, Grid, H1, Kpi, Muted, Notice, Panel, Pill, Screen, Segmented, Spacer, Toolbar, space, tipografia, useTheme } from '@/ui';
 import { useAppState, useStore } from '@/data/store';
 import { bandejaDe, unreadCount } from '@/data/selectors';
 import { formatDateTime, siteName, timeAgo, vehicleTitle } from '@/data/format';
@@ -13,7 +13,7 @@ import { IfCan, usePerms } from '@/features/common/Guard';
 export default function NotificationsScreen() {
   const state = useAppState();
   const { run, user } = useStore();
-  const { c } = useTheme();
+  const { c, isDesktop } = useTheme();
   const openVehicle = useOpenVehicle();
   const { can } = usePerms();
   const puedeGestionar = can('notificaciones.gestionar');
@@ -98,7 +98,7 @@ export default function NotificationsScreen() {
       render: (r) =>
         puedeGestionar ? (
           <View style={{ flexDirection: 'row', gap: 6 }}>
-            <Btn small onPress={() => run({ type: 'rule.toggle', ruleId: r.id })}>
+            <Btn small onPress={() => run({ type: 'rule.setActive', ruleId: r.id, active: !r.active })}>
               {r.active ? 'Pausar' : 'Activar'}
             </Btn>
             <Btn small variant="ghost" onPress={() => run({ type: 'rule.delete', ruleId: r.id })}>
@@ -149,13 +149,28 @@ export default function NotificationsScreen() {
 
       {tab === 'avisos' ? (
         <>
-          <Grid cols={3} minWidth={200}>
-            <Kpi label="Sin leer" value={unread} tone={unread > 0 ? 'amber' : 'ok'} />
-            <Kpi label="Total avisos" value={bandeja.length} />
-            <Kpi label="Reglas activas" value={state.rules.filter((r) => r.active).length} />
-          </Grid>
-
-          <Spacer h={space.lg} />
+          {isDesktop ? (
+            <>
+              <Grid cols={3} minWidth={200}>
+                <Kpi label="Sin leer" value={unread} tone={unread > 0 ? 'amber' : 'ok'} />
+                <Kpi label="Total avisos" value={bandeja.length} />
+                <Kpi label="Reglas activas" value={state.rules.filter((r) => r.active).length} />
+              </Grid>
+              <Spacer h={space.lg} />
+            </>
+          ) : (
+            /* En el móvil, una línea: tres cajas apiladas ocupaban la
+               pantalla entera y lo que se viene a ver son los avisos. */
+            <>
+              <Text style={{ fontSize: campo.body, color: c.textMuted, marginTop: space.sm }}>
+                <Text style={{ fontWeight: '900', color: unread > 0 ? c.amberFg : c.okFg }}>
+                  {unread} sin leer
+                </Text>
+                {` de ${bandeja.length}`}
+              </Text>
+              <Spacer h={space.md} />
+            </>
+          )}
 
           <Panel title="Bandeja de avisos">
             {bandeja.length === 0 ? (
@@ -172,11 +187,11 @@ export default function NotificationsScreen() {
                 >
                   <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: tipografia.small, fontWeight: n.read ? '600' : '900', color: c.text }}>
+                      <Text style={{ fontSize: campo.small, fontWeight: n.read ? '600' : '900', color: c.text }}>
                         {n.title}
                       </Text>
-                      <Text style={{ fontSize: tipografia.small, color: c.text, marginTop: 2 }}>{n.body}</Text>
-                      <Text style={{ fontSize: tipografia.micro, color: c.textMuted, marginTop: 3 }}>
+                      <Text style={{ fontSize: campo.small, color: c.text, marginTop: 2 }}>{n.body}</Text>
+                      <Text style={{ fontSize: campo.micro, color: c.textMuted, marginTop: 3 }}>
                         {formatDateTime(n.at)} · {timeAgo(n.at)}
                       </Text>
                     </View>

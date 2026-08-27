@@ -451,6 +451,19 @@ export async function ejecutar(browser, BASE) {
       'sin avisos de la cola del preparador'
     );
 
+    // Con el parque entero a su nombre pueden ser cien coches: se pintan
+    // por tandas para que la pantalla abra deprisa en un móvil viejo.
+    await page.goto(`${BASE}/mis-coches`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1200);
+    const pintadas = await page.evaluate(
+      () => document.body.innerText.match(/Abrir ficha/g)?.length ?? 0
+    );
+    ok('COMERCIAL · sus coches se pintan por tandas', pintadas > 0 && pintadas <= 20, `${pintadas} fichas`);
+    ok(
+      'COMERCIAL · con un botón para ver más',
+      (await page.evaluate(() => document.body.innerText)).includes('Ver 20 más de')
+    );
+
     // La app le abre ahí: es su pantalla de todos los días.
     await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(1100);

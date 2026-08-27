@@ -106,6 +106,22 @@ Cada una viene de un fallo real de este proyecto:
     y no avisaba nunca porque no había nada que la evaluara; para eso está
     `alerts.sweep`, que lanza la app al abrirse y es idempotente por día.
 
+23. **Un comando que llega tarde no deshace lo que ya pasó.** El
+    transportista marca «recogí las llaves» sin cobertura, entrega el coche
+    una hora después y el primer comando sube al final: si se aplicara, un
+    traslado entregado volvería a «los llevo yo». Se compara con `cmd.at`,
+    no con el reloj, así que reabrir hoy algo cerrado por error sigue
+    funcionando. Y reabrir **borra la entrega**: un viaje que vuelve a estar
+    pendiente no puede seguir en «Traslados hechos».
+24. **Ningún comando invierte un valor: lleva el que tiene que quedar.**
+    `rule.setActive(activa: boolean)`, no `rule.toggle`. Un comando que
+    invierte no se puede reintentar: si se pierde la respuesta y sube otra
+    vez, el aviso se apaga solo sin que nadie lo haya tocado.
+25. **El recorte del servidor también filtra los avisos.** Cada uno recibe
+    los suyos. Mandarlos todos y esconderlos en la pantalla es dejarlos en
+    el móvil de cualquiera —y al transportista, que es de fuera, le llegaba
+    «el coche de Juan está listo», que le dice quién vende qué.
+
 22. **Los tamaños de letra salen de `tipografia` o de `campo`**
     (`src/ui/theme.tsx`), nunca escritos a mano. Había 222 sueltos, nueve
     valores distintos y el más usado un 11: letra pequeña para leer un móvil
@@ -132,9 +148,9 @@ npm run verify:api           # la app real contra el backend real
 | `scripts/verify/estilo.mjs` | 3 comprobaciones del sistema de diseño, leyendo el código: que nadie escriba un tamaño de letra a mano, que el mínimo no baje de 11 y que las pantallas de campo usen su escala |
 | `scripts/verify/rutas.mjs` | 7 perfiles × 2 anchos × 19 pantallas = 266 cargas: que ninguna se rompe para ningún rol |
 | `scripts/verify/funciones.mjs` | 88 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
-| `scripts/verify/roles.mjs` | 76 comprobaciones: la jornada entera de cada uno de los 6 roles, y que lo que no le toca no lo ve ni lo puede tocar |
-| `server/pruebas/` | 123 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios, seguridad y las **invariantes** de los datos |
-| `server/pruebas/aleatorio.test.ts` | 10.000 comandos al azar con semilla: dispara lo que a nadie se le ocurre y comprueba las 9 invariantes después de **cada uno**. Si falla, la semilla que sale por pantalla repite la secuencia exacta |
+| `scripts/verify/roles.mjs` | 78 comprobaciones: la jornada entera de cada uno de los 6 roles, y que lo que no le toca no lo ve ni lo puede tocar |
+| `server/pruebas/` | 128 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios, seguridad y las **invariantes** de los datos |
+| `server/pruebas/aleatorio.test.ts` | 10.000 comandos al azar con semilla: dispara lo que a nadie se le ocurre y comprueba las 11 invariantes después de **cada uno**. Si falla, la semilla que sale por pantalla repite la secuencia exacta |
 | `scripts/verify/backend.mjs` | 25 comprobaciones de la app compilada contra el servidor: entrar con contraseña, mover un coche y que **otro dispositivo lo vea**, subir una foto y recuperar la contraseña por correo |
 
 `verify:api` va aparte de `verify` porque compila la web una segunda vez:

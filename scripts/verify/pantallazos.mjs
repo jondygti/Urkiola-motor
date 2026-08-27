@@ -22,16 +22,21 @@ if (!process.argv.includes('--rapido') || !existsSync('dist/index.html')) {
 }
 
 const PANTALLAS = [
+  // Las de campo, en un móvil.
   { usuario: 'preparador', ruta: '/mi-preparacion', ancho: 420, nombre: 'movil-preparador' },
-  // Con un coche buscado: la pantalla vacía no enseña lo que importa.
   { usuario: 'preparador', ruta: '/mover', ancho: 420, nombre: 'movil-mover', escribir: '4821 LKM' },
-  { usuario: 'preparador', ruta: '/mover', ancho: 420, nombre: 'movil-mover-otra-sede', escribir: '12345678' },
+  { usuario: 'preparador', ruta: '/recuentos', ancho: 420, nombre: 'movil-recuentos' },
+  { usuario: 'recepcion', ruta: '/mi-recepcion', ancho: 420, nombre: 'movil-recepcion' },
   { usuario: 'transportista', ruta: '/mis-traslados', ancho: 420, nombre: 'movil-transportista' },
   { usuario: 'comercial', ruta: '/mis-coches', ancho: 420, nombre: 'movil-comercial' },
-  { usuario: 'preparador', ruta: '/recuentos', ancho: 420, nombre: 'movil-recuentos' },
+  { usuario: 'comercial', ruta: '/notificaciones', ancho: 420, nombre: 'movil-avisos' },
+  // Las de oficina, en un monitor.
   { usuario: 'admin', ruta: '/', ancho: 1440, nombre: 'web-panel' },
   { usuario: 'admin', ruta: '/flota', ancho: 1440, nombre: 'web-flota' },
   { usuario: 'logistica', ruta: '/traslados', ancho: 1440, nombre: 'web-traslados' },
+  { usuario: 'logistica', ruta: '/solicitudes', ancho: 1440, nombre: 'web-solicitudes' },
+  { usuario: 'logistica', ruta: '/entregas', ancho: 1440, nombre: 'web-entregas' },
+  { usuario: 'admin', ruta: '/administracion', ancho: 1440, nombre: 'web-admin' },
 ];
 
 const servidor = await servirEstatico('dist', PUERTO);

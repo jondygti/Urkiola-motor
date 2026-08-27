@@ -114,7 +114,22 @@ export type Command =
     }
   | { type: 'incident.close'; id: Id; at: string; userId: Id; incidentId: Id }
   | { type: 'rule.create'; id: Id; at: string; userId: Id; rule: Omit<NotificationRule, 'id' | 'createdAt'> }
-  | { type: 'rule.toggle'; id: Id; at: string; userId: Id; ruleId: Id }
+  | {
+      /**
+       * Activar o pausar una regla de aviso.
+       *
+       * Lleva el valor que tiene que quedar, no «lo contrario de lo que
+       * hay». Un comando que invierte no se puede aplicar dos veces: si la
+       * respuesta se pierde y el comando se reintenta, la regla vuelve a
+       * como estaba y el aviso se apaga solo sin que nadie lo haya tocado.
+       */
+      type: 'rule.setActive';
+      id: Id;
+      at: string;
+      userId: Id;
+      ruleId: Id;
+      active: boolean;
+    }
   | { type: 'rule.delete'; id: Id; at: string; userId: Id; ruleId: Id }
   | {
       /**
@@ -748,6 +763,21 @@ function aplicar(state: AppState, cmd: Command): AppState {
       const req = state.requests.find((r) => r.id === cmd.requestId);
       if (!req) return state;
 
+      // Un comando que llega tarde no resucita un traslado ya entregado.
+      //
+      // Pasa así: el transportista marca «he recogido las llaves» en un
+      // sótano sin cobertura, entrega el coche una hora después ya con
+      // señal, y el primer comando sube al final. Si se aplicara, el coche
+      // volvería a «los llevo yo», desaparecería del registro de entregados
+      // y el transportista lo vería otra vez pendiente.
+      //
+      // Se compara con `cmd.at` y no con el reloj: reabrir hoy un traslado
+      // que se cerró por error sigue funcionando, porque ese comando es
+      // posterior a la entrega.
+      if (req.deliveredAt && cmd.status !== 'terminada' && cmd.at < req.deliveredAt) {
+        return state;
+      }
+
       // Al recoger las llaves arranca el plazo del transportista.
       const recoge = req.type === 'traslado' && cmd.status === 'en_ruta' && !req.pickedUpAt;
       const patch: Partial<ServiceRequest> = {
@@ -761,6 +791,17 @@ function aplicar(state: AppState, cmd: Command): AppState {
           new Date(cmd.at).getTime() + state.config.transferDeadlineHours * 3_600_000
         ).toISOString();
       }
+      // Reabrir un traslado borra la entrega: si vuelve a estar pendiente es
+      // que no se entregó, o que hay que rehacerlo. Dejar la fecha puesta
+      // metería en «Traslados hechos» un viaje que no está hecho, y ese
+      // registro es lo que se le enseña a la empresa de transporte.
+      if (req.deliveredAt && cmd.status !== 'terminada') {
+        patch.deliveredAt = null;
+        patch.deliveredBy = null;
+        patch.delayReason = null;
+        patch.delayNote = null;
+      }
+
       // Cuándo se entregó y quién lo dio por entregado. Sin esto, un
       // traslado terminado no dice cuándo se hizo —solo que ya no está
       // pendiente— y sin fecha no hay registro que enseñar ni al
@@ -1121,10 +1162,10 @@ function aplicar(state: AppState, cmd: Command): AppState {
       const rule: NotificationRule = { id: unico('rule', cmd), createdAt: cmd.at, ...cmd.rule };
       return { ...state, rules: [rule, ...state.rules] };
     }
-    case 'rule.toggle': {
+    case 'rule.setActive': {
       const rule = state.rules.find((r) => r.id === cmd.ruleId);
-      if (!rule) return state;
-      return { ...state, rules: replace(state.rules, cmd.ruleId, { active: !rule.active }) };
+      if (!rule || rule.active === cmd.active) return state;
+      return { ...state, rules: replace(state.rules, cmd.ruleId, { active: cmd.active }) };
     }
     case 'rule.delete':
       return { ...state, rules: state.rules.filter((r) => r.id !== cmd.ruleId) };

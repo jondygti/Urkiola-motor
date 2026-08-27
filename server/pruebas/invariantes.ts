@@ -169,7 +169,41 @@ export function revisar(s: AppState): Problema[] {
     }
   }
 
-  /* 9 · Los plazos comprometidos no se recalculan solos. */
+  /* 9 · Un aviso va a alguien que existe.
+
+     Los avisos ahora llevan destinatarios. Un aviso dirigido a un usuario
+     que ya no está no lo lee nadie, y uno con la lista vacía es un aviso
+     que se creó para nadie: las dos cosas son basura en la bandeja. */
+  for (const n of s.inbox) {
+    if (!n.userIds) continue;
+    if (n.userIds.length === 0) mal('avisos con destinatario', `${n.id}: creado para nadie`);
+    for (const id of n.userIds) {
+      if (!usuarios.has(id)) mal('avisos con destinatario', `${n.id} → usuario ${id}`);
+    }
+  }
+  for (const r of s.rules) {
+    if (r.audience?.kind === 'rol' && !roles.has(r.audience.roleId)) {
+      mal('avisos con destinatario', `regla ${r.id} → rol ${r.audience.roleId}`);
+    }
+  }
+
+  /* 10 · Un traslado no se entrega antes de recogerlo, y el motivo del
+     retraso solo lo llevan los que llegaron tarde: si no, es la explicación
+     de algo que no pasó. */
+  for (const r of s.requests) {
+    if (r.type !== 'traslado') continue;
+    if (r.pickedUpAt && r.deliveredAt && r.deliveredAt < r.pickedUpAt) {
+      mal('el traslado va hacia adelante', `${r.id}: entregado antes de recogerlo`);
+    }
+    if (r.delayReason && !(r.dueAt && r.deliveredAt && r.deliveredAt > r.dueAt)) {
+      mal('el traslado va hacia adelante', `${r.id}: motivo de retraso sin retraso`);
+    }
+    if (r.deliveredAt && r.status !== 'terminada') {
+      mal('el traslado va hacia adelante', `${r.id}: entregado pero sin terminar`);
+    }
+  }
+
+  /* 11 · Los plazos comprometidos no se recalculan solos. */
   for (const r of s.requests) {
     if (r.type === 'traslado' && r.pickedUpAt && !r.dueAt) {
       mal('plazos comprometidos', `traslado ${r.id} recogido y sin fecha límite`);

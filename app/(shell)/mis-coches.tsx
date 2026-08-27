@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { campo, Btn, Grid, H1, Input, Kpi, Muted, Notice, Panel, Pill, ProgressBar, Screen, Segmented, Spacer, radius, space, useTheme } from '@/ui';
 import { useAppState, useStore, useTicker } from '@/data/store';
@@ -12,6 +12,7 @@ import { VehicleActions } from '@/features/actions/VehicleActions';
 import { useOpenVehicle } from '@/features/common/bits';
 
 const TODOS = 'todos';
+const POR_TANDA = 20;
 
 /**
  * Mis coches: en qué punto está cada uno de los que vende esta persona.
@@ -34,6 +35,10 @@ export default function MyCarsScreen() {
 
   const [filtro, setFiltro] = useState<string>(TODOS);
   const [query, setQuery] = useState('');
+  // Cuántas fichas se pintan de golpe. Un comercial con el parque entero a
+  // su nombre puede tener más de cien coches, y cien fichas con sus botones
+  // en un móvil viejo se notan al abrir la pantalla.
+  const [visibles, setVisibles] = useState(POR_TANDA);
   const [toast, setToast] = useState<string | null>(null);
 
   const todos = useMemo(() => misCoches(state, user), [state, user]);
@@ -54,6 +59,10 @@ export default function MyCarsScreen() {
     () => todos.filter((x) => x.vehicle.deliveryDate && x.fase === 'parado'),
     [todos]
   );
+
+  // Al cambiar de filtro o de búsqueda se vuelve a empezar por arriba: si
+  // no, se quedaría enseñando cien fichas de la lista anterior.
+  useEffect(() => setVisibles(POR_TANDA), [filtro, query]);
 
   const lista = useMemo(
     () =>
@@ -152,7 +161,7 @@ export default function MyCarsScreen() {
           </Panel>
         ) : (
           <Grid cols={2} minWidth={420}>
-            {lista.map((coche) => (
+            {lista.slice(0, visibles).map((coche) => (
               <FichaCoche
                 key={coche.vehicle.id}
                 coche={coche}
@@ -163,6 +172,15 @@ export default function MyCarsScreen() {
             ))}
           </Grid>
         )}
+
+        {lista.length > visibles ? (
+          <>
+            <Spacer h={space.sm} />
+            <Btn full onPress={() => setVisibles((v) => v + POR_TANDA)}>
+              Ver {Math.min(POR_TANDA, lista.length - visibles)} más de {lista.length - visibles}
+            </Btn>
+          </>
+        ) : null}
       </Screen>
     </ScreenGuard>
   );
