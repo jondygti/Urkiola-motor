@@ -8,7 +8,9 @@
     "typecheck": "tsc -p . --noEmit",
     "start": "node dist/server/src/index.js",
     "dev": "npm run build && node dist/server/src/index.js",
-    "test": "npm run build && node --test dist/server/pruebas/*.test.js"
+    "test": "npm run build && node --test dist/server/pruebas/*.test.js",
+    "copia": "npm run build && node dist/server/src/copia.js",
+    "restaurar": "npm run build && node dist/server/src/restaurar.js"
   },
   "dependencies": {
     "pg": "^8.16.3"

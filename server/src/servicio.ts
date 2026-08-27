@@ -71,7 +71,7 @@ function comprobarFortaleza(nueva: unknown): asserts nueva is string {
 }
 
 /** Estado inicial vacío: sin coches, sin usuarios salvo el administrador. */
-function estadoVacio(): AppState {
+export function estadoVacio(): AppState {
   const semilla = buildSeedState();
   return {
     ...semilla,

@@ -132,7 +132,7 @@ npm run verify:api           # la app real contra el backend real
 | `scripts/verify/rutas.mjs` | 7 perfiles × 2 anchos × 19 pantallas = 266 cargas: que ninguna se rompe para ningún rol |
 | `scripts/verify/funciones.mjs` | 85 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
 | `scripts/verify/roles.mjs` | 73 comprobaciones: la jornada entera de cada uno de los 6 roles, y que lo que no le toca no lo ve ni lo puede tocar |
-| `server/pruebas/` | 116 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios, seguridad y las **invariantes** de los datos |
+| `server/pruebas/` | 123 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios, seguridad y las **invariantes** de los datos |
 | `server/pruebas/aleatorio.test.ts` | 10.000 comandos al azar con semilla: dispara lo que a nadie se le ocurre y comprueba las 9 invariantes después de **cada uno**. Si falla, la semilla que sale por pantalla repite la secuencia exacta |
 | `scripts/verify/backend.mjs` | 24 comprobaciones de la app compilada contra el servidor: entrar con contraseña, mover un coche y que **otro dispositivo lo vea**, subir una foto y recuperar la contraseña por correo |
 
@@ -165,7 +165,7 @@ Documentación de referencia: `docs/PANTALLAS.md` (qué hace cada pantalla y
 por qué), `server/README.md` (cómo arrancar y probar el servidor),
 `docs/BACKEND-API.md` (contrato del servidor), `docs/SEGURIDAD.md` (repaso
 de seguridad propio), `docs/DESPLIEGUE.md`
-(Railway + Supabase), `docs/MANTENIMIENTO.md` (cómo se sigue cambiando esto
+(Railway solo, o Railway + Supabase; incluye copias de seguridad), `docs/MANTENIMIENTO.md` (cómo se sigue cambiando esto
 en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
 `docs/DISTRIBUCION.md` (Google Play).
 
@@ -283,10 +283,12 @@ verdad contra él), **las fotos** (se suben y las ve todo el mundo),
 
 **Pendiente, por orden:**
 
-1. **Alta de cuentas** de Railway y Supabase en región europea, y primer
-   despliegue. El servidor ya está listo: `docs/DESPLIEGUE.md`. Falta
-   además crear el bucket de fotos y, si se quiere el correo de
-   restablecer, una cuenta de proveedor de correo (`EMAIL_API_KEY`).
+1. **Alta de cuenta de Railway** en región europea, con PostgreSQL y un
+   disco para las fotos, y primer despliegue. Con una cuenta basta:
+   `docs/DESPLIEGUE.md` explica cuándo compensa separar las fotos en
+   Supabase. Si se quiere el correo de restablecer, hace falta además una
+   cuenta de proveedor de correo (`EMAIL_API_KEY`). Y **programar la copia
+   semanal desde el primer día** (`npm run copia`).
 2. **Integración con Quiter.** Jon tiene que conseguir un export real; sin
    verlo no se escribe el importador.
 3. **Revisión de seguridad externa** antes de meter datos de clientes. El

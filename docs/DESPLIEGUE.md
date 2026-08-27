@@ -56,6 +56,30 @@ firmar el **acuerdo de tratamiento de datos (DPA)** de cada uno —los dos lo
 ofrecen— y anotarlos como encargados de tratamiento en el registro de
 actividades. Es papeleo de una tarde, pero hay que hacerlo.
 
+## Todo en Railway, o Railway + Supabase
+
+Las dos valen y el código está preparado para las dos **sin tocar nada**:
+el servidor mira si tiene las claves de Supabase y, si no las tiene, guarda
+las fotos en una carpeta suya.
+
+| | Todo en Railway | Railway + Supabase |
+|---|---|---|
+| Cuentas que crear | 1 | 2 |
+| Base de datos | PostgreSQL de Railway | Supabase |
+| Fotos | Un disco del propio servidor | Almacén de Supabase |
+| Coste | Solo Railway | + ~25 US$/mes del plan Pro |
+| Copias de las fotos | **Tuyas**: `npm run copia` | Las hace el proveedor |
+| Si el disco se estropea | Se pierden las fotos que no estén en una copia | El almacén guarda varias copias |
+
+**Para empezar, todo en Railway.** Una cuenta, una factura y más barato.
+Con una condición que no es negociable: **la copia de seguridad desde el
+primer día**, porque las fotos de daños son la prueba para reclamarle a un
+transportista y ahí el disco es un disco.
+
+Para pasar de una a otra, más adelante, se ponen `SUPABASE_URL` y
+`SUPABASE_SERVICE_ROLE_KEY` y se copian los ficheros de fotos al bucket. El
+código es el mismo.
+
 ## Coste
 
 Cifras orientativas: **confirmadlas al contratar**, que estas cosas cambian
@@ -132,24 +156,63 @@ y Metro la cachea**, así que al cambiarla hay que compilar con `--clear`.
 
 ## Copias de seguridad
 
-Supabase Pro hace **copias diarias con 7 días de retención**, y el punto de
-restauración continuo (PITR) es un extra de pago. Con eso no basta. Las dos
-reglas de siempre:
+```bash
+cd server
+npm run copia                    # deja la copia en ./copias
+npm run copia -- /ruta/donde     # o donde le digas
+```
 
-1. **Una copia fuera de Supabase.** Un volcado semanal con `pg_dump` a otro
-   sitio —el almacenamiento de otro proveedor o un disco de la oficina—.
-   Si un día se pierde el acceso a la cuenta, las copias que viven dentro
-   se pierden con ella.
-2. **Restaurar una vez al mes** en el proyecto de pruebas. Una copia que
-   nunca has restaurado no es una copia.
+Deja **un solo fichero** `urkiola-2026-08-27.tar.gz` con lo único que no se
+puede rehacer:
+
+- **El histórico de comandos**, que es la verdad: todo lo que ha pasado, con
+  quién y cuándo. Una línea de JSON por comando, en texto plano: dentro de
+  diez años se abre con cualquier cosa, aunque ya no exista ni esto ni
+  Postgres.
+- **Las contraseñas** (su hash, nunca la contraseña).
+- **Las fotos**, si están en el propio servidor.
+
+No se guarda lo que se rehace solo: la foto del estado se reconstruye
+aplicando los comandos, los avisos push los vuelve a dar cada móvil al abrir
+la app y los enlaces de restablecer caducan en una hora.
+
+**Al terminar, la copia se comprueba sola**: rehace el estado entero
+aplicando los comandos guardados y compara los números. Si algo no cuadra,
+lo dice y sale con error, que es lo que hace saltar el aviso de una tarea
+programada. También avisa si el histórico menciona una foto que no está en
+la copia.
+
+### Restaurar
 
 ```bash
-# volcado manual desde cualquier equipo con psql instalado
-pg_dump "$DATABASE_URL" --no-owner --format=custom > urkiola-$(date +%F).dump
-
-# restaurar en el proyecto de pruebas
-pg_restore --clean --no-owner --dbname "$DATABASE_URL_PRE" urkiola-2026-08-23.dump
+cd server
+tar xzf urkiola-2026-08-27.tar.gz
+npm run restaurar -- ./urkiola-2026-08-27                 # en seco: no escribe nada
+npm run restaurar -- ./urkiola-2026-08-27 --de-verdad     # restaura
 ```
+
+Restaurar es volver a meter los comandos en orden: el estado se rehace solo
+al arrancar el servidor, igual que hace cada día. Todo va en una
+transacción, así que o entra entero o no entra nada.
+
+Se **niega a escribir encima** de una base de datos que ya tenga comandos:
+mezclar dos historias distintas es peor que no haber restaurado. Si hay que
+restaurar sobre algo, se vacía antes a conciencia.
+
+### La parte que la gente se salta
+
+**Una vez al mes, en seco**, sin `--de-verdad`. Tarda diez segundos y es lo
+único que distingue una copia de una esperanza:
+
+```bash
+npm run restaurar -- ./la-ultima-copia
+```
+
+Y **guarda las copias fuera de Railway**. Una copia que vive en el mismo
+sitio que los datos no es una copia: es el mismo fichero dos veces.
+
+Con las fotos en Supabase, de copiarlas se encarga el proveedor y el script
+lo dice por pantalla en vez de reclamarlas.
 
 ## Qué pasa si un día hay que irse
 
@@ -215,18 +278,21 @@ hacer la API, y en Cloudflare Pages o Netlify, su regla de reescritura.
 1. ~~Escribir el backend~~. Hecho: está en [`server/`](../server), con sus
    comprobaciones. Se puede arrancar y probar en un portátil sin contratar
    nada (`npm run server`).
-2. Crear el proyecto de Supabase **en región europea** y guardar las claves.
-   Crear también un **bucket privado** para las fotos (`urkiola-fotos`): las
-   fotos no se sirven nunca directamente desde ahí, siempre pasan por la API,
-   que es donde se comprueba quién las pide.
-   El esquema lo crea el propio servidor al arrancar
-   (`server/src/almacen/esquema.sql`): no hay migraciones que ejecutar a
-   mano todavía.
-3. Crear el proyecto de Railway, conectarlo al repositorio y elegir Europa.
+2. Crear el proyecto de Railway **en región europea**, conectarlo al
+   repositorio y añadirle **PostgreSQL** y un **disco persistente** para las
+   fotos (`URKIOLA_FOTOS` apuntando a él). El esquema lo crea el propio
+   servidor al arrancar (`server/src/almacen/esquema.sql`): no hay
+   migraciones que ejecutar a mano.
+3. *(Solo si se prefiere separar las fotos)* crear el proyecto de Supabase,
+   también en Europa, con un **bucket privado** (`urkiola-fotos`). Las fotos
+   no se sirven nunca directamente desde ahí: siempre pasan por la API, que
+   es donde se comprueba quién las pide.
 4. Poner las variables de arriba y desplegar. Comprobar `GET /health`.
 5. Apuntar `EXPO_PUBLIC_API_URL` al dominio y compilar la app con `--clear`.
 6. Entorno de pruebas con su propio proyecto de Supabase.
-7. Volcado semanal fuera de Supabase y primera restauración de prueba.
+7. **Copia semanal fuera de Railway** (`npm run copia`) y una primera
+   restauración en seco para saber que sirve. Programarla, no confiar en
+   acordarse.
 8. Firmar los DPA y anotar los dos proveedores en el registro de
    tratamientos.
 9. Dar de alta un proveedor de correo si se quiere que la gente pueda
