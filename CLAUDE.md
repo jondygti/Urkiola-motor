@@ -130,11 +130,11 @@ npm run verify:api           # la app real contra el backend real
 |---|---|
 | `scripts/verify/estilo.mjs` | 3 comprobaciones del sistema de diseño, leyendo el código: que nadie escriba un tamaño de letra a mano, que el mínimo no baje de 11 y que las pantallas de campo usen su escala |
 | `scripts/verify/rutas.mjs` | 7 perfiles × 2 anchos × 19 pantallas = 266 cargas: que ninguna se rompe para ningún rol |
-| `scripts/verify/funciones.mjs` | 85 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
+| `scripts/verify/funciones.mjs` | 88 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
 | `scripts/verify/roles.mjs` | 73 comprobaciones: la jornada entera de cada uno de los 6 roles, y que lo que no le toca no lo ve ni lo puede tocar |
 | `server/pruebas/` | 123 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios, seguridad y las **invariantes** de los datos |
 | `server/pruebas/aleatorio.test.ts` | 10.000 comandos al azar con semilla: dispara lo que a nadie se le ocurre y comprueba las 9 invariantes después de **cada uno**. Si falla, la semilla que sale por pantalla repite la secuencia exacta |
-| `scripts/verify/backend.mjs` | 24 comprobaciones de la app compilada contra el servidor: entrar con contraseña, mover un coche y que **otro dispositivo lo vea**, subir una foto y recuperar la contraseña por correo |
+| `scripts/verify/backend.mjs` | 25 comprobaciones de la app compilada contra el servidor: entrar con contraseña, mover un coche y que **otro dispositivo lo vea**, subir una foto y recuperar la contraseña por correo |
 
 `verify:api` va aparte de `verify` porque compila la web una segunda vez:
 `EXPO_PUBLIC_API_URL` se incrusta al compilar, así que la versión de
@@ -215,6 +215,11 @@ en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
 - **Lo que pide el comercial llega al preparador sin pasar por la oficina**:
   la solicitud sale en «Mi preparación» y al empezarla se abre la
   preparación y arranca el cronómetro.
+- **«Mover coche» dice de dónde hay que sacarlo**: sede, zona y plaza, con
+  cuándo se comprobó por última vez y quién. Una ubicación que nadie ha
+  confirmado en tres días es una suposición, y quien va a bajar a la campa
+  tiene derecho a saberlo antes de andar. Avisa además si el destino elegido
+  está en otra sede: eso no es mover, es un traslado.
 - **El preparador ve dónde está cada coche** (sede · zona · plaza) en su
   cola y dentro de la preparación, con aviso si todavía está en otra sede o
   si la plaza no está confirmada. `UbicacionVehiculo`

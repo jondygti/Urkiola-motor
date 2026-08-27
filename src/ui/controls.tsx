@@ -154,7 +154,7 @@ export function Input({
         borderRadius: radius.md,
         paddingVertical: small ? 6 : big ? 14 : 10,
         paddingHorizontal: small ? 8 : 12,
-        fontSize: small ? 12 : big ? 22 : 13,
+        fontSize: small ? tipografia.small : big ? tipografia.title : tipografia.body,
         fontWeight: big ? '800' : '400',
         letterSpacing: big ? 1 : undefined,
         color: c.text,
@@ -225,7 +225,11 @@ export function Select<T extends string = string>({
       >
         <Text
           numberOfLines={1}
-          style={{ fontSize: small ? 12 : 13, color: current ? c.text : c.textMuted, flexShrink: 1 }}
+          style={{
+            fontSize: small ? tipografia.small : tipografia.body,
+            color: current ? c.text : c.textMuted,
+            flexShrink: 1,
+          }}
         >
           {current?.label ?? placeholder}
         </Text>

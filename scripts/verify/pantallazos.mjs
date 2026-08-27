@@ -23,6 +23,9 @@ if (!process.argv.includes('--rapido') || !existsSync('dist/index.html')) {
 
 const PANTALLAS = [
   { usuario: 'preparador', ruta: '/mi-preparacion', ancho: 420, nombre: 'movil-preparador' },
+  // Con un coche buscado: la pantalla vacía no enseña lo que importa.
+  { usuario: 'preparador', ruta: '/mover', ancho: 420, nombre: 'movil-mover', escribir: '4821 LKM' },
+  { usuario: 'preparador', ruta: '/mover', ancho: 420, nombre: 'movil-mover-otra-sede', escribir: '12345678' },
   { usuario: 'transportista', ruta: '/mis-traslados', ancho: 420, nombre: 'movil-transportista' },
   { usuario: 'comercial', ruta: '/mis-coches', ancho: 420, nombre: 'movil-comercial' },
   { usuario: 'admin', ruta: '/', ancho: 1440, nombre: 'web-panel' },
@@ -39,6 +42,10 @@ for (const p of PANTALLAS) {
   const { context, page } = await entrarComo(browser, USUARIOS[p.usuario], p.ancho);
   await page.goto(`${servidor.url}${p.ruta}`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(1400);
+  if (p.escribir) {
+    await page.locator('input').first().fill(p.escribir);
+    await page.waitForTimeout(1200);
+  }
   await page.screenshot({ path: `${dir}/${p.nombre}.png` });
   await context.close();
   console.log(`  ✓ ${dir}/${p.nombre}.png`);

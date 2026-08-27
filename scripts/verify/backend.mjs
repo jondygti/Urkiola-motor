@@ -135,7 +135,17 @@ try {
   await page.waitForTimeout(900);
   await page.getByPlaceholder('1234 ABC').fill(coche.plate);
   await page.waitForTimeout(600);
-  ok('3 · encuentra el coche que le manda el servidor', await page.getByText('Ahora en', { exact: false }).first().isVisible(), coche.plate);
+  const fichaMover = await page.evaluate(() => document.body.innerText);
+  ok(
+    '3 · encuentra el coche que le manda el servidor',
+    fichaMover.includes('DÓNDE ESTÁ AHORA'),
+    coche.plate
+  );
+  // Acotado a la tarjeta del coche: en la web el menú lateral también tiene
+  // una chincheta («Campa Sondika») y la primera que aparece es esa.
+  const tarjeta = fichaMover.slice(fichaMover.indexOf('DÓNDE ESTÁ AHORA'));
+  const linea = (tarjeta.match(/📍[^\n]*(\n[^\n]*)?/)?.[0] ?? '').replace(/\n/g, ' ').trim();
+  ok('3 · y le dice dónde está para ir a por él', /[A-Za-zÁ-ú]{3}/.test(linea), linea);
 
   const zonaActual = await page.evaluate(() => {
     const m = document.body.innerText.match(/(Tejavana \d\d|Parking \d\d)/g);

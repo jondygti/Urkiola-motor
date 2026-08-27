@@ -532,7 +532,9 @@ export function Btn({
       })}
     >
       {loading ? <ActivityIndicator size="small" color={fg} /> : null}
-      <Text style={{ color: fg, fontWeight: '700', fontSize: small ? 12 : 13 }}>{children}</Text>
+      <Text style={{ color: fg, fontWeight: '700', fontSize: small ? tipografia.small : tipografia.body }}>
+        {children}
+      </Text>
     </Pressable>
   );
 }

@@ -29,7 +29,9 @@ export function ejecutar() {
     if (f.includes('ui/theme')) continue;
     const texto = readFileSync(f, 'utf8');
     for (const [i, linea] of texto.split('\n').entries()) {
-      if (/fontSize: \d/.test(linea)) sueltos.push(`${f}:${i + 1}`);
+      // Cuenta también los que van dentro de un condicional
+      // (`fontSize: compacta ? 12 : 13`), que es como se coló uno.
+      if (/fontSize:[^,}]*\b\d+\b/.test(linea)) sueltos.push(`${f}:${i + 1}`);
     }
   }
   ok(

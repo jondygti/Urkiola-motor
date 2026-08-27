@@ -3,9 +3,10 @@ import { Text, View } from 'react-native';
 import { campo, Btn, Field, H1, Input, Muted, Notice, Panel, Pill, Screen, Spacer, radius, space, useTheme } from '@/ui';
 import { useStore } from '@/data/store';
 import { vehicleByRef } from '@/data/selectors';
-import { locationLabel, matchesSearch, vehicleName, vehicleRef } from '@/data/format';
+import { locationLabel, matchesSearch, siteName, timeAgo, vehicleName, vehicleRef } from '@/data/format';
 import type { Vehicle } from '@/data/types';
 import { ScreenGuard } from '@/features/common/Guard';
+import { UbicacionVehiculo } from '@/features/common/Ubicacion';
 import { BarcodeScanner } from '@/features/scan/BarcodeScanner';
 import {
   DestinationFields,
@@ -26,6 +27,17 @@ import {
  * La pantalla de Movimientos sigue existiendo para consultar el histórico
  * con filtros; esta es solo para registrar.
  */
+/**
+ * Una ubicación de hace más de tres días es una suposición.
+ *
+ * No es un fallo: los coches de la campa pueden estar semanas sin que nadie
+ * los toque. Pero quien va a bajar a por uno merece saber si lo que lee es
+ * de esta mañana o de la semana pasada.
+ */
+const VIEJO_HORAS = 72;
+const viejo = (v: Vehicle) =>
+  !v.lastCheckAt || Date.now() - new Date(v.lastCheckAt).getTime() > VIEJO_HORAS * 3_600_000;
+
 export default function QuickMoveScreen() {
   const { state, user, run } = useStore();
   const { c } = useTheme();
@@ -129,9 +141,36 @@ export default function QuickMoveScreen() {
                 <Text style={{ fontSize: campo.strong, fontWeight: '900', color: c.text }}>
                   {vehicleName(vehiculo)} · {vehicleRef(vehiculo)}
                 </Text>
-                <Text style={{ fontSize: campo.small, color: c.textMuted, marginTop: 3 }}>
-                  Ahora en {locationLabel(state, vehiculo.location, true)}
+
+                {/* De dónde hay que sacarlo. Es lo primero que necesita quien
+                    va a moverlo: sabe la matrícula, pero no dónde está
+                    aparcado. Antes salía en una línea pequeña y de pasada. */}
+                <Text style={{ fontSize: campo.label, fontWeight: '800', color: c.textFaint, marginTop: 8 }}>
+                  DÓNDE ESTÁ AHORA
                 </Text>
+                <UbicacionVehiculo vehicle={vehiculo} />
+
+                {/* Cuándo se confirmó por última vez. Una ubicación que nadie
+                    ha comprobado en una semana es una suposición, y quien
+                    baja a la campa tiene derecho a saberlo antes de andar. */}
+                <Text style={{ fontSize: campo.micro, color: viejo(vehiculo) ? c.amberFg : c.textMuted, marginTop: 4 }}>
+                  {vehiculo.lastCheckAt
+                    ? `Comprobado ${timeAgo(vehiculo.lastCheckAt)}${vehiculo.lastCheckBy ? ` por ${vehiculo.lastCheckBy}` : ''}${viejo(vehiculo) ? ' · puede haberse movido' : ''}`
+                    : 'Nadie lo ha comprobado todavía: puede no estar ahí.'}
+                </Text>
+
+                {/* Si está en otra sede, moverlo dentro de esta no es lo que
+                    toca: eso es un traslado, y lo lleva un transportista. */}
+                {vehiculo.location?.siteId && dest.siteId && vehiculo.location.siteId !== dest.siteId ? (
+                  <>
+                    <Spacer h={space.sm} />
+                    <Notice tone="warn">
+                      Está en {siteName(state, vehiculo.location.siteId)} y lo vas a dejar en{' '}
+                      {siteName(state, dest.siteId)}. Si el coche no viaja contigo, esto es un traslado y
+                      lo pide la oficina.
+                    </Notice>
+                  </>
+                ) : null}
               </View>
             ) : parecidos.length > 1 ? (
               <View style={{ marginTop: space.sm, gap: 6 }}>

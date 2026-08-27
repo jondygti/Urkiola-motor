@@ -2,7 +2,7 @@ import React from 'react';
 import { Text, View } from 'react-native';
 import { useAppState } from '@/data/store';
 import { locationLabel } from '@/data/format';
-import { useTheme, tipografia } from '@/ui';
+import { campo, useTheme } from '@/ui';
 import type { Id, Vehicle } from '@/data/types';
 
 /**
@@ -45,9 +45,14 @@ export function UbicacionVehiculo({
 
   return (
     <View style={{ marginTop: 4, gap: 2 }}>
-      <Text style={{ fontSize: compacta ? 12 : 13, fontWeight: '700', color: tono }}>📍 {texto}</Text>
+      {/* Escala de campo siempre: esto se lee de pie, para saber a dónde
+          andar. Aunque salga dentro de una pantalla de oficina, la pregunta
+          que responde es de campa. */}
+      <Text style={{ fontSize: compacta ? campo.micro : campo.small, fontWeight: '700', color: tono }}>
+        📍 {texto}
+      </Text>
       {fuera ? (
-        <Text style={{ fontSize: tipografia.micro, color: c.amberFg }}>
+        <Text style={{ fontSize: campo.micro, color: c.amberFg }}>
           Todavía no está en {state.sites.find((s) => s.id === esperadoEn)?.name ?? 'la sede'}.
         </Text>
       ) : null}

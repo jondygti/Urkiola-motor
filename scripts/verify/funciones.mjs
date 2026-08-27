@@ -29,8 +29,23 @@ export async function ejecutar(browser, BASE) {
 
     await page.getByPlaceholder('1234 ABC').fill(ref ?? '');
     await page.waitForTimeout(400);
-    const ficha = await page.getByText('Ahora en', { exact: false }).first().textContent().catch(() => null);
-    ok('1 · identifica el coche por matrícula', !!ficha, `${ref} · ${ficha ?? ''}`);
+    const ficha = await page.evaluate(() => document.body.innerText);
+    ok('1 · identifica el coche por matrícula', ficha.includes(ref ?? '###'), ref ?? '');
+
+    // Antes de moverlo hay que saber de dónde sacarlo: la ubicación de
+    // ahora, con su plaza, y cuándo se confirmó por última vez. Una
+    // ubicación de hace una semana es una suposición.
+    ok('1 · dice dónde está el coche ahora mismo', ficha.includes('DÓNDE ESTÁ AHORA'));
+    ok(
+      '1 · con la sede, la zona y la plaza',
+      /📍[^\n]*·[^\n]*·[^\n]*/.test(ficha),
+      ficha.match(/📍[^\n]*/)?.[0] ?? ''
+    );
+    ok(
+      '1 · y cuándo se comprobó, para saber si fiarse',
+      /Comprobado hace|Nadie lo ha comprobado/.test(ficha),
+      ficha.match(/Comprobado[^\n]*/)?.[0] ?? ''
+    );
 
     // Zona de destino: se elige una tejavana/parking cualquiera de la sede.
     const zonaAntes = await page.evaluate(() => {
