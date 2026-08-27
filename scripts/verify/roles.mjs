@@ -213,9 +213,22 @@ export async function ejecutar(browser, BASE) {
     ok('PREPARADOR · abre un recuento en su sede', !!nuevo && nuevo.siteId === 'leioa', nuevo?.code ?? '');
     ok('PREPARADOR · con los coches que espera encontrar', (nuevo?.expected?.length ?? 0) > 0, `${nuevo?.expected?.length} esperados`);
 
+    // El recuento se hace en la campa, con el móvil: el resumen cabe en una
+    // línea y el botón de escanear es lo primero que se ve.
+    const pantallaRecuento = await page.evaluate(() => document.body.innerText);
+    ok(
+      'PREPARADOR · el recuento cabe en el móvil, con el resumen en una línea',
+      /\d+ de \d+ · faltan \d+/.test(pantallaRecuento),
+      pantallaRecuento.match(/\d+ de \d+ · faltan \d+/)?.[0] ?? ''
+    );
+    ok(
+      'PREPARADOR · y puede cerrarlo sin que el botón se salga',
+      pantallaRecuento.includes('✓ Cerrar recuento')
+    );
+
     // Comprueba un coche del recuento.
     const matricula = conRecuento?.vehicles?.find((v) => nuevo?.expected?.includes(v.id) && v.plate)?.plate;
-    await pulsar(page, '📷 Escanear vehículo');
+    await pulsar(page, '📷 Escanear matrícula / VIN-8');
     await page.waitForTimeout(700);
     await page.getByPlaceholder('Ej.: 4821 LKM o 12345678').fill(matricula ?? '');
     await page.waitForTimeout(700);
@@ -245,6 +258,15 @@ export async function ejecutar(browser, BASE) {
       'PREPARADOR · y no le llegan los de las entregas del comercial',
       !bandeja.includes('listo para entregar'),
       'sin avisos de coches listos'
+    );
+
+    // Los recuentos se hacen en la campa, con el móvil: Recuentos tiene que
+    // estar en la barra de abajo y no escondido en «Más».
+    await page.goto(`${BASE}/mi-preparacion`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(900);
+    ok(
+      'PREPARADOR · llega a Recuentos desde la barra del móvil',
+      (await page.evaluate(() => document.body.innerText)).includes('Recuentos')
     );
 
     // Lo que no le toca, no lo ve. Empezando por el panel de todas las

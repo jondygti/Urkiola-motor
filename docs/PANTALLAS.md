@@ -15,7 +15,7 @@ y dónde está ahora.
 | *(nuevo)* 🚚 Traslados hechos | `/traslados` | `app/(shell)/traslados.tsx` | El registro de lo que han hecho las empresas de transporte: por empresa y periodo, cuántos traslados, cuántos dentro de las 48 h y cuánto tardan de media, con la lista de cada uno. El transportista ve exactamente lo mismo de lo suyo en «Mis traslados → Hechos» |
 | ↔ Movimientos | `/movimientos` | `app/(shell)/movimientos.tsx` | Histórico con filtros y alta de movimiento buscando por matrícula o VIN-8. **De oficina** (`solicitudes.gestionar`): quien mueve coches usa «Mover coche», y el recorrido de un coche concreto está en su ficha |
 | *(nuevo)* 📍 Mover coche | `/mover` | `app/(shell)/mover.tsx` | Alta de movimientos en cadena, pensada para el móvil: matrícula y destino, sin tablas. Al identificar el coche dice **dónde está ahora** —sede, zona y plaza—, cuándo se comprobó y quién, y avisa si el destino está en otra sede |
-| 📋 Recuentos | `/recuentos` | `app/(shell)/recuentos.tsx` | Recuento real: esperados/encontrados/faltan, escaneo con cámara en móvil, corrección de plaza, histórico |
+| 📋 Recuentos | `/recuentos` | `app/(shell)/recuentos.tsx` | Recuento real: esperados/encontrados/faltan, escaneo con cámara en móvil, corrección de plaza, histórico. **Pensada para el móvil**: se cuenta en la campa, así que va en la barra de abajo del preparador y de recepción, el resumen cabe en una línea y el escáner se queda abierto para el siguiente coche |
 | ⚠ Incidencias | `/incidencias` | `app/(shell)/incidencias.tsx` | Alta con fotos de cámara o galería, cierre de incidencia |
 | 🔔 Notificaciones | `/notificaciones` | `app/(shell)/notificaciones.tsx` | **La bandeja de cada uno es la suya**: cada regla dice a quién le llega (al comercial de ese coche, a un equipo entero o a todo el mundo). Reglas configurables; alta, pausa y borrado; alta de push en el dispositivo. Tres reglas puestas de serie: coche listo → su comercial, preparación pedida → preparadores, traslado sin recoger 24 h → logística |
 | ⚙ Administración | `/administracion` | `app/(shell)/administracion.tsx` + `src/features/admin/` | Cinco pestañas: preparación, ubicaciones, flota y columnas, usuarios y roles, sistema. Ver abajo |
@@ -80,13 +80,14 @@ entero en vez de sus coches.
 
 ### Pantallas rápidas de campo
 
-Cinco pantallas están hechas para el móvil y para ir deprisa, con la
+Seis pantallas están hechas para el móvil y para ir deprisa, con la
 versión completa siempre disponible en la web:
 
 | Pantalla | Para quién | Cómo funciona |
 |---|---|---|
 | `/mis-traslados` | Transportista | Tres fases, que son tres trabajos distintos: **por recoger** (planificar), **los llevo yo** (cerrar hoy) y **entregados** (su registro, mes a mes). Una tarjeta por traslado y un solo botón, que cambia de «He recogido las llaves» a «He entregado el vehículo»; al recoger las llaves el traslado cambia de fase solo |
 | `/entregas` | Comercial y logística | Entregas comprometidas agrupadas por día, con lo que le falta a cada una. Se puede ver todo junto o una sede concreta, con el número de entregas de cada una a la vista |
+| `/recuentos` | Preparador y recepción | Se cuenta andando por la tejavana: resumen en una línea, escáner grande y el escáner se queda abierto para el coche siguiente |
 | `/mi-preparacion` | Preparador | Cola ordenada por plazo, **incluidas las preparaciones que ha pedido el comercial y todavía no ha abierto nadie**: se empiezan de un botón, sin pasar por la oficina. Al abrir, cronómetro y checklist donde **cada línea se marca de un toque**. Cada coche dice **dónde está** (sede · zona · plaza), y avisa si todavía no ha llegado a la sede o si la plaza no está confirmada |
 | `/mi-recepcion` | Recepción | Bucle de descarga: identificar, plaza propuesta automáticamente y «Descargado · siguiente». Si el coche que baja del camión no está en el parque, se da de alta con el bastidor sin salir de la descarga |
 | `/mover` | Cualquiera que mueva coches | Matrícula o bastidor, dónde lo dejas, y a por el siguiente |

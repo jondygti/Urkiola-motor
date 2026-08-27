@@ -174,7 +174,7 @@ export const ROLES: RoleConfig[] = [
       'incidencias.crear',
     ],
     // En el móvil entra directo a su cola de trabajo.
-    mobileSections: ['/mi-preparacion', '/mover', '/flota'],
+    mobileSections: ['/mi-preparacion', '/mover', '/recuentos', '/flota'],
     builtin: true,
   },
   {
@@ -199,7 +199,7 @@ export const ROLES: RoleConfig[] = [
       'recuentos.ejecutar',
     ],
     // En el móvil entra directo a la descarga del camión.
-    mobileSections: ['/mi-recepcion', '/mover', '/flota'],
+    mobileSections: ['/mi-recepcion', '/mover', '/recuentos', '/flota'],
     builtin: true,
   },
   {

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
-import { Btn, Column, DataTable, Field, Grid, H1, Input, Kpi, Modal, Muted, Notice, Panel, Pill, ProgressBar, Screen, Select, Spacer, Toolbar, space, tipografia, useTheme } from '@/ui';
+import { Btn, Column, DataTable, Field, Grid, H1, Input, Kpi, Modal, Muted, Notice, Panel, Pill, ProgressBar, Screen, Select, Spacer, Toolbar, campo, space, useTheme } from '@/ui';
 import { useAppState, useStore } from '@/data/store';
 import { countSummary, openCount, staleVehicles, vehicleByRef } from '@/data/selectors';
 import { formatDateTime, hoursSince, locationLabel, timeAgo, userName, vehicleName, vehicleRef } from '@/data/format';
@@ -12,7 +12,7 @@ import { IfCan, ScreenGuard, usePerms } from '@/features/common/Guard';
 export default function CountsScreen() {
   const state = useAppState();
   const { run } = useStore();
-  const { c } = useTheme();
+  const { c, isDesktop } = useTheme();
   const openVehicle = useOpenVehicle();
   const { can } = usePerms();
   const puedeRecontar = can('recuentos.ejecutar');
@@ -33,7 +33,7 @@ export default function CountsScreen() {
       primary: true,
       value: (x) => x.code,
       filter: { type: 'text' },
-      render: (x) => <Text style={{ fontSize: tipografia.body, fontWeight: '800', color: c.text }}>{x.code}</Text>,
+      render: (x) => <Text style={{ fontSize: campo.body, fontWeight: '800', color: c.text }}>{x.code}</Text>,
     },
     {
       key: 'location',
@@ -90,6 +90,13 @@ export default function CountsScreen() {
     },
   ];
 
+  /** Cerrar el recuento en marcha. Lo usan la web y el móvil. */
+  const cerrarRecuento = () => {
+    if (!current) return;
+    run({ type: 'count.close', countId: current.id });
+    setToast(`Recuento ${current.code} cerrado.`);
+  };
+
   return (
     <ScreenGuard href="/recuentos" title="Recuentos de flota">
     <Screen>
@@ -102,36 +109,55 @@ export default function CountsScreen() {
       {toast ? <Notice>{toast}</Notice> : null}
 
       <IfCan permission="recuentos.ejecutar">
-        <Toolbar>
-          <Btn variant="primary" onPress={() => setNewOpen(true)}>
-            + Nuevo recuento
-          </Btn>
-          {current ? (
-            <>
-              <Btn onPress={() => setScanOpen(true)}>📷 Escanear vehículo</Btn>
-              <Btn
-                onPress={() => {
-                  run({ type: 'count.close', countId: current.id });
-                  setToast(`Recuento ${current.code} cerrado.`);
-                }}
-              >
-                ✓ Cerrar recuento
+        {/* En el móvil los botones van a lo ancho y uno debajo de otro: en
+            fila se salían de la pantalla y «Cerrar recuento» quedaba
+            cortado a la mitad. En la web siguen en fila, que hay sitio. */}
+        {isDesktop ? (
+          <Toolbar>
+            <Btn variant="primary" onPress={() => setNewOpen(true)}>
+              + Nuevo recuento
+            </Btn>
+            {current ? (
+              <>
+                <Btn onPress={() => setScanOpen(true)}>📷 Escanear vehículo</Btn>
+                <Btn onPress={cerrarRecuento}>✓ Cerrar recuento</Btn>
+              </>
+            ) : null}
+          </Toolbar>
+        ) : (
+          <View style={{ gap: space.sm }}>
+            {!current ? (
+              <Btn variant="primary" full onPress={() => setNewOpen(true)}>
+                + Nuevo recuento
               </Btn>
-            </>
-          ) : null}
-        </Toolbar>
+            ) : null}
+          </View>
+        )}
       </IfCan>
 
       <Grid cols={2} minWidth={420}>
         <Panel title={current ? `Recuento ${current.code} · ${locationLabel(state, { siteId: current.siteId, zoneId: current.zoneId ?? undefined })}` : 'Sin recuento abierto'}>
           {current && summary ? (
             <>
-              <Grid cols={3} minWidth={120}>
-                <Kpi label="Esperados" value={summary.expected} />
-                <Kpi label="Encontrados" value={summary.found} tone="ok" />
-                <Kpi label="Faltan" value={summary.missing} tone={summary.missing > 0 ? 'red' : 'ok'} />
-              </Grid>
-              <Spacer h={space.md} />
+              {isDesktop ? (
+                <Grid cols={3} minWidth={120}>
+                  <Kpi label="Esperados" value={summary.expected} />
+                  <Kpi label="Encontrados" value={summary.found} tone="ok" />
+                  <Kpi label="Faltan" value={summary.missing} tone={summary.missing > 0 ? 'red' : 'ok'} />
+                </Grid>
+              ) : (
+                /* Una sola línea: en el móvil los tres contadores en cajas
+                   ocupaban media pantalla, y lo que hay que ver mientras se
+                   anda es la lista de los que faltan. */
+                <Text style={{ fontSize: campo.strong, fontWeight: '900', color: c.text }}>
+                  <Text style={{ color: c.okFg }}>{summary.found}</Text>
+                  <Text style={{ color: c.textMuted }}> de {summary.expected} · </Text>
+                  <Text style={{ color: summary.missing > 0 ? c.redFg : c.okFg }}>
+                    faltan {summary.missing}
+                  </Text>
+                </Text>
+              )}
+              <Spacer h={space.sm} />
               <ProgressBar
                 pct={summary.expected ? (summary.found / summary.expected) * 100 : 0}
                 tone={summary.missing > 0 ? 'amber' : 'ok'}
@@ -142,16 +168,30 @@ export default function CountsScreen() {
                   📷 Escanear matrícula / VIN-8
                 </Btn>
               ) : null}
-              <Spacer h={space.sm} />
-              <Muted>
-                La app registra automáticamente fecha, hora, usuario y ubicación comprobada. No hace falta QR:
-                basta la matrícula o los 8 últimos del bastidor.
-              </Muted>
+              {/* En el móvil se cierra el recuento desde aquí, debajo de lo
+                  que se está haciendo, y no en una barra de arriba. */}
+              {!isDesktop && puedeRecontar ? (
+                <>
+                  <Spacer h={space.sm} />
+                  <Btn full onPress={cerrarRecuento}>
+                    ✓ Cerrar recuento
+                  </Btn>
+                </>
+              ) : null}
+              {isDesktop ? (
+                <>
+                  <Spacer h={space.sm} />
+                  <Muted>
+                    La app registra automáticamente fecha, hora, usuario y ubicación comprobada. No hace
+                    falta QR: basta la matrícula o los 8 últimos del bastidor.
+                  </Muted>
+                </>
+              ) : null}
 
               {summary.missing > 0 ? (
                 <>
                   <Spacer h={space.md} />
-                  <Text style={{ fontSize: tipografia.small, fontWeight: '800', color: c.text }}>
+                  <Text style={{ fontSize: campo.small, fontWeight: '800', color: c.text }}>
                     Pendientes de encontrar ({summary.missing})
                   </Text>
                   <Spacer h={space.sm} />
@@ -180,7 +220,7 @@ export default function CountsScreen() {
               const days = Math.floor(hoursSince(v.lastCheckAt) / 24);
               return (
                 <Notice key={v.id} tone={days >= 5 ? 'danger' : 'warn'} onPress={() => openVehicle(v.id)}>
-                  <Text style={{ fontSize: tipografia.small, color: c.text }}>
+                  <Text style={{ fontSize: campo.small, color: c.text }}>
                     <Text style={{ fontWeight: '800' }}>{vehicleRef(v)}</Text> · última comprobación{' '}
                     {formatDateTime(v.lastCheckAt)} · {timeAgo(v.lastCheckAt)} ·{' '}
                     {locationLabel(state, v.location, true)}
@@ -365,13 +405,13 @@ function ScanModal({
         <>
           <Notice tone="info">
             <View>
-              <Text style={{ fontSize: tipografia.body, fontWeight: '800', color: c.text }}>
+              <Text style={{ fontSize: campo.body, fontWeight: '800', color: c.text }}>
                 {vehicleName(found)} · {vehicleRef(found)}
               </Text>
-              <Text style={{ fontSize: tipografia.small, color: c.textMuted, marginTop: 3 }}>
+              <Text style={{ fontSize: campo.small, color: c.textMuted, marginTop: 3 }}>
                 Ubicación registrada: {locationLabel(state, found.location)}
               </Text>
-              <Text style={{ fontSize: tipografia.small, color: c.textMuted }}>
+              <Text style={{ fontSize: campo.small, color: c.textMuted }}>
                 Última comprobación: {formatDateTime(found.lastCheckAt)} · {timeAgo(found.lastCheckAt)}
               </Text>
             </View>

@@ -54,6 +54,7 @@ export function ejecutar() {
     'app/(shell)/mis-traslados.tsx',
     'app/(shell)/mi-recepcion.tsx',
     'app/(shell)/mis-coches.tsx',
+    'app/(shell)/recuentos.tsx',
   ];
   const mal = CAMPO.filter((f) => readFileSync(f, 'utf8').includes('fontSize: tipografia.'));
   ok('DISEÑO · las pantallas de campo usan la escala de campo', mal.length === 0, mal.join(' · '));

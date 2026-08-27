@@ -45,7 +45,10 @@ const TOKEN_KEY = 'urkiola.token.v1';
 // destinatario. Lo guardado antes no lo tiene y se le vería a todo el mundo,
 // que es justo lo que se ha arreglado. Cambian también los permisos de
 // serie de dos roles y hay un campo nuevo de configuración.
-const STATE_SCHEMA_VERSION = 15;
+// 16: Recuentos entra en el menú del móvil del preparador y de recepción,
+// que son quienes cuentan. Las secciones del móvil de cada rol están
+// guardadas en la configuración del dispositivo.
+const STATE_SCHEMA_VERSION = 16;
 
 interface StoredState {
   v: number;
