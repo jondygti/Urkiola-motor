@@ -592,19 +592,43 @@ function buildFleet(positions: Position[]): Build {
   }
 
   /* --- parque de Quiter sin actividad logística ------------------------ */
+  // Dos cosas distintas que se ven igual desde la operativa —el coche no
+  // sale en ninguna pantalla— pero que no son lo mismo: uno todavía puede
+  // entrar y el otro ya se ha ido con su dueño.
 
-  for (let i = 0; i < 154; i++) {
+  // Solo dados de alta en Quiter: existen, pero nadie los ha tocado todavía.
+  for (let i = 0; i < 44; i++) {
     vehicles.push(
       makeVehicle({
         logisticActive: false,
         location: null,
-        status: 'entregado',
+        status: 'recepcionado',
         lastCheckAt: null,
         lastCheckBy: null,
         lastMovementAt: null,
         origin: 'Parque Quiter',
       })
     );
+  }
+
+  // Y los que ya se llevó el cliente: fuera de la operativa para siempre.
+  for (let i = 0; i < 110; i++) {
+    const entregado = makeVehicle({
+      logisticActive: false,
+      location: null,
+      status: 'entregado',
+      lastCheckAt: null,
+      lastCheckBy: null,
+      lastMovementAt: null,
+      origin: 'Parque Quiter',
+    });
+    // Repartidos por los últimos seis meses: así el registro de entregas de
+    // cada comercial tiene meses que mirar. Se pone aquí y no dentro de
+    // `makeVehicle` para no dejar la clave a `undefined` en los demás: al
+    // guardar y volver a leer, esa clave desaparece y el estado recuperado
+    // dejaba de ser idéntico al de antes.
+    entregado.deliveredAt = iso(Math.floor(rnd() * 180) * DAY);
+    vehicles.push(entregado);
   }
 
   /* --- fechas de entrega comprometidas ---------------------------------- */
@@ -828,6 +852,14 @@ export function buildSeedState(): AppState {
     // La mayoría llega dentro de plazo; uno de cada seis se pasa.
     const tardado = chance(1 / 6) ? 48 + Math.floor(rnd() * 30) : Math.floor(2 + rnd() * 40);
     const entregadoHace = Math.max(0, recogidoHace - tardado);
+    // El retraso se mira con las fechas que quedan escritas, no con las
+    // horas que se han sorteado: un traslado recogido hace poco y «tardado»
+    // mucho se queda con la entrega tope en el futuro, y entonces no llegó
+    // tarde por mucho que lo diga el sorteo. Un motivo de retraso sin
+    // retraso es la explicación de algo que no pasó.
+    const dueAt = esTraslado ? iso((recogidoHace - 48) * HOUR) : null;
+    const deliveredAt = iso(entregadoHace * HOUR);
+    const tarde = !!dueAt && deliveredAt > dueAt;
     const empresa = esTraslado ? carrierForRoute(CARRIERS, v.location?.siteId, destino) : null;
     const conductor = empresa
       ? (transportistas.find((u) => u.carrierId === empresa.id) ?? transportistas[0])
@@ -845,13 +877,13 @@ export function buildSeedState(): AppState {
       createdAt: iso(pedidoHace * HOUR),
       createdBy: 'u-log',
       assignedTo: esTraslado ? (conductor?.id ?? null) : 'u-pedro',
-      dueAt: esTraslado ? iso((recogidoHace - 48) * HOUR) : null,
+      dueAt,
       pickedUpAt: esTraslado ? iso(recogidoHace * HOUR) : null,
-      deliveredAt: iso(entregadoHace * HOUR),
+      deliveredAt,
       deliveredBy: esTraslado ? (conductor?.id ?? null) : 'u-pedro',
       // Los que llegaron tarde traen su motivo, que es lo que convierte
       // «llegan tarde» en algo que se puede arreglar.
-      delayReason: esTraslado && tardado > 48 ? pick(MOTIVOS_RETRASO) : null,
+      delayReason: tarde ? pick(MOTIVOS_RETRASO) : null,
       carrierId: empresa?.id ?? null,
     });
   }

@@ -378,7 +378,7 @@ export interface CocheMio {
   /** Incidencias abiertas: es lo que puede retrasar una entrega. */
   incidencias: Incident[];
   /** En qué punto está, contado como lo cuenta el comercial. */
-  fase: 'listo' | 'preparando' | 'trasladando' | 'parado';
+  fase: 'listo' | 'preparando' | 'trasladando' | 'parado' | 'entregado';
 }
 
 /**
@@ -395,6 +395,10 @@ export interface CocheMio {
  * - **preparando**: pedida o en marcha; da igual quién la tenga.
  * - **trasladando**: viene de camino o está pedido que venga.
  * - **parado**: no se ha pedido nada. Si tiene fecha de entrega, corre prisa.
+ * - **entregado**: se lo llevó el cliente. Sale de las cuatro fases de
+ *   trabajo —ya no hay nada que hacer con él— pero se queda en la lista
+ *   aparte, porque quien marca una entrega tiene que poder comprobar
+ *   después que la marcó.
  */
 export function misCoches(s: AppState, user: User | null): CocheMio[] {
   if (!user) return [];
@@ -417,7 +421,9 @@ export function misCoches(s: AppState, user: User | null): CocheMio[] {
       const incidencias = s.incidents.filter((i) => i.vehicleId === v.id && i.status !== 'cerrada');
 
       const fase: CocheMio['fase'] =
-        v.status === 'apto_entrega'
+        v.status === 'entregado'
+          ? 'entregado'
+          : v.status === 'apto_entrega'
           ? 'listo'
           : preparacion || prepPedida
             ? 'preparando'
@@ -428,6 +434,13 @@ export function misCoches(s: AppState, user: User | null): CocheMio[] {
       return { vehicle: v, traslado, prepPedida, preparacion, incidencias, fase };
     })
     .sort((a, b) => {
+      // Lo entregado, al final y de lo más reciente a lo más antiguo: es un
+      // registro, no trabajo.
+      if (a.fase === 'entregado' || b.fase === 'entregado') {
+        if (a.fase !== 'entregado') return -1;
+        if (b.fase !== 'entregado') return 1;
+        return (b.vehicle.deliveredAt ?? '').localeCompare(a.vehicle.deliveredAt ?? '');
+      }
       // Delante lo que tiene fecha de entrega comprometida y más cerca está:
       // es lo único con una fecha de verdad delante de un cliente.
       const fa = a.vehicle.deliveryDate;

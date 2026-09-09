@@ -434,6 +434,12 @@ export async function ejecutar(browser, BASE) {
       mios.match(/LISTO PARA ENTREGAR|PREPARÁNDOSE|DE CAMINO|SIN PEDIR NADA/)?.[0] ?? ''
     );
     ok('COMERCIAL · y dónde está el coche', mios.includes('📍'), mios.match(/📍[^\n]*/)?.[0] ?? '');
+    // Lo entregado no es trabajo: va aparte, con su cuenta del mes.
+    ok(
+      'COMERCIAL · lo entregado va a su pestaña, fuera del trabajo',
+      /Entregados · \d+/.test(mios),
+      mios.match(/Entregados · \d+/)?.[0] ?? ''
+    );
     // Solo los suyos: el coche de otro comercial no puede salir aquí.
     ok(
       'COMERCIAL · y solo los suyos',

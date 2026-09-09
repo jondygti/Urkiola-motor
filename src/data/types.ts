@@ -74,13 +74,20 @@ export const VEHICLE_STATUS_LABEL: Record<VehicleStatus, string> = {
   entregado: 'Entregado',
 };
 
-/** Orden del flujo que se pinta en la ficha 360º. */
+/**
+ * Orden del flujo que se pinta en la ficha 360º.
+ *
+ * «Entregado» va al final porque es el único estado del que no se vuelve
+ * solo: sin él, un coche ya entregado pintaba el flujo en «Recepcionado»
+ * —`indexOf` daba -1— y la ficha decía justo lo contrario de lo que pasa.
+ */
 export const VEHICLE_FLOW: VehicleStatus[] = [
   'recepcionado',
   'aparcado',
   'traslado_solicitado',
   'en_preparacion',
   'apto_entrega',
+  'entregado',
 ];
 
 export interface Vehicle {
@@ -110,6 +117,15 @@ export interface Vehicle {
   custom?: Record<Id, string>;
   /** Fecha comprometida de entrega al cliente. */
   deliveryDate?: ISODate | null;
+  /**
+   * Cuándo se entregó de verdad al cliente, y quién lo dio por entregado.
+   *
+   * La fecha comprometida es una promesa y la de aquí es un hecho: un coche
+   * puede entregarse antes, después o nunca. Sin este apunte, el comercial
+   * que marca la entrega no tiene después dónde comprobar que la marcó.
+   */
+  deliveredAt?: ISODate | null;
+  deliveredBy?: Id | null;
 }
 
 /* ----------------------------------------------------------- movimiento */

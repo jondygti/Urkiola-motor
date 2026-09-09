@@ -170,6 +170,7 @@ que esto **no es opcional**, es parte del contrato:
 | `reception.create` / `reception.line` / `reception.albaran` / `reception.close` | Recepción de camiones |
 | `vehicle.create` | Alta manual de un vehículo por su bastidor. El id sale del VIN-8 (`v-<vin8>`), así que darlo de alta dos veces no duplica nada |
 | `vehicle.setSalesRep` | Quién lleva la venta del coche. Se puede poner y quitar en cualquier momento: los coches llegan de Quiter sin comercial hasta que alguien los vende |
+| `vehicle.deliver` | El cliente se lleva el coche: sale de la flota activa, **su plaza queda libre** y se cierra lo que tuviera pedido. Deja apuntado cuándo y quién. Se deshace con `vehicle.activate` |
 | `config.update` / `requirement.upsert` / `requirement.delete` / `zone.upsert` | Administración |
 
 Las definiciones exactas de cada uno están tipadas en
@@ -194,6 +195,7 @@ permiso correspondiente:
 | `request.create` | `solicitudes.crear` |
 | `request.update` | `solicitudes.gestionar`, **o** `traslados.propios` si el traslado es de su empresa (o suyo) y el nuevo estado es `en_ruta` o `terminada` |
 | `vehicle.setDelivery` | `entregas.gestionar` |
+| `vehicle.deliver` | `entregas.gestionar` |
 | `carrier.upsert`, `carrier.delete` | `admin.configurar` |
 | `prep.create` | `preparacion.gestionar`, **o** `preparacion.ejecutar` si ya hay una solicitud de preparación abierta para ese vehículo (el preparador abre lo que le han pedido, no se inventa trabajo) |
 | `prep.start` / `pause` / `resume` / `item` | `preparacion.ejecutar` |
@@ -232,7 +234,8 @@ servidor debe rechazar comandos sobre vehículos de otras sedes.
 
 Con una excepción: **las decisiones que no son físicas no dependen de dónde
 esté el coche**. Quién lo vende (`vehicle.setSalesRep`), cuándo se entrega
-(`vehicle.setDelivery`) y pedir que lo traigan (`request.create`, que se
+(`vehicle.setDelivery`), darlo por entregado (`vehicle.deliver`) y pedir que
+lo traigan (`request.create`, que se
 mide por la sede que atiende la solicitud, `cmd.siteId`) valen esté el coche
 donde esté. Sondika guarda el stock de toda la red: atar esos comandos a la
 ubicación dejaba a un comercial de Leioa sin poder pedir que le trajeran un

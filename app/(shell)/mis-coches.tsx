@@ -9,6 +9,7 @@ import { ScreenGuard } from '@/features/common/Guard';
 import { DeadlineChip } from '@/features/common/DeadlineChip';
 import { UbicacionVehiculo } from '@/features/common/Ubicacion';
 import { VehicleActions } from '@/features/actions/VehicleActions';
+import { EntregarVehiculo } from '@/features/actions/EntregarVehiculo';
 import { useOpenVehicle } from '@/features/common/bits';
 
 const TODOS = 'todos';
@@ -41,7 +42,18 @@ export default function MyCarsScreen() {
   const [visibles, setVisibles] = useState(POR_TANDA);
   const [toast, setToast] = useState<string | null>(null);
 
-  const todos = useMemo(() => misCoches(state, user), [state, user]);
+  const conEntregados = useMemo(() => misCoches(state, user), [state, user]);
+
+  // Lo entregado no es trabajo: no cuenta en las fases ni sale en «Todos».
+  // Pero tiene su pestaña, porque quien marca una entrega necesita poder
+  // comprobar después que la marcó —y cuántas lleva este mes.
+  const todos = useMemo(() => conEntregados.filter((x) => x.fase !== 'entregado'), [conEntregados]);
+  const entregados = useMemo(() => conEntregados.filter((x) => x.fase === 'entregado'), [conEntregados]);
+
+  const esteMes = useMemo(() => {
+    const mes = new Date().toISOString().slice(0, 7);
+    return entregados.filter((x) => (x.vehicle.deliveredAt ?? '').slice(0, 7) === mes).length;
+  }, [entregados]);
 
   const cuenta = useMemo(
     () => ({
@@ -66,10 +78,10 @@ export default function MyCarsScreen() {
 
   const lista = useMemo(
     () =>
-      todos
-        .filter((x) => (filtro === TODOS ? true : x.fase === filtro))
+      (filtro === 'entregado' ? entregados : todos)
+        .filter((x) => (filtro === TODOS || filtro === 'entregado' ? true : x.fase === filtro))
         .filter((x) => (query.trim().length >= 2 ? matchesSearch(x.vehicle, query) : true)),
-    [todos, filtro, query]
+    [todos, entregados, filtro, query]
   );
 
   return (
@@ -135,6 +147,7 @@ export default function MyCarsScreen() {
               { value: 'preparando', label: `Preparándose · ${cuenta.preparando}` },
               { value: 'trasladando', label: `De camino · ${cuenta.trasladando}` },
               { value: 'parado', label: `Parados · ${cuenta.parado}` },
+              { value: 'entregado', label: `Entregados · ${entregados.length}` },
             ]}
           />
           <Spacer h={space.sm} />
@@ -146,9 +159,21 @@ export default function MyCarsScreen() {
           />
         </Panel>
 
+        {filtro === 'entregado' && entregados.length ? (
+          <>
+            <Spacer h={space.sm} />
+            <Notice>
+              <Text style={{ fontSize: campo.small, color: c.text }}>
+                {esteMes === 1 ? '1 coche entregado este mes' : `${esteMes} coches entregados este mes`} ·{' '}
+                {entregados.length} en total.
+              </Text>
+            </Notice>
+          </>
+        ) : null}
+
         <Spacer h={space.md} />
 
-        {todos.length === 0 ? (
+        {todos.length === 0 && entregados.length === 0 ? (
           <Panel>
             <Muted>
               Todavía no llevas ningún coche. En la ficha de cualquier vehículo libre puedes quedártelo con
@@ -157,7 +182,11 @@ export default function MyCarsScreen() {
           </Panel>
         ) : lista.length === 0 ? (
           <Panel>
-            <Muted>Ninguno de tus coches está en ese punto ahora mismo.</Muted>
+            <Muted>
+              {filtro === 'entregado'
+                ? 'Todavía no has dado ningún coche por entregado.'
+                : 'Ninguno de tus coches está en ese punto ahora mismo.'}
+            </Muted>
           </Panel>
         ) : (
           <Grid cols={2} minWidth={420}>
@@ -203,7 +232,11 @@ function FichaCoche({
   const { vehicle: v, traslado, prepPedida, preparacion, incidencias, fase } = coche;
 
   const tono =
-    fase === 'listo' ? c.okFg : fase === 'parado' && v.deliveryDate ? c.amberFg : c.textMuted;
+    fase === 'listo' || fase === 'entregado'
+      ? c.okFg
+      : fase === 'parado' && v.deliveryDate
+        ? c.amberFg
+        : c.textMuted;
 
   return (
     <View
@@ -221,7 +254,9 @@ function FichaCoche({
           {vehicleName(v)} · {vehicleRef(v)}
         </Text>
         <Text style={{ fontSize: campo.micro, fontWeight: '800', color: tono }}>
-          {fase === 'listo'
+          {fase === 'entregado'
+            ? '🏁 ENTREGADO'
+            : fase === 'listo'
             ? '✓ LISTO PARA ENTREGAR'
             : fase === 'preparando'
               ? '🧽 PREPARÁNDOSE'
@@ -231,8 +266,16 @@ function FichaCoche({
         </Text>
       </View>
 
-      {/* Dónde está, que es lo primero que pregunta un cliente por teléfono. */}
-      <UbicacionVehiculo vehicle={v} compacta />
+      {/* Dónde está, que es lo primero que pregunta un cliente por teléfono.
+          Uno entregado ya no está en ningún sitio nuestro: dice cuándo se
+          fue, que es lo único que queda que mirar. */}
+      {fase === 'entregado' ? (
+        <Text style={{ fontSize: campo.micro, color: c.textMuted }}>
+          Entregado el {formatDate(v.deliveredAt)}
+        </Text>
+      ) : (
+        <UbicacionVehiculo vehicle={v} compacta />
+      )}
 
       {/* La fecha comprometida manda sobre todo lo demás. */}
       {v.deliveryDate ? (
@@ -294,8 +337,12 @@ function FichaCoche({
         </Text>
       ) : null}
 
-      {/* Pedir el traslado o la preparación desde aquí mismo. */}
-      <VehicleActions vehicle={v} compact onDone={onDone} />
+      {/* Pedir el traslado o la preparación desde aquí mismo, y cerrar el
+          coche cuando el cliente se lo lleva: es el sitio donde el comercial
+          mira sus coches, así que es donde tiene que poder darlo por
+          entregado sin abrir la ficha. */}
+      {fase === 'entregado' ? null : <VehicleActions vehicle={v} compact onDone={onDone} />}
+      <EntregarVehiculo vehicle={v} compact onDone={onDone} />
       <Btn small full onPress={onAbrir}>
         Abrir ficha
       </Btn>

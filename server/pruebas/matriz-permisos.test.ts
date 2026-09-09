@@ -77,6 +77,10 @@ const PUEDEN: Record<string, Rol[]> = {
   // Vehículo
   'vehicle.setCustom': ['admin', 'logistica'],
   'vehicle.setDelivery': ['admin', 'logistica', 'comercial'],
+  // Dar el coche por entregado va con las entregas: lo marca quien vende y
+  // la oficina por él. Al preparador y al transportista no les toca, y al
+  // transportista además le sacaría el coche de su propio traslado.
+  'vehicle.deliver': ['admin', 'logistica', 'comercial'],
   'vehicle.create': ['admin', 'logistica', 'recepcion'],
   // Aquí el ejemplo es un coche SIN comercial y asignándoselo a sí mismo,
   // que es lo que puede hacer un comercial. Que no pueda quitarle uno a
@@ -214,6 +218,7 @@ function ejemplos(s: AppState): Record<string, CommandInput> {
       vehicleId: vehiculo.id,
       deliveryDate: new Date().toISOString(),
     },
+    'vehicle.deliver': { type: 'vehicle.deliver', vehicleId: vehiculo.id },
     'vehicle.create': { type: 'vehicle.create', vin8: 'PRUEBA01' },
     'vehicle.setSalesRep': {
       type: 'vehicle.setSalesRep',

@@ -244,6 +244,13 @@ const GENERADORES: { peso: number; gen: Generador }[] = [
       return v ? { type: 'vehicle.setDelivery', vehicleId: v.id, deliveryDate: aVeces(r) ? new Date().toISOString() : null } : null;
     },
   },
+  {
+    peso: 2,
+    gen: (s, r) => {
+      const v = vehiculo(s, r);
+      return v ? { type: 'vehicle.deliver', vehicleId: v.id, note: aVeces(r, 0.3) ? 'se lo lleva hoy' : undefined } : null;
+    },
+  },
   { peso: 2, gen: (s, r) => { const v = vehiculo(s, r); return v ? { type: 'vehicle.activate', vehicleId: v.id } : null; } },
   {
     peso: 3,

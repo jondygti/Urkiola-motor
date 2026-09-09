@@ -30,6 +30,7 @@ import { CustomFields } from '@/features/common/CustomFields';
 import { DateField } from '@/features/common/DateField';
 import { IfCan, ScreenGuard, usePerms } from '@/features/common/Guard';
 import { ComercialVehiculo } from '@/features/actions/ComercialVehiculo';
+import { EntregarVehiculo } from '@/features/actions/EntregarVehiculo';
 import { IncidentStatusPill, SituationPill, TypePill, RequestStatusPill } from '@/features/common/bits';
 
 export default function VehicleScreen() {
@@ -207,6 +208,11 @@ export default function VehicleScreen() {
                 {state.config.prepDeadlineHours} h desde que se pide.
               </Muted>
             )}
+
+            {/* El final del recorrido: aquí, junto a la fecha comprometida,
+                que es donde se mira si el coche se ha entregado o no. */}
+            <Spacer h={space.sm} />
+            <EntregarVehiculo vehicle={vehicle} onDone={setToast} />
           </Panel>
 
           <Panel title="🏷️ Campos propios">

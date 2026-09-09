@@ -191,6 +191,22 @@ export type Command =
     }
   | { type: 'vehicle.activate'; id: Id; at: string; userId: Id; vehicleId: Id }
   | {
+      /**
+       * El coche se ha entregado al cliente y sale de la operativa.
+       *
+       * Hasta ahora el estado «Entregado» existía en la lista pero no lo
+       * ponía ningún comando: la flota no se vaciaba nunca y la plaza de un
+       * coche vendido seguía ocupada para siempre. En una campa con 600
+       * huecos eso se nota en meses.
+       */
+      type: 'vehicle.deliver';
+      id: Id;
+      at: string;
+      userId: Id;
+      vehicleId: Id;
+      note?: string;
+    }
+  | {
       type: 'vehicle.setSalesRep';
       id: Id;
       at: string;
@@ -441,11 +457,53 @@ function liberarPlaza(state: AppState, positionId: Id | undefined | null, salvo:
   return next;
 }
 
+/**
+ * Lo que hay que cambiarle a un vehículo para devolverlo a la operativa.
+ *
+ * Vale para los dos casos en los que un coche está fuera: el parque de
+ * Quiter sin actividad, y el que se dio por entregado.
+ *
+ * Con el entregado manda la observación física, igual que con las plazas:
+ * si alguien lo mueve, lo cuenta o lo comprueba, el coche está aquí y el
+ * «Entregado» era mentira. Se le quita también la fecha de entrega, porque
+ * si no seguiría contando como entregado en el registro del mes.
+ */
+function vuelveALaOperativa(v: Vehicle, patch: Partial<Vehicle>): Partial<Vehicle> {
+  const completo: Partial<Vehicle> = { logisticActive: true, ...patch };
+  if (v.status !== 'entregado') return completo;
+  // La ubicación que va a quedar, no la de antes: el mismo comando que lo
+  // trae de vuelta suele decir dónde está.
+  const donde = patch.location !== undefined ? patch.location : v.location;
+  return {
+    ...completo,
+    status: patch.status ?? (donde ? 'aparcado' : 'recepcionado'),
+    deliveredAt: null,
+    deliveredBy: null,
+  };
+}
+
 /** Un vehículo con actividad logística pasa a estar activo. */
 function activate(state: AppState, vehicleId: Id): AppState {
   const v = state.vehicles.find((x) => x.id === vehicleId);
-  if (!v || v.logisticActive) return state;
-  return { ...state, vehicles: replace(state.vehicles, vehicleId, { logisticActive: true }) };
+  if (!v) return state;
+  if (v.logisticActive && v.status !== 'entregado') return state;
+  return { ...state, vehicles: replace(state.vehicles, vehicleId, vuelveALaOperativa(v, {})) };
+}
+
+/**
+ * Cambia datos del vehículo sin traerlo de vuelta si estaba entregado.
+ *
+ * Corregir quién lo vendió, un campo propio o la fecha comprometida es
+ * papeleo, no una observación física: no puede resucitar en la flota un
+ * coche que se llevó el cliente hace tres semanas. Con los del parque de
+ * Quiter sí lo activa, porque ahí el papeleo *es* la señal de que el coche
+ * entra en nuestra operativa.
+ */
+function apuntarEnVehiculo(state: AppState, vehicleId: Id, patch: Partial<Vehicle>): AppState {
+  const v = state.vehicles.find((x) => x.id === vehicleId);
+  if (!v) return state;
+  const completo = v.status === 'entregado' ? patch : { logisticActive: true, ...patch };
+  return { ...state, vehicles: replace(state.vehicles, vehicleId, completo) };
 }
 
 /**
@@ -463,8 +521,9 @@ function activate(state: AppState, vehicleId: Id): AppState {
  * ninguna pantalla y el traslado no lo hacía nadie.
  */
 function tocarVehiculo(state: AppState, vehicleId: Id, patch: Partial<Vehicle>): AppState {
-  const activo = activate(state, vehicleId);
-  return { ...activo, vehicles: replace(activo.vehicles, vehicleId, patch) };
+  const v = state.vehicles.find((x) => x.id === vehicleId);
+  if (!v) return state;
+  return { ...state, vehicles: replace(state.vehicles, vehicleId, vuelveALaOperativa(v, patch)) };
 }
 
 /**
@@ -627,7 +686,8 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
       // Al cambiar de sede el coche queda aparcado a la espera, llegue a su
       // destino previsto o a otro sitio.
-      const status: Vehicle['status'] = changedSite ? 'aparcado' : vehicle.status;
+      const status: Vehicle['status'] =
+        changedSite || vehicle.status === 'entregado' ? 'aparcado' : vehicle.status;
 
       let next: AppState = {
         ...liberarPlaza(activate(state, cmd.vehicleId), destino.positionId, cmd.vehicleId, cmd),
@@ -1086,7 +1146,12 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
       // El recuento es una observación física: si el coche está aquí, el que
       // teníamos apuntado en esta plaza ya no está.
-      const base = liberarPlaza(activate(state, cmd.vehicleId), cmd.positionId, cmd.vehicleId, cmd);
+      const base = liberarPlaza(
+        tocarVehiculo(state, cmd.vehicleId, { location }),
+        cmd.positionId,
+        cmd.vehicleId,
+        cmd
+      );
       let next: AppState = {
         ...base,
         counts: base.counts.map((c) => (c.id === cmd.countId ? { ...c, found: [...c.found, found] } : c)),
@@ -1484,7 +1549,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       const v = state.vehicles.find((x) => x.id === cmd.vehicleId);
       if (!v) return state;
       const custom = { ...(v.custom ?? {}), [cmd.fieldId]: cmd.value };
-      return tocarVehiculo(state, cmd.vehicleId, { custom });
+      return apuntarEnVehiculo(state, cmd.vehicleId, { custom });
     }
 
     /* ------------------------------------------- empresas de transporte */
@@ -1514,7 +1579,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
     /* --------------------------------------------- fecha de entrega */
     case 'vehicle.setDelivery': {
       if (!vehicle) return state;
-      let next: AppState = tocarVehiculo(state, cmd.vehicleId, { deliveryDate: cmd.deliveryDate });
+      let next: AppState = apuntarEnVehiculo(state, cmd.vehicleId, { deliveryDate: cmd.deliveryDate });
 
       // Si ya hay una preparación pedida, su plazo pasa a ser la entrega.
       const prepReq = next.requests.find(
@@ -1543,8 +1608,81 @@ function aplicar(state: AppState, cmd: Command): AppState {
       });
     }
 
-    case 'vehicle.activate':
+    case 'vehicle.deliver': {
+      if (!vehicle) return state;
+      // Repetirlo no vuelve a entregarlo ni duplica el apunte.
+      if (vehicle.status === 'entregado' && !vehicle.logisticActive) return state;
+
+      const desde = locationLabel(state, vehicle.location, true);
+
+      // Se va con el cliente: deja de estar en ninguna de nuestras campas y
+      // su plaza queda libre para el siguiente.
+      let next: AppState = {
+        ...state,
+        vehicles: replace(state.vehicles, cmd.vehicleId, {
+          status: 'entregado',
+          logisticActive: false,
+          location: null,
+          targetSiteId: null,
+          // Con `cmd.at`, no con la hora de ahora: el comercial que entrega
+          // en el parking sin cobertura marca la entrega cuando ocurre, y
+          // el comando puede subir dos horas después.
+          deliveredAt: cmd.at,
+          deliveredBy: cmd.userId,
+        }),
+      };
+
+      // Un coche que se ha ido no puede tener trabajo pendiente: lo que
+      // quede abierto se cierra aquí, o se queda en la cola de alguien
+      // esperando a un coche que ya no está.
+      const prepAbierta = next.preparations.find(
+        (p) => p.vehicleId === cmd.vehicleId && p.runState !== 'terminado'
+      );
+      if (prepAbierta) {
+        next = {
+          ...next,
+          preparations: replace(next.preparations, prepAbierta.id, {
+            runState: 'terminado',
+            phase: 'apto_entrega',
+            runningSince: null,
+            waitingSince: null,
+            waitReason: null,
+            finishedAt: prepAbierta.finishedAt ?? cmd.at,
+            effectiveMs: prepAbierta.effectiveMs + transcurrido(prepAbierta.runningSince, cmd),
+          }),
+        };
+      }
+      for (const r of next.requests) {
+        if (r.vehicleId !== cmd.vehicleId || r.status === 'terminada') continue;
+        next = { ...next, requests: replace(next.requests, r.id, { status: 'terminada' as RequestStatus }) };
+      }
+
+      return addEvent(next, {
+        vehicleId: cmd.vehicleId,
+        kind: 'estado',
+        title: 'Entregado al cliente',
+        detail: `Sale de la operativa desde ${desde} · ${userName(state, cmd.userId)}${cmd.note ? ` · ${cmd.note.trim()}` : ''}`,
+        at: cmd.at,
+        userId: cmd.userId,
+      });
+    }
+
+    case 'vehicle.activate': {
+      // Volver a la operativa un coche entregado por error: se le quita el
+      // «Entregado», porque si no volvería a la flota con un estado que
+      // dice que ya no está.
+      if (vehicle?.status === 'entregado') {
+        return addEvent(activate(state, cmd.vehicleId), {
+          vehicleId: cmd.vehicleId,
+          kind: 'estado',
+          title: 'Vuelve a la operativa',
+          detail: `Estaba entregado · ${userName(state, cmd.userId)}`,
+          at: cmd.at,
+          userId: cmd.userId,
+        });
+      }
       return activate(state, cmd.vehicleId);
+    }
 
     /* ------------------------------------------- comercial del vehículo */
     case 'vehicle.setSalesRep': {
@@ -1552,7 +1690,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       const nombre = cmd.salesRep?.trim() || null;
       if (nombre === (vehicle.salesRep ?? null)) return state;
 
-      const next: AppState = tocarVehiculo(state, cmd.vehicleId, { salesRep: nombre });
+      const next: AppState = apuntarEnVehiculo(state, cmd.vehicleId, { salesRep: nombre });
 
       return addEvent(next, {
         vehicleId: cmd.vehicleId,

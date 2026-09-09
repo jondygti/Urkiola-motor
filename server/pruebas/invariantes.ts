@@ -164,9 +164,24 @@ export function revisar(s: AppState): Problema[] {
     ...s.incidents.map((i) => i.vehicleId),
   ]);
   for (const v of s.vehicles) {
+    // Un coche entregado sale de la operativa a propósito: se ha ido con el
+    // cliente y su historial se queda, pero él ya no.
+    if (v.status === 'entregado') continue;
     if (conActividad.has(v.id) && !v.logisticActive) {
       mal('actividad = activo', `${v.id} tiene actividad y está inactivo`);
     }
+  }
+
+  /* 8b · Un coche entregado no ocupa plaza. Es el motivo de que exista el
+     comando: en una campa de 600 huecos, los coches vendidos que siguen
+     apuntados en su plaza se comen la campa en unos meses. */
+  for (const v of s.vehicles) {
+    if (v.status !== 'entregado') continue;
+    if (v.location) mal('lo entregado no ocupa sitio', `${v.id} sigue en ${v.location.positionId ?? v.location.siteId}`);
+    if (v.logisticActive) mal('lo entregado no ocupa sitio', `${v.id} sigue en la operativa`);
+    // Y deja constancia de cuándo: un «entregado» sin fecha no se puede
+    // contar en ningún mes, que es justo para lo que se mira.
+    if (!v.deliveredAt) mal('lo entregado no ocupa sitio', `${v.id} entregado sin fecha`);
   }
 
   /* 9 · Un aviso va a alguien que existe.

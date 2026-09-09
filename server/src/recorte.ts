@@ -42,6 +42,10 @@ export const CAMPOS_DEL_VEHICULO: Record<keyof Vehicle, 'va' | 'se-borra'> = {
   // es asunto de quien lo transporta.
   salesRep: 'se-borra',
   deliveryDate: 'se-borra',
+  // Cuándo se lo llevó el cliente tampoco: dice el ritmo de ventas de
+  // Urkiola a una empresa que solo tiene que mover coches.
+  deliveredAt: 'se-borra',
+  deliveredBy: 'se-borra',
   custom: 'se-borra',
   situation: 'se-borra',
   // Nombres de gente de Urkiola.
@@ -56,6 +60,8 @@ function vehiculoRecortado(v: Vehicle): Vehicle {
     salesRep: null,
     custom: undefined,
     deliveryDate: null,
+    deliveredAt: null,
+    deliveredBy: null,
     situation: 'stock',
     lastCheckAt: null,
     lastCheckBy: null,

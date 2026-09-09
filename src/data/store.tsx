@@ -51,7 +51,11 @@ const TOKEN_KEY = 'urkiola.token.v1';
 // 17: las reglas de aviso de ejemplo ya dicen a quién van. Las guardadas
 // antes no lo decían, así que le llegaban a todo el mundo: al comercial le
 // salían ocho avisos de coches que no son suyos.
-const STATE_SCHEMA_VERSION = 17;
+// 18: el vehículo guarda ahora cuándo se entregó al cliente y quién lo
+// marcó. Los 154 coches ya entregados del parque guardado no lo tienen, y
+// sin fecha no se pueden contar por meses; además el estado «Entregado»
+// entra en el flujo de la ficha.
+const STATE_SCHEMA_VERSION = 18;
 
 interface StoredState {
   v: number;

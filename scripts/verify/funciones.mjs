@@ -540,5 +540,61 @@ export async function ejecutar(browser, BASE) {
     await context.close();
   }
 
+  /* --------- 19 · el coche que se lleva el cliente deja libre su hueco */
+  {
+    const { context, page, errores } = await entrarComo(browser, USUARIOS.comercial, 1440);
+
+    // Uno de sus coches, con plaza: lo que se quiere ver es que el hueco
+    // queda libre, que es el motivo de que exista el botón.
+    await page.goto(`${BASE}/mis-coches`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1200);
+
+    const antes = await estadoGuardado(page);
+    const mio = antes?.vehicles?.find(
+      (v) =>
+        v.logisticActive &&
+        v.location?.positionId &&
+        v.salesRep &&
+        'juan bilbao'.startsWith(String(v.salesRep).trim().toLowerCase())
+    );
+    ok('19 · el comercial tiene algún coche suyo aparcado', !!mio, mio?.id ?? 'ninguno');
+    const plaza = mio?.location?.positionId ?? '';
+
+    await page.goto(`${BASE}/vehiculo/${encodeURIComponent(mio?.id ?? '')}`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1100);
+    const ficha = await page.evaluate(() => document.body.innerText);
+    ok('19 · la ficha ofrece darlo por entregado', ficha.includes('Entregado al cliente'));
+
+    await page.getByText('🏁 Entregado al cliente', { exact: false }).first().click();
+    await page.waitForTimeout(700);
+    const modal = await page.evaluate(() => document.body.innerText);
+    ok(
+      '19 · y avisa antes de qué va a pasar con el hueco',
+      modal.includes('queda libre') && modal.includes('Sí, se lo ha llevado'),
+      'confirmación con consecuencias'
+    );
+
+    await page.getByText('Sí, se lo ha llevado', { exact: false }).first().click();
+    await page.waitForTimeout(1400);
+
+    const s = await estadoGuardado(page);
+    const despues = s?.vehicles?.find((v) => v.id === mio?.id);
+    ok('19 · el coche sale de la flota activa', despues?.logisticActive === false, despues?.status ?? '');
+    ok('19 · y deja apuntado cuándo se entregó', !!despues?.deliveredAt, despues?.deliveredAt ?? 'sin fecha');
+    ok(
+      '19 · su plaza queda libre para el siguiente',
+      (s?.vehicles ?? []).filter((v) => v.logisticActive && v.location?.positionId === plaza).length === 0,
+      plaza
+    );
+
+    // Y en «Mis coches» pasa a la pestaña de entregados: ya no es trabajo.
+    await page.goto(`${BASE}/mis-coches`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1300);
+    const lista = await page.evaluate(() => document.body.innerText);
+    ok('19 · «Mis coches» tiene su registro de entregados', /Entregados · \d+/.test(lista), lista.match(/Entregados · \d+/)?.[0] ?? '');
+    ok('19 · sin errores de JavaScript', errores.length === 0, errores[0] ?? '');
+    await context.close();
+  }
+
   return resumen();
 }

@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import { applyCommand, type Command } from '../../src/data/commands';
 import { buildSeedState } from '../../src/data/seed';
 import { revisar } from './invariantes';
-import { bandejaDe } from '../../src/data/selectors';
+import { bandejaDe, misCoches } from '../../src/data/selectors';
 import type { AppState, Id } from '../../src/data/types';
 
 let n = 0;
@@ -25,7 +25,9 @@ const aplicar = (s: AppState, x: Record<string, unknown>) => applyCommand(s, ord
 
 /** Un vehículo que no está en la operativa: existe en Quiter y nada más. */
 function dormido(s: AppState) {
-  const v = s.vehicles.find((x) => !x.logisticActive);
+  // Que no sea uno ya entregado: ese está fuera porque se lo llevó el
+  // cliente, y corregirle el papeleo no tiene que devolverlo a la flota.
+  const v = s.vehicles.find((x) => !x.logisticActive && x.status !== 'entregado');
   assert.ok(v, 'el parque de ejemplo tiene que traer algún coche fuera de la operativa');
   return v;
 }
@@ -576,4 +578,133 @@ test('activar o pausar un aviso dos veces lo deja igual que una', () => {
 
   s = applyCommand(s, pausar);
   assert.equal(s.rules.find((r) => r.id === regla.id)!.active, false, 'sigue pausada');
+});
+
+/* ═══════════════ 9 · El coche que se lleva el cliente ═══════════════ */
+
+test('entregar un coche libera su plaza y lo saca de la operativa', () => {
+  // Es el motivo del comando: un coche vendido que sigue apuntado en su
+  // hueco se come la campa poco a poco, y el que baja a aparcar encuentra
+  // un sitio marcado como lleno que está vacío.
+  let s = buildSeedState();
+  const v = s.vehicles.find((x) => x.logisticActive && x.location?.positionId)!;
+  const plaza = v.location!.positionId!;
+
+  s = aplicar(s, { type: 'vehicle.deliver', vehicleId: v.id });
+  const despues = s.vehicles.find((x) => x.id === v.id)!;
+
+  assert.equal(despues.status, 'entregado');
+  assert.equal(despues.logisticActive, false);
+  assert.equal(despues.location, null);
+  assert.ok(despues.deliveredAt, 'queda la fecha, que es lo que se cuenta por meses');
+  assert.equal(
+    s.vehicles.filter((x) => x.logisticActive && x.location?.positionId === plaza).length,
+    0,
+    'la plaza queda libre'
+  );
+  assert.deepEqual(revisar(s), []);
+});
+
+test('entregar cierra lo que tuviera pedido', () => {
+  // Si no, el preparador se queda con una preparación en la cola de un
+  // coche que ya no existe, y el transportista con un traslado imposible.
+  let s = buildSeedState();
+  const v = s.vehicles.find((x) => x.logisticActive && x.location)!;
+  s = aplicar(s, {
+    type: 'request.create',
+    requestType: 'preparacion',
+    vehicleId: v.id,
+    siteId: 'leioa',
+    to: null,
+  });
+  s = aplicar(s, { type: 'prep.create', vehicleId: v.id, siteId: 'leioa' });
+  const prep = s.preparations.find((p) => p.vehicleId === v.id)!;
+  s = aplicar(s, { type: 'prep.start', prepId: prep.id });
+
+  s = aplicar(s, { type: 'vehicle.deliver', vehicleId: v.id });
+
+  assert.equal(
+    s.requests.filter((r) => r.vehicleId === v.id && r.status !== 'terminada').length,
+    0,
+    'nada pendiente'
+  );
+  assert.equal(s.preparations.find((p) => p.id === prep.id)!.runState, 'terminado');
+  assert.deepEqual(revisar(s), []);
+});
+
+test('entregar dos veces es como entregar una', () => {
+  // El comando puede subir dos veces si se pierde la respuesta del
+  // servidor: la segunda no puede volver a cerrar nada ni duplicar apuntes.
+  let s = buildSeedState();
+  const v = s.vehicles.find((x) => x.logisticActive && x.location)!;
+  const cmd = orden({ type: 'vehicle.deliver', vehicleId: v.id });
+
+  const una = applyCommand(s, cmd);
+  const dos = applyCommand(una, cmd);
+  assert.deepEqual(dos, una, 'el segundo intento no cambia nada');
+});
+
+test('deshacer una entrega devuelve el coche sin dejarlo dado por entregado', () => {
+  // Quien se equivoca al marcarlo lo ve enseguida. Si al volver se quedara
+  // en «Entregado», el coche saldría en la flota diciendo que ya no está.
+  let s = buildSeedState();
+  const v = s.vehicles.find((x) => x.logisticActive && x.location)!;
+  s = aplicar(s, { type: 'vehicle.deliver', vehicleId: v.id });
+  s = aplicar(s, { type: 'vehicle.activate', vehicleId: v.id });
+
+  const despues = s.vehicles.find((x) => x.id === v.id)!;
+  assert.equal(despues.logisticActive, true);
+  assert.notEqual(despues.status, 'entregado');
+  assert.equal(despues.deliveredAt, null, 'ya no cuenta como entregado este mes');
+  assert.deepEqual(revisar(s), []);
+});
+
+test('un coche entregado no le sale al comercial entre sus coches por hacer', () => {
+  // «Mis coches» es la lista de trabajo del comercial: lo entregado se va a
+  // su pestaña aparte, que es un registro.
+  let s = buildSeedState();
+  const juan = s.users.find((u) => u.name === 'Juan Bilbao')!;
+  const v = s.vehicles.find((x) => x.logisticActive && !x.salesRep)!;
+  s = aplicar(s, { type: 'vehicle.setSalesRep', vehicleId: v.id, salesRep: juan.name });
+
+  assert.ok(misCoches(s, juan).some((x) => x.vehicle.id === v.id && x.fase !== 'entregado'));
+
+  s = aplicar(s, { type: 'vehicle.deliver', vehicleId: v.id });
+  const mio = misCoches(s, juan).find((x) => x.vehicle.id === v.id)!;
+  assert.equal(mio.fase, 'entregado');
+});
+
+test('verlo en una plaza deshace la entrega: manda lo que se ve', () => {
+  // Es la misma regla de siempre con las plazas: si el coche está aquí,
+  // está aquí. Un «entregado» de un coche que aparece en el recuento era un
+  // error al marcarlo, y dejarlo entregado con una plaza ocupada es lo peor
+  // de los dos mundos.
+  let s = buildSeedState();
+  const v = s.vehicles.find((x) => x.logisticActive && x.location?.positionId)!;
+  s = aplicar(s, { type: 'vehicle.deliver', vehicleId: v.id });
+
+  s = aplicar(s, { type: 'vehicle.check', vehicleId: v.id, positionId: v.location!.positionId });
+  const despues = s.vehicles.find((x) => x.id === v.id)!;
+
+  assert.equal(despues.status, 'aparcado', 'vuelve a estar aparcado donde se le ha visto');
+  assert.equal(despues.logisticActive, true);
+  assert.equal(despues.deliveredAt, null);
+  assert.deepEqual(revisar(s), []);
+});
+
+test('corregir el papeleo de un coche entregado no lo devuelve a la flota', () => {
+  // Cambiar quién lo vendió o un campo propio de un coche que se llevó el
+  // cliente hace tres semanas es papeleo, no verlo en la campa. Si lo
+  // reactivara, volvería a la flota de todos sin que nadie lo haya visto.
+  let s = buildSeedState();
+  const v = s.vehicles.find((x) => x.logisticActive && x.location)!;
+  s = aplicar(s, { type: 'vehicle.deliver', vehicleId: v.id });
+
+  s = aplicar(s, { type: 'vehicle.setSalesRep', vehicleId: v.id, salesRep: 'Juan Bilbao' });
+  const despues = s.vehicles.find((x) => x.id === v.id)!;
+
+  assert.equal(despues.salesRep, 'Juan Bilbao', 'el dato se corrige');
+  assert.equal(despues.status, 'entregado', 'pero sigue entregado');
+  assert.equal(despues.logisticActive, false);
+  assert.deepEqual(revisar(s), []);
 });

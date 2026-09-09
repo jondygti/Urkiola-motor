@@ -59,10 +59,17 @@ function sedeAfectada(s: AppState, cmd: Command): Id | null | undefined {
   if (cmd.type === 'vehicle.create') return cmd.location?.siteId ?? null;
 
   // Hay decisiones que no son físicas y no dependen de dónde esté el coche:
-  // quién lo vende y cuándo se entrega al cliente. Sondika guarda el stock
-  // de toda la red, así que atarlas a la ubicación dejaría a un comercial
-  // de Leioa sin poder tocar sus propios coches por estar en la campa.
-  if (cmd.type === 'vehicle.setSalesRep' || cmd.type === 'vehicle.setDelivery') return undefined;
+  // quién lo vende, cuándo se entrega al cliente y darlo por entregado.
+  // Sondika guarda el stock de toda la red, así que atarlas a la ubicación
+  // dejaría a un comercial de Leioa sin poder tocar sus propios coches por
+  // estar en la campa.
+  if (
+    cmd.type === 'vehicle.setSalesRep' ||
+    cmd.type === 'vehicle.setDelivery' ||
+    cmd.type === 'vehicle.deliver'
+  ) {
+    return undefined;
+  }
 
   // Y una solicitud se mide por la sede que la tiene que atender, no por
   // dónde está el coche ahora: pedir que traigan a Leioa un coche que está
@@ -242,6 +249,12 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
       return tiene(s, u, 'flota.editar') || tiene(s, u, 'recepcion.ejecutar')
         ? null
         : 'No puedes dar de alta vehículos.';
+
+    case 'vehicle.deliver':
+      // Entregar al cliente lo hace quien lleva la entrega: el comercial que
+      // lo vendió o la oficina. Es la misma decisión que fijar la fecha.
+      if (!tiene(s, u, 'entregas.gestionar')) return 'No puedes dar un vehículo por entregado.';
+      return null;
 
     case 'vehicle.setDelivery':
       return tiene(s, u, 'entregas.gestionar') ? null : 'No puedes fijar fechas de entrega.';

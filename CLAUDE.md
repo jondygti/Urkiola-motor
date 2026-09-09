@@ -122,6 +122,15 @@ Cada una viene de un fallo real de este proyecto:
     el móvil de cualquiera —y al transportista, que es de fuera, le llegaba
     «el coche de Juan está listo», que le dice quién vende qué.
 
+26. **Lo que trae de vuelta a un coche entregado es verlo, no el papeleo.**
+    Moverlo, contarlo o comprobarlo en una plaza le quita el «Entregado»
+    (manda la observación física, como con las plazas: si está ahí, está
+    ahí). Corregirle el comercial, un campo propio o la fecha comprometida,
+    no: es papeleo de un coche que se llevó el cliente hace tres semanas, y
+    resucitarlo lo devolvería a la flota de todos sin que nadie lo haya
+    visto. Por eso hay dos ayudantes y no uno: `tocarVehiculo` (operativa) y
+    `apuntarEnVehiculo` (papeleo).
+
 22. **Los tamaños de letra salen de `tipografia` o de `campo`**
     (`src/ui/theme.tsx`), nunca escritos a mano. Había 222 sueltos, nueve
     valores distintos y el más usado un 11: letra pequeña para leer un móvil
@@ -147,10 +156,10 @@ npm run verify:api           # la app real contra el backend real
 |---|---|
 | `scripts/verify/estilo.mjs` | 3 comprobaciones del sistema de diseño, leyendo el código: que nadie escriba un tamaño de letra a mano, que el mínimo no baje de 11 y que las pantallas de campo usen su escala |
 | `scripts/verify/rutas.mjs` | 7 perfiles × 2 anchos × 19 pantallas = 266 cargas: que ninguna se rompe para ningún rol |
-| `scripts/verify/funciones.mjs` | 88 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
-| `scripts/verify/roles.mjs` | 78 comprobaciones: la jornada entera de cada uno de los 6 roles, y que lo que no le toca no lo ve ni lo puede tocar |
-| `server/pruebas/` | 128 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios, seguridad y las **invariantes** de los datos |
-| `server/pruebas/aleatorio.test.ts` | 10.000 comandos al azar con semilla: dispara lo que a nadie se le ocurre y comprueba las 11 invariantes después de **cada uno**. Si falla, la semilla que sale por pantalla repite la secuencia exacta |
+| `scripts/verify/funciones.mjs` | 96 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
+| `scripts/verify/roles.mjs` | 79 comprobaciones: la jornada entera de cada uno de los 6 roles, y que lo que no le toca no lo ve ni lo puede tocar |
+| `server/pruebas/` | 135 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios, seguridad y las **invariantes** de los datos |
+| `server/pruebas/aleatorio.test.ts` | 10.000 comandos al azar con semilla: dispara lo que a nadie se le ocurre y comprueba las 12 invariantes después de **cada uno**. Si falla, la semilla que sale por pantalla repite la secuencia exacta |
 | `scripts/verify/backend.mjs` | 25 comprobaciones de la app compilada contra el servidor: entrar con contraseña, mover un coche y que **otro dispositivo lo vea**, subir una foto y recuperar la contraseña por correo |
 
 `verify:api` va aparte de `verify` porque compila la web una segunda vez:
@@ -290,6 +299,19 @@ en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
   comandos por la ubicación del vehículo, un comercial de Leioa no podía
   pedir que le trajeran un coche de la campa —que es justo para lo que
   existe esa pantalla.
+- **El coche que se lleva el cliente sale de la flota y deja su hueco.** Lo
+  marca quien vende, desde «Mis coches» o desde la ficha (`entregas.gestionar`,
+  que ya llevaba el comercial). Es lo único que libera la plaza: un coche
+  vendido que sigue apuntado en su hueco se come la campa poco a poco, y el
+  que baja a aparcar se encuentra un sitio marcado como lleno que está
+  vacío. Al entregarlo se cierra lo que tuviera pedido —nadie va a preparar
+  ni trasladar un coche que ya no está—, queda la fecha y quién lo marcó, y
+  el historial se queda entero en la ficha. Se deshace desde la propia
+  ficha: quien se equivoca lo ve enseguida, y obligarle a llamar a la
+  oficina para arreglarlo hace que la siguiente vez no lo marque.
+- **«Mis coches» separa el trabajo del registro.** Las cuatro fases son
+  trabajo; los entregados van a su pestaña, con la cuenta del mes. Contarlos
+  entre los suyos por hacer sería enseñarle una lista que crece sola.
 - **El estado «aparcado» no dice dónde.** Un coche puede estar aparcado en
   la campa de Sondika o en el parking de una concesión. Se llamaba «en
   campa» y decía una cosa que no era en cuanto salía de Sondika.
