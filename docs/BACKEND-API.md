@@ -170,6 +170,8 @@ que esto **no es opcional**, es parte del contrato:
 | `reception.create` / `reception.line` / `reception.albaran` / `reception.close` | Recepción de camiones |
 | `vehicle.create` | Alta manual de un vehículo por su bastidor. El id sale del VIN-8 (`v-<vin8>`), así que darlo de alta dos veces no duplica nada |
 | `vehicle.setSalesRep` | Quién lleva la venta del coche. Se puede poner y quitar en cualquier momento: los coches llegan de Quiter sin comercial hasta que alguien los vende |
+| `prep.create` | Abre el trabajo en el taller. `tipo` dice cuál: `entrada` (la preparación de siempre) o `repaso` (el repaso de limpieza del día de la entrega, media hora y dos requisitos). Sin `tipo`, sale del que se pidió en la solicitud abierta |
+| `alerts.sweep` | El repaso del reloj. Además de los avisos, **crea las solicitudes de repaso de entrega del día**: coches listos, con entrega hoy y aparcados en una sede que prepara. El id de cada una sale del coche y del día, así que barrer veinte veces pone una sola |
 | `vehicle.deliver` | El cliente se lleva el coche: sale de la flota activa, **su plaza queda libre** y se cierra lo que tuviera pedido. Deja apuntado cuándo y quién. Se deshace con `vehicle.activate` |
 | `config.update` / `requirement.upsert` / `requirement.delete` / `zone.upsert` | Administración |
 

@@ -262,8 +262,11 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
     // La bandeja es de cada uno: leerla no necesita permiso.
     case 'alerts.sweep':
       // No es una acción de nadie: es el repaso del reloj. Cualquiera con
-      // sesión lo puede disparar al abrir la app y no cambia datos de la
-      // flota, solo genera avisos que ya estaban configurados.
+      // sesión lo puede disparar al abrir la app. Genera los avisos que ya
+      // estaban configurados y pone los repasos de entrega del día, y lo que
+      // sale de ahí **no lo elige quien lo dispara**: sale del estado —qué
+      // coches se entregan hoy—, así que abrirlo antes solo adelanta el
+      // reloj, no crea trabajo que nadie había pedido.
       return null;
 
     case 'inbox.read':

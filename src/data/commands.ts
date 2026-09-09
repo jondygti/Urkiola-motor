@@ -26,6 +26,7 @@ import type {
   ServiceRequest,
   RequestStatus,
   RequestType,
+  TipoPreparacion,
   Site,
   TraceEvent,
   User,
@@ -71,6 +72,8 @@ export type Command =
       note?: string;
       /** Empresa de transporte, solo para traslados. */
       carrierId?: Id | null;
+      /** Qué trabajo se pide, solo para preparaciones. */
+      prepTipo?: TipoPreparacion;
     }
   | {
       type: 'request.update';
@@ -85,7 +88,17 @@ export type Command =
       delayReason?: DelayReason | null;
       delayNote?: string | null;
     }
-  | { type: 'prep.create'; id: Id; at: string; userId: Id; vehicleId: Id; siteId: Id; preparerId?: Id | null }
+  | {
+      type: 'prep.create';
+      id: Id;
+      at: string;
+      userId: Id;
+      vehicleId: Id;
+      siteId: Id;
+      preparerId?: Id | null;
+      /** Preparación de entrada (por defecto) o repaso de entrega. */
+      tipo?: TipoPreparacion;
+    }
   | { type: 'prep.start'; id: Id; at: string; userId: Id; prepId: Id }
   | { type: 'prep.pause'; id: Id; at: string; userId: Id; prepId: Id; reason: string; blocked?: boolean }
   | { type: 'prep.resume'; id: Id; at: string; userId: Id; prepId: Id }
@@ -605,10 +618,17 @@ function derivePhase(p: Preparation): Preparation['phase'] {
   return 'base';
 }
 
-function checklistFor(state: AppState, vehicle: Vehicle): Preparation['items'] {
+function checklistFor(
+  state: AppState,
+  vehicle: Vehicle,
+  tipo: TipoPreparacion = 'entrada'
+): Preparation['items'] {
   return state.config.requirements
     .filter((r) => r.vehicleTypes.length === 0 || r.vehicleTypes.includes(vehicle.type))
     .filter((r) => r.siteIds.length === 0 || r.siteIds.includes(vehicle.targetSiteId ?? ''))
+    // Pedirle los catorce requisitos de una preparación entera a quien va a
+    // pasar un trapo acaba con los catorce marcados sin mirar.
+    .filter((r) => !r.tipos || r.tipos.length === 0 || r.tipos.includes(tipo))
     .sort((a, b) => a.order - b.order)
     .map((r) => ({
       requirementId: r.id,
@@ -787,6 +807,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
         deliveredAt: null,
         deliveredBy: null,
         carrierId: cmd.requestType === 'traslado' ? (cmd.carrierId ?? null) : null,
+        prepTipo: cmd.requestType === 'preparacion' ? (cmd.prepTipo ?? 'entrada') : undefined,
       };
       const vehiclePatch: Partial<Vehicle> =
         cmd.requestType === 'traslado'
@@ -798,7 +819,11 @@ function aplicar(state: AppState, cmd: Command): AppState {
         requests: [request, ...state.requests],
       };
 
-      if (cmd.requestType === 'preparacion') {
+      // Los repasos no avisan de uno en uno: los pone el reloj en cuanto se
+      // abre la app y una flota de renting entrega cuarenta coches el mismo
+      // día. Cuarenta avisos a la vez es un aviso que nadie lee. El barrido
+      // manda uno solo con la cuenta del día.
+      if (cmd.requestType === 'preparacion' && (cmd.prepTipo ?? 'entrada') !== 'repaso') {
         // El preparador se entera al momento en vez de descubrirlo cuando
         // entra a mirar la cola: es el aviso que más tiempo ahorra, porque
         // el coche está parado desde que se pide.
@@ -812,7 +837,12 @@ function aplicar(state: AppState, cmd: Command): AppState {
       return addEvent(next, {
         vehicleId: cmd.vehicleId,
         kind: 'solicitud',
-        title: cmd.requestType === 'traslado' ? 'Traslado solicitado' : 'Preparación solicitada',
+        title:
+          cmd.requestType === 'traslado'
+            ? 'Traslado solicitado'
+            : cmd.prepTipo === 'repaso'
+              ? 'Repaso de entrega pedido'
+              : 'Preparación solicitada',
         detail: `${siteName(state, cmd.siteId)} · ${userName(state, cmd.userId)}${cmd.urgent ? ' · URGENTE' : ''}`,
         at: cmd.at,
         userId: cmd.userId,
@@ -905,15 +935,26 @@ function aplicar(state: AppState, cmd: Command): AppState {
       // campa, con su cronómetro corriendo, en una sede donde no hay nadie
       // que la haga. Qué sedes preparan se configura desde Administración.
       if (!state.sites.find((x) => x.id === cmd.siteId)?.prepares) return state;
-      const target = (state.config.prepTargetMinutes[vehicle.type] ?? 120) * 60_000;
+      // El tipo viene del comando, y si no de lo que se pidió: el preparador
+      // abre desde su cola lo que le han encargado, y un repaso abierto como
+      // preparación de entrada se mediría contra dos horas.
+      const pedidoAbierto = state.requests.find(
+        (r) => r.type === 'preparacion' && r.vehicleId === cmd.vehicleId && r.status !== 'terminada'
+      );
+      const tipo: TipoPreparacion = cmd.tipo ?? pedidoAbierto?.prepTipo ?? 'entrada';
+      const target =
+        tipo === 'repaso'
+          ? (state.config.repasoTargetMinutes ?? 30) * 60_000
+          : (state.config.prepTargetMinutes[vehicle.type] ?? 120) * 60_000;
       const prep: Preparation = {
         id: unico('prep', cmd),
         vehicleId: cmd.vehicleId,
         siteId: cmd.siteId,
         preparerId: cmd.preparerId ?? null,
+        tipo,
         phase: 'pendiente',
         runState: 'pendiente',
-        items: checklistFor(state, vehicle),
+        items: checklistFor(state, vehicle, tipo),
         effectiveMs: 0,
         waitingMs: 0,
         targetMs: target,
@@ -948,7 +989,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       return addEvent(next, {
         vehicleId: cmd.vehicleId,
         kind: 'preparacion',
-        title: 'Preparación creada',
+        title: tipo === 'repaso' ? 'Repaso de entrega abierto' : 'Preparación creada',
         detail: `${siteName(state, cmd.siteId)} · ${userName(state, cmd.userId)}`,
         at: cmd.at,
         userId: cmd.userId,
@@ -1255,6 +1296,66 @@ function aplicar(state: AppState, cmd: Command): AppState {
           // Uno por coche y día: si no, cada barrido repetiría el mismo
           // aviso hasta que la bandeja no sirviera para nada.
           sufijo: `nev-stale-${v.id}-${dia}`,
+        });
+      }
+
+      // Los repasos de entrega del día.
+      //
+      // Nace de las flotas de renting de Leioa: el coche se preparó entero
+      // hace meses y lleva desde entonces en la azotea, y el día que se
+      // entrega hay que repasarle la limpieza por dentro y por fuera.
+      //
+      // Lo pone el reloj y no una persona porque una entrega de flota son
+      // cuarenta coches: pedirlos a mano de uno en uno no lo hace nadie. Y
+      // se ponen el mismo día y no antes: cuarenta repasos en la cola del
+      // preparador tres días antes es trabajo que todavía no puede hacer, y
+      // una cola así deja de mirarse.
+      const repasosPorSede = new Map<Id, number>();
+      for (const v of next.vehicles) {
+        if (!v.logisticActive || v.status !== 'apto_entrega' || !v.deliveryDate) continue;
+        // Hoy, contado por el día del comando: un móvil sin cobertura puede
+        // subir el barrido más tarde, y el día que valía era aquel.
+        if (v.deliveryDate.slice(0, 10) !== dia) continue;
+        // Donde está el coche, si ahí se prepara. Un coche que el día de la
+        // entrega sigue en la campa de Sondika no tiene quien lo repase:
+        // eso es un traslado que no se hizo, no un repaso que falta.
+        const sede = v.location?.siteId;
+        if (!sede || !next.sites.find((x) => x.id === sede)?.prepares) continue;
+        // Ni encima de lo que ya está pedido o abierto.
+        if (next.preparations.some((p) => p.vehicleId === v.id && p.runState !== 'terminado')) continue;
+        if (next.requests.some((r) => r.type === 'preparacion' && r.vehicleId === v.id && r.status !== 'terminada')) {
+          continue;
+        }
+
+        // El id sale del coche y del día, no del comando: cada barrido es un
+        // comando distinto y, sin esto, abrir la app cuatro veces pondría
+        // cuatro repasos del mismo coche.
+        const antes = next.requests.length;
+        next = applyCommand(next, {
+          type: 'request.create',
+          id: `repaso-${v.id}-${dia}`,
+          at: cmd.at,
+          userId: cmd.userId,
+          requestType: 'preparacion',
+          prepTipo: 'repaso',
+          vehicleId: v.id,
+          siteId: sede,
+          to: null,
+          note: 'Repaso de limpieza antes de entregar',
+        });
+        // Solo cuenta lo que de verdad se ha creado: aplicar el barrido dos
+        // veces no puede acabar diciendo «hay 24 repasos» cuando son 12.
+        if (next.requests.length > antes) {
+          repasosPorSede.set(sede, (repasosPorSede.get(sede) ?? 0) + 1);
+        }
+      }
+
+      // Un aviso por sede y día con la cuenta, en vez de uno por coche.
+      for (const [sede, cuantos] of repasosPorSede) {
+        next = fireRules(next, 'preparacion_pedida', null, {
+          siteId: sede,
+          body: `${siteName(next, sede)}: ${cuantos === 1 ? 'hay 1 repaso de entrega para hoy' : `hay ${cuantos} repasos de entrega para hoy`}.`,
+          sufijo: `nev-repasos-${sede}-${dia}`,
         });
       }
 

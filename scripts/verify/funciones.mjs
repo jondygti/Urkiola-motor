@@ -596,5 +596,42 @@ export async function ejecutar(browser, BASE) {
     await context.close();
   }
 
+  /* --------- 20 · el repaso de entrega de las flotas de renting */
+  {
+    const { context, page, errores } = await entrarComo(browser, USUARIOS.preparador);
+
+    // El barrido se dispara solo al abrir la app: al llegar a su cola, los
+    // repasos del día ya tienen que estar puestos.
+    await page.goto(`${BASE}/mi-preparacion`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1600);
+
+    const cola = await page.evaluate(() => document.body.innerText);
+    ok('20 · el reloj pone los repasos del día en la cola del preparador', cola.includes('Repaso de entrega'));
+    ok('20 · y dice que el coche se entrega hoy', cola.includes('Se entrega hoy'));
+
+    const s = await estadoGuardado(page);
+    const repasos = (s?.requests ?? []).filter((r) => r.prepTipo === 'repaso' && r.status !== 'terminada');
+    ok('20 · con una solicitud por coche', repasos.length > 0, `${repasos.length} repasos`);
+    const avisos = (s?.inbox ?? []).filter((n) => n.body.includes('repaso'));
+    ok(
+      '20 · y un solo aviso con la cuenta, no uno por coche',
+      avisos.length === 1 && repasos.length >= 1,
+      avisos[0]?.body ?? 'sin aviso'
+    );
+
+    // Al empezarlo se abre con su checklist corto y sus 30 minutos.
+    await page.getByText('Empezar repaso', { exact: false }).first().click();
+    await page.waitForTimeout(1400);
+    const dentro = await page.evaluate(() => document.body.innerText);
+    ok('20 · se abre con el checklist del repaso', dentro.includes('Limpieza exterior') && dentro.includes('Limpieza interior'));
+    ok('20 · y no con el de una preparación entera', !dentro.includes('Kit reparapinchazos'));
+
+    const s2 = await estadoGuardado(page);
+    const prep = (s2?.preparations ?? []).find((p) => p.tipo === 'repaso' && p.runState !== 'terminado');
+    ok('20 · el reloj del repaso es de 30 minutos', prep?.targetMs === 30 * 60 * 1000, `${(prep?.targetMs ?? 0) / 60000} min`);
+    ok('20 · sin errores de JavaScript', errores.length === 0, errores[0] ?? '');
+    await context.close();
+  }
+
   return resumen();
 }

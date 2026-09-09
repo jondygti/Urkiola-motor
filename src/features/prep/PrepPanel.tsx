@@ -60,7 +60,7 @@ export function PrepPanel({
   };
 
   return (
-    <Panel title="⏱️ Preparación y checklist">
+    <Panel title={prep.tipo === 'repaso' ? '🧽 Repaso de entrega' : '⏱️ Preparación y checklist'}>
       {vehicle ? (
         <Muted style={{ marginTop: -6, marginBottom: space.sm }}>
           {vehicleTitle(vehicle)} · {siteName(state, prep.siteId)} · preparador {userName(state, prep.preparerId)}

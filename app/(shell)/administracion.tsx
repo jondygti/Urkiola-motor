@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { Btn, Checkbox, Code, Field, Grid, H1, H3, Input, Modal, Muted, Notice, Panel, Pill, Screen, Segmented, Spacer, StatLine, Toolbar, radius, space, tipografia, useTheme } from '@/ui';
 import { useAppState, useStore } from '@/data/store';
 import { API_URL, apiEnabled } from '@/data/api';
-import type { Requirement, VehicleType } from '@/data/types';
+import { TIPO_PREPARACION_LABEL, type Requirement, type TipoPreparacion, type VehicleType } from '@/data/types';
 import { can, roleLabel } from '@/data/selectors';
 import { LocationsAdmin } from '@/features/admin/LocationsAdmin';
 import { UsersAdmin } from '@/features/admin/UsersAdmin';
@@ -79,6 +79,21 @@ export default function AdminScreen() {
                   keyboardType="numeric"
                 />
               </Field>
+              <Field
+                label="Repaso de entrega · minutos"
+                hint="La limpieza del día de la entrega. Va aparte porque no es el mismo trabajo."
+              >
+                <Input
+                  value={String(state.config.repasoTargetMinutes)}
+                  onChangeText={(v) =>
+                    run({
+                      type: 'config.update',
+                      patch: { repasoTargetMinutes: Number(v.replace(/\D/g, '')) || 30 },
+                    })
+                  }
+                  keyboardType="numeric"
+                />
+              </Field>
               <Field label="Horas de plazo del transportista" hint="Desde que recoge las llaves.">
                 <Input
                   value={String(state.config.transferDeadlineHours)}
@@ -151,6 +166,7 @@ export default function AdminScreen() {
                     label: '',
                     vehicleTypes: [],
                     siteIds: [],
+                    tipos: ['entrada'],
                     timed: true,
                     optional: false,
                     order: state.config.requirements.length + 1,
@@ -177,7 +193,10 @@ export default function AdminScreen() {
                   <Text style={{ fontSize: tipografia.body, fontWeight: '700', color: c.text }}>{r.label}</Text>
                   <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>
                     {r.vehicleTypes.length ? r.vehicleTypes.join(' / ') : 'VN y VO'} ·{' '}
-                    {r.siteIds.length ? r.siteIds.join(', ') : 'todas las sedes'}
+                    {r.siteIds.length ? r.siteIds.join(', ') : 'todas las sedes'} ·{' '}
+                    {!r.tipos || r.tipos.length === 0
+                      ? 'preparación y repaso'
+                      : r.tipos.map((t) => TIPO_PREPARACION_LABEL[t].toLowerCase()).join(' y ')}
                   </Text>
                 </View>
                 {!r.timed ? <Pill tone="blue">Sin cronómetro</Pill> : null}
@@ -348,6 +367,7 @@ function RequirementModal({
   const [label, setLabel] = useState(requirement.label);
   const [types, setTypes] = useState<VehicleType[]>(requirement.vehicleTypes);
   const [siteIds, setSiteIds] = useState<string[]>(requirement.siteIds);
+  const [tipos, setTipos] = useState<TipoPreparacion[]>(requirement.tipos ?? ['entrada']);
   const [timed, setTimed] = useState(requirement.timed);
   const [optional, setOptional] = useState(requirement.optional);
 
@@ -366,7 +386,7 @@ function RequirementModal({
             if (!label.trim()) return;
             run({
               type: 'requirement.upsert',
-              requirement: { ...requirement, label: label.trim(), vehicleTypes: types, siteIds, timed, optional },
+              requirement: { ...requirement, label: label.trim(), vehicleTypes: types, siteIds, tipos, timed, optional },
             });
             onDone(`Requisito «${label.trim()}» guardado.`);
           }}
@@ -382,6 +402,21 @@ function RequirementModal({
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {(['VN', 'VO'] as VehicleType[]).map((t) => (
             <Checkbox key={t} checked={types.includes(t)} onToggle={() => setTypes(toggle(types, t))} label={t} />
+          ))}
+        </View>
+      </Field>
+      <Field
+        label="En qué trabajo"
+        hint="El repaso de entrega es la limpieza del día de la entrega: si le pides el checklist entero, se marca entero sin mirar."
+      >
+        <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+          {(['entrada', 'repaso'] as TipoPreparacion[]).map((t) => (
+            <Checkbox
+              key={t}
+              checked={tipos.includes(t)}
+              onToggle={() => setTipos(toggle(tipos, t))}
+              label={TIPO_PREPARACION_LABEL[t]}
+            />
           ))}
         </View>
       </Field>

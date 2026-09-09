@@ -4,7 +4,7 @@ import { campo, Btn, Field, H1, Modal, Muted, Notice, Panel, Pill, ProgressBar, 
 import { useStore, useTicker } from '@/data/store';
 import { activePreparations, deadlineOf, prepRequestsSinAbrir } from '@/data/selectors';
 import { idCreadoPor, prepElapsedMs, prepIsOverSla, prepProgress } from '@/data/commands';
-import { formatDuration, formatShortDuration, siteName, userName, vehicleName, vehicleRef } from '@/data/format';
+import { formatDate, formatDuration, formatShortDuration, siteName, userName, vehicleName, vehicleRef } from '@/data/format';
 import type { CheckState, Preparation, ServiceRequest } from '@/data/types';
 import { ScreenGuard, usePerms } from '@/features/common/Guard';
 import { DeadlineChip } from '@/features/common/DeadlineChip';
@@ -125,12 +125,18 @@ function PedidaCard({
   const vehicle = state.vehicles.find((v) => v.id === request.vehicleId);
   const plazo = deadlineOf(state, request, now);
 
+  const esRepaso = request.prepTipo === 'repaso';
+
   const empezar = () => {
     const creada = run({
       type: 'prep.create',
       vehicleId: request.vehicleId,
       siteId: request.siteId,
       preparerId: user?.id ?? null,
+      // Lo que se abre es lo que se pidió: un repaso abierto como
+      // preparación de entrada se mediría contra dos horas y le pediría al
+      // preparador el checklist entero.
+      tipo: request.prepTipo,
     });
     // El id de la preparación se deriva del id del comando, así que se
     // puede encadenar sin esperar respuesta del servidor.
@@ -155,6 +161,7 @@ function PedidaCard({
           {vehicle ? vehicleRef(vehicle) : request.vehicleId}
         </Text>
         <DeadlineChip deadline={plazo} />
+        {esRepaso ? <Pill tone="blue">Repaso de entrega</Pill> : null}
         {request.urgent ? <Pill tone="red">Urgente</Pill> : <Pill tone="amber">Sin empezar</Pill>}
       </View>
 
@@ -163,13 +170,15 @@ function PedidaCard({
       </Text>
       <UbicacionVehiculo vehicle={vehicle} esperadoEn={request.siteId} />
       <Text style={{ fontSize: campo.small, color: c.textMuted, marginTop: 4 }}>
-        Pedida por {userName(state, request.createdBy)}
+        {esRepaso
+          ? `Se entrega hoy${vehicle?.deliveryDate ? ` · ${formatDate(vehicle.deliveryDate)}` : ''}`
+          : `Pedida por ${userName(state, request.createdBy)}`}
         {request.note ? ` · ${request.note}` : ''}
       </Text>
 
       <Spacer h={space.md} />
       <Btn variant="primary" full onPress={empezar} disabled={!can('preparacion.ejecutar')}>
-        Empezar preparación
+        {esRepaso ? 'Empezar repaso' : 'Empezar preparación'}
       </Btn>
     </View>
   );
@@ -206,6 +215,7 @@ function PrepCard({ prep, onOpen }: { prep: Preparation; onOpen: () => void }) {
           {vehicle ? vehicleRef(vehicle) : prep.vehicleId}
         </Text>
         {plazo ? <DeadlineChip deadline={plazo} /> : null}
+        {prep.tipo === 'repaso' ? <Pill tone="blue">Repaso</Pill> : null}
         {prep.runState === 'bloqueado' ? <Pill tone="red">Bloqueado</Pill> : null}
         {enCurso ? <Pill tone="ok">En curso</Pill> : null}
       </View>

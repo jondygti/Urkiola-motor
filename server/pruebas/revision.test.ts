@@ -708,3 +708,108 @@ test('corregir el papeleo de un coche entregado no lo devuelve a la flota', () =
   assert.equal(despues.logisticActive, false);
   assert.deepEqual(revisar(s), []);
 });
+
+/* ═════════ 10 · El repaso de entrega de las flotas de renting ═════════ */
+
+/** Un coche listo, aparcado en una sede que prepara y que se entrega hoy. */
+function listoParaHoy(dia: string) {
+  let s = buildSeedState();
+  const v = s.vehicles.find((x) => x.logisticActive && x.location?.siteId === 'leioa')!;
+  s = {
+    ...s,
+    vehicles: s.vehicles.map((x) =>
+      x.id === v.id ? { ...x, status: 'apto_entrega' as const, deliveryDate: `${dia}T11:00:00.000Z` } : x
+    ),
+    // Sin nada pedido ni abierto encima, que es lo que mira el barrido.
+    requests: s.requests.filter((r) => r.vehicleId !== v.id),
+    preparations: s.preparations.filter((p) => p.vehicleId !== v.id),
+  };
+  return { estado: s, vehiculo: v };
+}
+
+test('el día de la entrega, el reloj pone el repaso en la cola del preparador', () => {
+  // Una flota de renting son cuarenta coches: pedir el repaso a mano de uno
+  // en uno no lo hace nadie, y sin repaso el coche se entrega con tres meses
+  // de polvo de la azotea encima.
+  const dia = '2026-09-09';
+  const { estado, vehiculo } = listoParaHoy(dia);
+  const s = applyCommand(estado, orden({ type: 'alerts.sweep', at: `${dia}T07:30:00.000Z` }));
+
+  const repaso = s.requests.find((r) => r.vehicleId === vehiculo.id && r.type === 'preparacion');
+  assert.ok(repaso, 'tenía que aparecer el repaso');
+  assert.equal(repaso.prepTipo, 'repaso');
+  assert.equal(repaso.status, 'solicitada');
+  assert.deepEqual(revisar(s), []);
+});
+
+test('no lo pone antes de tiempo ni sobre lo que ya está pedido', () => {
+  // Cuarenta repasos tres días antes es trabajo que todavía no se puede
+  // hacer, y una cola así deja de mirarse.
+  const dia = '2026-09-09';
+  const { estado, vehiculo } = listoParaHoy('2026-09-12');
+  const s = applyCommand(estado, orden({ type: 'alerts.sweep', at: `${dia}T07:30:00.000Z` }));
+  assert.equal(s.requests.filter((r) => r.vehicleId === vehiculo.id).length, 0);
+});
+
+test('barrer dos veces el mismo día no duplica el repaso ni la cuenta', () => {
+  // El barrido lo lanza la app al abrirse: en una mañana se abre veinte
+  // veces. Si cada una pusiera otro repaso, el preparador vería veinte
+  // veces el mismo coche.
+  const dia = '2026-09-09';
+  const { estado, vehiculo } = listoParaHoy(dia);
+  const cmd = orden({ type: 'alerts.sweep', at: `${dia}T07:30:00.000Z` });
+
+  const una = applyCommand(estado, cmd);
+  const dos = applyCommand(una, orden({ type: 'alerts.sweep', at: `${dia}T09:10:00.000Z` }));
+
+  assert.equal(dos.requests.filter((r) => r.vehicleId === vehiculo.id).length, 1);
+  const avisos = dos.inbox.filter((n) => n.body.includes('repaso'));
+  assert.equal(avisos.length, 1, 'un aviso por sede y día, con la cuenta');
+  assert.deepEqual(revisar(dos), []);
+});
+
+test('el repaso se abre con su checklist corto y sus 30 minutos', () => {
+  // Media hora contra un objetivo de dos horas hace que todo parezca ir de
+  // maravilla y esconde las preparaciones de verdad; y pedirle catorce
+  // requisitos a quien va a pasar un trapo acaba con los catorce marcados
+  // sin mirar.
+  const dia = '2026-09-09';
+  const { estado, vehiculo } = listoParaHoy(dia);
+  let s = applyCommand(estado, orden({ type: 'alerts.sweep', at: `${dia}T07:30:00.000Z` }));
+  s = aplicar(s, { type: 'prep.create', vehicleId: vehiculo.id, siteId: 'leioa', tipo: 'repaso' });
+
+  const prep = s.preparations.find((p) => p.vehicleId === vehiculo.id && p.runState !== 'terminado')!;
+  assert.equal(prep.tipo, 'repaso');
+  assert.equal(prep.targetMs, 30 * 60_000);
+  assert.deepEqual(
+    prep.items.map((i) => i.label),
+    ['Limpieza exterior', 'Limpieza interior']
+  );
+  assert.deepEqual(revisar(s), []);
+});
+
+test('el preparador que lo abre desde su cola no tiene que acordarse del tipo', () => {
+  // La cola manda: si el comando no dice el tipo, sale de lo que se pidió.
+  // Si no, un repaso abierto de un botón se mediría contra dos horas.
+  const dia = '2026-09-09';
+  const { estado, vehiculo } = listoParaHoy(dia);
+  let s = applyCommand(estado, orden({ type: 'alerts.sweep', at: `${dia}T07:30:00.000Z` }));
+  s = aplicar(s, { type: 'prep.create', vehicleId: vehiculo.id, siteId: 'leioa' });
+
+  const prep = s.preparations.find((p) => p.vehicleId === vehiculo.id && p.runState !== 'terminado')!;
+  assert.equal(prep.tipo, 'repaso');
+  assert.equal(prep.targetMs, 30 * 60_000);
+});
+
+test('una preparación normal sigue siendo de entrada, con su checklist entero', () => {
+  let s = buildSeedState();
+  const v = s.vehicles.find(
+    (x) => x.logisticActive && x.location?.siteId === 'leioa' && !s.preparations.some((p) => p.vehicleId === x.id)
+  )!;
+  s = aplicar(s, { type: 'prep.create', vehicleId: v.id, siteId: 'leioa' });
+  const prep = s.preparations.find((p) => p.vehicleId === v.id)!;
+
+  assert.equal(prep.tipo, 'entrada');
+  assert.ok(prep.items.length > 5, `${prep.items.length} requisitos`);
+  assert.ok(!prep.items.some((i) => i.label.startsWith('Limpieza ')), 'sin los del repaso');
+});

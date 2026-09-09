@@ -71,6 +71,8 @@ const NUMEROS_DE_CONFIG = [
   'staleCheckHours',
   'transferDeadlineHours',
   'prepDeadlineHours',
+  'pickupAlertHours',
+  'repasoTargetMinutes',
 ] as const;
 
 function comprobarConfig(patch: unknown): void {
@@ -83,7 +85,7 @@ function comprobarConfig(patch: unknown): void {
     if (p[clave] === undefined) continue;
     const n = p[clave];
     if (typeof n !== 'number' || !Number.isFinite(n) || n <= 0) {
-      throw malaPeticion(`${clave} tiene que ser un número de horas mayor que cero.`);
+      throw malaPeticion(`${clave} tiene que ser un número mayor que cero.`);
     }
   }
 

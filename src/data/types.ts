@@ -209,6 +209,14 @@ export interface ServiceRequest {
   deliveredAt: ISODate | null;
   deliveredBy: Id | null;
   /**
+   * Qué trabajo se pide, en las solicitudes de preparación.
+   *
+   * El repaso de entrega lo pide el reloj el mismo día de la entrega, y el
+   * preparador tiene que ver en su cola que son treinta minutos de limpieza
+   * y no una preparación entera.
+   */
+  prepTipo?: TipoPreparacion;
+  /**
    * Por qué se entregó fuera de plazo.
    *
    * Queda registrado *que* se pasó de las 48 h, pero sin el motivo la
@@ -236,6 +244,29 @@ export interface ServiceRequest {
 }
 
 /* ---------------------------------------------------------- preparación */
+
+/**
+ * Los dos trabajos distintos que se hacen sobre un coche en el taller.
+ *
+ * - **entrada**: la preparación de siempre, cuando el coche llega.
+ * - **repaso**: el repaso de limpieza el día que se entrega al cliente.
+ *
+ * Son dos trabajos y no uno con dos duraciones. Si el repaso fuera una
+ * preparación normal se rompían dos cosas: el reloj —media hora contra un
+ * objetivo de dos horas hace que todo parezca ir de maravilla y esconde las
+ * preparaciones de verdad— y el checklist, porque pedirle catorce requisitos
+ * a quien va a pasar un trapo acaba con los catorce marcados sin mirar.
+ *
+ * Nace de las flotas de renting de Leioa: llegan muchos coches de golpe, se
+ * preparan enteros, se quedan meses en la azotea y el día de la entrega se
+ * les da un repaso por dentro y por fuera.
+ */
+export type TipoPreparacion = 'entrada' | 'repaso';
+
+export const TIPO_PREPARACION_LABEL: Record<TipoPreparacion, string> = {
+  entrada: 'Preparación',
+  repaso: 'Repaso de entrega',
+};
 
 export type PrepPhase = 'pendiente' | 'base' | 'pendiente_elementos' | 'preentrega' | 'apto_entrega';
 
@@ -283,6 +314,8 @@ export interface Preparation {
   vehicleId: Id;
   siteId: Id;
   preparerId: Id | null;
+  /** Preparación de entrada o repaso de entrega. Sin valor = entrada. */
+  tipo?: TipoPreparacion;
   phase: PrepPhase;
   runState: PrepRunState;
   items: ChecklistItem[];
@@ -571,6 +604,13 @@ export interface Requirement {
   vehicleTypes: VehicleType[];
   /** Si está vacío aplica a todas las sedes. */
   siteIds: Id[];
+  /**
+   * En qué trabajo aparece. Si está vacío, en los dos.
+   *
+   * Los diez requisitos de siempre son de la preparación de entrada; el
+   * repaso lleva los suyos, que son dos.
+   */
+  tipos?: TipoPreparacion[];
   /** false = simple check sin cronómetro (p. ej. preentrega cliente). */
   timed: boolean;
   /** Se marca "no requerido" por defecto salvo que aplique. */
@@ -630,6 +670,14 @@ export const BASE_COLUMNS: { key: string; label: string }[] = [
 export interface AdminConfig {
   /** Objetivo de preparación en minutos. */
   prepTargetMinutes: Record<VehicleType, number>;
+  /**
+   * Objetivo del repaso de entrega, en minutos.
+   *
+   * Va aparte del de la preparación porque no es el mismo trabajo: media
+   * hora de limpieza no se mide contra las dos horas de una preparación
+   * entera.
+   */
+  repasoTargetMinutes: number;
   /** Horas sin comprobación física a partir de las que se avisa. */
   staleCheckHours: number;
   /**

@@ -108,6 +108,17 @@ function buildZonesAndPositions(): { zones: Zone[]; positions: Position[] } {
     }
   }
 
+  // La azotea de Leioa: donde esperan las flotas de renting, que llegan de
+  // golpe, se preparan enteras y se quedan meses hasta que hay entrega.
+  zones.push({ id: 'leioa-azotea', siteId: 'leioa', name: 'Azotea', kind: 'parking', capacity: 40 });
+  for (let p = 1; p <= 40; p++) {
+    positions.push({
+      id: `leioa-azotea-p${String(p).padStart(2, '0')}`,
+      zoneId: 'leioa-azotea',
+      code: `A${String(p).padStart(2, '0')}`,
+    });
+  }
+
   return { zones, positions };
 }
 
@@ -316,21 +327,34 @@ function randomVin8(): string {
 
 /* ------------------------------------------------------- configuración */
 
+/**
+ * El checklist de las dos clases de trabajo.
+ *
+ * Los diez de siempre son de la preparación de entrada. El repaso de
+ * entrega lleva los suyos, que son dos: es limpiar un coche que ya está
+ * preparado, y pedirle catorce requisitos a quien va a pasar un trapo acaba
+ * con los catorce marcados sin mirar.
+ */
 const REQUIREMENTS: Requirement[] = [
-  { id: 'req-lavado', label: 'Lavado', vehicleTypes: [], siteIds: [], timed: true, optional: false, order: 1 },
-  { id: 'req-pdi', label: 'PDI', vehicleTypes: ['VN'], siteIds: [], timed: true, optional: false, order: 2 },
-  { id: 'req-combustible', label: 'Combustible', vehicleTypes: [], siteIds: [], timed: true, optional: false, order: 3 },
-  { id: 'req-fotos', label: 'Fotos', vehicleTypes: [], siteIds: [], timed: true, optional: false, order: 4 },
-  { id: 'req-alfombrillas', label: 'Alfombrillas', vehicleTypes: [], siteIds: [], timed: true, optional: false, order: 5 },
-  { id: 'req-matriculas', label: 'Matrículas', vehicleTypes: [], siteIds: [], timed: true, optional: false, order: 6 },
-  { id: 'req-baliza', label: 'Baliza', vehicleTypes: [], siteIds: [], timed: true, optional: false, order: 7 },
-  { id: 'req-kit', label: 'Kit reparapinchazos', vehicleTypes: [], siteIds: [], timed: true, optional: false, order: 8 },
-  { id: 'req-preentrega', label: 'Preentrega cliente', vehicleTypes: [], siteIds: [], timed: false, optional: false, order: 9 },
-  { id: 'req-campana', label: 'Campaña de marca', vehicleTypes: [], siteIds: [], timed: true, optional: true, order: 10 },
+  { id: 'req-lavado', label: 'Lavado', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 1 },
+  { id: 'req-pdi', label: 'PDI', vehicleTypes: ['VN'], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 2 },
+  { id: 'req-combustible', label: 'Combustible', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 3 },
+  { id: 'req-fotos', label: 'Fotos', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 4 },
+  { id: 'req-alfombrillas', label: 'Alfombrillas', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 5 },
+  { id: 'req-matriculas', label: 'Matrículas', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 6 },
+  { id: 'req-baliza', label: 'Baliza', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 7 },
+  { id: 'req-kit', label: 'Kit reparapinchazos', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 8 },
+  { id: 'req-preentrega', label: 'Preentrega cliente', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: false, optional: false, order: 9 },
+  { id: 'req-campana', label: 'Campaña de marca', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: true, order: 10 },
+  { id: 'req-repaso-ext', label: 'Limpieza exterior', vehicleTypes: [], siteIds: [], tipos: ['repaso'], timed: true, optional: false, order: 11 },
+  { id: 'req-repaso-int', label: 'Limpieza interior', vehicleTypes: [], siteIds: [], tipos: ['repaso'], timed: true, optional: false, order: 12 },
 ];
 
 export const CONFIG: AdminConfig = {
   prepTargetMinutes: { VN: 120, VO: 150 },
+  // Media hora: es limpiar por dentro y por fuera un coche que ya está
+  // preparado, no prepararlo.
+  repasoTargetMinutes: 30,
   staleCheckHours: 72,
   pickupAlertHours: 24,
   waitReasons: ['Material', 'Matrículas', 'Documentación', 'Accesorios', 'Autorización', 'Incidencia', 'Otro'],
@@ -394,6 +418,9 @@ function buildFleet(positions: Position[]): Build {
     positions.filter((p) => p.zoneId.startsWith(siteId));
 
   const used = new Set<string>();
+  // La azotea de Leioa se reserva para el renting: es donde esperan las
+  // flotas y no un parking más donde repartir el stock del día.
+  for (const p of positions) if (p.zoneId === 'leioa-azotea') used.add(p.id);
   const takePosition = (siteId: Id, preferred?: string): Position => {
     if (preferred) {
       const exact = positions.find((p) => p.id === preferred);
@@ -629,6 +656,31 @@ function buildFleet(positions: Position[]): Build {
     // dejaba de ser idéntico al de antes.
     entregado.deliveredAt = iso(Math.floor(rnd() * 180) * DAY);
     vehicles.push(entregado);
+  }
+
+  /* --- la flota de renting de la azotea de Leioa ------------------------ */
+
+  // Doce coches preparados hace tiempo, esperando arriba a que el cliente
+  // fije la entrega. Tres se entregan hoy: son los que el barrido de la
+  // mañana convierte en repasos en la cola del preparador.
+  const AZOTEA = 12;
+  for (let i = 0; i < AZOTEA; i++) {
+    const coche = makeVehicle({
+      situation: 'pedido',
+      status: 'apto_entrega',
+      location: {
+        siteId: 'leioa',
+        zoneId: 'leioa-azotea',
+        positionId: `leioa-azotea-p${String(i + 1).padStart(2, '0')}`,
+      },
+      targetSiteId: 'leioa',
+      origin: 'Flota renting',
+      lastCheckAt: iso(Math.floor(rnd() * 20) * DAY),
+    });
+    // Los tres primeros se entregan hoy; el resto, en las próximas semanas.
+    const dias = i < 3 ? 0 : 3 + Math.floor(rnd() * 40);
+    coche.deliveryDate = new Date(NOW + dias * DAY + 10 * HOUR).toISOString();
+    vehicles.push(coche);
   }
 
   /* --- fechas de entrega comprometidas ---------------------------------- */

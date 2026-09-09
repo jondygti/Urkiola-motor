@@ -49,7 +49,15 @@ export default function RequestsScreen() {
           { value: 'Preparación', label: 'Preparación' },
         ],
       },
-      render: (r) => <Cell>{r.type === 'traslado' ? '🚚 Traslado' : '🧽 Preparación'}</Cell>,
+      render: (r) => (
+        <Cell>
+          {r.type === 'traslado'
+            ? '🚚 Traslado'
+            : r.prepTipo === 'repaso'
+              ? '🧽 Repaso entrega'
+              : '🧽 Preparación'}
+        </Cell>
+      ),
     },
     {
       key: 'vehicle',
@@ -310,11 +318,17 @@ function ManageModal({
                   vehicleId: request.vehicleId,
                   siteId: request.siteId,
                   preparerId: assignedTo,
+                  tipo: request.prepTipo,
                 });
-                onDone('Preparación abierta y solicitud en curso.');
+                onDone(
+                  request.prepTipo === 'repaso'
+                    ? 'Repaso abierto y solicitud en curso.'
+                    : 'Preparación abierta y solicitud en curso.'
+                );
               }}
             >
-              🧽 Abrir preparación en {siteName(state, request.siteId)}
+              🧽 {request.prepTipo === 'repaso' ? 'Abrir repaso' : 'Abrir preparación'} en{' '}
+              {siteName(state, request.siteId)}
             </Btn>
           ) : null}
         </>

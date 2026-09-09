@@ -55,7 +55,11 @@ const TOKEN_KEY = 'urkiola.token.v1';
 // marcó. Los 154 coches ya entregados del parque guardado no lo tienen, y
 // sin fecha no se pueden contar por meses; además el estado «Entregado»
 // entra en el flujo de la ficha.
-const STATE_SCHEMA_VERSION = 18;
+// 19: la preparación tiene ahora dos clases —la de entrada y el repaso de
+// entrega de media hora—, cada una con su checklist. La configuración
+// guardada no distingue: los diez requisitos de siempre saldrían también en
+// el repaso, y no habría objetivo de tiempo para él.
+const STATE_SCHEMA_VERSION = 19;
 
 interface StoredState {
   v: number;

@@ -131,6 +131,13 @@ Cada una viene de un fallo real de este proyecto:
     visto. Por eso hay dos ayudantes y no uno: `tocarVehiculo` (operativa) y
     `apuntarEnVehiculo` (papeleo).
 
+27. **Un trabajo distinto es un trabajo distinto, no el mismo con otro
+    reloj.** El repaso de entrega y la preparación de entrada son dos
+    `TipoPreparacion`, cada uno con su objetivo y su checklist. Media hora
+    medida contra dos horas hace que todo parezca ir de maravilla y esconde
+    las preparaciones de verdad, y pedirle catorce requisitos a quien va a
+    pasar un trapo acaba con los catorce marcados sin mirar.
+
 22. **Los tamaños de letra salen de `tipografia` o de `campo`**
     (`src/ui/theme.tsx`), nunca escritos a mano. Había 222 sueltos, nueve
     valores distintos y el más usado un 11: letra pequeña para leer un móvil
@@ -156,9 +163,9 @@ npm run verify:api           # la app real contra el backend real
 |---|---|
 | `scripts/verify/estilo.mjs` | 3 comprobaciones del sistema de diseño, leyendo el código: que nadie escriba un tamaño de letra a mano, que el mínimo no baje de 11 y que las pantallas de campo usen su escala |
 | `scripts/verify/rutas.mjs` | 7 perfiles × 2 anchos × 19 pantallas = 266 cargas: que ninguna se rompe para ningún rol |
-| `scripts/verify/funciones.mjs` | 96 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
+| `scripts/verify/funciones.mjs` | 104 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
 | `scripts/verify/roles.mjs` | 79 comprobaciones: la jornada entera de cada uno de los 6 roles, y que lo que no le toca no lo ve ni lo puede tocar |
-| `server/pruebas/` | 135 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios, seguridad y las **invariantes** de los datos |
+| `server/pruebas/` | 141 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios, seguridad y las **invariantes** de los datos |
 | `server/pruebas/aleatorio.test.ts` | 10.000 comandos al azar con semilla: dispara lo que a nadie se le ocurre y comprueba las 12 invariantes después de **cada uno**. Si falla, la semilla que sale por pantalla repite la secuencia exacta |
 | `scripts/verify/backend.mjs` | 25 comprobaciones de la app compilada contra el servidor: entrar con contraseña, mover un coche y que **otro dispositivo lo vea**, subir una foto y recuperar la contraseña por correo |
 
@@ -312,6 +319,18 @@ en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
 - **«Mis coches» separa el trabajo del registro.** Las cuatro fases son
   trabajo; los entregados van a su pestaña, con la cuenta del mes. Contarlos
   entre los suyos por hacer sería enseñarle una lista que crece sola.
+- **Las flotas de renting de Leioa se repasan el día de la entrega.** Llegan
+  muchos coches de golpe, se preparan enteros y se quedan meses en la
+  **azotea** (una zona más de Leioa, con sus plazas) hasta que hay entrega.
+  Ese día se les repasa la limpieza por dentro y por fuera: **media hora**,
+  dos requisitos, y lo hace el preparador con su cola de siempre.
+  **Lo pone el reloj, no una persona**: `alerts.sweep` crea la solicitud de
+  repaso de los coches que se entregan hoy, están listos y están en una sede
+  que prepara. Una entrega de flota son cuarenta coches y a mano no lo pide
+  nadie; y se pone el mismo día y no antes, porque cuarenta repasos en la
+  cola tres días antes es trabajo que todavía no se puede hacer y una cola
+  así deja de mirarse. **Un solo aviso por sede y día con la cuenta**
+  («Leioa: hay 3 repasos de entrega para hoy»), no uno por coche.
 - **El estado «aparcado» no dice dónde.** Un coche puede estar aparcado en
   la campa de Sondika o en el parking de una concesión. Se llamaba «en
   campa» y decía una cosa que no era en cuanto salía de Sondika.
