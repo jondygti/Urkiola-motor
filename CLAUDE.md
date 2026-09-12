@@ -370,7 +370,15 @@ prerenderizado de esa pantalla y la vuelve a pintar). Se recupera solo y no
 afecta al uso, pero está ahí; `scripts/verify/backend.mjs` lo tiene
 filtrado a propósito y con el motivo escrito.
 
-Rama de trabajo: `claude/proyecto-claude-md-045aht`, que contiene todo lo
-anterior (viene de `claude/frontend-mobile-app-multiplatform-pj09ly`, que se
-quedó parada). **El repositorio no tiene rama principal**: todo el proyecto
-vive en esa rama.
+## Ramas
+
+**`main` es el proyecto.** Lo que vale es lo que hay ahí: es la rama estable
+y la que hay que mirar para saber cómo está la aplicación hoy.
+
+El trabajo de cada sesión va en su propia rama `claude/…` y se junta en
+`main` al terminar. La de la sesión en curso es
+`claude/proyecto-claude-md-045aht`.
+
+Antes no había rama principal y el proyecto entero vivía en una rama de
+trabajo, con otra vieja al lado parada: ver dos ramas y no saber cuál vale
+cuesta media hora dentro de tres meses.
