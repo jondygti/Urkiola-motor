@@ -18,6 +18,20 @@ No son dos aplicaciones: es la misma, escrita con Expo y React Native, que
 se adapta a la pantalla. En escritorio muestra el menú lateral y las tablas
 del mockup; en el móvil, barra inferior, menú deslizante y fichas.
 
+## Verlo funcionando
+
+La demostración navegable, con el parque de ejemplo y todos los perfiles:
+<https://claude.ai/code/artifact/5440986e-ca76-42a4-8723-60b62a6f202a>
+
+Se genera con `npm run build:demo` en un único fichero HTML que se abre con
+doble clic, sin servidor ni conexión.
+
+## Ramas
+
+`main` es el proyecto: la rama estable y la que hay que mirar para saber
+cómo está la aplicación hoy. El trabajo de cada sesión va en su propia rama
+`claude/…` y se junta en `main` al terminar.
+
 ## Arrancar en local
 
 ```bash
@@ -123,9 +137,9 @@ escritas una sola vez y no hay dos versiones que puedan discrepar.
 
 ```bash
 npm run typecheck     # TypeScript en modo estricto
-npm run verify        # recorre la app con un navegador: 252 cargas + 132 comprobaciones
-npm run server:test   # el backend por dentro: 79 comprobaciones
-npm run verify:api    # la app compilada contra el servidor real: 24 comprobaciones
+npm run verify        # recorre la app con un navegador: 266 cargas + 186 comprobaciones
+npm run server:test   # el backend por dentro: 141 comprobaciones + 10.000 comandos al azar
+npm run verify:api    # la app compilada contra el servidor real: 25 comprobaciones
 npm run build:web     # genera dist/ listo para publicar
 npm run icons         # regenera los iconos de assets/
 ```
@@ -201,3 +215,12 @@ Salen del mockup y se han mantenido tal cual:
   que sigue en el box cuando ya está en el parking de entregas.
 - **La plaza concreta siempre es opcional.** La zona basta para que cuadre
   la ocupación, y una plaza inventada es peor que ninguna.
+- **El coche que se lleva el cliente sale de la flota y deja su hueco.** Lo
+  marca quien vende. Es lo único que libera la plaza: un coche vendido que
+  sigue apuntado en su hueco se come la campa poco a poco, y quien baja a
+  aparcar se encuentra un sitio marcado como lleno que está vacío.
+- **Las flotas de renting se repasan el día de la entrega.** Llegan muchos
+  coches de golpe, se preparan enteros y esperan meses en la azotea de
+  Leioa. El día de la entrega se les repasa la limpieza: media hora, dos
+  requisitos, y lo pone el reloj solo en la cola del preparador —una entrega
+  de flota son cuarenta coches y a mano no lo pide nadie.
