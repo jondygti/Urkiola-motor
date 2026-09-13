@@ -1,5 +1,11 @@
 # Dónde alojar Urkiola Car Service
 
+> Documento histórico del montaje anterior. La decisión v2 vigente está en
+> [ARCHITECTURE.md](ARCHITECTURE.md): Render + Supabase PostgreSQL/Auth/Storage.
+> Los pasos de Railway y la decisión de no usar Auth que siguen no representan
+> el objetivo vigente. No se ha ejecutado una migración ni verificado aquí sus
+> precios, condiciones o afirmaciones de disponibilidad.
+
 **Decisión: Railway + Supabase.** Sustituye a la decisión anterior (un VPS
 en Arsys), que sigue documentada abajo como alternativa porque el proyecto
 no depende de ninguna de las dos.

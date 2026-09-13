@@ -1,5 +1,18 @@
 # Urkiola Car Service
 
+## Decisiones vigentes · instrucciones v2
+
+Arquitectura objetivo: Render para la API y Supabase para PostgreSQL, Auth
+y Storage, conservando Expo/React Native y Android en Google Play. Preparar
+el diseño para empresas aisladas; la implementación actual aún no es SaaS.
+
+- [Arquitectura y diferencias con el código](docs/ARCHITECTURE.md)
+- [Android y Google Play](docs/MOBILE_ANDROID.md)
+- [Hoja de ruta y criterios de validación](docs/ROADMAP.md)
+
+Estas decisiones sustituyen las recomendaciones anteriores de Railway y
+autenticación propia como destino final. No se ha migrado ni desplegado.
+
 Aplicación de gestión logística de flota para Urkiola Car Service, hecha a
 partir del mockup `Urkiola_Car_Service_V18_ABRIBLE.html`.
 

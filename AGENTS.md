@@ -1,5 +1,11 @@
 # Urkiola Motor
 
+Las instrucciones v2 de Jon están recogidas en `docs/ARCHITECTURE.md`,
+`docs/MOBILE_ANDROID.md` y `docs/ROADMAP.md`. Prevalecen sobre las decisiones
+anteriores de proveedores: objetivo Render + Supabase PostgreSQL/Auth/Storage,
+Android en Google Play y preparación para multiempresa. Documentar primero;
+no ejecutar migraciones, contratar ni desplegar por esta decisión documental.
+
 Lee `CLAUDE.md` antes de modificar el proyecto. Contiene las decisiones de
 Jon y las reglas de negocio de la aplicación; su nombre procede del
 desarrollo anterior y no exige usar una herramienta concreta.
