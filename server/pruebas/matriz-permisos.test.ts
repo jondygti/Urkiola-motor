@@ -270,7 +270,12 @@ test('cada rol puede exactamente lo que debe', () => {
         userId: user.id,
       } as Command;
 
-      const rechazo = comprobarPermiso(estado, user, cmd);
+      // La matriz comprueba el permiso del rol sobre una entrega propia.
+      // La denegación sobre coches ajenos se comprueba por separado.
+      const escenario = (tipo === 'vehicle.deliver' || tipo === 'vehicle.setDelivery') && rol === 'comercial'
+        ? { ...estado, vehicles: estado.vehicles.map((v) => v.id === (cmd as { vehicleId: string }).vehicleId ? { ...v, salesRep: user.name } : v) }
+        : estado;
+      const rechazo = comprobarPermiso(escenario, user, cmd);
       const deberia = PUEDEN[tipo]!.includes(rol);
       const puede = rechazo === null;
 

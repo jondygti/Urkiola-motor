@@ -172,7 +172,11 @@ export class Servicio {
         this.estadoActual = { ...this.estadoActual, users: [...this.estadoActual.users, admin] };
         await this.almacen.guardarFoto(this.estadoActual);
       }
-      await this.guardarCredencial(admin.id, admin.email, config.adminPassword);
+      // La variable crea el primer acceso; un reinicio no debe deshacer
+      // una contraseña que el administrador haya cambiado después.
+      if (!(await this.almacen.credencialPorUsuario(admin.id))) {
+        await this.guardarCredencial(admin.id, admin.email, config.adminPassword);
+      }
       console.log(`Administrador listo: ${admin.email}`);
       return;
     }
@@ -227,10 +231,8 @@ export class Servicio {
       throw demasiadosIntentos('Demasiados intentos. Prueba dentro de un rato.');
     }
 
-    const credencial = await this.almacen.credencialPorEmail(clave);
-    const user = credencial
-      ? this.estadoActual.users.find((u) => u.id === credencial.userId)
-      : undefined;
+    const user = this.estadoActual.users.find((u) => u.email.trim().toLowerCase() === clave);
+    const credencial = user ? await this.almacen.credencialPorUsuario(user.id) : undefined;
 
     // La comprobación se hace SIEMPRE, exista el correo o no. Si solo se
     // hiciera cuando existe, contestar antes o después diría cuáles existen:
@@ -326,6 +328,14 @@ export class Servicio {
     }
   }
 
+  /** El reloj del servidor funciona aunque todos los móviles estén cerrados. */
+  async barrerAvisos(at = new Date().toISOString()): Promise<void> {
+    const persona = this.estadoActual.users.find((u) => u.active &&
+      !esColaboradorExterno(this.estadoActual, u));
+    if (!persona) return;
+    await this.ejecutar({ type: 'alerts.sweep', id: `reloj-${at.slice(0, 16)}`, at, userId: persona.id }, persona);
+  }
+
   private async ejecutarEnSerie(cuerpo: unknown, user: User): Promise<{ repetido: boolean }> {
     const cmd: Command = validarComando(cuerpo, user.id);
 
@@ -334,6 +344,15 @@ export class Servicio {
 
     const motivo = comprobarPermiso(this.estadoActual, user, cmd);
     if (motivo) throw sinPermiso(motivo);
+
+    if (cmd.type === 'user.upsert') {
+      const correo = cmd.user.email?.trim().toLowerCase();
+      if (!correo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) throw malaPeticion('Revisa el correo del usuario.');
+      if (this.estadoActual.users.some((u) => u.id !== cmd.user.id && u.email.trim().toLowerCase() === correo)) {
+        throw malaPeticion('Ya hay un usuario con ese correo.');
+      }
+      if (!this.estadoActual.config.roles.some((r) => r.id === cmd.user.role)) throw malaPeticion('Ese rol no existe.');
+    }
 
     const antes = this.estadoActual;
     const despues = applyCommand(antes, cmd);
@@ -375,11 +394,10 @@ export class Servicio {
     if (bloqueado(`enlace:${clave}`)) return;
     anotarFallo(`enlace:${clave}`);
 
-    const credencial = await this.almacen.credencialPorEmail(clave);
-    const user = credencial
-      ? this.estadoActual.users.find((u) => u.id === credencial.userId)
-      : undefined;
-    if (!credencial || !user || !user.active) return;
+    // También sirve para el primer acceso: el alta del usuario no guarda
+    // contraseñas en el histórico de comandos ni exige una ya existente.
+    const user = this.estadoActual.users.find((u) => u.email.trim().toLowerCase() === clave);
+    if (!user || !user.active) return;
 
     const codigo = randomBytes(32).toString('base64url');
     await this.almacen.guardarEnlace({

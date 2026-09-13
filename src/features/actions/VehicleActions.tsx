@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Image, View } from 'react-native';
 import { Btn, Checkbox, Field, Input, Modal, Muted, Notice, Select, Toolbar, radius, space, useTheme } from '@/ui';
 import { useStore } from '@/data/store';
-import { activeCarriers, can, suggestCarrier } from '@/data/selectors';
+import { activeCarriers, can, suggestCarrier, puedeGestionarEntrega } from '@/data/selectors';
 import { DateField } from '@/features/common/DateField';
 import { CampoFotos } from './CampoFotos';
 import { locationLabel, vehicleTitle } from '@/data/format';
@@ -217,7 +217,8 @@ export function RequestModal({
   onClose: () => void;
   onDone?: (m: string) => void;
 }) {
-  const { state, run } = useStore();
+  const { state, user, run } = useStore();
+  const puedeFijarEntrega = puedeGestionarEntrega(state, user, vehicle);
   const prepSites = state.sites.filter((s) => s.prepares);
   const [siteId, setSiteId] = useState(vehicle.targetSiteId ?? prepSites[0].id);
   const [urgent, setUrgent] = useState(false);
@@ -249,7 +250,7 @@ export function RequestModal({
       return;
     }
 
-    if (type === 'preparacion' && deliveryDate !== (vehicle.deliveryDate ?? null)) {
+    if (type === 'preparacion' && puedeFijarEntrega && deliveryDate !== (vehicle.deliveryDate ?? null)) {
       run({ type: 'vehicle.setDelivery', vehicleId: vehicle.id, deliveryDate });
     }
 
@@ -326,7 +327,7 @@ export function RequestModal({
         </Field>
       ) : null}
 
-      {type === 'preparacion' ? (
+      {type === 'preparacion' && puedeFijarEntrega ? (
         <Field
           label="Fecha de entrega al cliente"
           hint={`Si la sabes, ponla: el plazo pasa a ser esa fecha. Urkiola pide ${state.config.prepDeadlineHours} h de margen como mínimo.`}

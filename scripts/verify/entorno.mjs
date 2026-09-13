@@ -114,7 +114,10 @@ export async function pulsar(page, texto, { exact = false, primero = false } = {
 /** Lo que la app ha guardado en el dispositivo, para comprobar el resultado. */
 export const estadoGuardado = (page) =>
   page.evaluate(() => {
-    const raw = localStorage.getItem('urkiola.state.v1');
+    const sessionKey = Object.keys(localStorage).find((k) => k.startsWith('urkiola.api.') && k.endsWith('.session'));
+    const user = sessionKey ? JSON.parse(localStorage.getItem(sessionKey)) : null;
+    const stateKey = user ? `${sessionKey.slice(0, -'.session'.length)}.user.${encodeURIComponent(user.id)}.state` : 'urkiola.state.v1';
+    const raw = localStorage.getItem(stateKey);
     return raw ? JSON.parse(raw).state : null;
   });
 

@@ -10,7 +10,7 @@
  */
 import type { AppState, Id, Permission, User } from '../../src/data/types';
 import type { Command } from '../../src/data/commands';
-import { can, esDelComercial, isSimpleRole } from '../../src/data/selectors';
+import { can, esDelComercial, isSimpleRole, puedeGestionarEntrega } from '../../src/data/selectors';
 
 /** Dos formas de escribir el mismo nombre: «Juan» y «Juan Bilbao». */
 function mismoNombre(a: string, b: string): boolean {
@@ -251,13 +251,10 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
         : 'No puedes dar de alta vehículos.';
 
     case 'vehicle.deliver':
-      // Entregar al cliente lo hace quien lleva la entrega: el comercial que
-      // lo vendió o la oficina. Es la misma decisión que fijar la fecha.
-      if (!tiene(s, u, 'entregas.gestionar')) return 'No puedes dar un vehículo por entregado.';
-      return null;
-
-    case 'vehicle.setDelivery':
-      return tiene(s, u, 'entregas.gestionar') ? null : 'No puedes fijar fechas de entrega.';
+    case 'vehicle.setDelivery': {
+      const v = s.vehicles.find((x) => x.id === cmd.vehicleId);
+      return v && puedeGestionarEntrega(s, u, v) ? null : 'No puedes gestionar la entrega de este vehículo.';
+    }
 
     // La bandeja es de cada uno: leerla no necesita permiso.
     case 'alerts.sweep':

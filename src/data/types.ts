@@ -106,6 +106,8 @@ export interface Vehicle {
   /** false = está en el parque de Quiter pero sin actividad logística. */
   logisticActive: boolean;
   location: LocationRef | null;
+  /** Fecha de la última observación que cambió o dejó sin confirmar la ubicación. */
+  locationObservedAt?: ISODate | null;
   /** Sede a la que debe ir (destino operativo). */
   targetSiteId: Id | null;
   status: VehicleStatus;
@@ -461,6 +463,8 @@ export interface NotificationEvent {
   body: string;
   at: ISODate;
   read: boolean;
+  /** Lectura individual. `read` se conserva para las versiones antiguas. */
+  readBy?: Id[];
   tone: 'info' | 'warn' | 'danger';
 }
 

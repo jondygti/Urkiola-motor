@@ -243,10 +243,10 @@ try {
     await olvido.waitForTimeout(200);
     ok(
       '7 · la pantalla de acceso ofrece recuperar la contraseña',
-      await olvido.getByText('He olvidado mi contraseña', { exact: false }).first().isVisible()
+      await olvido.getByText('Primer acceso o nueva contraseña', { exact: false }).first().isVisible()
     );
 
-    await olvido.getByText('He olvidado mi contraseña', { exact: false }).first().click();
+    await olvido.getByText('Primer acceso o nueva contraseña', { exact: false }).first().click();
     await olvido.waitForTimeout(1500);
     ok(
       '7 · y no dice si ese correo existe o no',

@@ -512,6 +512,11 @@ function trasladoEntregado(hRecoge: number, hEntrega: number) {
   let s = buildSeedState();
   const v = s.vehicles.find((x) => x.location?.siteId === 'sondika')!;
   const hace = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
+  // Este escenario empieza antes de la recogida. La semilla contiene
+  // comprobaciones recientes que no pertenecen a este viaje histórico.
+  s = { ...s, vehicles: s.vehicles.map((x) => x.id === v.id
+    ? { ...x, lastCheckAt: hace(hRecoge + 2), lastMovementAt: null, locationObservedAt: null, deliveredAt: null }
+    : x) };
 
   s = applyCommand(s, {
     ...orden({

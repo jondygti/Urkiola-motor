@@ -60,6 +60,11 @@ async function main() {
   const servicio = await Servicio.crear(almacen, config, fotos, correo);
   const servidor = crearServidor(servicio, config);
 
+  const barrer = () => { void servicio.barrerAvisos().catch((e) => console.error('No se han podido revisar los avisos:', e)); };
+  barrer();
+  const reloj = setInterval(barrer, 60_000);
+  reloj.unref();
+
   servidor.listen(config.puerto, () => {
     console.log(`Urkiola Car Service · API escuchando en el puerto ${config.puerto}`);
   });
@@ -69,6 +74,7 @@ async function main() {
   // o la instancia nueva se queda esperando.
   const apagar = async (senal: string) => {
     console.log(`${senal}: cerrando…`);
+    clearInterval(reloj);
     servidor.close();
     await servicio.cerrar();
     process.exit(0);

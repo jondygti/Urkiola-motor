@@ -40,6 +40,7 @@ import type {
 } from './types';
 import { REQUEST_STATUS_LABEL } from './types';
 import { CONFIG } from './seed';
+import { avisoPara } from './selectors';
 import { locationLabel, siteName, userName, vehicleTitle } from './format';
 
 /* ------------------------------------------------------------- comandos */
@@ -353,7 +354,7 @@ function addInbox(
   ev: Omit<NotificationEvent, 'id' | 'read'>,
   sufijo?: string
 ): AppState {
-  const item: NotificationEvent = { id: sufijo ?? derivado('nev'), read: false, ...ev };
+  const item: NotificationEvent = { id: sufijo ?? derivado('nev'), read: false, readBy: [], ...ev };
   if (yaCreado(state.inbox, item.id)) return state;
   return { ...state, inbox: [item, ...state.inbox].slice(0, 500) };
 }
@@ -441,6 +442,31 @@ function fireRules(
  * Es la misma idea de la regla de las plazas: mejor «en esta zona, plaza sin
  * confirmar» que una plaza concreta que es mentira.
  */
+function fechaDeUbicacion(v: Vehicle): number {
+  return Math.max(0, ...[v.locationObservedAt, v.lastCheckAt, v.lastMovementAt, v.deliveredAt]
+    .map((fecha) => fecha ? Date.parse(fecha) || 0 : 0));
+}
+
+function observacionAtrasada(v: Vehicle, cmd: Command): boolean {
+  return Date.parse(cmd.at) < fechaDeUbicacion(v);
+}
+
+/** Una observación antigua tampoco puede quitarle la plaza a otro coche
+ * comprobado después. Se conserva la zona, con la plaza sin confirmar. */
+function ubicacionObservable(state: AppState, lugar: LocationRef | null, vehicleId: Id, cmd: Command): LocationRef | null {
+  if (!lugar?.positionId) return lugar;
+  const ocupacionPosterior = state.vehicles.some((v) => v.id !== vehicleId &&
+    v.location?.positionId === lugar.positionId && observacionAtrasada(v, cmd));
+  return ocupacionPosterior ? { ...lugar, positionId: undefined } : lugar;
+}
+
+function anotarObservacionAntigua(state: AppState, vehicleId: Id, cmd: Command, detail: string): AppState {
+  return addEvent(state, {
+    vehicleId, kind: 'movimiento', title: 'Observación anterior recibida con retraso',
+    detail: `${detail}. Se conserva la ubicación comprobada después.`, at: cmd.at, userId: cmd.userId,
+  });
+}
+
 function liberarPlaza(state: AppState, positionId: Id | undefined | null, salvo: Id, cmd: Command): AppState {
   if (!positionId) return state;
   const ocupantes = state.vehicles.filter(
@@ -454,6 +480,7 @@ function liberarPlaza(state: AppState, positionId: Id | undefined | null, salvo:
       ...next,
       vehicles: replace(next.vehicles, otro.id, {
         location: { siteId: otro.location!.siteId, zoneId: otro.location!.zoneId, positionId: undefined },
+        locationObservedAt: cmd.at,
       }),
     };
     next = addEvent(next, {
@@ -660,12 +687,13 @@ function aplicar(state: AppState, cmd: Command): AppState {
     /* ------------------------------------------------ comprobación física */
     case 'vehicle.check': {
       if (!vehicle) return state;
+      if (observacionAtrasada(vehicle, cmd)) return anotarObservacionAntigua(state, vehicle.id, cmd, 'Comprobación física');
       // La sede y la zona salen de la plaza, no de donde teníamos apuntado
       // el coche: antes se mezclaban las dos y salía «Sondika · zona de
       // Anoeta». Una plaza que no existe no mueve el coche a ningún sitio.
-      const location: LocationRef | null = cmd.positionId
+      const location = ubicacionObservable(state, cmd.positionId
         ? (ubicacionDePlaza(state, cmd.positionId) ?? vehicle.location)
-        : vehicle.location;
+        : vehicle.location, vehicle.id, cmd);
 
       // Comprobar un coche en una plaza es una observación física: si está
       // aquí, el que teníamos apuntado en esta plaza ya no está.
@@ -674,6 +702,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
         lastCheckAt: cmd.at,
         lastCheckBy: userName(state, cmd.userId),
         location,
+        locationObservedAt: cmd.at,
       });
       return addEvent(next, {
         vehicleId: cmd.vehicleId,
@@ -690,18 +719,23 @@ function aplicar(state: AppState, cmd: Command): AppState {
       if (!vehicle) return state;
       if (yaCreado(state.movements, unico('mov', cmd))) return state;
       // Mover un coche a una sede que no existe no es mover un coche.
-      const destino = normalizarUbicacion(state, cmd.to);
+      const observado = normalizarUbicacion(state, cmd.to);
+      const destino = ubicacionObservable(state, observado, vehicle.id, cmd);
       if (!destino) return state;
       const movement: Movement = {
         id: unico('mov', cmd),
         vehicleId: cmd.vehicleId,
         from: vehicle.location,
-        to: destino,
+        to: observado!,
         userId: cmd.userId,
         at: cmd.at,
         status: 'completado',
         note: cmd.note,
       };
+      if (observacionAtrasada(vehicle, cmd)) {
+        return anotarObservacionAntigua({ ...state, movements: [movement, ...state.movements] }, vehicle.id, cmd,
+          `Movimiento a ${locationLabel(state, observado)}`);
+      }
       const changedSite = vehicle.location?.siteId !== destino.siteId;
 
       // Al cambiar de sede el coche queda aparcado a la espera, llegue a su
@@ -717,6 +751,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
         ...next,
         vehicles: replace(next.vehicles, cmd.vehicleId, {
           location: destino,
+          locationObservedAt: cmd.at,
           lastMovementAt: cmd.at,
           lastCheckAt: cmd.at,
           lastCheckBy: userName(state, cmd.userId),
@@ -1178,18 +1213,23 @@ function aplicar(state: AppState, cmd: Command): AppState {
         positionId: cmd.positionId ?? expectedPos,
         misplaced: !!cmd.positionId && !!expectedPos && cmd.positionId !== expectedPos,
       };
+      if (observacionAtrasada(v, cmd)) {
+        return anotarObservacionAntigua({ ...state,
+          counts: replace(state.counts, count.id, { found: [...count.found, found] }),
+        }, v.id, cmd, `Comprobado en recuento ${count.code}`);
+      }
       // Igual que en la comprobación suelta: manda la plaza. Antes se
       // mezclaba la sede del recuento con la zona de la plaza y podía salir
       // una ubicación que no existe en ningún sitio.
-      const location: LocationRef | null = cmd.positionId
+      const location = ubicacionObservable(state, cmd.positionId
         ? (ubicacionDePlaza(state, cmd.positionId) ?? v.location)
-        : v.location;
+        : v.location, v.id, cmd);
 
       // El recuento es una observación física: si el coche está aquí, el que
       // teníamos apuntado en esta plaza ya no está.
       const base = liberarPlaza(
         tocarVehiculo(state, cmd.vehicleId, { location }),
-        cmd.positionId,
+        location?.positionId,
         cmd.vehicleId,
         cmd
       );
@@ -1200,6 +1240,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
           lastCheckAt: cmd.at,
           lastCheckBy: userName(state, cmd.userId),
           location,
+          locationObservedAt: cmd.at,
         }),
       };
       return addEvent(next, {
@@ -1378,9 +1419,22 @@ function aplicar(state: AppState, cmd: Command): AppState {
     }
 
     case 'inbox.read':
-      return { ...state, inbox: replace(state.inbox, cmd.eventId, { read: true }) };
-    case 'inbox.readAll':
-      return { ...state, inbox: state.inbox.map((n) => ({ ...n, read: true })) };
+    case 'inbox.readAll': {
+      const quien = state.users.find((u) => u.id === cmd.userId);
+      if (!quien) return state;
+      return {
+        ...state,
+        inbox: state.inbox.map((n) => {
+          if (cmd.type === 'inbox.read' && n.id !== cmd.eventId) return n;
+          if (!avisoPara(state, n, quien)) return n;
+          // Los avisos antiguos ya leídos mantienen su estado. No se puede
+          // deducir quién los leyó; las lecturas nuevas sí son individuales.
+          if (n.readBy === undefined && n.read) return n;
+          const anteriores = n.readBy ?? [];
+          return anteriores.includes(quien.id) ? n : { ...n, readBy: [...anteriores, quien.id] };
+        }),
+      };
+    }
 
     /* ----------------------------------------------------------- recepción */
     case 'reception.create': {
@@ -1421,14 +1475,17 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
       // Al descargar y asignar plaza, el vehículo entra en campa.
       if (matched && line.unloaded && line.positionId) {
+        const coche = state.vehicles.find((v) => v.id === matched)!;
+        if (observacionAtrasada(coche, cmd)) return anotarObservacionAntigua(next, matched, cmd, `Descarga del camión ${rec.truckPlate}`);
         // La plaza manda sobre la sede del albarán: si el operario descarga
         // en una plaza de otra campa, el coche está donde está la plaza.
-        const donde = normalizarUbicacion(state, { siteId: rec.siteId, positionId: line.positionId });
+        const donde = ubicacionObservable(state, normalizarUbicacion(state, { siteId: rec.siteId, positionId: line.positionId }), matched, cmd);
         next = liberarPlaza(activate(next, matched), donde?.positionId, matched, cmd);
         next = {
           ...next,
           vehicles: replace(next.vehicles, matched, {
             location: donde,
+            locationObservedAt: cmd.at,
             status: 'aparcado',
             receivedAt: cmd.at,
             lastCheckAt: cmd.at,
@@ -1711,6 +1768,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
     case 'vehicle.deliver': {
       if (!vehicle) return state;
+      if (observacionAtrasada(vehicle, cmd)) return anotarObservacionAntigua(state, vehicle.id, cmd, 'Entrega al cliente');
       // Repetirlo no vuelve a entregarlo ni duplica el apunte.
       if (vehicle.status === 'entregado' && !vehicle.logisticActive) return state;
 
@@ -1724,6 +1782,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
           status: 'entregado',
           logisticActive: false,
           location: null,
+          locationObservedAt: cmd.at,
           targetSiteId: null,
           // Con `cmd.at`, no con la hora de ahora: el comercial que entrega
           // en el parking sin cobertura marca la entrega cuando ocurre, y
@@ -1836,7 +1895,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
         return { ...state, vehicles: replace(state.vehicles, existente.id, relleno) };
       }
 
-      const donde = normalizarUbicacion(state, cmd.location);
+      const donde = ubicacionObservable(state, normalizarUbicacion(state, cmd.location), id, cmd);
 
       const vehicle: Vehicle = {
         id,
@@ -1853,6 +1912,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
         origin: cmd.origin?.trim() || 'Alta manual',
         logisticActive: true,
         location: donde,
+        locationObservedAt: cmd.at,
         targetSiteId: null,
         status: donde ? 'aparcado' : 'recepcionado',
         lastCheckAt: cmd.at,

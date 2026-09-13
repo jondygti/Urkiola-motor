@@ -8,6 +8,7 @@ import {
   incidentsFor,
   movementsFor,
   preparationFor,
+  puedeGestionarEntrega,
   requestsFor,
   vehicleById,
   vehicleByRef,
@@ -36,7 +37,7 @@ import { IncidentStatusPill, SituationPill, TypePill, RequestStatusPill } from '
 export default function VehicleScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const state = useAppState();
-  const { run } = useStore();
+  const { run, user } = useStore();
   const router = useRouter();
   const { c } = useTheme();
   const { can, canAny } = usePerms();
@@ -184,7 +185,7 @@ export default function VehicleScreen() {
           </Panel>
 
           <Panel title="📅 Entrega al cliente">
-            {can('entregas.gestionar') ? (
+            {puedeGestionarEntrega(state, user, vehicle) ? (
               <>
                 <DateField
                   value={vehicle.deliveryDate ?? null}

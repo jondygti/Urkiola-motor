@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "verify": "node scripts/verify/run.mjs",
     "verify:api": "node scripts/verify/backend.mjs",
+    "test:sync": "npm --prefix server run build && node --test scripts/verify/sincronizacion.test.mjs",
     "server": "npm --prefix server run dev",
     "server:test": "npm --prefix server test",
     "lint": "expo lint",
@@ -46,6 +47,7 @@
   "devDependencies": {
     "@types/node": "^26.2.0",
     "@types/react": "~19.2.2",
+    "react-test-renderer": "19.2.3",
     "typescript": "~6.0.3"
   }
 }

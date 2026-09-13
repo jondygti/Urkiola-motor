@@ -74,8 +74,23 @@ export const staleVehicles = (s: AppState): Vehicle[] =>
  */
 export function bandejaDe(s: AppState, user: User | null): NotificationEvent[] {
   if (!user) return [];
-  return s.inbox.filter((n) => !n.userIds || n.userIds.length === 0 || n.userIds.includes(user.id));
+  return s.inbox
+    .filter((n) => avisoPara(s, n, user))
+    .map((n) => ({ ...n, read: avisoLeido(n, user.id) }));
 }
+
+/** La escritura de una lectura respeta el mismo destinatario que la bandeja. */
+export function avisoPara(s: AppState, n: NotificationEvent, user: User): boolean {
+  if (n.userIds?.length && !n.userIds.includes(user.id)) return false;
+  if (!isSimpleRole(s, user)) return true;
+  return !!n.vehicleId && s.requests.some((r) =>
+    r.type === 'traslado' && r.vehicleId === n.vehicleId &&
+    (r.assignedTo === user.id || (!!user.carrierId && r.carrierId === user.carrierId))
+  );
+}
+
+export const avisoLeido = (n: NotificationEvent, userId: Id): boolean =>
+  n.readBy === undefined ? n.read : n.readBy.includes(userId);
 
 export const unreadCount = (s: AppState, user?: User | null): number =>
   (user === undefined ? s.inbox : bandejaDe(s, user)).filter((n) => !n.read).length;
@@ -840,6 +855,12 @@ export function esDelComercial(v: Vehicle, user: User | null): boolean {
 
 export function sedeDeEntrega(v: Vehicle): Id | null {
   return v.targetSiteId ?? v.location?.siteId ?? null;
+}
+
+/** La oficina gestiona la red; el comercial gestiona sus propias entregas. */
+export function puedeGestionarEntrega(s: AppState, user: User | null, v: Vehicle): boolean {
+  return can(s, user, 'entregas.gestionar') &&
+    (can(s, user, 'flota.editar') || esDelComercial(v, user));
 }
 
 export function upcomingDeliveries(s: AppState, days = 14): Vehicle[] {

@@ -75,6 +75,15 @@ export class AlmacenFichero implements Almacen {
   }
 
   async anotarComando(cmd: Command, estado: AppState, guardarFoto: boolean) {
+    if (cmd.type === 'user.upsert') {
+      const credencial = this.datos.credenciales.find((c) => c.userId === cmd.user.id);
+      if (credencial && credencial.email !== cmd.user.email) {
+        credencial.email = cmd.user.email;
+      }
+      // Incluye las altas que aún no tienen contraseña: un enlace enviado
+      // antes de corregir sus datos ya no debe abrir esa cuenta.
+      this.datos.enlaces = this.datos.enlaces.filter((e) => e.userId !== cmd.user.id);
+    }
     this.aplicados.add(cmd.id);
     if (guardarFoto) {
       this.datos.estado = estado;

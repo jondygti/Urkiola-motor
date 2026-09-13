@@ -9,7 +9,7 @@ import { api } from '@/data/api';
 
 export default function LoginScreen() {
   const { c } = useTheme();
-  const { state, user, login, mode, ready } = useStore();
+  const { state, user, login, mode, ready, sync } = useStore();
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -76,9 +76,9 @@ export default function LoginScreen() {
               </Field>
             ) : null}
 
-            {error ? (
+            {error || sync.error ? (
               <View style={{ backgroundColor: c.noticeDangerBg, borderRadius: radius.md, padding: 10, marginBottom: space.sm }}>
-                <Text style={{ color: c.redFg, fontSize: tipografia.small }}>{error}</Text>
+                <Text style={{ color: c.redFg, fontSize: tipografia.small }}>{error ?? sync.error}</Text>
               </View>
             ) : null}
 
@@ -99,13 +99,15 @@ export default function LoginScreen() {
                     setError(null);
                     // La respuesta es la misma exista el correo o no: decir
                     // cuáles existen sería regalar la lista del personal.
-                    await api.olvidada(email.trim()).catch(() => undefined);
-                    setOlvidada(
-                      'Si ese correo está dado de alta, en un momento llega un enlace para poner una contraseña nueva. Vale una hora.'
-                    );
+                    try {
+                      const respuesta = await api.olvidada(email.trim());
+                      setOlvidada(respuesta.mensaje);
+                    } catch {
+                      setError('No se ha podido pedir el enlace. Comprueba la conexión y vuelve a intentarlo.');
+                    }
                   }}
                 >
-                  He olvidado mi contraseña
+                  Primer acceso o nueva contraseña
                 </Btn>
                 {olvidada ? (
                   <>

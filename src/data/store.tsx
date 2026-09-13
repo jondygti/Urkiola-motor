@@ -3,7 +3,7 @@ import NetInfo from '@react-native-community/netinfo';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState as RNAppState } from 'react-native';
 import { applyAll, applyCommand, newId, type Command, type CommandInput } from './commands';
-import { ApiError, api, apiEnabled, setAuthToken } from './api';
+import { API_URL, ApiError, api, apiEnabled, haySesion, setAuthToken } from './api';
 import { buildSeedState } from './seed';
 import { registerForPush } from './push';
 import { isSimpleRole } from './selectors';
@@ -59,14 +59,15 @@ const TOKEN_KEY = 'urkiola.token.v1';
 // entrega de media hora—, cada una con su checklist. La configuración
 // guardada no distingue: los diez requisitos de siempre saldrían también en
 // el repaso, y no habría objetivo de tiempo para él.
-const STATE_SCHEMA_VERSION = 19;
+// 20: lecturas por usuario y caché/cola separadas por servidor y cuenta.
+const STATE_SCHEMA_VERSION = 20;
 
 interface StoredState {
   v: number;
   state: AppState;
 }
 
-/** Cada cuánto se reintenta la subida mientras haya pendientes. */
+/** Cada cuánto se intercambian cambios, aunque no haya trabajo pendiente. */
 const RETRY_MS = 30_000;
 
 type Mode = 'demo' | 'api';
@@ -123,363 +124,364 @@ interface StoreValue {
 
 const StoreContext = createContext<StoreValue | null>(null);
 
+/** Cada servidor y cada persona conservan su propio trabajo. */
+const SERVIDOR_KEY = `urkiola.api.${encodeURIComponent(API_URL)}`;
+const API_SESSION_KEY = `${SERVIDOR_KEY}.session`;
+const API_TOKEN_KEY = `${SERVIDOR_KEY}.token`;
+const clavesDe = (id: Id) => ({
+  estado: `${SERVIDOR_KEY}.user.${encodeURIComponent(id)}.state`,
+  trabajo: `${SERVIDOR_KEY}.user.${encodeURIComponent(id)}.work`,
+});
+interface TrabajoGuardado { queue: Command[]; rejected: RejectedCommand[] }
+
+/** Con API no se enseña un parque inventado mientras llegan los datos. */
+function estadoInicial(): AppState {
+  const s = buildSeedState();
+  return apiEnabled ? {
+    ...s, users: [], vehicles: [], movements: [], requests: [], preparations: [],
+    counts: [], incidents: [], rules: [], inbox: [], receptions: [], events: [],
+  } : s;
+}
+
 export function StoreProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<AppState>(() => buildSeedState());
+  const [state, setState] = useState<AppState>(estadoInicial);
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
   const [queue, setQueue] = useState<Command[]>([]);
+  const [rejected, setRejected] = useState<RejectedCommand[]>([]);
   const [online, setOnline] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [rejected, setRejected] = useState<RejectedCommand[]>([]);
 
-  const mode: Mode = apiEnabled ? 'api' : 'demo';
-
-  /* Espejos en refs: los usan los temporizadores y los oyentes de red, que
-     no deben recrearse cada vez que cambia el estado. */
   const queueRef = useRef<Command[]>([]);
-  const flushing = useRef(false);
-  const onlineRef = useRef(true);
+  const rejectedRef = useRef<RejectedCommand[]>([]);
+  // Si el disco falla, cambiar de cuenta no debe perder la única copia
+  // que todavía queda en memoria. No sustituye a la escritura duradera.
+  const trabajoEnMemoria = useRef(new Map<Id, TrabajoGuardado>());
+  const userRef = useRef<User | null>(null);
+  const keysRef = useRef<ReturnType<typeof clavesDe> | null>(null);
+  const confirmado = useRef<AppState>(state);
+  const datosCargados = useRef(!apiEnabled);
+  // Las respuestas de una sesión anterior no pueden tocar la sesión nueva.
+  const generacion = useRef(0);
+  const ocupada = useRef<number | null>(null);
+  const persistencia = useRef<Promise<void>>(Promise.resolve());
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirty = useRef(false);
 
-  const setQueueBoth = useCallback((next: Command[]) => {
-    queueRef.current = next;
-    setQueue(next);
-    AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(next)).catch(() => undefined);
+  const guardar = useCallback((operacion: () => Promise<void>) => {
+    const siguiente = persistencia.current.catch(() => undefined).then(operacion);
+    persistencia.current = siguiente;
+    void siguiente.catch(() => setError('No se ha podido guardar en este dispositivo. Mantén la app abierta y libera espacio.'));
+    return siguiente;
   }, []);
 
-  /* --------------------------------------------------------- persistencia */
+  const persistirTrabajo = useCallback(() => {
+    const key = keysRef.current?.trabajo;
+    if (!key) return Promise.resolve();
+    const payload = JSON.stringify({ queue: queueRef.current, rejected: rejectedRef.current });
+    return guardar(() => AsyncStorage.setItem(key, payload));
+  }, [guardar]);
 
-  // El estado se guarda SIEMPRE, también con backend: es lo que permite
-  // abrir la app en un sótano y seguir viendo la flota.
+  const cambiarTrabajo = useCallback((pendientes: Command[], rechazados = rejectedRef.current) => {
+    queueRef.current = pendientes;
+    rejectedRef.current = rechazados;
+    if (userRef.current) trabajoEnMemoria.current.set(userRef.current.id, { queue: pendientes, rejected: rechazados });
+    setQueue(pendientes);
+    setRejected(rechazados);
+    const key = keysRef.current?.trabajo;
+    if (key) {
+      // Cola y rechazos se escriben juntos: no existe un momento en el que
+      // una acción desaparezca de los dos sitios.
+      const payload = JSON.stringify({ queue: pendientes, rejected: rechazados });
+      void guardar(() => AsyncStorage.setItem(key, payload));
+    }
+  }, [guardar]);
+
   useEffect(() => {
     if (!ready || !dirty.current) return;
+    const key = apiEnabled ? keysRef.current?.estado : STATE_KEY;
+    if (!key) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      const payload: StoredState = { v: STATE_SCHEMA_VERSION, state };
-      AsyncStorage.setItem(STATE_KEY, JSON.stringify(payload)).catch(() => undefined);
-    }, 600);
-    return () => {
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-    };
-  }, [state, ready]);
+    const payload = JSON.stringify({ v: STATE_SCHEMA_VERSION, state });
+    saveTimer.current = setTimeout(() => { void guardar(() => AsyncStorage.setItem(key, payload)); }, 600);
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+  }, [state, ready, guardar]);
 
-  /* ------------------------------------------------------------- subida */
+  const suspenderSesion = useCallback((mensaje: string | null) => {
+    generacion.current += 1;
+    userRef.current = null;
+    keysRef.current = null;
+    datosCargados.current = false;
+    setAuthToken(null);
+    setUser(null);
+    setSyncing(false);
+    setState(estadoInicial());
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    // No se borra ni se intenta enviar el trabajo pendiente de esa cuenta.
+    void guardar(() => AsyncStorage.multiRemove(apiEnabled ? [API_SESSION_KEY, API_TOKEN_KEY] : [SESSION_KEY, TOKEN_KEY]));
+    if (mensaje) setError(mensaje);
+  }, [guardar]);
 
-  /**
-   * Vacía la cola contra el servidor, en orden y de uno en uno.
-   *
-   * - Si falla la red, se para y se reintenta más tarde: nada se pierde.
-   * - Si el servidor rechaza un comando (4xx), se aparta para que no
-   *   bloquee a los siguientes y se avisa por pantalla.
-   *
-   * Siempre se intenta, aunque el sistema diga que no hay red: quien decide
-   * si hay conexión es el propio servidor. La sonda de conectividad del
-   * móvil da falsos negativos en redes corporativas, tras un proxy o con
-   * portales cautivos, y son justo los sitios donde esto tiene que ir.
-   */
-  const flush = useCallback(async () => {
-    if (!apiEnabled || flushing.current) return;
-    if (queueRef.current.length === 0) return;
-
-    flushing.current = true;
+  const sincronizar = useCallback(async function sincronizar() {
+    const persona = userRef.current;
+    const turno = generacion.current;
+    if (!apiEnabled || !persona || !haySesion() || ocupada.current === turno) return;
+    ocupada.current = turno;
     setSyncing(true);
+    const vigente = () => generacion.current === turno && userRef.current?.id === persona.id;
 
+    const descargar = async () => {
+      const remoto = await api.state();
+      if (!vigente()) return;
+      const actual = remoto.users.find((u) => u.id === persona.id && u.active);
+      if (!actual) throw new ApiError(401, 'Tu usuario ya no está activo.');
+      confirmado.current = remoto;
+      datosCargados.current = true;
+      dirty.current = true;
+      userRef.current = actual;
+      setUser(actual);
+      setState(applyAll(remoto, queueRef.current));
+      const texto = JSON.stringify(actual);
+      void guardar(() => AsyncStorage.setItem(API_SESSION_KEY, texto));
+      setLastSyncAt(new Date().toISOString());
+      setOnline(true);
+      setError(null);
+    };
+
+    let reintentar = false;
     try {
-      while (queueRef.current.length > 0) {
+      // También permite recuperarse de un disco lleno: no basta con esperar
+      // una escritura que falló, hay que volver a guardar el trabajo actual.
+      await persistirTrabajo();
+      if (!vigente()) return;
+      // Descargar aunque no haya nada que subir: el trabajo de los demás
+      // tiene que llegar también a una pantalla que sigue abierta.
+      await descargar();
+      if (!vigente()) return;
+      let enviados = false;
+      while (queueRef.current.length && vigente()) {
         const next = queueRef.current[0];
+        if (next.userId !== persona.id) {
+          throw new Error('Hay trabajo de otra cuenta. No se enviará con tu sesión.');
+        }
+        // Primero queda en disco; una caída después del envío se resuelve
+        // repitiendo el mismo id, que el servidor ya sabe descartar.
+        await persistirTrabajo();
+        if (!vigente()) return;
         try {
           await api.send(next);
-          setQueueBoth(queueRef.current.slice(1));
-          setLastSyncAt(new Date().toISOString());
-          setError(null);
-          // Si el servidor responde, hay conexión, diga lo que diga el sistema.
-          if (!onlineRef.current) {
-            onlineRef.current = true;
-            setOnline(true);
-          }
+          if (!vigente()) return;
+          confirmado.current = applyCommand(confirmado.current, next);
+          cambiarTrabajo(queueRef.current.filter((c) => c.id !== next.id));
+          enviados = true;
         } catch (err) {
-          const apiErr = err instanceof ApiError ? err : new ApiError(0, 'Error de red');
-
-          if (apiErr.retriable) {
-            // Sin cobertura o servidor caído: se deja en cola y se reintenta.
-            setError(apiErr.status === 0 ? 'Sin conexión con el servidor' : apiErr.message);
-            if (apiErr.status === 0) {
-              onlineRef.current = false;
-              setOnline(false);
-            }
-            break;
-          }
-
-          // Rechazado por el servidor: reintentarlo no lo va a arreglar.
-          setQueueBoth(queueRef.current.slice(1));
-          setRejected((r) => [
-            { command: next, reason: apiErr.message, at: new Date().toISOString() },
-            ...r,
-          ].slice(0, 50));
-          setError(`El servidor rechazó una acción: ${apiErr.message}`);
+          if (!vigente()) return;
+          const e = err instanceof ApiError ? err : new ApiError(0, 'Sin conexión con el servidor');
+          if (e.status === 401 || e.retriable) throw e;
+          cambiarTrabajo(queueRef.current.filter((c) => c.id !== next.id), [
+            { command: next, reason: e.message, at: new Date().toISOString() },
+            ...rejectedRef.current.filter((r) => r.command.id !== next.id),
+          ]);
         }
+        // Si se rechaza algo, la pantalla deja de presentarlo como hecho.
+        setState(applyAll(confirmado.current, queueRef.current));
+        dirty.current = true;
+      }
+      if (enviados && vigente()) await descargar();
+      if (vigente()) {
+        await persistencia.current;
+        reintentar = queueRef.current.length > 0;
+      }
+    } catch (err) {
+      if (!vigente()) return;
+      if (err instanceof ApiError && err.status === 401) {
+        suspenderSesion('Tu sesión ha caducado. Vuelve a entrar con la misma cuenta: tus cambios siguen guardados.');
+      } else {
+        if (err instanceof ApiError && err.status === 0) setOnline(false);
+        setError(err instanceof Error ? err.message : 'No se ha podido sincronizar.');
       }
     } finally {
-      flushing.current = false;
-      setSyncing(false);
+      if (ocupada.current === turno) ocupada.current = null;
+      if (vigente()) {
+        setSyncing(false);
+        if (reintentar) void sincronizar();
+      }
     }
-  }, [setQueueBoth]);
+  }, [cambiarTrabajo, guardar, persistirTrabajo, suspenderSesion]);
 
-  /* ------------------------------------------------------------ arranque */
+  const cargarCuenta = useCallback(async (persona: User, turno: number) => {
+    const keys = clavesDe(persona.id);
+    const [rawState, rawWork] = await Promise.all([
+      AsyncStorage.getItem(keys.estado), AsyncStorage.getItem(keys.trabajo),
+    ]);
+    if (generacion.current !== turno) return;
+    const work: TrabajoGuardado = trabajoEnMemoria.current.get(persona.id) ?? (rawWork ? JSON.parse(rawWork) : { queue: [], rejected: [] });
+    if (!Array.isArray(work.queue) || !Array.isArray(work.rejected) || work.queue.some((c) => c.userId !== persona.id)) {
+      throw new Error('No se puede abrir la cola de esta cuenta. Se ha conservado para revisarla.');
+    }
+    keysRef.current = keys;
+    queueRef.current = work.queue;
+    rejectedRef.current = work.rejected;
+    setQueue(work.queue);
+    setRejected(work.rejected);
+    const saved: StoredState | null = rawState ? JSON.parse(rawState) : null;
+    const candidate = saved?.v === STATE_SCHEMA_VERSION && Array.isArray(saved.state?.vehicles) ? saved.state : null;
+    datosCargados.current = !!candidate;
+    confirmado.current = candidate ?? estadoInicial();
+    setState(candidate ? applyAll(candidate, work.queue) : estadoInicial());
+    userRef.current = persona;
+    setUser(candidate ? persona : null);
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-
+    let cancelado = false;
     (async () => {
       try {
-        const [savedSession, savedState, savedQueue, savedToken] = await Promise.all([
-          AsyncStorage.getItem(SESSION_KEY),
-          AsyncStorage.getItem(STATE_KEY),
-          AsyncStorage.getItem(QUEUE_KEY),
-          AsyncStorage.getItem(TOKEN_KEY),
+        if (!apiEnabled) {
+          const [savedState, savedSession] = await Promise.all([AsyncStorage.getItem(STATE_KEY), AsyncStorage.getItem(SESSION_KEY)]);
+          const saved: StoredState | null = savedState ? JSON.parse(savedState) : null;
+          if (saved?.v === STATE_SCHEMA_VERSION && Array.isArray(saved.state?.vehicles)) setState(saved.state);
+          else dirty.current = true;
+          if (savedSession) { const p = JSON.parse(savedSession); userRef.current = p; setUser(p); }
+          return;
+        }
+
+        // Migración única de la versión anterior. Se copia antes de borrar,
+        // agrupando cada comando por su autor, y sin repetir ids ya copiados.
+        const [legacyQueue, legacySession, legacyToken, legacyState] = await Promise.all([
+          AsyncStorage.getItem(QUEUE_KEY), AsyncStorage.getItem(SESSION_KEY),
+          AsyncStorage.getItem(TOKEN_KEY), AsyncStorage.getItem(STATE_KEY),
         ]);
-
-        // El token va antes que cualquier llamada: sin él el servidor
-        // responde 401 y la app se creería que no hay conexión.
-        if (savedToken) setAuthToken(savedToken);
-
-        // 1. Lo guardado en el dispositivo va primero: la app arranca y es
-        //    usable aunque no haya cobertura en este momento.
-        let local: AppState | null = null;
-        if (savedState) {
-          const parsed = JSON.parse(savedState) as StoredState | AppState;
-          // Sin número de versión es de una versión anterior al versionado.
-          const version = (parsed as StoredState)?.v ?? 0;
-          const candidate = version ? (parsed as StoredState).state : (parsed as AppState);
-
-          if (version !== STATE_SCHEMA_VERSION) {
-            // Modelo antiguo: se descarta para no arrastrar configuración
-            // caducada (roles, permisos, requisitos…).
-            await AsyncStorage.removeItem(STATE_KEY).catch(() => undefined);
-            dirty.current = true;
-          } else if (candidate?.vehicles?.length) {
-            local = candidate;
-            if (!cancelled) setState(candidate);
-          }
+        const antiguos: Command[] = legacyQueue ? JSON.parse(legacyQueue) : [];
+        for (const id of new Set(antiguos.map((c) => c.userId))) {
+          const key = clavesDe(id).trabajo;
+          const raw = await AsyncStorage.getItem(key);
+          const work: TrabajoGuardado = raw ? JSON.parse(raw) : { queue: [], rejected: [] };
+          const conocidos = new Set([...work.queue.map((c) => c.id), ...work.rejected.map((r) => r.command.id)]);
+          const queue = [...work.queue, ...antiguos.filter((c) => c.userId === id && !conocidos.has(c.id))];
+          await AsyncStorage.setItem(key, JSON.stringify({ ...work, queue }));
         }
-
-        const pending: Command[] = savedQueue ? (JSON.parse(savedQueue) as Command[]) : [];
-        if (pending.length && !cancelled) {
-          queueRef.current = pending;
-          setQueue(pending);
-        }
-
-        if (savedSession && !cancelled) setUser(JSON.parse(savedSession) as User);
-        if (!cancelled) setReady(true);
-
-        // 2. Después, si hay backend y sesión, se refresca del servidor.
-        if (apiEnabled && savedToken && !cancelled) {
-          try {
-            const remote = await api.state();
-            if (cancelled) return;
-            // Lo pendiente de subir se vuelve a aplicar encima de lo que
-            // manda el servidor, para que no desaparezca de la pantalla.
-            setState(pending.length ? applyAll(remote, pending) : remote);
-            setLastSyncAt(new Date().toISOString());
-            setError(null);
-          } catch (err) {
-            if (cancelled) return;
-            const apiErr = err instanceof ApiError ? err : null;
-            if (apiErr?.status === 401) {
-              // La sesión ha caducado o el usuario ya no está activo: se
-              // vuelve a la pantalla de entrar. La cola NO se toca: es
-              // trabajo hecho, y se subirá cuando alguien entre otra vez.
-              setAuthToken(null);
-              setUser(null);
-              await AsyncStorage.multiRemove([SESSION_KEY, TOKEN_KEY]).catch(() => undefined);
-              setError('Tu sesión ha caducado. Vuelve a entrar.');
-            } else if (!apiErr || apiErr.status === 0) {
-              // No hemos alcanzado el servidor: es el caso del sótano.
-              onlineRef.current = false;
-              setOnline(false);
-              setError('Sin conexión con el servidor');
-            } else {
-              setError(apiErr.message);
+        if (legacyQueue) await AsyncStorage.removeItem(QUEUE_KEY);
+        if (legacyToken && legacySession && !(await AsyncStorage.getItem(API_SESSION_KEY))) {
+          const persona: User = JSON.parse(legacySession);
+          if (legacyState) {
+            const saved: StoredState = JSON.parse(legacyState);
+            // El único cambio de forma desde v19 son campos opcionales.
+            // Esta migración conserva una caché válida incluso sin cobertura.
+            if (saved.v >= 19 && Array.isArray(saved.state?.vehicles)) {
+              await AsyncStorage.setItem(clavesDe(persona.id).estado, JSON.stringify({ ...saved, v: STATE_SCHEMA_VERSION }));
             }
-            // Sin datos locales ni servidor, se queda el parque de ejemplo.
-            if (!local) dirty.current = true;
           }
-          void flush();
+          await AsyncStorage.multiSet([[API_SESSION_KEY, legacySession], [API_TOKEN_KEY, legacyToken]]);
+          await AsyncStorage.multiRemove([SESSION_KEY, TOKEN_KEY, STATE_KEY]);
         }
-      } catch {
-        if (!cancelled) setReady(true);
+        const [savedSession, savedToken] = await Promise.all([
+          AsyncStorage.getItem(API_SESSION_KEY), AsyncStorage.getItem(API_TOKEN_KEY),
+        ]);
+        if (cancelado) return;
+        if (savedSession && savedToken) {
+          setAuthToken(savedToken);
+          await cargarCuenta(JSON.parse(savedSession), generacion.current);
+          if (!cancelado) void sincronizar();
+        }
+      } catch (e) {
+        if (!cancelado) setError(e instanceof Error ? e.message : 'No se han podido abrir los datos guardados.');
+      } finally {
+        if (!cancelado) setReady(true);
       }
     })();
-
-    return () => {
-      cancelled = true;
-    };
-    // Solo al montar.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  /* --------------------------------------------- avisos por paso del tiempo */
-
-  /**
-   * Un repaso de las condiciones que dispara el reloj y no una persona: un
-   * coche que lleva días sin comprobar, un traslado que nadie ha ido a
-   * recoger. Se lanza una vez por sesión, al abrir, y es idempotente por
-   * día: aunque se abra la app quince veces, el aviso sale una.
-   *
-   * Se hace aquí y no solo en el servidor porque la demostración no tiene
-   * servidor, y ahí también hay que ver que los avisos funcionan.
-   */
-  const barridoHecho = useRef(false);
-  useEffect(() => {
-    if (!ready || !user || barridoHecho.current) return;
-    // El colaborador externo no dispara un repaso de toda la flota: los
-    // avisos que salen de ahí son de casa y él no los ve.
-    if (isSimpleRole(state, user)) return;
-    barridoHecho.current = true;
-    run({ type: 'alerts.sweep' });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, user?.id]);
-
-  /* ------------------------------------------- reintentos y conectividad */
+    return () => { cancelado = true; generacion.current += 1; };
+  }, [cargarCuenta, sincronizar]);
 
   useEffect(() => {
-    if (!apiEnabled) return;
+    if (!apiEnabled || !ready) return;
+    const unsubscribe = NetInfo.addEventListener((net) => { if (net.isConnected) void sincronizar(); });
+    const listener = RNAppState.addEventListener('change', (s) => { if (s === 'active') void sincronizar(); });
+    const timer = setInterval(() => { void sincronizar(); }, RETRY_MS);
+    return () => { unsubscribe(); listener.remove(); clearInterval(timer); };
+  }, [ready, sincronizar]);
 
-    // NetInfo solo sirve para reaccionar rápido cuando vuelve la cobertura;
-    // no decide si se intenta subir o no.
-    const unsubscribe = NetInfo.addEventListener((netState) => {
-      const connected = netState.isConnected ?? false;
-      if (connected && queueRef.current.length > 0) void flush();
-    });
+  const run = useCallback<StoreValue['run']>((partial) => {
+    const persona = userRef.current;
+    if (apiEnabled && (!persona || !datosCargados.current)) {
+      throw new Error('Espera a que se carguen los datos de tu cuenta antes de registrar trabajo.');
+    }
+    const cmd = { id: newId('cmd'), at: new Date().toISOString(), ...partial, userId: persona?.id ?? 'u-log' } as Command;
+    dirty.current = true;
+    setState((prev) => applyCommand(prev, cmd));
+    if (apiEnabled) {
+      cambiarTrabajo([...queueRef.current, cmd]);
+      void sincronizar();
+    }
+    return cmd;
+  }, [cambiarTrabajo, sincronizar]);
 
-    const onForeground = RNAppState.addEventListener('change', (status) => {
-      if (status === 'active') void flush();
-    });
+  // El backend evalúa el reloj aunque nadie tenga la app abierta. Solo la
+  // demostración necesita hacerlo en el propio dispositivo.
+  useEffect(() => {
+    if (apiEnabled || !ready || !user || isSimpleRole(state, user)) return;
+    const barrer = () => run({ type: 'alerts.sweep' });
+    barrer();
+    const timer = setInterval(barrer, 60_000);
+    return () => clearInterval(timer);
+  }, [ready, user?.id, run]);
 
-    const timer = setInterval(() => {
-      if (queueRef.current.length > 0) void flush();
-    }, RETRY_MS);
-
-    return () => {
-      unsubscribe();
-      onForeground.remove();
-      clearInterval(timer);
-    };
-  }, [flush]);
-
-  /* ---------------------------------------------------------- comandos */
-
-  const run = useCallback<StoreValue['run']>(
-    (partial) => {
-      const cmd = {
-        id: newId('cmd'),
-        at: new Date().toISOString(),
-        userId: user?.id ?? 'u-log',
-        ...partial,
-      } as Command;
-
-      dirty.current = true;
-      setState((prev) => applyCommand(prev, cmd));
-
-      if (apiEnabled) {
-        setQueueBoth([...queueRef.current, cmd]);
-        void flush();
+  const login = useCallback<StoreValue['login']>(async (email, password) => {
+    const correo = email.trim().toLowerCase();
+    if (!apiEnabled) {
+      const persona = state.users.find((u) => u.email.toLowerCase() === correo && u.active);
+      if (!persona) return 'No encontramos ese usuario. Revisa el correo.';
+      userRef.current = persona;
+      setUser(persona);
+      await guardar(() => AsyncStorage.setItem(SESSION_KEY, JSON.stringify(persona)));
+      return null;
+    }
+    try {
+      const { token, user: persona } = await api.login(correo, password);
+      const turno = ++generacion.current;
+      userRef.current = null;
+      keysRef.current = null;
+      setUser(null);
+      setState(estadoInicial());
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      await persistencia.current;
+      setAuthToken(token);
+      await cargarCuenta(persona, turno);
+      if (generacion.current !== turno) return 'La sesión ha cambiado. Vuelve a entrar.';
+      await guardar(() => AsyncStorage.multiSet([[API_TOKEN_KEY, token], [API_SESSION_KEY, JSON.stringify(persona)]]));
+      await sincronizar();
+      if (!userRef.current) return 'La sesión no está disponible. Vuelve a entrar.';
+      if (!datosCargados.current) {
+        suspenderSesion(null);
+        return 'No se han podido cargar los datos de tu cuenta. Comprueba la conexión y vuelve a entrar.';
       }
+      void registerForPush().then((expo) => {
+        if (expo && generacion.current === turno) return api.pushToken(expo);
+      }).catch(() => undefined);
+      return null;
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) return 'Correo o contraseña incorrectos.';
+      if (e instanceof ApiError && e.status === 429) return 'Demasiados intentos. Prueba dentro de un rato.';
+      return e instanceof Error ? e.message : 'No se ha podido entrar.';
+    }
+  }, [state.users, cargarCuenta, guardar, sincronizar, suspenderSesion]);
 
-      return cmd;
-    },
-    [user, flush, setQueueBoth]
-  );
-
-  const flushNow = useCallback(() => {
-    onlineRef.current = true;
-    setOnline(true);
-    void flush();
-  }, [flush]);
-
-  const login = useCallback<StoreValue['login']>(
-    async (email, password) => {
-      const correo = email.trim().toLowerCase();
-
-      // Modo demostración: no hay servidor al que preguntar, así que con
-      // reconocer el correo basta para entrar y probar la operativa.
-      if (!apiEnabled) {
-        const found = state.users.find((u) => u.email.toLowerCase() === correo) ?? null;
-        if (!found) return 'No encontramos ese usuario. Revisa el correo.';
-        setUser(found);
-        AsyncStorage.setItem(SESSION_KEY, JSON.stringify(found)).catch(() => undefined);
-        return null;
-      }
-
-      try {
-        const { token, user: entrante } = await api.login(correo, password);
-        setAuthToken(token);
-        setUser(entrante);
-        await AsyncStorage.multiSet([
-          [TOKEN_KEY, token],
-          [SESSION_KEY, JSON.stringify(entrante)],
-        ]).catch(() => undefined);
-
-        // El estado depende de quién entra (un transportista solo recibe
-        // sus traslados), así que hay que pedirlo otra vez, no reutilizar
-        // el del usuario anterior.
-        try {
-          const remote = await api.state();
-          dirty.current = true;
-          setState(queueRef.current.length ? applyAll(remote, queueRef.current) : remote);
-          setLastSyncAt(new Date().toISOString());
-          setError(null);
-        } catch {
-          // Ha entrado pero no hemos podido traer los datos: se queda con
-          // lo último guardado y se reintentará solo.
-          setError('Sin conexión con el servidor');
-        }
-
-        // Los avisos push necesitan que el servidor sepa este dispositivo.
-        void registerForPush()
-          .then((expo) => (expo ? api.pushToken(expo) : null))
-          .catch(() => undefined);
-
-        void flush();
-        return null;
-      } catch (err) {
-        const apiErr = err instanceof ApiError ? err : null;
-        if (!apiErr || apiErr.status === 0) return 'No hay conexión con el servidor.';
-        if (apiErr.status === 401) return 'Correo o contraseña incorrectos.';
-        if (apiErr.status === 429) return 'Demasiados intentos. Prueba dentro de un rato.';
-        return apiErr.message;
-      }
-    },
-    [state.users, flush]
-  );
-
-  const logout = useCallback(() => {
-    setUser(null);
-    setAuthToken(null);
-    AsyncStorage.multiRemove([SESSION_KEY, TOKEN_KEY]).catch(() => undefined);
-  }, []);
-
+  const logout = useCallback(() => suspenderSesion(null), [suspenderSesion]);
   const resetDemo = useCallback(() => {
+    if (apiEnabled) return;
     dirty.current = true;
     setState(buildSeedState());
-    setQueueBoth([]);
-    setRejected([]);
-    AsyncStorage.removeItem(STATE_KEY).catch(() => undefined);
-  }, [setQueueBoth]);
-
-  const sync = useMemo<SyncStatus>(
-    () => ({ online, pending: queue.length, syncing, lastSyncAt, error, rejected }),
-    [online, queue.length, syncing, lastSyncAt, error, rejected]
-  );
-
-  const value = useMemo<StoreValue>(
-    () => ({ state, ready, mode, user, sync, run, flushNow, login, logout, resetDemo }),
-    [state, ready, mode, user, sync, run, flushNow, login, logout, resetDemo]
-  );
-
+    void guardar(() => AsyncStorage.removeItem(STATE_KEY));
+  }, [guardar]);
+  const sync = useMemo<SyncStatus>(() => ({
+    online, pending: queue.length, syncing, lastSyncAt, error, rejected,
+  }), [online, queue.length, syncing, lastSyncAt, error, rejected]);
+  const value = useMemo<StoreValue>(() => ({
+    state, ready, mode: apiEnabled ? 'api' : 'demo', user, sync, run,
+    flushNow: () => { void sincronizar(); }, login, logout, resetDemo,
+  }), [state, ready, user, sync, run, sincronizar, login, logout, resetDemo]);
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
 
