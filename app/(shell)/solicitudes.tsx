@@ -318,7 +318,7 @@ function ManageModal({
                   vehicleId: request.vehicleId,
                   siteId: request.siteId,
                   preparerId: assignedTo,
-                  tipo: request.prepTipo,
+                  tipo: request.prepTipo ?? 'entrada',
                 });
                 onDone(
                   request.prepTipo === 'repaso'

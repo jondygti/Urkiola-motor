@@ -219,6 +219,7 @@ export function RequestModal({
 }) {
   const { state, user, run } = useStore();
   const puedeFijarEntrega = puedeGestionarEntrega(state, user, vehicle);
+  const [prepTipo, setPrepTipo] = useState<'entrada' | 'repaso'>('entrada');
   const prepSites = state.sites.filter((s) => s.prepares);
   const [siteId, setSiteId] = useState(vehicle.targetSiteId ?? prepSites[0].id);
   const [urgent, setUrgent] = useState(false);
@@ -257,6 +258,7 @@ export function RequestModal({
     run({
       type: 'request.create',
       requestType: type,
+      prepTipo: type === 'preparacion' ? prepTipo : undefined,
       vehicleId: vehicle.id,
       siteId,
       to: { siteId },
@@ -264,7 +266,8 @@ export function RequestModal({
       note: note || undefined,
       carrierId: type === 'traslado' ? carrierElegido : undefined,
     });
-    onDone?.(type === 'traslado' ? 'Solicitud de traslado creada.' : 'Solicitud de preparación creada.');
+    onDone?.(type === 'traslado' ? 'Solicitud de traslado creada.' : prepTipo === 'repaso'
+      ? 'Solicitud de repaso de entrega creada.' : 'Solicitud de preparación creada.');
     onClose();
   };
 
@@ -272,7 +275,7 @@ export function RequestModal({
     <Modal
       visible={visible}
       onClose={onClose}
-      title={type === 'traslado' ? '🚚 Solicitar traslado' : '🧽 Solicitar preparación'}
+      title={type === 'traslado' ? '🚚 Solicitar traslado' : '🧽 Solicitar servicio'}
       footer={
         <Btn variant="primary" full onPress={submit}>
           {aviso ? 'Pedir igualmente' : 'Crear solicitud'}
@@ -282,6 +285,13 @@ export function RequestModal({
       <Field label="Vehículo">
         <Muted>{vehicleTitle(vehicle)}</Muted>
       </Field>
+      {type === 'preparacion' ? <Field label="Servicio">
+        <Select full value={prepTipo} onChange={setPrepTipo} title="Servicio"
+          options={[{ value: 'entrada', label: 'Preparación completa' },
+            { value: 'repaso', label: 'Repaso de entrega' }]} />
+        <Muted>{prepTipo === 'repaso' ? 'Limpieza interior y exterior, con checklist y tiempo propios.'
+          : 'Preparación completa del vehículo con todos sus requisitos.'}</Muted>
+      </Field> : null}
       <Field label="Origen">
         <Muted>{locationLabel(state, vehicle.location)}</Muted>
       </Field>

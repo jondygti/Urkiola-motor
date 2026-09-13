@@ -975,6 +975,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       // preparación de entrada se mediría contra dos horas.
       const pedidoAbierto = state.requests.find(
         (r) => r.type === 'preparacion' && r.vehicleId === cmd.vehicleId && r.status !== 'terminada'
+          && r.siteId === cmd.siteId && (!cmd.tipo || (r.prepTipo ?? 'entrada') === cmd.tipo)
       );
       const tipo: TipoPreparacion = cmd.tipo ?? pedidoAbierto?.prepTipo ?? 'entrada';
       const target =
@@ -1010,6 +1011,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       // el coche ya estuviera en el taller.
       const pedido = next.requests.find(
         (r) => r.type === 'preparacion' && r.vehicleId === cmd.vehicleId && r.status !== 'terminada'
+          && r.siteId === cmd.siteId && (r.prepTipo ?? 'entrada') === tipo
       );
       if (pedido) {
         next = {
@@ -1121,7 +1123,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
     case 'prep.finish': {
       const p = state.preparations.find((x) => x.id === cmd.prepId);
-      if (!p) return state;
+      if (!p || p.runState === 'terminado') return state;
       // Si el preparador dice dónde deja el coche, el movimiento se registra
       // antes de cerrar: así la ficha no se queda diciendo que sigue en el
       // taller. Es el mismo comando de siempre, con un id derivado del de
@@ -1157,6 +1159,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       };
       const openReq = next.requests.find(
         (r) => r.vehicleId === p.vehicleId && r.type === 'preparacion' && r.status !== 'terminada'
+          && r.siteId === p.siteId && (r.prepTipo ?? 'entrada') === (p.tipo ?? 'entrada')
       );
       if (openReq) next = { ...next, requests: replace(next.requests, openReq.id, { status: 'terminada' }) };
 
@@ -1168,7 +1171,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       return addEvent(next, {
         vehicleId: p.vehicleId,
         kind: 'preparacion',
-        title: 'Preparación terminada · apto entrega',
+        title: p.tipo === 'repaso' ? 'Repaso de entrega terminado · apto entrega' : 'Preparación terminada · apto entrega',
         detail: cmd.to
           ? `${userName(state, cmd.userId)} · lo deja en ${locationLabel(next, cmd.to, true)}`
           : userName(state, cmd.userId),

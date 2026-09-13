@@ -1,5 +1,28 @@
 # Primera entrega con Codex · 12 de septiembre de 2026
 
+## Actualización de la demo y servicios · 13 de septiembre
+
+La rama ya está publicada en GitHub mediante la propuesta #1. Las decisiones
+v2 están en `ARCHITECTURE.md`, `MOBILE_ANDROID.md` y `ROADMAP.md`.
+
+La demo HTML usa navegación por fragmentos para abrirse desde un archivo
+local sin confundir la ruta de Windows con una pantalla. El preparador puede
+indicar si hay campaña y marcarla realizada. Preparación completa y repaso
+tienen secciones de configuración, solicitudes y listas diferenciadas; el
+panel de oficina separa sus métricas.
+
+La revisión de servicios corrige apertura y cierre de solicitudes cruzadas:
+se exige mismo vehículo, sede y tipo de servicio. Repetir el cierre de un
+trabajo terminado no vuelve a cerrar solicitudes ni añadir eventos. Los
+encargos antiguos sin tipo se consideran preparación de entrada. El permiso
+para abrir un encargo también comprueba sede y tipo.
+
+Se mantiene una ejecución activa por vehículo: el otro servicio espera a que
+termine. Aún no existe una relación por ID entre solicitud y ejecución, por
+lo que varias solicitudes abiertas del mismo tipo, coche y sede necesitan
+una revisión adicional antes de habilitar ejecuciones paralelas. Tampoco se
+declara terminada la validación en navegador, Android real o PostgreSQL.
+
 Base revisada: `06ddbfc4773d9d8ff58049a4013952d39e511a4f` de `main`.
 Rama de trabajo: `codex/fiabilidad-operativa`.
 

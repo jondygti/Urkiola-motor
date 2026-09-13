@@ -180,6 +180,7 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
       // preparaciones que nadie ha solicitado.
       const pedida = s.requests.some(
         (r) => r.type === 'preparacion' && r.vehicleId === cmd.vehicleId && r.status !== 'terminada'
+          && r.siteId === cmd.siteId && (!cmd.tipo || (r.prepTipo ?? 'entrada') === cmd.tipo)
       );
       if (tiene(s, u, 'preparacion.ejecutar') && pedida) return null;
       return 'No puedes abrir preparaciones.';
