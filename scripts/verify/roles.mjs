@@ -305,12 +305,15 @@ export async function ejecutar(browser, BASE) {
     // Registra una incidencia desde la ficha de un vehículo de su sede.
     await page.goto(`${BASE}/flota`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(1000);
-    const placa = await page.evaluate(() => {
-      const t = [...document.querySelectorAll('div')].map((d) => d.textContent ?? '').join('\n');
-      const m = t.match(/\b\d{4}\s?[A-Z]{3}\b/);
-      return m ? m[0] : null;
-    });
-    await page.goto(`${BASE}/vehiculo/${encodeURIComponent(placa ?? '')}`, { waitUntil: 'networkidle' });
+    // La flota incluye coches de otros comerciales: solo puede gestionar
+    // la entrega de los suyos. La semilla identifica a Juan por su nombre.
+    const inicial = await estadoGuardado(page);
+    const propio = inicial.vehicles.find((v) =>
+      ['Juan', USUARIOS.comercial.name].includes(v.salesRep) && !v.archivedAt && !v.deliveredAt
+    );
+    if (!propio) throw new Error('Falta un coche de Juan en la semilla de pruebas');
+    const placa = propio.plate;
+    await page.goto(`${BASE}/vehiculo/${encodeURIComponent(propio.id)}`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(1000);
 
     const incidenciasAntes = (await estadoGuardado(page))?.incidents?.length ?? null;
