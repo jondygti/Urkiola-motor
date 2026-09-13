@@ -74,7 +74,7 @@ function sedeAfectada(s: AppState, cmd: Command): Id | null | undefined {
   // Y una solicitud se mide por la sede que la tiene que atender, no por
   // dónde está el coche ahora: pedir que traigan a Leioa un coche que está
   // en Sondika es justo para lo que existe la pantalla.
-  if (cmd.type === 'request.create') return cmd.siteId;
+  if (cmd.type === 'request.create' || cmd.type === 'prep.create') return cmd.siteId;
 
   if ('vehicleId' in cmd && cmd.vehicleId) {
     const v = s.vehicles.find((x) => x.id === cmd.vehicleId);

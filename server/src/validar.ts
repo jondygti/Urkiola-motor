@@ -141,7 +141,32 @@ export function validarComando(cuerpo: unknown, userId: string, ahora = Date.now
   const fecha = new Date(c.at);
   if (Number.isNaN(fecha.getTime())) throw malaPeticion('La fecha del comando no es válida.');
 
-  const at = fecha.getTime() > ahora + MARGEN_FUTURO_MS ? new Date(ahora).toISOString() : c.at;
+  // El dominio compara fechas ISO. Dos husos distintos deben tener la misma
+  // representación para que una observación antigua no parezca posterior.
+  const at = fecha.getTime() > ahora + MARGEN_FUTURO_MS ? new Date(ahora).toISOString() : fecha.toISOString();
+
+  if (c.type.startsWith('prep.')) {
+    const campos = c.type === 'prep.create' ? ['vehicleId', 'siteId'] : ['prepId'];
+    if (c.type === 'prep.item') campos.push('requirementId');
+    for (const campo of campos) {
+      if (typeof c[campo] !== 'string' || !(c[campo] as string).trim()) {
+        throw malaPeticion(`Falta un identificador válido: ${campo}.`);
+      }
+    }
+    if (c.type === 'prep.item' && !['pendiente', 'completado', 'no_requerido'].includes(String(c.state))) {
+      throw malaPeticion('Estado de checklist no válido.');
+    }
+    if (c.type === 'prep.create' && c.tipo !== undefined && !['entrada', 'repaso'].includes(String(c.tipo))) {
+      throw malaPeticion('Tipo de servicio no válido.');
+    }
+    if (c.type === 'prep.pause' && (typeof c.reason !== 'string' || !c.reason.trim())) {
+      throw malaPeticion('Indica un motivo de espera.');
+    }
+  }
+  if (c.type === 'request.create' && c.prepTipo !== undefined &&
+      !['entrada', 'repaso'].includes(String(c.prepTipo))) {
+    throw malaPeticion('Tipo de servicio no válido.');
+  }
 
   if (c.type === 'config.update') comprobarConfig(c.patch);
 

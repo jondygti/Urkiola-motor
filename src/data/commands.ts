@@ -1037,6 +1037,8 @@ function aplicar(state: AppState, cmd: Command): AppState {
     case 'prep.resume': {
       const p = state.preparations.find((x) => x.id === cmd.prepId);
       if (!p || p.runState === 'terminado') return state;
+      if (p.runState === 'en_curso') return state;
+      if (p.waitingSince && cmd.at < p.waitingSince) return state;
       const waitedMs = transcurrido(p.waitingSince, cmd);
       const next: AppState = {
         ...state,
@@ -1062,7 +1064,9 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
     case 'prep.pause': {
       const p = state.preparations.find((x) => x.id === cmd.prepId);
-      if (!p) return state;
+      if (!p || p.runState === 'terminado') return state;
+      if (p.runningSince && cmd.at < p.runningSince) return state;
+      if (p.waitingSince && cmd.at < p.waitingSince) return state;
       const ranMs = transcurrido(p.runningSince, cmd);
       let next: AppState = {
         ...state,
@@ -1070,7 +1074,8 @@ function aplicar(state: AppState, cmd: Command): AppState {
           runState: cmd.blocked ? 'bloqueado' : 'en_espera',
           effectiveMs: p.effectiveMs + ranMs,
           runningSince: null,
-          waitingSince: cmd.at,
+          // Cambiar el motivo no reinicia la espera que ya estaba corriendo.
+          waitingSince: p.waitingSince ?? cmd.at,
           waitReason: cmd.reason,
         }),
       };
@@ -1094,7 +1099,8 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
     case 'prep.item': {
       const p = state.preparations.find((x) => x.id === cmd.prepId);
-      if (!p) return state;
+      if (!p || p.runState === 'terminado') return state;
+      if (!['pendiente', 'completado', 'no_requerido'].includes(cmd.state)) return state;
       const items = p.items.map((i) =>
         i.requirementId === cmd.requirementId
           ? {
@@ -1148,6 +1154,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
           phase: 'apto_entrega',
           items,
           effectiveMs: p.effectiveMs + ranMs,
+          waitingMs: p.waitingMs + transcurrido(p.waitingSince, cmd),
           runningSince: null,
           waitingSince: null,
           waitReason: null,
@@ -1743,10 +1750,10 @@ function aplicar(state: AppState, cmd: Command): AppState {
       let next: AppState = apuntarEnVehiculo(state, cmd.vehicleId, { deliveryDate: cmd.deliveryDate });
 
       // Si ya hay una preparación pedida, su plazo pasa a ser la entrega.
-      const prepReq = next.requests.find(
+      const prepReqs = next.requests.filter(
         (r) => r.vehicleId === cmd.vehicleId && r.type === 'preparacion' && r.status !== 'terminada'
       );
-      if (prepReq) {
+      for (const prepReq of prepReqs) {
         next = {
           ...next,
           requests: replace(next.requests, prepReq.id, {
