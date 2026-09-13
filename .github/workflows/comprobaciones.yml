@@ -1,0 +1,90 @@
+name: Comprobaciones de Urkiola
+
+on:
+  pull_request:
+  push:
+    branches: [main, 'codex/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: comprobaciones-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  navegador:
+    name: Chromium · ${{ matrix.suite }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      # Un fallo de rutas no cancela las pruebas de roles.
+      fail-fast: false
+      matrix:
+        suite: [roles, rutas, funciones, api]
+    env:
+      CI: 'true'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_API_URL: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      - name: Instalar dependencias del proyecto
+        run: |
+          npm ci --no-audit --no-fund
+          npm --prefix server ci --no-audit --no-fund
+      - name: Instalar Playwright y Chromium
+        run: |
+          npm install --prefix "$RUNNER_TEMP/urkiola-playwright" --no-audit --no-fund playwright@1.62.1
+          node "$RUNNER_TEMP/urkiola-playwright/node_modules/playwright/cli.js" install --with-deps chromium
+          echo "PLAYWRIGHT_PATH=$RUNNER_TEMP/urkiola-playwright/node_modules/playwright/index.js" >> "$GITHUB_ENV"
+      - name: Ejecutar ${{ matrix.suite }}
+        env:
+          SUITE: ${{ matrix.suite }}
+        shell: bash
+        run: |
+          mkdir -p resultados
+          set -o pipefail
+          if [ "$SUITE" = api ]; then
+            npm run fuente
+            npm run verify:api 2>&1 | tee "resultados/$SUITE.log"
+          else
+            npm run verify -- --build "--suite=$SUITE" 2>&1 | tee "resultados/$SUITE.log"
+          fi
+      - name: Conservar resultados
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chromium-${{ matrix.suite }}-${{ github.run_attempt }}
+          path: resultados/
+          if-no-files-found: warn
+          retention-days: 14
+
+  servidor:
+    name: Servidor, tipos y sincronización
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - run: npm --prefix server ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run server:test
+      - run: npm run test:sync
+      - run: node --test scripts/verify/demo-navegacion.test.mjs

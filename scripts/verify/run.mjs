@@ -15,6 +15,8 @@ import { ejecutar as revisarEstilo } from './estilo.mjs';
  *   npm run verify -- --build   fuerza a recompilar antes
  */
 const forzarBuild = process.argv.includes('--build');
+const suite = process.argv.find((arg) => arg.startsWith('--suite='))?.split('=')[1] ?? 'todas';
+if (!['todas', 'roles', 'rutas', 'funciones'].includes(suite)) throw new Error('Suite desconocida: ' + suite);
 const PUERTO = Number(process.env.VERIFY_PORT ?? 4310);
 
 if (forzarBuild || !existsSync('dist/index.html')) {
@@ -25,23 +27,24 @@ if (forzarBuild || !existsSync('dist/index.html')) {
 const servidor = await servirEstatico('dist', PUERTO);
 console.log(`▸ Sirviendo dist/ en ${servidor.url}\n`);
 
-const browser = await abrirNavegador();
+let browser;
 let todoBien = true;
 
 try {
+  browser = await abrirNavegador();
   console.log('══ Sistema de diseño ' + '═'.repeat(33));
   todoBien = revisarEstilo() && todoBien;
 
   console.log('\n══ Barrido de pantallas ' + '═'.repeat(30));
-  todoBien = (await barrerRutas(browser, servidor.url)) && todoBien;
+  if (suite === 'todas' || suite === 'rutas') todoBien = (await barrerRutas(browser, servidor.url)) && todoBien;
 
   console.log('\n══ Operativa ' + '═'.repeat(41));
-  todoBien = (await probarFunciones(browser, servidor.url)) && todoBien;
+  if (suite === 'todas' || suite === 'funciones') todoBien = (await probarFunciones(browser, servidor.url)) && todoBien;
 
   console.log('\n══ La jornada de cada rol ' + '═'.repeat(28));
-  todoBien = (await probarRoles(browser, servidor.url)) && todoBien;
+  if (suite === 'todas' || suite === 'roles') todoBien = (await probarRoles(browser, servidor.url)) && todoBien;
 } finally {
-  await browser.close();
+  await browser?.close();
   servidor.cerrar();
 }
 
