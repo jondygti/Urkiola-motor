@@ -8,7 +8,7 @@ import type { AppState } from '../../src/data/types';
 let n = 0;
 const at = '2026-09-14T12:00:00.000Z';
 function cmd(x: object, userId = 'u-juan'): Command { return { id: `jon-${++n}`, at, userId, ...x } as Command; }
-function base() { const s = buildSeedState(); s.requests = []; s.preparations = []; s.vehicles = [{ ...s.vehicles[0], id: 'coche', status: 'aparcado', salesRep: 'Juan', location: { siteId: 'leioa' }, locationObservedAt: '2026-01-01T00:00:00Z' }]; return s; }
+function base() { const s = buildSeedState(); s.requests = []; s.preparations = []; s.vehicles = [{ ...s.vehicles[0], id: 'coche', status: 'aparcado', salesRep: 'Juan', location: { siteId: 'leioa' }, locationObservedAt: '2026-01-01T00:00:00Z', lastCheckAt: null, lastMovementAt: null, deliveredAt: null }]; return s; }
 function pedir(s = base(), tipo = 'traslado', extra = {}) { return applyCommand(s, cmd({ type: 'request.create', requestType: tipo, vehicleId: 'coche', siteId: 'galdakao', to: { siteId: 'galdakao' }, carrierId: 'gruas-francis', ...extra })); }
 function mover(s: AppState, siteId: string) { return applyCommand(s, cmd({ type: 'movement.register', vehicleId: 'coche', to: { siteId }, completesTransfer: true }, 'u-log')); }
 function cancelar(s: AppState, user = 'u-juan') { return applyCommand(s, cmd({ type: 'request.cancel', requestId: s.requests[0].id, reason: 'El cliente cambia la entrega' }, user)); }
