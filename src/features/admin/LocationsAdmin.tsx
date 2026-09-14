@@ -78,9 +78,9 @@ export function LocationsAdmin({ onDone }: { onDone: (m: string) => void }) {
                   {s.prepares ? 'Prepara vehículos' : 'Solo almacena'} · {occ.zones} zonas
                 </Text>
                 <Text style={{ fontSize: tipografia.title, fontWeight: '900', color: c.text }}>
-                  {occ.occupied}/{occ.capacity}
+                  {occ.occupied}{occ.hasCapacity ? `/${occ.capacity}` : ' coches · sin plazas numeradas'}
                 </Text>
-                <ProgressBar pct={occ.pct} tone={occ.pct > 90 ? 'red' : occ.pct > 75 ? 'amber' : 'ok'} />
+                {occ.hasCapacity ? <ProgressBar pct={occ.pct} tone={occ.pct > 90 ? 'red' : occ.pct > 75 ? 'amber' : 'ok'} /> : <Muted>Sin plazas individuales</Muted>}
                 <View style={{ flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
                   <Btn small onPress={() => setSiteId(s.id)}>
                     {active ? 'Viendo' : 'Ver zonas'}
@@ -134,7 +134,7 @@ export function LocationsAdmin({ onDone }: { onDone: (m: string) => void }) {
                       {occ.occupied}/{plazas} plazas
                     </Text>
                   </View>
-                  <ProgressBar pct={occ.pct} tone={occ.pct > 90 ? 'red' : 'ok'} />
+                  {occ.hasCapacity ? <ProgressBar pct={occ.pct} tone={occ.pct > 90 ? 'red' : 'ok'} /> : <Muted>Sin plazas individuales</Muted>}
                   <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
                     <Btn small onPress={() => setZoneModal(z)}>
                       Editar y nº de plazas
@@ -274,12 +274,12 @@ function ZoneModal({ zone, onClose, onDone }: { zone: Zone; onClose: () => void;
   const save = () => {
     const clean = name.trim();
     if (!clean) return setError('Ponle un nombre a la zona.');
-    if (wanted <= 0) return setError('Indica cuántas plazas tiene.');
+
     const id = isNew ? `${zone.siteId}-${slug(clean)}` : zone.id;
     if (isNew && state.zones.some((z) => z.id === id)) {
       return setError('Ya existe una zona con ese nombre en esta sede.');
     }
-    if (!isNew && wanted < occupied) {
+    if (!isNew && wanted > 0 && wanted < occupied) {
       return setError(`No puedes bajar de ${occupied} plazas: hay coches ocupándolas.`);
     }
     run({
@@ -330,7 +330,7 @@ function ZoneModal({ zone, onClose, onDone }: { zone: Zone; onClose: () => void;
           label="Número de plazas"
           hint={
             isNew
-              ? 'Se crearán numeradas P01, P02, P03…'
+              ? '0 = parking sin plazas individuales. Si indicas un número se crearán P01, P02…'
               : `Ahora hay ${current}. Si subes el número se añaden al final; si lo bajas, solo se quitan plazas vacías.`
           }
         >

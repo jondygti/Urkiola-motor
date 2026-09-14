@@ -44,9 +44,9 @@ export default function FleetScreen() {
    */
   const preparandose = useCallback(
     (v: Vehicle) =>
-      state.preparations.some((p) => p.vehicleId === v.id && p.runState !== 'terminado') ||
+      state.preparations.some((p) => p.vehicleId === v.id && (p.runState !== 'terminado' && p.runState !== 'cancelado')) ||
       state.requests.some(
-        (r) => r.type === 'preparacion' && r.vehicleId === v.id && r.status !== 'terminada'
+        (r) => r.type === 'preparacion' && r.vehicleId === v.id && (r.status !== 'terminada' && r.status !== 'cancelada')
       ),
     [state.preparations, state.requests]
   );
@@ -84,7 +84,7 @@ export default function FleetScreen() {
   const resumenMio = useMemo(() => {
     const mios = state.vehicles.filter((v) => esDelComercial(v, user));
     const abierta = (v: Vehicle) =>
-      state.preparations.find((p) => p.vehicleId === v.id && p.runState !== 'terminado');
+      state.preparations.find((p) => p.vehicleId === v.id && (p.runState !== 'terminado' && p.runState !== 'cancelado'));
     return {
       pedidas: mios.filter((v) => preparandose(v) && !abierta(v)).length,
       enCurso: mios.filter((v) => !!abierta(v)).length,

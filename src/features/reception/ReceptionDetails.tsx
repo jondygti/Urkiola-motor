@@ -72,7 +72,7 @@ export function ReceptionDetails({ reception, onDone }: { reception: Reception; 
       render: (l) => {
         const pos = state.positions.find((p) => p.id === l.positionId);
         const zone = state.zones.find((z) => z.id === pos?.zoneId);
-        return <Cell muted={!pos}>{pos ? `${zone?.name} · ${pos.code}` : '—'}</Cell>;
+        return <Cell muted={!pos && !l.zoneId}>{pos ? `${zone?.name} · ${pos.code}` : state.zones.find(z => z.id === l.zoneId)?.name ?? '—'}</Cell>;
       },
     },
     {
@@ -199,7 +199,7 @@ function LineModal({
 
   const zones = state.zones.filter((z) => z.siteId === reception.siteId);
   const [zoneId, setZoneId] = useState<string>(
-    state.positions.find((p) => p.id === line.positionId)?.zoneId ?? zones[0]?.id
+    state.positions.find((p) => p.id === line.positionId)?.zoneId ?? line.zoneId ?? zones[0]?.id
   );
   const positions = state.positions.filter((p) => p.zoneId === zoneId);
   const occupied = new Set(state.vehicles.map((v) => v.location?.positionId).filter(Boolean) as string[]);
@@ -212,6 +212,7 @@ function LineModal({
       unloaded,
       damage: damage.trim() || null,
       positionId,
+      zoneId,
       photos,
     });
     onDone(unloaded ? `${line.ref} descargado.` : `${line.ref} actualizado.`);
@@ -263,14 +264,14 @@ function LineModal({
       <Field label="Posición">
         <Select
           full
-          value={positionId}
-          onChange={setPositionId}
+          value={positionId ?? '__zona__'}
+          onChange={(v) => setPositionId(v === '__zona__' ? null : v)}
           placeholder="Elegir plaza"
-          options={positions.map((p) => ({
+          options={[{ value: '__zona__', label: 'Solo zona · sin plaza' }, ...positions.map((p) => ({
             value: p.id,
             label: p.code,
             hint: occupied.has(p.id) ? 'Ocupada' : 'Libre',
-          }))}
+          }))]}
           title="Posición"
           searchable
         />

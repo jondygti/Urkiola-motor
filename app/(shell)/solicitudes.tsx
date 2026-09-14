@@ -1,3 +1,4 @@
+import { CancelarSolicitud } from '@/features/actions/CancelarSolicitud';
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { Btn, Column, DataTable, Field, Grid, H1, Modal, Muted, Notice, Panel, Screen, Select, Spacer, Toolbar, space, tipografia, useTheme } from '@/ui';
@@ -31,7 +32,7 @@ export default function RequestsScreen() {
       state.requests
         .filter((r) => (site === ALL ? true : r.siteId === site))
         .filter((r) => (type === ALL ? true : r.type === type))
-        .filter((r) => (status === ALL ? r.status !== 'terminada' : r.status === status))
+        .filter((r) => (status === ALL ? (r.status !== 'terminada' && r.status !== 'cancelada') : r.status === status))
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
     [state.requests, site, type, status]
   );
@@ -108,14 +109,14 @@ export default function RequestsScreen() {
       key: 'carrier',
       header: 'Transportista',
       width: 150,
-      value: (r) => (r.type === 'traslado' ? carrierName(state, r.carrierId) : '—'),
+      value: (r) => (r.type === 'traslado' ? r.carrierId ? carrierName(state, r.carrierId) : 'Pendiente de asignación' : '—'),
       filter: {
         type: 'select',
         options: state.carriers.map((x) => ({ value: x.name, label: x.name })),
       },
       render: (r) =>
         r.type === 'traslado' ? (
-          <Cell muted={!r.carrierId}>{carrierName(state, r.carrierId)}</Cell>
+          <Cell muted={!r.carrierId}>{r.carrierId ? carrierName(state, r.carrierId) : 'Pendiente de asignación'}</Cell>
         ) : (
           <Cell muted>—</Cell>
         ),
@@ -294,7 +295,7 @@ function ManageModal({
           >
             Guardar cambios
           </Btn>
-          {request.type === 'traslado' && !request.pickedUpAt && request.status !== 'terminada' ? (
+          {request.type === 'traslado' && !request.pickedUpAt && (request.status !== 'terminada' && request.status !== 'cancelada') ? (
             <Btn
               full
               onPress={() => {
@@ -342,12 +343,13 @@ function ManageModal({
           {locationLabel(state, request.from)} → {locationLabel(state, request.to)}
         </Muted>
       </Field>
+      <CancelarSolicitud request={state.requests.find(r => r.id === request.id) ?? request} />
       <Field label="Estado">
         <Select
           full
           value={status}
           onChange={(v) => setStatus(v as RequestStatus)}
-          options={Object.entries(REQUEST_STATUS_LABEL).map(([value, label]) => ({ value, label }))}
+          options={Object.entries(REQUEST_STATUS_LABEL).filter(([key]) => key !== 'cancelada').map(([value, label]) => ({ value, label }))}
           title="Estado"
         />
       </Field>

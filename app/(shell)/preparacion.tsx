@@ -32,7 +32,7 @@ export default function PreparationScreen() {
     () =>
       state.preparations
         .filter((p) => (p.tipo ?? 'entrada') === servicio)
-        .filter((p) => (runState === ALL ? p.runState !== 'terminado' : p.runState === runState))
+        .filter((p) => (runState === ALL ? (p.runState !== 'terminado' && p.runState !== 'cancelado') : p.runState === runState))
         .filter((p) => (site === ALL ? true : p.siteId === site))
         .filter((p) => {
           if (timing === ALL) return true;

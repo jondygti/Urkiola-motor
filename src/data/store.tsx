@@ -60,7 +60,8 @@ const TOKEN_KEY = 'urkiola.token.v1';
 // guardada no distingue: los diez requisitos de siempre saldrían también en
 // el repaso, y no habría objetivo de tiempo para él.
 // 20: lecturas por usuario y caché/cola separadas por servidor y cuenta.
-const STATE_SCHEMA_VERSION = 20;
+// 21: cancelaciones, llaves y zona opcional de recepción; conserva datos v20.
+const STATE_SCHEMA_VERSION = 21;
 
 interface StoredState {
   v: number;
@@ -332,7 +333,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setQueue(work.queue);
     setRejected(work.rejected);
     const saved: StoredState | null = rawState ? JSON.parse(rawState) : null;
-    const candidate = saved?.v === STATE_SCHEMA_VERSION && Array.isArray(saved.state?.vehicles) ? saved.state : null;
+    const candidate = (saved && saved.v >= 20 && saved.v <= STATE_SCHEMA_VERSION) && Array.isArray(saved.state?.vehicles) ? saved.state : null;
     datosCargados.current = !!candidate;
     confirmado.current = candidate ?? estadoInicial();
     setState(candidate ? applyAll(candidate, work.queue) : estadoInicial());
@@ -347,7 +348,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (!apiEnabled) {
           const [savedState, savedSession] = await Promise.all([AsyncStorage.getItem(STATE_KEY), AsyncStorage.getItem(SESSION_KEY)]);
           const saved: StoredState | null = savedState ? JSON.parse(savedState) : null;
-          if (saved?.v === STATE_SCHEMA_VERSION && Array.isArray(saved.state?.vehicles)) setState(saved.state);
+          if ((saved && saved.v >= 20 && saved.v <= STATE_SCHEMA_VERSION) && Array.isArray(saved.state?.vehicles)) setState(saved.state);
           else dirty.current = true;
           if (savedSession) { const p = JSON.parse(savedSession); userRef.current = p; setUser(p); }
           return;

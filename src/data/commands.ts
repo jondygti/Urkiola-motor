@@ -46,6 +46,8 @@ import { locationLabel, siteName, userName, vehicleTitle } from './format';
 /* ------------------------------------------------------------- comandos */
 
 export type Command =
+  | { type: 'request.cancel'; id: Id; at: string; userId: Id; requestId: Id; reason: string }
+  | { type: 'vehicle.setKeys'; id: Id; at: string; userId: Id; vehicleId: Id; primary?: string | null; secondary?: string | null }
   | { type: 'vehicle.check'; id: Id; at: string; userId: Id; vehicleId: Id; positionId?: Id | null }
   | {
       type: 'movement.register';
@@ -165,6 +167,7 @@ export type Command =
   | { type: 'reception.create'; id: Id; at: string; userId: Id; truckPlate: string; carrier: string; siteId: Id }
   | {
       type: 'reception.line';
+      zoneId?: Id | null;
       id: Id;
       at: string;
       userId: Id;
@@ -760,9 +763,12 @@ function aplicar(state: AppState, cmd: Command): AppState {
       };
 
       // Un traslado completado cierra su solicitud.
-      if (cmd.completesTransfer || changedSite) {
+      if (changedSite) {
         const open = next.requests.find(
-          (r) => r.vehicleId === cmd.vehicleId && r.type === 'traslado' && r.status !== 'terminada'
+          (r) => r.vehicleId === cmd.vehicleId && r.type === 'traslado' && (r.status !== 'terminada' && r.status !== 'cancelada')
+            && (r.to?.siteId ?? r.siteId) === destino.siteId
+            && (!r.to?.zoneId || r.to.zoneId === destino.zoneId)
+            && (!r.to?.positionId || r.to.positionId === destino.positionId)
         );
         if (open) {
           next = {
@@ -812,6 +818,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
         return state;
       }
       if (!state.sites.some((x) => x.id === cmd.siteId)) return state;
+      if (conflictoSolicitud(state, cmd)) return state;
       // La preparación arranca el reloj al pedirla: es el plazo mínimo que
       // el comercial tiene que dar. Si el vehículo ya tiene fecha de entrega
       // comprometida, manda esa, que es la que de verdad importa. El
@@ -884,9 +891,57 @@ function aplicar(state: AppState, cmd: Command): AppState {
       });
     }
 
+    case 'request.cancel': {
+      const r = state.requests.find((r) => r.id === cmd.requestId);
+      const actor = state.users.find((u) => u.id === cmd.userId);
+      if (!r || r.status === 'cancelada' || motivoCancelacion(state, actor, r) || !cmd.reason?.trim()) return state;
+      if (cmd.at < r.createdAt || (r.pickedUpAt && cmd.at < r.pickedUpAt)) return state;
+      const motivo = cmd.reason.trim();
+      const datos = { cancelledAt: cmd.at, cancelledBy: cmd.userId, cancelReason: motivo };
+      let next = { ...state, requests: replace(state.requests, r.id, { status: 'cancelada', ...datos }) };
+      const preparaciones = r.type === 'preparacion' ? preparacionesDeSolicitud(state, r) : [];
+      for (const p of preparaciones) {
+        if (p.startedAt && cmd.at < p.startedAt) return state;
+        next = { ...next, preparations: replace(next.preparations, p.id, {
+          runState: 'cancelado', ...datos, runningSince: null, waitingSince: null,
+          effectiveMs: p.effectiveMs + transcurrido(p.runningSince, cmd),
+          waitingMs: p.waitingMs + transcurrido(p.waitingSince, cmd),
+        }) };
+      }
+      const abiertos = next.requests.filter((x) => x.vehicleId === r.vehicleId && x.status !== 'terminada' && x.status !== 'cancelada');
+      const prep = next.preparations.find((p) => p.vehicleId === r.vehicleId && p.runState !== 'terminado' && p.runState !== 'cancelado');
+      const viaje = abiertos.find((x) => x.type === 'traslado');
+      const coche = next.vehicles.find((v) => v.id === r.vehicleId);
+      const terminada = next.preparations.find((p) => p.vehicleId === r.vehicleId && p.runState === 'terminado');
+      if (coche) next = { ...next, vehicles: replace(next.vehicles, coche.id, {
+        status: viaje ? (viaje.pickedUpAt ? 'en_traslado' : 'traslado_solicitado') : prep ? 'en_preparacion' :
+          coche.status === 'entregado' ? 'entregado' : terminada && !preparaciones.some(p => p.startedAt) ? 'apto_entrega' : 'aparcado',
+        targetSiteId: viaje?.to?.siteId ?? viaje?.siteId ?? prep?.siteId ?? abiertos[0]?.siteId ?? null,
+      }) };
+      const userIds = [...new Set([r.assignedTo, ...preparaciones.map(p => p.preparerId),
+        ...state.users.filter(u => r.carrierId && u.carrierId === r.carrierId).map(u => u.id)].filter((id): id is string => !!id))];
+      if (userIds.length) next = addInbox(next, { ruleId: null, tone: 'info', at: cmd.at, vehicleId: r.vehicleId, userIds,
+        title: 'Solicitud cancelada', body: `${coche ? vehicleTitle(coche) : r.vehicleId}: ${motivo}` });
+      return addEvent(next, { vehicleId: r.vehicleId, kind: 'solicitud', title: 'Solicitud cancelada',
+        detail: `${r.id} · ${motivo} · ${userName(state, cmd.userId)}`, at: cmd.at, userId: cmd.userId });
+    }
+
+    case 'vehicle.setKeys': {
+      if (!vehicle || (vehicle.keysUpdatedAt && cmd.at < vehicle.keysUpdatedAt)) return state;
+      const patch: Partial<Vehicle> = {};
+      if (cmd.primary !== undefined) patch.primaryKeyLocation = cmd.primary?.trim() || null;
+      if (cmd.secondary !== undefined) patch.secondaryKeyLocation = cmd.secondary?.trim() || null;
+      const changed = Object.entries(patch).some(([k, val]) => (vehicle[k as keyof Vehicle] ?? null) !== val);
+      if (!changed) return state;
+      const next = { ...state, vehicles: replace(state.vehicles, vehicle.id, { ...patch, keysUpdatedAt: cmd.at, keysUpdatedBy: cmd.userId }) };
+      return addEvent(next, { vehicleId: vehicle.id, kind: 'solicitud', title: 'Ubicación de llaves actualizada',
+        detail: `${cmd.primary !== undefined ? `Principal: ${patch.primaryKeyLocation ?? 'sin indicar'}. ` : ''}${cmd.secondary !== undefined ? `Segunda: ${patch.secondaryKeyLocation ?? 'sin indicar'}. ` : ''}${userName(state, cmd.userId)}`,
+        at: cmd.at, userId: cmd.userId });
+    }
+
     case 'request.update': {
       const req = state.requests.find((r) => r.id === cmd.requestId);
-      if (!req) return state;
+      if (!req || req.status === 'cancelada' || cmd.status === 'cancelada') return state;
 
       // Un comando que llega tarde no resucita un traslado ya entregado.
       //
@@ -962,7 +1017,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       if (!vehicle) return state;
       if (yaCreado(state.preparations, unico('prep', cmd))) return state;
       const existing = state.preparations.find(
-        (p) => p.vehicleId === cmd.vehicleId && p.runState !== 'terminado'
+        (p) => p.vehicleId === cmd.vehicleId && (p.runState !== 'terminado' && p.runState !== 'cancelado')
       );
       if (existing) return state;
       // Sondika almacena, no prepara. Estaba escrito como regla de negocio
@@ -974,7 +1029,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       // abre desde su cola lo que le han encargado, y un repaso abierto como
       // preparación de entrada se mediría contra dos horas.
       const pedidoAbierto = state.requests.find(
-        (r) => r.type === 'preparacion' && r.vehicleId === cmd.vehicleId && r.status !== 'terminada'
+        (r) => r.type === 'preparacion' && r.vehicleId === cmd.vehicleId && (r.status !== 'terminada' && r.status !== 'cancelada')
           && r.siteId === cmd.siteId && (!cmd.tipo || (r.prepTipo ?? 'entrada') === cmd.tipo)
       );
       const tipo: TipoPreparacion = cmd.tipo ?? pedidoAbierto?.prepTipo ?? 'entrada';
@@ -984,6 +1039,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
           : (state.config.prepTargetMinutes[vehicle.type] ?? 120) * 60_000;
       const prep: Preparation = {
         id: unico('prep', cmd),
+        requestId: pedidoAbierto?.id ?? null,
         vehicleId: cmd.vehicleId,
         siteId: cmd.siteId,
         preparerId: cmd.preparerId ?? null,
@@ -1010,7 +1066,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       // acordarse de cambiarla a mano y se quedaba en «solicitada» aunque
       // el coche ya estuviera en el taller.
       const pedido = next.requests.find(
-        (r) => r.type === 'preparacion' && r.vehicleId === cmd.vehicleId && r.status !== 'terminada'
+        (r) => r.type === 'preparacion' && r.vehicleId === cmd.vehicleId && (r.status !== 'terminada' && r.status !== 'cancelada')
           && r.siteId === cmd.siteId && (r.prepTipo ?? 'entrada') === tipo
       );
       if (pedido) {
@@ -1036,7 +1092,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
     case 'prep.start':
     case 'prep.resume': {
       const p = state.preparations.find((x) => x.id === cmd.prepId);
-      if (!p || p.runState === 'terminado') return state;
+      if (!p || (p.runState === 'terminado' || p.runState === 'cancelado')) return state;
       if (p.runState === 'en_curso') return state;
       if (p.waitingSince && cmd.at < p.waitingSince) return state;
       const waitedMs = transcurrido(p.waitingSince, cmd);
@@ -1064,7 +1120,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
     case 'prep.pause': {
       const p = state.preparations.find((x) => x.id === cmd.prepId);
-      if (!p || p.runState === 'terminado') return state;
+      if (!p || (p.runState === 'terminado' || p.runState === 'cancelado')) return state;
       if (p.runningSince && cmd.at < p.runningSince) return state;
       if (p.waitingSince && cmd.at < p.waitingSince) return state;
       const ranMs = transcurrido(p.runningSince, cmd);
@@ -1099,7 +1155,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
     case 'prep.item': {
       const p = state.preparations.find((x) => x.id === cmd.prepId);
-      if (!p || p.runState === 'terminado') return state;
+      if (!p || (p.runState === 'terminado' || p.runState === 'cancelado')) return state;
       if (!['pendiente', 'completado', 'no_requerido'].includes(cmd.state)) return state;
       const items = p.items.map((i) =>
         i.requirementId === cmd.requirementId
@@ -1129,7 +1185,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
     case 'prep.finish': {
       const p = state.preparations.find((x) => x.id === cmd.prepId);
-      if (!p || p.runState === 'terminado') return state;
+      if (!p || (p.runState === 'terminado' || p.runState === 'cancelado')) return state;
       // Si el preparador dice dónde deja el coche, el movimiento se registra
       // antes de cerrar: así la ficha no se queda diciendo que sigue en el
       // taller. Es el mismo comando de siempre, con un id derivado del de
@@ -1165,7 +1221,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
         vehicles: replace(base.vehicles, p.vehicleId, { status: 'apto_entrega' }),
       };
       const openReq = next.requests.find(
-        (r) => r.vehicleId === p.vehicleId && r.type === 'preparacion' && r.status !== 'terminada'
+        (r) => r.vehicleId === p.vehicleId && r.type === 'preparacion' && (r.status !== 'terminada' && r.status !== 'cancelada')
           && r.siteId === p.siteId && (r.prepTipo ?? 'entrada') === (p.tipo ?? 'entrada')
       );
       if (openReq) next = { ...next, requests: replace(next.requests, openReq.id, { status: 'terminada' }) };
@@ -1215,7 +1271,8 @@ function aplicar(state: AppState, cmd: Command): AppState {
       if (!count || !v) return state;
       if (count.found.some((f) => f.vehicleId === cmd.vehicleId)) return state;
 
-      const expectedPos = v.location?.positionId;
+      const mismaZona = v.location?.siteId === count.siteId && (!count.zoneId || v.location?.zoneId === count.zoneId);
+      const expectedPos = mismaZona ? v.location?.positionId : undefined;
       const found = {
         vehicleId: cmd.vehicleId,
         at: cmd.at,
@@ -1233,7 +1290,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       // una ubicación que no existe en ningún sitio.
       const location = ubicacionObservable(state, cmd.positionId
         ? (ubicacionDePlaza(state, cmd.positionId) ?? v.location)
-        : v.location, v.id, cmd);
+        : mismaZona ? v.location : normalizarUbicacion(state, { siteId: count.siteId, zoneId: count.zoneId ?? undefined }), v.id, cmd);
 
       // El recuento es una observación física: si el coche está aquí, el que
       // teníamos apuntado en esta plaza ya no está.
@@ -1373,8 +1430,9 @@ function aplicar(state: AppState, cmd: Command): AppState {
         const sede = v.location?.siteId;
         if (!sede || !next.sites.find((x) => x.id === sede)?.prepares) continue;
         // Ni encima de lo que ya está pedido o abierto.
-        if (next.preparations.some((p) => p.vehicleId === v.id && p.runState !== 'terminado')) continue;
-        if (next.requests.some((r) => r.type === 'preparacion' && r.vehicleId === v.id && r.status !== 'terminada')) {
+        if (next.preparations.some((p) => p.vehicleId === v.id && (p.runState !== 'terminado' && p.runState !== 'cancelado'))) continue;
+        if (next.requests.some((r) => r.status === 'cancelada' && r.vehicleId === v.id && r.prepTipo === 'repaso' && r.cancelledAt?.slice(0, 10) === dia)) continue;
+        if (next.requests.some((r) => r.type === 'preparacion' && r.vehicleId === v.id && (r.status !== 'terminada' && r.status !== 'cancelada'))) {
           continue;
         }
 
@@ -1478,18 +1536,19 @@ function aplicar(state: AppState, cmd: Command): AppState {
         damage: cmd.damage !== undefined ? cmd.damage : base.damage,
         positionId: cmd.positionId !== undefined ? cmd.positionId : base.positionId,
         photos: cmd.photos ?? base.photos,
+        zoneId: cmd.zoneId !== undefined ? cmd.zoneId : ('zoneId' in base ? base.zoneId : null),
       };
       const lines = idx >= 0 ? rec.lines.map((l, i) => (i === idx ? line : l)) : [...rec.lines, line];
 
       let next: AppState = { ...state, receptions: replace(state.receptions, cmd.receptionId, { lines }) };
 
       // Al descargar y asignar plaza, el vehículo entra en campa.
-      if (matched && line.unloaded && line.positionId) {
+      if (matched && line.unloaded && (line.positionId || line.zoneId)) {
         const coche = state.vehicles.find((v) => v.id === matched)!;
         if (observacionAtrasada(coche, cmd)) return anotarObservacionAntigua(next, matched, cmd, `Descarga del camión ${rec.truckPlate}`);
         // La plaza manda sobre la sede del albarán: si el operario descarga
         // en una plaza de otra campa, el coche está donde está la plaza.
-        const donde = ubicacionObservable(state, normalizarUbicacion(state, { siteId: rec.siteId, positionId: line.positionId }), matched, cmd);
+        const donde = ubicacionObservable(state, normalizarUbicacion(state, { siteId: rec.siteId, zoneId: line.zoneId ?? undefined, positionId: line.positionId ?? undefined }), matched, cmd);
         next = liberarPlaza(activate(next, matched), donde?.positionId, matched, cmd);
         next = {
           ...next,
@@ -1550,9 +1609,9 @@ function aplicar(state: AppState, cmd: Command): AppState {
       const anterior = state.sites.find((x) => x.id === cmd.site.id);
       if (anterior?.prepares && !cmd.site.prepares) {
         const enMarcha =
-          state.preparations.some((p) => p.siteId === cmd.site.id && p.runState !== 'terminado') ||
+          state.preparations.some((p) => p.siteId === cmd.site.id && (p.runState !== 'terminado' && p.runState !== 'cancelado')) ||
           state.requests.some(
-            (r) => r.siteId === cmd.site.id && r.type === 'preparacion' && r.status !== 'terminada'
+            (r) => r.siteId === cmd.site.id && r.type === 'preparacion' && (r.status !== 'terminada' && r.status !== 'cancelada')
           );
         if (enMarcha) return state;
       }
@@ -1733,7 +1792,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       // Con traslados abiertos no se borra: se desactiva para que deje de
       // aparecer al asignar, pero el histórico sigue teniendo su nombre.
       const enUso = state.requests.some(
-        (r) => r.carrierId === cmd.carrierId && r.status !== 'terminada'
+        (r) => r.carrierId === cmd.carrierId && (r.status !== 'terminada' && r.status !== 'cancelada')
       );
       if (enUso) {
         return {
@@ -1751,7 +1810,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
       // Si ya hay una preparación pedida, su plazo pasa a ser la entrega.
       const prepReqs = next.requests.filter(
-        (r) => r.vehicleId === cmd.vehicleId && r.type === 'preparacion' && r.status !== 'terminada'
+        (r) => r.vehicleId === cmd.vehicleId && r.type === 'preparacion' && (r.status !== 'terminada' && r.status !== 'cancelada')
       );
       for (const prepReq of prepReqs) {
         next = {
@@ -1806,7 +1865,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       // quede abierto se cierra aquí, o se queda en la cola de alguien
       // esperando a un coche que ya no está.
       const prepAbierta = next.preparations.find(
-        (p) => p.vehicleId === cmd.vehicleId && p.runState !== 'terminado'
+        (p) => p.vehicleId === cmd.vehicleId && (p.runState !== 'terminado' && p.runState !== 'cancelado')
       );
       if (prepAbierta) {
         next = {
@@ -1979,4 +2038,31 @@ export function applyAll(state: AppState, commands: Command[]): AppState {
 /** Objetivo por defecto en ms para un tipo de vehículo. */
 export function defaultTargetMs(type: 'VN' | 'VO'): number {
   return (CONFIG.prepTargetMinutes[type] ?? 120) * 60_000;
+}
+
+
+export function preparacionesDeSolicitud(s: AppState, r: ServiceRequest) {
+  return s.preparations.filter(p => p.runState !== 'terminado' && p.runState !== 'cancelado' &&
+    (p.requestId ? p.requestId === r.id : p.vehicleId === r.vehicleId && p.siteId === r.siteId && (p.tipo ?? 'entrada') === (r.prepTipo ?? 'entrada')));
+}
+
+export function motivoCancelacion(s: AppState, u: User | null | undefined, r: ServiceRequest): string | null {
+  if (!u?.active) return 'Usuario no autorizado.';
+  const rol = s.config.roles.find(x => x.id === u.role);
+  if (rol?.simple || u.carrierId) return 'El transportista puede comunicar una incidencia, no cancelar solicitudes.';
+  if (r.status === 'terminada') return 'La solicitud ya ha terminado.';
+  const gestiona = rol?.permissions.includes('solicitudes.gestionar') || rol?.permissions.includes('admin.configurar');
+  if (gestiona) return u.siteIds.length && !u.siteIds.includes(r.siteId) ? 'Solicitud de otra sede.' : null;
+  if (r.createdBy !== u.id) return 'Solo el creador o Logística pueden cancelar.';
+  const iniciada = r.type === 'traslado' ? !!r.pickedUpAt || r.status === 'en_ruta' :
+    preparacionesDeSolicitud(s, r).some(p => !!p.startedAt || !!p.runningSince || p.effectiveMs > 0);
+  return iniciada ? 'El trabajo ya ha comenzado. Debe gestionarlo Logística.' : null;
+}
+
+export function conflictoSolicitud(s: AppState, c: Pick<Extract<Command, { type: 'request.create' }>, 'requestType' | 'vehicleId' | 'siteId' | 'prepTipo'>): string | null {
+  const abiertas = s.requests.filter(r => r.vehicleId === c.vehicleId && r.status !== 'terminada' && r.status !== 'cancelada');
+  if (c.requestType === 'traslado' && abiertas.some(r => r.type === 'traslado')) return 'Este vehículo ya tiene un traslado abierto. Cancélalo antes de pedir otro.';
+  if (c.requestType === 'preparacion' && (abiertas.some(r => r.type === 'preparacion' && r.siteId === c.siteId && (r.prepTipo ?? 'entrada') === (c.prepTipo ?? 'entrada')) ||
+    s.preparations.some(p => p.vehicleId === c.vehicleId && p.siteId === c.siteId && (p.tipo ?? 'entrada') === (c.prepTipo ?? 'entrada') && p.runState !== 'terminado' && p.runState !== 'cancelado'))) return 'Ya existe una solicitud o preparación equivalente abierta.';
+  return null;
 }

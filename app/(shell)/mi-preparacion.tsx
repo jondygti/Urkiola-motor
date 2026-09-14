@@ -30,7 +30,7 @@ export default function MyPrepScreen() {
     const inScope = (siteId: string) =>
       !user || user.siteIds.length === 0 || user.siteIds.includes(siteId);
     const requestOf = (p: Preparation) =>
-      state.requests.find((r) => r.type === 'preparacion' && r.vehicleId === p.vehicleId && r.status !== 'terminada'
+      state.requests.find((r) => r.type === 'preparacion' && r.vehicleId === p.vehicleId && (r.status !== 'terminada' && r.status !== 'cancelada')
         && r.siteId === p.siteId && (r.prepTipo ?? 'entrada') === (p.tipo ?? 'entrada'));
 
     return activePreparations(state)
@@ -202,7 +202,7 @@ function PrepCard({ prep, onOpen }: { prep: Preparation; onOpen: () => void }) {
   const { done, total, pct } = prepProgress(prep);
   const fuera = prepIsOverSla(prep, now);
   const request = state.requests.find(
-    (r: ServiceRequest) => r.type === 'preparacion' && r.vehicleId === prep.vehicleId && r.status !== 'terminada'
+    (r: ServiceRequest) => r.type === 'preparacion' && r.vehicleId === prep.vehicleId && (r.status !== 'terminada' && r.status !== 'cancelada')
   );
   const plazo = request ? deadlineOf(state, request, now) : null;
   const enCurso = prep.runState === 'en_curso';
@@ -366,7 +366,7 @@ function WorkModal({
       {prep.items.map((item) => {
         if (item.requirementId === 'req-campana') return (
           <CampanaCheck key={item.requirementId} estado={item.state}
-            disabled={!puede || prep.runState === 'terminado'}
+            disabled={!puede || (prep.runState === 'terminado' || prep.runState === 'cancelado')}
             onChange={(next) => run({ type: 'prep.item', prepId: prep.id,
               requirementId: item.requirementId, state: next })} />
         );

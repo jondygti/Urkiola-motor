@@ -9,7 +9,7 @@
  * La tabla de qué exige cada comando está en docs/BACKEND-API.md.
  */
 import type { AppState, Id, Permission, User } from '../../src/data/types';
-import type { Command } from '../../src/data/commands';
+import { motivoCancelacion, type Command } from '../../src/data/commands';
 import { can, esDelComercial, isSimpleRole, puedeGestionarEntrega } from '../../src/data/selectors';
 
 /** Dos formas de escribir el mismo nombre: «Juan» y «Juan Bilbao». */
@@ -34,7 +34,7 @@ function sedeVetada(u: User, siteId: Id | null | undefined): boolean {
 /** ¿Este traslado es de esta persona o de su empresa de transporte? */
 function trasladoSuyo(s: AppState, u: User, requestId: Id): boolean {
   const r = s.requests.find((x) => x.id === requestId);
-  if (!r || r.type !== 'traslado') return false;
+  if (!r || r.type !== 'traslado' || !r.carrierId || r.status === 'cancelada') return false;
   if (r.assignedTo === u.id) return true;
   return !!u.carrierId && r.carrierId === u.carrierId;
 }
@@ -43,9 +43,9 @@ function trasladoSuyo(s: AppState, u: User, requestId: Id): boolean {
 function vehiculoDeSuTraslado(s: AppState, u: User, vehicleId: Id): boolean {
   return s.requests.some(
     (r) =>
-      r.type === 'traslado' &&
+      r.type === 'traslado' && !!r.carrierId &&
       r.vehicleId === vehicleId &&
-      r.status !== 'terminada' &&
+      (r.status !== 'terminada' && r.status !== 'cancelada') &&
       (r.assignedTo === u.id || (!!u.carrierId && r.carrierId === u.carrierId))
   );
 }
@@ -74,7 +74,9 @@ function sedeAfectada(s: AppState, cmd: Command): Id | null | undefined {
   // Y una solicitud se mide por la sede que la tiene que atender, no por
   // dónde está el coche ahora: pedir que traigan a Leioa un coche que está
   // en Sondika es justo para lo que existe la pantalla.
-  if (cmd.type === 'request.create' || cmd.type === 'prep.create') return cmd.siteId;
+  if (cmd.type === 'request.create') return cmd.requestType === 'traslado' ? undefined : cmd.siteId;
+  if (cmd.type === 'request.cancel' || cmd.type === 'vehicle.setKeys') return undefined;
+  if (cmd.type === 'prep.create') return cmd.siteId;
 
   if ('vehicleId' in cmd && cmd.vehicleId) {
     const v = s.vehicles.find((x) => x.id === cmd.vehicleId);
@@ -160,10 +162,19 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
       return 'No puedes registrar movimientos de este vehículo.';
     }
 
+    case 'request.cancel': {
+      const r = s.requests.find(r => r.id === cmd.requestId);
+      return r ? motivoCancelacion(s, u, r) : 'Solicitud inexistente.';
+    }
+
+    case 'vehicle.setKeys':
+      return tiene(s, u, 'flota.editar') || tiene(s, u, 'movimientos.registrar') ? null : 'No puedes editar la ubicación de llaves.';
+
     case 'request.create':
       return tiene(s, u, 'solicitudes.crear') ? null : 'No puedes crear solicitudes.';
 
     case 'request.update': {
+      if (cmd.status === 'cancelada' || s.requests.find(r => r.id === cmd.requestId)?.status === 'cancelada') return 'Usa Cancelar solicitud; una cancelación no se reabre.';
       if (tiene(s, u, 'solicitudes.gestionar')) return null;
       // El transportista sí puede mover su propio traslado, pero solo
       // adelante: recogido y terminado. Ni lo asigna ni lo cancela.
@@ -179,7 +190,7 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
       // hacer su trabajo, no gestionarlo. Lo que no puede es inventarse
       // preparaciones que nadie ha solicitado.
       const pedida = s.requests.some(
-        (r) => r.type === 'preparacion' && r.vehicleId === cmd.vehicleId && r.status !== 'terminada'
+        (r) => r.type === 'preparacion' && r.vehicleId === cmd.vehicleId && (r.status !== 'terminada' && r.status !== 'cancelada')
           && r.siteId === cmd.siteId && (!cmd.tipo || (r.prepTipo ?? 'entrada') === cmd.tipo)
       );
       if (tiene(s, u, 'preparacion.ejecutar') && pedida) return null;

@@ -130,7 +130,7 @@ function UnloadFlow({
   );
 
   // La siguiente plaza libre se propone sola: es lo que se hace el 90 % de las veces.
-  const propuesta = positionId ?? libres[0]?.id ?? null;
+  const propuesta = positionId === '__sin_plaza__' ? null : positionId ?? libres[0]?.id ?? null;
 
   const librasDe = (id: string) =>
     state.positions.filter((pos) => pos.zoneId === id && !ocupadas.has(pos.id)).length;
@@ -139,18 +139,19 @@ function UnloadFlow({
 
   const descargar = (damage: string | null, photos: string[] = []) => {
     const clean = ref.trim().toUpperCase();
-    if (!clean || !propuesta) return;
+    if (!clean || !zoneId) return;
     run({
       type: 'reception.line',
       receptionId: reception.id,
       ref: clean,
       unloaded: true,
       positionId: propuesta,
+      zoneId,
       damage,
       photos,
     });
     const plaza = state.positions.find((p) => p.id === propuesta);
-    onDone(`${clean} → ${plaza?.code ?? ''}${damage ? ' · con daños' : ''}`);
+    onDone(`${clean} → ${plaza?.code ?? zones.find(z => z.id === zoneId)?.name ?? ''}${damage ? ' · con daños' : ''}`);
     setRef('');
     setPositionId(null);
   };
@@ -224,19 +225,19 @@ function UnloadFlow({
           />
         </Field>
 
-        <Field label="Plaza" hint="Se propone la primera libre; cámbiala si lo dejas en otra.">
+        <Field label="Plaza" hint="Opcional. Elige solo zona si no hay plazas individuales.">
           <Select
             full
-            value={propuesta}
+            value={positionId === '__sin_plaza__' ? '__sin_plaza__' : propuesta}
             onChange={setPositionId}
-            placeholder="Sin plazas libres"
-            options={libres.map((p) => ({ value: p.id, label: p.code }))}
+            placeholder="Solo zona · sin plaza"
+            options={[{ value: '__sin_plaza__', label: 'Solo zona · sin plaza' }, ...libres.map((p) => ({ value: p.id, label: p.code }))]}
             title="Plaza"
             searchable
           />
         </Field>
 
-        {libres.length === 0 ? (
+        {libres.length === 0 && state.positions.some(p => p.zoneId === zoneId) ? (
           <>
             <Notice tone="danger">Esta zona está llena.</Notice>
             {siguienteConHueco ? (
@@ -254,13 +255,13 @@ function UnloadFlow({
         <Btn
           variant="primary"
           full
-          disabled={!ref.trim() || !propuesta}
+          disabled={!ref.trim() || !zoneId}
           onPress={() => descargar(null)}
         >
           ✓ Descargado · siguiente
         </Btn>
         <Spacer h={space.sm} />
-        <Btn full disabled={!ref.trim() || !propuesta} onPress={() => setDamageOpen(true)}>
+        <Btn full disabled={!ref.trim() || !zoneId} onPress={() => setDamageOpen(true)}>
           ⚠ Llega con daños
         </Btn>
       </Panel>

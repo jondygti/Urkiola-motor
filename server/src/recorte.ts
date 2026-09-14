@@ -25,6 +25,7 @@ import { avisoLeido } from '../../src/data/selectors';
  */
 export const CAMPOS_DEL_VEHICULO: Record<keyof Vehicle, 'va' | 'se-borra'> = {
   // Lo que necesita para reconocer el coche y llevarlo donde toca.
+  primaryKeyLocation: 'se-borra', secondaryKeyLocation: 'se-borra', keysUpdatedAt: 'se-borra', keysUpdatedBy: 'se-borra',
   id: 'va',
   vin8: 'va',
   vin: 'va',
@@ -74,7 +75,7 @@ export function estadoParaColaborador(s: AppState, u: User): AppState {
   const suyos = s.requests.filter(
     (r) =>
       r.type === 'traslado' &&
-      (r.assignedTo === u.id || (!!u.carrierId && r.carrierId === u.carrierId))
+      !!r.carrierId && (r.assignedTo === u.id || (!!u.carrierId && r.carrierId === u.carrierId))
   );
 
   const idsVehiculos = new Set(suyos.map((r) => r.vehicleId));

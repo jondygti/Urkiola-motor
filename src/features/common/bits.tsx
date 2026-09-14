@@ -46,11 +46,12 @@ const REQUEST_TONE: Record<RequestStatus, Tone> = {
   en_ruta: 'blue',
   en_curso: 'ok',
   terminada: 'neutral',
+  cancelada: 'neutral',
   bloqueada: 'red',
 };
 
 export function RequestStatusPill({ status, urgent }: { status: RequestStatus; urgent?: boolean }) {
-  if (urgent && status !== 'terminada') return <Pill tone="red">Urgente</Pill>;
+  if (urgent && status !== 'terminada' && status !== 'cancelada') return <Pill tone="red">Urgente</Pill>;
   return <Pill tone={REQUEST_TONE[status]}>{REQUEST_STATUS_LABEL[status]}</Pill>;
 }
 
@@ -60,10 +61,11 @@ const PREP_TONE: Record<PrepRunState, Tone> = {
   en_espera: 'amber',
   bloqueado: 'red',
   terminado: 'neutral',
+  cancelado: 'neutral',
 };
 
 export function PrepStatePill({ runState, overSla }: { runState: PrepRunState; overSla?: boolean }) {
-  if (overSla && runState !== 'terminado') return <Pill tone="red">Fuera SLA</Pill>;
+  if (overSla && runState !== 'terminado' && runState !== 'cancelado') return <Pill tone="red">Fuera SLA</Pill>;
   return <Pill tone={PREP_TONE[runState]}>{PREP_RUN_STATE_LABEL[runState]}</Pill>;
 }
 

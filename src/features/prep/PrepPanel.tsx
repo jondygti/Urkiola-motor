@@ -47,7 +47,7 @@ export function PrepPanel({
   const waiting = prepWaitingMs(prep, now);
   const { done, total, pct } = prepProgress(prep);
   const overSla = prepIsOverSla(prep, now);
-  const finished = prep.runState === 'terminado';
+  const finished = (prep.runState === 'terminado' || prep.runState === 'cancelado');
   const bloqueado = finished || !puedeEjecutar;
   const apt = finished || (pct === 100 && prep.phase === 'apto_entrega');
 

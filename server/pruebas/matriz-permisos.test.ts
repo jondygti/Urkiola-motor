@@ -31,6 +31,8 @@ const PUEDEN: Record<string, Rol[]> = {
   'vehicle.activate': ['admin', 'logistica', 'preparador', 'recepcion', 'comercial'],
 
   // Solicitudes
+  'request.cancel': ['admin', 'logistica'],
+  'vehicle.setKeys': ['admin', 'logistica', 'preparador', 'recepcion', 'comercial'],
   'request.create': ['admin', 'logistica', 'preparador', 'comercial'],
   'request.update': ['admin', 'logistica'],
 
@@ -122,7 +124,7 @@ function laboratorio(): { estado: AppState; usuarios: Record<Rol, User> } {
     return sinSedes;
   });
 
-  return { estado: { ...base, users }, usuarios };
+  return { estado: { ...base, users, requests: base.requests.map(r => ({ ...r, createdBy: 'creador-ausente' })) }, usuarios };
 }
 
 /** Un comando de ejemplo de cada tipo, con datos que existen de verdad. */
@@ -157,6 +159,8 @@ function ejemplos(s: AppState): Record<string, CommandInput> {
     'vehicle.check': { type: 'vehicle.check', vehicleId: vehiculo.id },
     'movement.register': { type: 'movement.register', vehicleId: vehiculo.id, to: { siteId: 'leioa' } },
     'vehicle.activate': { type: 'vehicle.activate', vehicleId: vehiculo.id },
+    'request.cancel': { type: 'request.cancel', requestId: solicitud.id, reason: 'Cambio solicitado' },
+    'vehicle.setKeys': { type: 'vehicle.setKeys', vehicleId: vehiculo.id, primary: 'Recepción' },
     'request.create': {
       type: 'request.create',
       requestType: 'preparacion',

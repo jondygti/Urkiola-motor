@@ -687,7 +687,7 @@ export async function ejecutar(browser, BASE) {
     await pulsar(page, 'Juan Bilbao');
     await page.waitForTimeout(1000);
     const s = await estadoGuardado(page);
-    const v = s.vehicles.find((v) => v.location?.siteId === 'leioa' && v.logisticActive && !v.deliveredAt);
+    const v = s.vehicles.find((v) => v.location?.siteId === 'leioa' && v.logisticActive && !v.deliveredAt && !s.requests.some(r => r.vehicleId === v.id && r.type === 'traslado' && !['terminada', 'cancelada'].includes(r.status)));
     if (!v) throw new Error('Falta un coche en Leioa para probar el traslado');
     await page.goto(`${BASE}/vehiculo/${v.id}`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(800);
@@ -710,6 +710,65 @@ export async function ejecutar(browser, BASE) {
     await page.waitForTimeout(900);
     ok('23 · el traslado sigue visible después de recargar', (await page.locator('body').innerText()).includes('PRUEBA CAMBIO DE ROL'));
     await context.close();
+  }
+
+  /* 24 · cancelación, llaves opcionales y recepción en zona sin plazas */
+  {
+    const { context, page, errores } = await entrarComo(browser, USUARIOS.comercial, 1440);
+    await page.goto(`${BASE}/flota`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(900);
+    const v = await page.evaluate(() => {
+      const raw = JSON.parse(localStorage.getItem('urkiola.state.v1'));
+      const s = raw.state;
+      const v = s.vehicles.find(v => v.logisticActive);
+      v.salesRep = 'Juan'; v.location = { siteId: 'leioa' };
+      s.requests = s.requests.filter(r => r.vehicleId !== v.id);
+      s.preparations = s.preparations.filter(p => p.vehicleId !== v.id);
+      s.requests.unshift({ id: 'cancelacion-ui', vehicleId: v.id, type: 'traslado', siteId: 'galdakao',
+        from: { siteId: 'leioa' }, to: { siteId: 'galdakao' }, status: 'solicitada', createdBy: 'u-juan',
+        createdAt: new Date().toISOString(), pickedUpAt: null, deliveredAt: null, deliveredBy: null,
+        assignedTo: 'u-iker', carrierId: 'gruas-francis', urgent: false, dueAt: null });
+      localStorage.setItem('urkiola.state.v1', JSON.stringify(raw)); return v.id;
+    });
+    await page.goto(`${BASE}/vehiculo/${v}`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(900);
+    await pulsar(page, 'Ubicación de llaves', { exact: true });
+    await page.getByPlaceholder('Ej.: Caja fuerte comercial', { exact: true }).fill('Cliente');
+    await pulsar(page, 'Guardar llaves', { exact: true });
+    await page.waitForTimeout(700);
+    let s = await estadoGuardado(page);
+    ok('24 · segunda llave se guarda dejando principal vacía', s.vehicles.find(x => x.id === v).secondaryKeyLocation === 'Cliente' && !s.vehicles.find(x => x.id === v).primaryKeyLocation);
+    await pulsar(page, 'Cancelar solicitud', { exact: true });
+    await page.getByPlaceholder('Indica por qué se cancela').fill('Cambio del cliente');
+    await pulsar(page, 'Confirmar cancelación', { exact: true });
+    await page.waitForTimeout(800);
+    s = await estadoGuardado(page);
+    ok('24 · botón cancela y conserva el motivo', s.requests.find(r => r.id === 'cancelacion-ui').status === 'cancelada' && s.requests.find(r => r.id === 'cancelacion-ui').cancelReason === 'Cambio del cliente');
+    ok('24 · cancelar no mueve coche ni segunda llave', s.vehicles.find(x=>x.id===v).location.siteId === 'leioa' && s.vehicles.find(x=>x.id===v).secondaryKeyLocation === 'Cliente');
+    await context.close();
+    const rec = await entrarComo(browser, USUARIOS.recepcion, 420);
+    await rec.page.goto(`${BASE}/mi-recepcion`, { waitUntil: 'networkidle' });
+    await rec.page.waitForTimeout(900);
+    await rec.page.evaluate(() => {
+      const raw = JSON.parse(localStorage.getItem('urkiola.state.v1'));
+      raw.state.zones.push({ id: 'parking-test', siteId: 'sondika', name: 'Parking sin plazas', kind: 'parking', capacity: 0 });
+      raw.state.receptions.unshift({ id: 'camion-zona', truckPlate: 'ZONA TEST', carrier: 'Test', siteId:'sondika', arrivedAt:new Date().toISOString(),closedAt:null,albaranUri:null,lines:[] });
+      localStorage.setItem('urkiola.state.v1',JSON.stringify(raw));
+    });
+    await rec.page.reload({ waitUntil: 'networkidle' }); await rec.page.waitForTimeout(800);
+    const antes = await estadoGuardado(rec.page);
+    const coche = antes.vehicles.find(v=>v.vin8);
+    await rec.page.getByPlaceholder('Escribe o escanea').fill(coche.vin8);
+    // La zona actual es la primera con hueco: abrir el selector desde el campo.
+    const campo = rec.page.getByText('Zona', { exact: true }).first().locator('xpath=..');
+    await campo.locator('[tabindex="0"]').first().click();
+    await rec.page.getByText('Parking sin plazas', { exact: true }).last().click();
+    await pulsar(rec.page, '✓ Descargado · siguiente', { exact: true });
+    await rec.page.waitForTimeout(900);
+    const despues = await estadoGuardado(rec.page);
+    ok('24 · recepción descarga sin plaza ficticia', despues.vehicles.find(v=>v.id===coche.id).location.zoneId === 'parking-test' && !despues.vehicles.find(v=>v.id===coche.id).location.positionId);
+    ok('24 · formularios sin errores JavaScript', errores.length === 0 && rec.errores.length === 0, [...errores,...rec.errores][0] ?? '');
+    await rec.context.close();
   }
 
   return resumen();

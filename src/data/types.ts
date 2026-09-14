@@ -91,6 +91,10 @@ export const VEHICLE_FLOW: VehicleStatus[] = [
 ];
 
 export interface Vehicle {
+  primaryKeyLocation?: string | null;
+  secondaryKeyLocation?: string | null;
+  keysUpdatedAt?: ISODate | null;
+  keysUpdatedBy?: Id | null;
   id: Id;
   /** Últimos 8 caracteres del bastidor: identificador operativo. */
   vin8: string;
@@ -154,7 +158,8 @@ export type RequestStatus =
   | 'en_ruta'
   | 'en_curso'
   | 'terminada'
-  | 'bloqueada';
+  | 'bloqueada'
+  | 'cancelada';
 
 export const REQUEST_STATUS_LABEL: Record<RequestStatus, string> = {
   solicitada: 'Solicitada',
@@ -163,6 +168,7 @@ export const REQUEST_STATUS_LABEL: Record<RequestStatus, string> = {
   en_curso: 'En curso',
   terminada: 'Terminada',
   bloqueada: 'Bloqueada',
+  cancelada: 'Cancelada',
 };
 
 /**
@@ -184,6 +190,9 @@ export const DELAY_REASON_LABEL: Record<DelayReason, string> = {
 };
 
 export interface ServiceRequest {
+  cancelledAt?: ISODate | null;
+  cancelledBy?: Id | null;
+  cancelReason?: string | null;
   id: Id;
   type: RequestType;
   vehicleId: Id;
@@ -288,7 +297,7 @@ export const PREP_PHASE_LABEL: Record<PrepPhase, string> = {
   apto_entrega: 'Apto entrega',
 };
 
-export type PrepRunState = 'pendiente' | 'en_curso' | 'en_espera' | 'bloqueado' | 'terminado';
+export type PrepRunState = 'pendiente' | 'en_curso' | 'en_espera' | 'bloqueado' | 'terminado' | 'cancelado';
 
 export const PREP_RUN_STATE_LABEL: Record<PrepRunState, string> = {
   pendiente: 'Pendiente',
@@ -296,6 +305,7 @@ export const PREP_RUN_STATE_LABEL: Record<PrepRunState, string> = {
   en_espera: 'En espera',
   bloqueado: 'Bloqueado',
   terminado: 'Terminado',
+  cancelado: 'Cancelado',
 };
 
 /** Los tres estados de cada requisito. "No requerido" no penaliza el %. */
@@ -312,6 +322,10 @@ export interface ChecklistItem {
 }
 
 export interface Preparation {
+  requestId?: Id | null;
+  cancelledAt?: ISODate | null;
+  cancelledBy?: Id | null;
+  cancelReason?: string | null;
   id: Id;
   vehicleId: Id;
   siteId: Id;
@@ -471,6 +485,7 @@ export interface NotificationEvent {
 /* ------------------------------------------------------------ recepción */
 
 export interface ReceptionLine {
+  zoneId?: Id | null;
   vehicleId: Id | null;
   /** Identificador leído del albarán aunque el vehículo aún no exista. */
   ref: string;

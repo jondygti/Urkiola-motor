@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Image, View } from 'react-native';
 import { Btn, Checkbox, Field, Input, Modal, Muted, Notice, Select, Toolbar, radius, space, useTheme } from '@/ui';
+import { conflictoSolicitud } from '@/data/commands';
 import { useStore } from '@/data/store';
 import { activeCarriers, can, suggestCarrier, puedeGestionarEntrega } from '@/data/selectors';
 import { DateField } from '@/features/common/DateField';
@@ -243,6 +244,8 @@ export function RequestModal({
   const carrierElegido = carrierTocado ? carrierId : (sugerida?.id ?? null);
 
   const submit = () => {
+    const conflicto = conflictoSolicitud(state, { requestType: type, vehicleId: vehicle.id, siteId, prepTipo });
+    if (conflicto) { setAviso(conflicto); return; }
     // Si la entrega es antes del plazo mínimo, se avisa y hay que confirmar.
     if (margenCorto && !aviso) {
       setAviso(
@@ -353,6 +356,7 @@ export function RequestModal({
         </Notice>
       ) : null}
 
+      {aviso && !margenCorto ? <Notice tone="warn">{aviso}</Notice> : null}
       <Checkbox checked={urgent} onToggle={() => setUrgent((u) => !u)} label="Marcar como urgente" />
       <Field label="Nota (opcional)">
         <Input value={note} onChangeText={setNote} placeholder="Detalles para el equipo" multiline />

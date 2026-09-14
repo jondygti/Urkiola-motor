@@ -12,7 +12,7 @@
  * la app ni las reglas.
  */
 import type { AppState, Id, User } from '../../src/data/types';
-import { applyAll, applyCommand, type Command } from '../../src/data/commands';
+import { conflictoSolicitud, applyAll, applyCommand, type Command } from '../../src/data/commands';
 import { buildSeedState } from '../../src/data/seed';
 import type { Almacen } from './almacen/tipos';
 import { COMANDOS_POR_FOTO } from './almacen/tipos';
@@ -354,6 +354,11 @@ export class Servicio {
       if (!this.estadoActual.config.roles.some((r) => r.id === cmd.user.role)) throw malaPeticion('Ese rol no existe.');
     }
 
+    if (cmd.type === 'request.create') {
+      const conflicto = conflictoSolicitud(this.estadoActual, cmd);
+      if (conflicto) throw malaPeticion(conflicto);
+      if (cmd.carrierId && !this.estadoActual.carriers.some(c => c.id === cmd.carrierId && c.active)) throw malaPeticion('Empresa de transporte no válida.');
+    }
     const antes = this.estadoActual;
     const despues = applyCommand(antes, cmd);
 

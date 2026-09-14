@@ -130,7 +130,7 @@ export default function CampScreen() {
         <Kpi label="Posiciones" value={occ.capacity} hint="capacidad" />
         <Kpi
           label="Ocupación"
-          value={`${occ.pct}%`}
+          value={occ.hasCapacity ? `${occ.pct}%` : '—'}
           hint="actual"
           tone={occ.pct > 90 ? 'red' : occ.pct > 75 ? 'amber' : 'ok'}
         />
@@ -139,8 +139,8 @@ export default function CampScreen() {
       <Spacer h={space.lg} />
 
       {activeZone && zoneOcc ? (
-        <Panel title={`${activeZone.name} · ${zoneOcc.occupied}/${zoneOcc.capacity} plazas`}>
-          <ProgressBar pct={zoneOcc.pct} tone={zoneOcc.pct > 90 ? 'red' : 'ok'} />
+        <Panel title={`${activeZone.name} · ${zoneOcc.occupied} coches${zoneOcc.hasCapacity ? ` / ${zoneOcc.capacity} plazas` : ''}`}>
+          {zoneOcc.hasCapacity ? <ProgressBar pct={zoneOcc.pct} tone={zoneOcc.pct > 90 ? 'red' : 'ok'} /> : <Muted>Sin plazas individuales</Muted>}
           <Spacer h={space.md} />
           <DataTable
             columns={columns}
@@ -176,8 +176,8 @@ export default function CampScreen() {
                 <Text style={{ fontSize: tipografia.display, fontWeight: '900', color: c.text, marginVertical: 4 }}>
                   {o.occupied}
                 </Text>
-                <Text style={{ fontSize: tipografia.micro, color: c.textMuted, marginBottom: 6 }}>de {o.capacity} plazas</Text>
-                <ProgressBar pct={o.pct} tone={o.pct > 90 ? 'red' : o.pct > 75 ? 'amber' : 'ok'} />
+                <Text style={{ fontSize: tipografia.micro, color: c.textMuted, marginBottom: 6 }}>{o.hasCapacity ? `de ${o.capacity} plazas` : 'Sin plazas individuales'}</Text>
+                {o.hasCapacity ? <ProgressBar pct={o.pct} tone={o.pct > 90 ? 'red' : o.pct > 75 ? 'amber' : 'ok'} /> : <Muted>Sin plazas individuales</Muted>}
               </View>
             );
           })}
