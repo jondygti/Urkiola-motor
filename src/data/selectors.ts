@@ -909,3 +909,16 @@ export function deliveryStatus(s: AppState, v: Vehicle, now = Date.now()): Deliv
   // En riesgo: quedan menos de 48 h y todavía falta algo.
   return { vehicle: v, inMs, missing, ready, atRisk: !ready && inMs < 48 * 3_600_000 };
 }
+
+/** Agrupa solo los encargos ya filtrados por usuario, sin mezclar sentidos. */
+export function agruparTrasladosPorTrayecto(solicitudes: ServiceRequest[]) {
+  const grupos = new Map<string, { id: string; origen: Id | null; destino: Id | null; solicitudes: ServiceRequest[] }>();
+  for (const r of solicitudes) {
+    const origen = r.from?.siteId ?? null;
+    const destino = r.to?.siteId ?? r.siteId ?? null;
+    const id = JSON.stringify([origen, destino]);
+    if (!grupos.has(id)) grupos.set(id, { id, origen, destino, solicitudes: [] });
+    grupos.get(id)!.solicitudes.push(r);
+  }
+  return [...grupos.values()];
+}

@@ -2,8 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { campo, Btn, Field, H1, Input, Modal, Muted, Notice, Panel, Pill, ProgressBar, Screen, Select, Spacer, space, useTheme } from '@/ui';
 import { useStore } from '@/data/store';
+import { ReceptionDetails } from '@/features/reception/ReceptionDetails';
 import { vehicleByRef } from '@/data/selectors';
-import { vehicleName, vehicleRef } from '@/data/format';
+import { formatDateTime, siteName, vehicleName, vehicleRef } from '@/data/format';
 import type { Reception } from '@/data/types';
 import { ScreenGuard } from '@/features/common/Guard';
 import { BarcodeScanner } from '@/features/scan/BarcodeScanner';
@@ -15,16 +16,17 @@ import { NuevoVehiculoModal } from '@/features/actions/NuevoVehiculo';
  *
  * El objetivo es bajar 14 coches sin pelearse con la pantalla: identificar,
  * elegir plaza y siguiente. Nada de tablas ni de un modal por fila. La
- * gestión completa del albarán sigue estando en la web.
+ * gestión del albarán y el histórico se reúnen aquí también.
  */
 export default function QuickReceptionScreen() {
-  const { state } = useStore();
+  const { state, user } = useStore();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [newOpen, setNewOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  const abiertas = state.receptions.filter((r) => !r.closedAt);
-  const reception = state.receptions.find((r) => r.id === selectedId) ?? abiertas[0];
+  const recepciones = state.receptions.filter((r) => !user?.siteIds.length || user.siteIds.includes(r.siteId));
+  const abiertas = recepciones.filter((r) => !r.closedAt);
+  const reception = recepciones.find((r) => r.id === selectedId) ?? abiertas[0] ?? recepciones[0];
 
   return (
     <ScreenGuard href="/mi-recepcion" title="Descargar camión">
@@ -34,7 +36,15 @@ export default function QuickReceptionScreen() {
 
           {toast ? <Notice>{toast}</Notice> : null}
 
-          {abiertas.length === 0 ? (
+          <Muted>Descarga, albarán, vehículos y daños del camión en un mismo sitio.</Muted>
+          <Spacer />
+          {recepciones.length > 0 ? <Field label="Camión e histórico">
+            <Select full title="Camión e histórico" value={reception?.id} onChange={setSelectedId}
+              options={recepciones.map((r) => ({ value: r.id,
+                label: `${r.truckPlate} · ${siteName(state, r.siteId)}`,
+                hint: `${r.closedAt ? 'Cerrado' : 'En descarga'} · ${r.carrier} · ${formatDateTime(r.arrivedAt)}` }))} />
+          </Field> : null}
+          {!reception ? (
             <>
               <Muted>No hay ningún camión en descarga.</Muted>
               <Spacer />
@@ -42,15 +52,21 @@ export default function QuickReceptionScreen() {
                 🚚 Empezar un camión
               </Btn>
             </>
-          ) : reception ? (
+          ) : reception.closedAt ? (
+            <>
+              <Notice>Camión cerrado el {formatDateTime(reception.closedAt)}.</Notice>
+              <Btn full onPress={() => setNewOpen(true)}>🚚 Empezar un camión</Btn>
+            </>
+          ) : (
             <UnloadFlow
+              key={reception.id}
               reception={reception}
               onDone={setToast}
-              onSwitch={abiertas.length > 1 ? setSelectedId : undefined}
-              abiertas={abiertas}
+              onSwitch={setSelectedId}
               onNew={() => setNewOpen(true)}
             />
-          ) : null}
+          )}
+          {reception ? <><Spacer /><ReceptionDetails key={reception.id} reception={reception} onDone={setToast} /></> : null}
         </View>
 
         <NewTruckModal
@@ -73,13 +89,11 @@ function UnloadFlow({
   reception,
   onDone,
   onSwitch,
-  abiertas,
   onNew,
 }: {
   reception: Reception;
   onDone: (m: string) => void;
   onSwitch?: (id: string) => void;
-  abiertas: Reception[];
   onNew: () => void;
 }) {
   const { state, run } = useStore();
@@ -289,6 +303,7 @@ function UnloadFlow({
         full
         onPress={() => {
           run({ type: 'reception.close', receptionId: reception.id });
+          onSwitch?.('');
           onDone(`Camión ${reception.truckPlate} cerrado.`);
         }}
       >
@@ -298,21 +313,6 @@ function UnloadFlow({
       <Btn full variant="ghost" onPress={onNew}>
         🚚 Empezar otro camión
       </Btn>
-
-      {onSwitch && abiertas.length > 1 ? (
-        <>
-          <Spacer h={space.sm} />
-          <Field label="Cambiar de camión">
-            <Select
-              full
-              value={reception.id}
-              onChange={onSwitch}
-              options={abiertas.map((r) => ({ value: r.id, label: `${r.truckPlate} · ${r.carrier}` }))}
-              title="Camión"
-            />
-          </Field>
-        </>
-      ) : null}
 
       <DamageModal
         visible={damageOpen}
@@ -396,10 +396,11 @@ function NewTruckModal({
   onClose: () => void;
   onDone: (m: string, id: string) => void;
 }) {
-  const { state, run } = useStore();
+  const { state, run, user } = useStore();
+  const sedes = state.sites.filter((s) => !user?.siteIds.length || user.siteIds.includes(s.id));
   const [truckPlate, setTruckPlate] = useState('');
   const [carrier, setCarrier] = useState('');
-  const [siteId, setSiteId] = useState('sondika');
+  const [siteId, setSiteId] = useState(sedes[0]?.id ?? '');
 
   return (
     <Modal
@@ -411,13 +412,13 @@ function NewTruckModal({
           variant="primary"
           full
           onPress={() => {
-            run({
+            const cmd = run({
               type: 'reception.create',
               truckPlate: truckPlate.trim().toUpperCase() || 'SIN MATRÍCULA',
               carrier: carrier.trim() || 'Transportista',
               siteId,
             });
-            onDone('Camión abierto. Ya puedes descargar.', '');
+            onDone('Camión abierto. Ya puedes descargar.', `rec-${cmd.id}`);
             setTruckPlate('');
             setCarrier('');
           }}
@@ -437,7 +438,7 @@ function NewTruckModal({
           full
           value={siteId}
           onChange={setSiteId}
-          options={state.sites.map((s) => ({ value: s.id, label: s.name }))}
+          options={sedes.map((s) => ({ value: s.id, label: s.name }))}
           title="Sede de descarga"
         />
       </Field>

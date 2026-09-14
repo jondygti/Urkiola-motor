@@ -38,7 +38,6 @@ export const NAV: NavGroup[] = [
   {
     title: 'LOGÍSTICA',
     items: [
-      { href: '/recepcion', label: 'Recepción', icon: '🚚', short: 'Recibir', anyOf: ['recepcion.ejecutar'] },
       {
         href: '/mi-recepcion',
         label: 'Descargar camión',
@@ -164,7 +163,8 @@ export function visibleNav(state: AppState, user: User | null): NavGroup[] {
 export function mobileNav(state: AppState, user: User | null): NavItem[] {
   const wanted = mobileSections(state, user);
   const items = wanted
-    .map((href) => ALL_ITEMS.find((i) => i.href === href))
+    .map((href) => ALL_ITEMS.find((i) => i.href === (href === '/recepcion' ? '/mi-recepcion' : href)))
+    .filter((item, index, all) => all.indexOf(item) === index)
     .filter((i): i is NavItem => !!i && allowed(state, user, i));
 
   // Si el rol no tiene nada configurado, al menos la flota: es lo único
@@ -210,5 +210,5 @@ export function homeFor(state: AppState, user: User | null, isDesktop: boolean):
 
 /** Permisos que exige una ruta según el menú. Vacío = abierta a cualquiera. */
 export function permissionsForRoute(href: string): Permission[] {
-  return ALL_ITEMS.find((i) => i.href === href)?.anyOf ?? [];
+  return ALL_ITEMS.find((i) => i.href === (href === '/recepcion' ? '/mi-recepcion' : href))?.anyOf ?? [];
 }

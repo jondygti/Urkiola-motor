@@ -633,5 +633,50 @@ export async function ejecutar(browser, BASE) {
     await context.close();
   }
 
+  /* 21 · rutas de carga y una única recepción con histórico */
+  {
+    const { context, page, errores } = await entrarComo(browser, USUARIOS.transportista, 420);
+    await page.goto(`${BASE}/mis-traslados`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1000);
+    const grupos = page.getByTestId('grupo-trayecto');
+    ok('21 · el transportista ve los encargos agrupados por trayecto', await grupos.count() > 0);
+    ok('21 · cada trayecto indica origen y destino', (await grupos.first().innerText()).includes('→'));
+    await pulsar(page, 'Todos los trayectos');
+    await page.waitForTimeout(300);
+    // Las opciones del selector incluyen el número de coches del trayecto.
+    const opciones = page.locator('[tabindex="0"], button').filter({ hasText: /→.*coches/ });
+    await opciones.last().click();
+    await page.waitForTimeout(300);
+    ok('21 · al elegir un trayecto solo aparece su grupo', await grupos.count() === 1);
+    ok('21 · conserva la recogida de llaves dentro del grupo', await page.getByText('🔑 He recogido las llaves', { exact: true }).first().isVisible());
+    ok('21 · agrupación sin errores de JavaScript', errores.length === 0, errores[0] ?? '');
+    await context.close();
+  }
+  {
+    const { context, page, errores } = await entrarComo(browser, USUARIOS.recepcion, 420);
+    await page.goto(`${BASE}/recepcion`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1000);
+    ok('22 · el enlace antiguo abre la descarga única', page.url().includes('/mi-recepcion'));
+    ok('22 · el albarán está en la misma pantalla', await page.getByText('📷 Adjuntar albarán', { exact: true }).isVisible());
+    await pulsar(page, '🚚 Empezar otro camión', { exact: true });
+    await page.getByPlaceholder('9876 JKL').fill('TEST 222');
+    await page.getByPlaceholder('Transportista Norte').fill('Camión de prueba');
+    await pulsar(page, 'Empezar descarga', { exact: true });
+    await page.waitForTimeout(1000);
+    const estado = await estadoGuardado(page);
+    const nuevo = estado.receptions.find((r) => r.truckPlate === 'TEST 222');
+    ok('22 · crear un camión lo selecciona aunque haya otros abiertos', (await page.locator('body').innerText()).includes('🚚 TEST 222'));
+    await page.getByPlaceholder('VIN-8 o matrícula', { exact: true }).fill('PRUEBA22');
+    await pulsar(page, 'Añadir', { exact: true });
+    await page.waitForTimeout(800);
+    const guardado = await estadoGuardado(page);
+    ok('22 · la línea se guarda en el camión nuevo', guardado.receptions.find((r) => r.id === nuevo.id).lines.some((l) => l.ref === 'PRUEBA22'));
+    await pulsar(page, 'Cerrar este camión', { exact: true });
+    await page.waitForTimeout(800);
+    ok('22 · cerrar conserva la recepción en el histórico', !!(await estadoGuardado(page)).receptions.find((r) => r.id === nuevo.id).closedAt);
+    ok('22 · descarga integrada sin errores de JavaScript', errores.length === 0, errores[0] ?? '');
+    await context.close();
+  }
+
   return resumen();
 }
