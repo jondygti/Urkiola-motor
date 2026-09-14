@@ -678,5 +678,39 @@ export async function ejecutar(browser, BASE) {
     await context.close();
   }
 
+  /* 23 · cambiar de rol de verdad conserva el traslado de la demo */
+  {
+    // Sin sesión inyectada: se usan los botones reales de entrar y salir.
+    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    const page = await context.newPage();
+    await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' });
+    await pulsar(page, 'Juan Bilbao');
+    await page.waitForTimeout(1000);
+    const s = await estadoGuardado(page);
+    const v = s.vehicles.find((v) => v.location?.siteId === 'leioa' && v.logisticActive && !v.deliveredAt);
+    if (!v) throw new Error('Falta un coche en Leioa para probar el traslado');
+    await page.goto(`${BASE}/vehiculo/${v.id}`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(800);
+    await pulsar(page, '🚚 Solicitar traslado', { exact: true });
+    await page.waitForTimeout(300);
+    const actual = s.sites.find((x) => x.id === (v.targetSiteId ?? s.sites.find((x) => x.prepares).id)).name;
+    if (actual !== 'Galdakao') await elegirEnLista(page, actual, 'Galdakao');
+    await page.getByPlaceholder('Detalles para el equipo').fill('PRUEBA CAMBIO DE ROL');
+    await pulsar(page, 'Crear solicitud', { exact: true });
+    await pulsar(page, 'Cerrar sesión');
+    await page.waitForTimeout(900);
+    await pulsar(page, 'Iker Solano');
+    await page.waitForTimeout(1000);
+    const tras = await estadoGuardado(page);
+    const pedido = tras.requests.find((r) => r.note === 'PRUEBA CAMBIO DE ROL');
+    ok('23 · cerrar sesión no borra el traslado del comercial', !!pedido);
+    ok('23 · Leioa a Galdakao se asigna a Grúas Francis', pedido?.carrierId === 'gruas-francis' && pedido?.from?.siteId === 'leioa' && pedido?.to?.siteId === 'galdakao');
+    ok('23 · Francis ve el encargo al entrar con su perfil', (await page.locator('body').innerText()).includes('PRUEBA CAMBIO DE ROL'));
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForTimeout(900);
+    ok('23 · el traslado sigue visible después de recargar', (await page.locator('body').innerText()).includes('PRUEBA CAMBIO DE ROL'));
+    await context.close();
+  }
+
   return resumen();
 }

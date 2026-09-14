@@ -217,8 +217,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setAuthToken(null);
     setUser(null);
     setSyncing(false);
-    setState(estadoInicial());
-    if (saveTimer.current) clearTimeout(saveTimer.current);
+    // La demo comparte una operativa entre sus roles. Cerrar sesión no
+    // debe reiniciarla ni cancelar su guardado pendiente. Con API sí se
+    // retira la caché visible para no mostrar datos de otra cuenta.
+    if (apiEnabled) {
+      setState(estadoInicial());
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    }
     // No se borra ni se intenta enviar el trabajo pendiente de esa cuenta.
     void guardar(() => AsyncStorage.multiRemove(apiEnabled ? [API_SESSION_KEY, API_TOKEN_KEY] : [SESSION_KEY, TOKEN_KEY]));
     if (mensaje) setError(mensaje);
