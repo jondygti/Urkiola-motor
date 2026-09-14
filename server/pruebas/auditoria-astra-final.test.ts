@@ -1,4 +1,5 @@
 // Regresiones finales de la auditoría sobre los requisitos enviados a Astra.
+// Incluye compatibilidad con comandos de ubicación creados por versiones anteriores.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { applyCommand, type Command } from '../../src/data/commands';
