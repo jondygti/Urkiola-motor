@@ -1,0 +1,22 @@
+name: Ajustar CI auditoria
+
+on:
+  push:
+    branches:
+      - codex/auditoria-astra-final
+
+permissions:
+  contents: write
+
+jobs:
+  aplicar:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: python scripts/ajustar-ci-auditoria.py
+      - run: |
+          git config user.name "Urkiola audit"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "[audit-fix] Ajustar compatibilidad de zonas y fixture de avisos"
+          git push
