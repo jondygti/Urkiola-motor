@@ -180,7 +180,10 @@ export function validarComando(cuerpo: unknown, userId: string, ahora = Date.now
   if (c.type === 'request.update' && !['solicitada','asignada','en_ruta','en_curso','terminada','bloqueada'].includes(String(c.status))) throw malaPeticion('Estado no válido. Para cancelar usa Cancelar solicitud.');
   if (c.type === 'request.create' && !['traslado','preparacion'].includes(String(c.requestType))) throw malaPeticion('Tipo de solicitud no válido.');
   if (c.type === 'zone.upsert') {
-    const positions = c.positions ?? c.zone?.capacity;
+    const zone = c.zone && typeof c.zone === 'object' && !Array.isArray(c.zone)
+      ? c.zone as Record<string, unknown>
+      : null;
+    const positions = c.positions ?? zone?.capacity;
     if (typeof positions !== 'number' || !Number.isInteger(positions) || positions < 0) {
       throw malaPeticion('El número de plazas debe ser un entero igual o mayor que cero.');
     }
