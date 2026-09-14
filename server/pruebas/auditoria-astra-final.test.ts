@@ -1,3 +1,4 @@
+// Regresiones finales de la auditoría sobre los requisitos enviados a Astra.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { applyCommand, type Command } from '../../src/data/commands';
