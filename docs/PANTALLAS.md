@@ -213,3 +213,20 @@ al resto de la operativa.
    matrícula o por los 8 últimos caracteres del bastidor. En la app nativa,
    además, se puede leer el código de barras del parabrisas si el
    fabricante lo trae, pero nunca es obligatorio.
+
+
+## Actualización: transporte y descarga unificada
+
+«Mis traslados» agrupa los encargos autorizados por origen y destino dentro de
+«Por recoger» y «Los llevo yo». Cada grupo indica cuántos coches hay y cuántos
+son urgentes; el filtro permite concentrarse en un trayecto. Se conserva el
+orden de prioridad y la ubicación detallada de cada coche. Es una ayuda para
+organizar la carga, no una asignación automática a camiones ni un cálculo de
+capacidad.
+
+«Descargar camión» reúne descarga rápida, alta de vehículos, albarán, daños,
+fotos, listado completo y consulta de camiones cerrados. El selector superior
+permite cambiar de camión y consultar el histórico. Al cambiar se reinicia el
+formulario del vehículo; al crear se selecciona el camión nuevo. La antigua
+ruta `/recepcion` redirige a `/mi-recepcion`, y el menú muestra una única
+entrada. Las configuraciones antiguas del menú móvil siguen funcionando.

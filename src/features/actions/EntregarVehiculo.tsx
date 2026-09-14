@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { Btn, Input, Modal, Muted, Notice, Spacer, space, tipografia, useTheme } from '@/ui';
 import { useStore } from '@/data/store';
-import { can } from '@/data/selectors';
+import { puedeGestionarEntrega } from '@/data/selectors';
 import { formatDateTime, locationLabel, userName } from '@/data/format';
 import type { Vehicle } from '@/data/types';
 
@@ -39,7 +39,7 @@ export function EntregarVehiculo({
   const [abierto, setAbierto] = useState(false);
   const [nota, setNota] = useState('');
 
-  if (!can(state, user, 'entregas.gestionar')) return null;
+  if (!puedeGestionarEntrega(state, user, vehicle)) return null;
 
   const entregado = vehicle.status === 'entregado';
 

@@ -1,9 +1,9 @@
 /**
  * Errores con código HTTP.
  *
- * El código importa mucho más de lo que parece: la app **descarta** el
- * trabajo del operario ante un 4xx y lo **reintenta** ante un 5xx. Devolver
- * 400 por un fallo nuestro le borra a alguien un movimiento que sí hizo.
+ * La app conserva los rechazos definitivos para revisarlos, pausa con 401
+ * hasta recuperar la sesión y reintenta los fallos temporales. Devolver
+ * 400 por un fallo nuestro detiene un movimiento que sí se hizo.
  * Ante la duda, 500.
  */
 export class ErrorHttp extends Error {

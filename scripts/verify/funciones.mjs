@@ -633,5 +633,143 @@ export async function ejecutar(browser, BASE) {
     await context.close();
   }
 
+  /* 21 · rutas de carga y una única recepción con histórico */
+  {
+    const { context, page, errores } = await entrarComo(browser, USUARIOS.transportista, 420);
+    await page.goto(`${BASE}/mis-traslados`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1000);
+    const grupos = page.getByTestId('grupo-trayecto');
+    ok('21 · el transportista ve los encargos agrupados por trayecto', await grupos.count() > 0);
+    ok('21 · cada trayecto indica origen y destino', (await grupos.first().innerText()).includes('→'));
+    await pulsar(page, 'Todos los trayectos');
+    await page.waitForTimeout(300);
+    // Las opciones del selector incluyen el número de coches del trayecto.
+    const opciones = page.locator('[tabindex="0"], button').filter({ hasText: /→.*coches/ });
+    await opciones.last().click();
+    await page.waitForTimeout(300);
+    ok('21 · al elegir un trayecto solo aparece su grupo', await grupos.count() === 1);
+    ok('21 · conserva la recogida de llaves dentro del grupo', await page.getByText('🔑 He recogido las llaves', { exact: true }).first().isVisible());
+    ok('21 · agrupación sin errores de JavaScript', errores.length === 0, errores[0] ?? '');
+    await context.close();
+  }
+  {
+    const { context, page, errores } = await entrarComo(browser, USUARIOS.recepcion, 420);
+    await page.goto(`${BASE}/recepcion`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1000);
+    ok('22 · el enlace antiguo abre la descarga única', page.url().includes('/mi-recepcion'));
+    ok('22 · el albarán está en la misma pantalla', await page.getByText('📷 Adjuntar albarán', { exact: true }).isVisible());
+    await pulsar(page, '🚚 Empezar otro camión', { exact: true });
+    await page.getByPlaceholder('9876 JKL').fill('TEST 222');
+    await page.getByPlaceholder('Transportista Norte').fill('Camión de prueba');
+    await pulsar(page, 'Empezar descarga', { exact: true });
+    await page.waitForTimeout(1000);
+    const estado = await estadoGuardado(page);
+    const nuevo = estado.receptions.find((r) => r.truckPlate === 'TEST 222');
+    ok('22 · crear un camión lo selecciona aunque haya otros abiertos', (await page.locator('body').innerText()).includes('🚚 TEST 222'));
+    await page.getByPlaceholder('VIN-8 o matrícula', { exact: true }).fill('PRUEBA22');
+    await pulsar(page, 'Añadir', { exact: true });
+    await page.waitForTimeout(800);
+    const guardado = await estadoGuardado(page);
+    ok('22 · la línea se guarda en el camión nuevo', guardado.receptions.find((r) => r.id === nuevo.id).lines.some((l) => l.ref === 'PRUEBA22'));
+    await pulsar(page, 'Cerrar este camión', { exact: true });
+    await page.waitForTimeout(800);
+    ok('22 · cerrar conserva la recepción en el histórico', !!(await estadoGuardado(page)).receptions.find((r) => r.id === nuevo.id).closedAt);
+    ok('22 · descarga integrada sin errores de JavaScript', errores.length === 0, errores[0] ?? '');
+    await context.close();
+  }
+
+  /* 23 · cambiar de rol de verdad conserva el traslado de la demo */
+  {
+    // Sin sesión inyectada: se usan los botones reales de entrar y salir.
+    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    const page = await context.newPage();
+    await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' });
+    await pulsar(page, 'Juan Bilbao');
+    await page.waitForTimeout(1000);
+    const s = await estadoGuardado(page);
+    const v = s.vehicles.find((v) => v.location?.siteId === 'leioa' && v.logisticActive && !v.deliveredAt && !s.requests.some(r => r.vehicleId === v.id && r.type === 'traslado' && !['terminada', 'cancelada'].includes(r.status)));
+    if (!v) throw new Error('Falta un coche en Leioa para probar el traslado');
+    await page.goto(`${BASE}/vehiculo/${v.id}`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(800);
+    await pulsar(page, '🚚 Solicitar traslado', { exact: true });
+    await page.waitForTimeout(300);
+    const actual = s.sites.find((x) => x.id === (v.targetSiteId ?? s.sites.find((x) => x.prepares).id)).name;
+    if (actual !== 'Galdakao') await elegirEnLista(page, actual, 'Galdakao');
+    await page.getByPlaceholder('Detalles para el equipo').fill('PRUEBA CAMBIO DE ROL');
+    await pulsar(page, 'Crear solicitud', { exact: true });
+    await pulsar(page, 'Cerrar sesión');
+    await page.waitForTimeout(900);
+    await pulsar(page, 'Iker Solano');
+    await page.waitForTimeout(1000);
+    const tras = await estadoGuardado(page);
+    const pedido = tras.requests.find((r) => r.note === 'PRUEBA CAMBIO DE ROL');
+    ok('23 · cerrar sesión no borra el traslado del comercial', !!pedido);
+    ok('23 · Leioa a Galdakao se asigna a Grúas Francis', pedido?.carrierId === 'gruas-francis' && pedido?.from?.siteId === 'leioa' && pedido?.to?.siteId === 'galdakao');
+    ok('23 · Francis ve el encargo al entrar con su perfil', (await page.locator('body').innerText()).includes('PRUEBA CAMBIO DE ROL'));
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForTimeout(900);
+    ok('23 · el traslado sigue visible después de recargar', (await page.locator('body').innerText()).includes('PRUEBA CAMBIO DE ROL'));
+    await context.close();
+  }
+
+  /* 24 · cancelación, llaves opcionales y recepción en zona sin plazas */
+  {
+    const { context, page, errores } = await entrarComo(browser, USUARIOS.comercial, 1440);
+    await page.goto(`${BASE}/flota`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(900);
+    const v = await page.evaluate(() => {
+      const raw = JSON.parse(localStorage.getItem('urkiola.state.v1'));
+      const s = raw.state;
+      const v = s.vehicles.find(v => v.logisticActive);
+      v.salesRep = 'Juan'; v.location = { siteId: 'leioa' };
+      s.requests = s.requests.filter(r => r.vehicleId !== v.id);
+      s.preparations = s.preparations.filter(p => p.vehicleId !== v.id);
+      s.requests.unshift({ id: 'cancelacion-ui', vehicleId: v.id, type: 'traslado', siteId: 'galdakao',
+        from: { siteId: 'leioa' }, to: { siteId: 'galdakao' }, status: 'solicitada', createdBy: 'u-juan',
+        createdAt: new Date().toISOString(), pickedUpAt: null, deliveredAt: null, deliveredBy: null,
+        assignedTo: 'u-iker', carrierId: 'gruas-francis', urgent: false, dueAt: null });
+      localStorage.setItem('urkiola.state.v1', JSON.stringify(raw)); return v.id;
+    });
+    await page.goto(`${BASE}/vehiculo/${v}`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(900);
+    await pulsar(page, 'Ubicación de llaves', { exact: true });
+    await page.getByPlaceholder('Ej.: Caja fuerte comercial', { exact: true }).fill('Cliente');
+    await pulsar(page, 'Guardar llaves', { exact: true });
+    await page.waitForTimeout(700);
+    let s = await estadoGuardado(page);
+    ok('24 · segunda llave se guarda dejando principal vacía', s.vehicles.find(x => x.id === v).secondaryKeyLocation === 'Cliente' && !s.vehicles.find(x => x.id === v).primaryKeyLocation);
+    await pulsar(page, 'Cancelar solicitud', { exact: true });
+    await page.getByPlaceholder('Indica por qué se cancela').fill('Cambio del cliente');
+    await pulsar(page, 'Confirmar cancelación', { exact: true });
+    await page.waitForTimeout(800);
+    s = await estadoGuardado(page);
+    ok('24 · botón cancela y conserva el motivo', s.requests.find(r => r.id === 'cancelacion-ui').status === 'cancelada' && s.requests.find(r => r.id === 'cancelacion-ui').cancelReason === 'Cambio del cliente');
+    ok('24 · cancelar no mueve coche ni segunda llave', s.vehicles.find(x=>x.id===v).location.siteId === 'leioa' && s.vehicles.find(x=>x.id===v).secondaryKeyLocation === 'Cliente');
+    await context.close();
+    const rec = await entrarComo(browser, USUARIOS.recepcion, 420);
+    await rec.page.goto(`${BASE}/mi-recepcion`, { waitUntil: 'networkidle' });
+    await rec.page.waitForTimeout(900);
+    await rec.page.evaluate(() => {
+      const raw = JSON.parse(localStorage.getItem('urkiola.state.v1'));
+      raw.state.zones.push({ id: 'parking-test', siteId: 'sondika', name: 'Parking sin plazas', kind: 'parking', capacity: 0 });
+      raw.state.receptions.unshift({ id: 'camion-zona', truckPlate: 'ZONA TEST', carrier: 'Test', siteId:'sondika', arrivedAt:new Date().toISOString(),closedAt:null,albaranUri:null,lines:[] });
+      localStorage.setItem('urkiola.state.v1',JSON.stringify(raw));
+    });
+    await rec.page.reload({ waitUntil: 'networkidle' }); await rec.page.waitForTimeout(800);
+    const antes = await estadoGuardado(rec.page);
+    const coche = antes.vehicles.find(v=>v.vin8);
+    await rec.page.getByPlaceholder('Escribe o escanea').fill(coche.vin8);
+    // La zona actual es la primera con hueco: abrir el selector desde el campo.
+    const campo = rec.page.getByText('ZONA', { exact: true }).first().locator('xpath=..');
+    await campo.locator('[tabindex="0"]').first().click();
+    await rec.page.getByText('Parking sin plazas', { exact: true }).last().click();
+    await pulsar(rec.page, '✓ Descargado · siguiente', { exact: true });
+    await rec.page.waitForTimeout(900);
+    const despues = await estadoGuardado(rec.page);
+    ok('24 · recepción descarga sin plaza ficticia', despues.vehicles.find(v=>v.id===coche.id).location.zoneId === 'parking-test' && !despues.vehicles.find(v=>v.id===coche.id).location.positionId);
+    ok('24 · formularios sin errores JavaScript', errores.length === 0 && rec.errores.length === 0, [...errores,...rec.errores][0] ?? '');
+    await rec.context.close();
+  }
+
   return resumen();
 }

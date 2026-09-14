@@ -41,7 +41,7 @@ export function CarriersAdmin({ onDone }: { onDone: (m: string) => void }) {
 
         {state.carriers.map((x) => {
           const abiertos = state.requests.filter(
-            (r) => r.carrierId === x.id && r.status !== 'terminada'
+            (r) => r.carrierId === x.id && (r.status !== 'terminada' && r.status !== 'cancelada')
           ).length;
           const conductores = state.users.filter((u) => u.active && u.carrierId === x.id);
           return (
@@ -115,7 +115,7 @@ function CarrierModal({
   const [error, setError] = useState<string | null>(null);
 
   const abiertos = state.requests.filter(
-    (r) => r.carrierId === carrier.id && r.status !== 'terminada'
+    (r) => r.carrierId === carrier.id && (r.status !== 'terminada' && r.status !== 'cancelada')
   ).length;
 
   const toggleSite = (id: string) =>

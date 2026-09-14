@@ -98,6 +98,12 @@ export class AlmacenPostgres implements Almacen {
       );
       // Si no devuelve nada, otro lo insertó antes: no se toca la foto.
       const seq = r.rows[0]?.seq;
+      if (seq && cmd.type === 'user.upsert') {
+        // El cambio de correo y el comando quedan en la misma transacción.
+        // Así el correo anterior queda disponible y sus enlaces no valen.
+        await cliente.query('delete from enlaces_restablecer where usuario = $1', [cmd.user.id]);
+        await cliente.query('update credenciales set email = $2 where usuario = $1', [cmd.user.id, cmd.user.email]);
+      }
       if (seq && guardarFoto) {
         await cliente.query(
           `insert into foto (id, estado, hasta_comando, actualizado)

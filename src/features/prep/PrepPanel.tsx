@@ -14,6 +14,7 @@ import {
 import { PrepStatePill } from '@/features/common/bits';
 import { usePerms } from '@/features/common/Guard';
 import { FinishPrepModal } from './FinishPrep';
+import { CampanaCheck } from './CampanaCheck';
 
 const STATE_LABEL: Record<CheckState, string> = {
   completado: '✅ Completado',
@@ -46,7 +47,7 @@ export function PrepPanel({
   const waiting = prepWaitingMs(prep, now);
   const { done, total, pct } = prepProgress(prep);
   const overSla = prepIsOverSla(prep, now);
-  const finished = prep.runState === 'terminado';
+  const finished = (prep.runState === 'terminado' || prep.runState === 'cancelado');
   const bloqueado = finished || !puedeEjecutar;
   const apt = finished || (pct === 100 && prep.phase === 'apto_entrega');
 
@@ -121,6 +122,10 @@ export function PrepPanel({
               : item.state === 'pendiente'
                 ? c.checkPendingBorder
                 : c.border;
+          if (item.requirementId === 'req-campana') return (
+            <CampanaCheck key={item.requirementId} estado={item.state} disabled={bloqueado}
+              onChange={(next) => setItemState(item.requirementId, next)} />
+          );
           return (
             <View
               key={item.requirementId}

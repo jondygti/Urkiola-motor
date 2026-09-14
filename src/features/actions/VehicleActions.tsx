@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { Image, View } from 'react-native';
 import { Btn, Checkbox, Field, Input, Modal, Muted, Notice, Select, Toolbar, radius, space, useTheme } from '@/ui';
+import { conflictoSolicitud } from '@/data/commands';
 import { useStore } from '@/data/store';
-import { activeCarriers, can, suggestCarrier } from '@/data/selectors';
+import { activeCarriers, can, suggestCarrier, puedeGestionarEntrega } from '@/data/selectors';
 import { DateField } from '@/features/common/DateField';
 import { CampoFotos } from './CampoFotos';
 import { locationLabel, vehicleTitle } from '@/data/format';
@@ -217,7 +218,9 @@ export function RequestModal({
   onClose: () => void;
   onDone?: (m: string) => void;
 }) {
-  const { state, run } = useStore();
+  const { state, user, run } = useStore();
+  const puedeFijarEntrega = puedeGestionarEntrega(state, user, vehicle);
+  const [prepTipo, setPrepTipo] = useState<'entrada' | 'repaso'>('entrada');
   const prepSites = state.sites.filter((s) => s.prepares);
   const [siteId, setSiteId] = useState(vehicle.targetSiteId ?? prepSites[0].id);
   const [urgent, setUrgent] = useState(false);
@@ -241,6 +244,8 @@ export function RequestModal({
   const carrierElegido = carrierTocado ? carrierId : (sugerida?.id ?? null);
 
   const submit = () => {
+    const conflicto = conflictoSolicitud(state, { requestType: type, vehicleId: vehicle.id, siteId, prepTipo });
+    if (conflicto) { setAviso(conflicto); return; }
     // Si la entrega es antes del plazo mínimo, se avisa y hay que confirmar.
     if (margenCorto && !aviso) {
       setAviso(
@@ -249,13 +254,14 @@ export function RequestModal({
       return;
     }
 
-    if (type === 'preparacion' && deliveryDate !== (vehicle.deliveryDate ?? null)) {
+    if (type === 'preparacion' && puedeFijarEntrega && deliveryDate !== (vehicle.deliveryDate ?? null)) {
       run({ type: 'vehicle.setDelivery', vehicleId: vehicle.id, deliveryDate });
     }
 
     run({
       type: 'request.create',
       requestType: type,
+      prepTipo: type === 'preparacion' ? prepTipo : undefined,
       vehicleId: vehicle.id,
       siteId,
       to: { siteId },
@@ -263,7 +269,8 @@ export function RequestModal({
       note: note || undefined,
       carrierId: type === 'traslado' ? carrierElegido : undefined,
     });
-    onDone?.(type === 'traslado' ? 'Solicitud de traslado creada.' : 'Solicitud de preparación creada.');
+    onDone?.(type === 'traslado' ? 'Solicitud de traslado creada.' : prepTipo === 'repaso'
+      ? 'Solicitud de repaso de entrega creada.' : 'Solicitud de preparación creada.');
     onClose();
   };
 
@@ -271,7 +278,7 @@ export function RequestModal({
     <Modal
       visible={visible}
       onClose={onClose}
-      title={type === 'traslado' ? '🚚 Solicitar traslado' : '🧽 Solicitar preparación'}
+      title={type === 'traslado' ? '🚚 Solicitar traslado' : '🧽 Solicitar servicio'}
       footer={
         <Btn variant="primary" full onPress={submit}>
           {aviso ? 'Pedir igualmente' : 'Crear solicitud'}
@@ -281,6 +288,13 @@ export function RequestModal({
       <Field label="Vehículo">
         <Muted>{vehicleTitle(vehicle)}</Muted>
       </Field>
+      {type === 'preparacion' ? <Field label="Servicio">
+        <Select full value={prepTipo} onChange={setPrepTipo} title="Servicio"
+          options={[{ value: 'entrada', label: 'Preparación completa' },
+            { value: 'repaso', label: 'Repaso de entrega' }]} />
+        <Muted>{prepTipo === 'repaso' ? 'Limpieza interior y exterior, con checklist y tiempo propios.'
+          : 'Preparación completa del vehículo con todos sus requisitos.'}</Muted>
+      </Field> : null}
       <Field label="Origen">
         <Muted>{locationLabel(state, vehicle.location)}</Muted>
       </Field>
@@ -326,7 +340,7 @@ export function RequestModal({
         </Field>
       ) : null}
 
-      {type === 'preparacion' ? (
+      {type === 'preparacion' && puedeFijarEntrega ? (
         <Field
           label="Fecha de entrega al cliente"
           hint={`Si la sabes, ponla: el plazo pasa a ser esa fecha. Urkiola pide ${state.config.prepDeadlineHours} h de margen como mínimo.`}
@@ -342,6 +356,7 @@ export function RequestModal({
         </Notice>
       ) : null}
 
+      {aviso && !margenCorto ? <Notice tone="warn">{aviso}</Notice> : null}
       <Checkbox checked={urgent} onToggle={() => setUrgent((u) => !u)} label="Marcar como urgente" />
       <Field label="Nota (opcional)">
         <Input value={note} onChangeText={setNote} placeholder="Detalles para el equipo" multiline />

@@ -1,5 +1,11 @@
 # Urkiola Car Service · guía para Claude
 
+> Actualización v2 de Jon (13/09/2026): `docs/ARCHITECTURE.md` establece
+> Render + Supabase PostgreSQL/Auth/Storage como objetivo y diseño multiempresa.
+> `docs/MOBILE_ANDROID.md` y `docs/ROADMAP.md` completan la decisión.
+> Prevalecen sobre los proveedores y siguientes pasos antiguos de esta guía.
+> Conservar las reglas operativas; no migrar automáticamente.
+
 Plataforma de gestión logística de flota de un grupo de concesionarios
 (Sondika, Leioa, Galdakao, Anoeta, Irun). Un solo código en Expo / React
 Native que sirve como panel web y como app de Android.

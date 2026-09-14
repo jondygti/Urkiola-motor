@@ -19,16 +19,20 @@ export default function PreparationScreen() {
   const openVehicle = useOpenVehicle();
 
   const [site, setSite] = useState(ALL);
+  const [servicio, setServicio] = useState('entrada');
   const [runState, setRunState] = useState(ALL);
   const [timing, setTiming] = useState(ALL);
   const [detail, setDetail] = useState<Preparation | null>(null);
 
-  const kpis = prepKpis(state, now);
+  const kpis = prepKpis({ ...state,
+    preparations: state.preparations.filter((p) => (p.tipo ?? 'entrada') === servicio),
+  }, now);
 
   const rows = useMemo(
     () =>
       state.preparations
-        .filter((p) => (runState === ALL ? p.runState !== 'terminado' : p.runState === runState))
+        .filter((p) => (p.tipo ?? 'entrada') === servicio)
+        .filter((p) => (runState === ALL ? (p.runState !== 'terminado' && p.runState !== 'cancelado') : p.runState === runState))
         .filter((p) => (site === ALL ? true : p.siteId === site))
         .filter((p) => {
           if (timing === ALL) return true;
@@ -36,7 +40,7 @@ export default function PreparationScreen() {
           return timing === 'fuera' ? over : !over;
         })
         .sort((a, b) => prepElapsedMs(b, now) - prepElapsedMs(a, now)),
-    [state.preparations, site, runState, timing, now]
+    [state.preparations, site, runState, timing, now, servicio]
   );
 
   const columns: Column<Preparation>[] = [
@@ -190,6 +194,9 @@ export default function PreparationScreen() {
       </Notice>
 
       <Toolbar>
+        <Select value={servicio} onChange={setServicio} title="Servicio"
+          options={[{ value: 'entrada', label: 'Preparación completa' },
+            { value: 'repaso', label: 'Repaso de entrega' }]} />
         <Select
           value={site}
           onChange={setSite}

@@ -9,6 +9,7 @@ import type { CheckState, Preparation, ServiceRequest } from '@/data/types';
 import { ScreenGuard, usePerms } from '@/features/common/Guard';
 import { DeadlineChip } from '@/features/common/DeadlineChip';
 import { FinishPrepModal } from '@/features/prep/FinishPrep';
+import { CampanaCheck } from '@/features/prep/CampanaCheck';
 import { UbicacionVehiculo } from '@/features/common/Ubicacion';
 
 /**
@@ -20,6 +21,7 @@ import { UbicacionVehiculo } from '@/features/common/Ubicacion';
  */
 export default function MyPrepScreen() {
   const { state, user } = useStore();
+  const { c } = useTheme();
   const now = useTicker(1000);
   const [openId, setOpenId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -28,7 +30,8 @@ export default function MyPrepScreen() {
     const inScope = (siteId: string) =>
       !user || user.siteIds.length === 0 || user.siteIds.includes(siteId);
     const requestOf = (p: Preparation) =>
-      state.requests.find((r) => r.type === 'preparacion' && r.vehicleId === p.vehicleId && r.status !== 'terminada');
+      state.requests.find((r) => r.type === 'preparacion' && r.vehicleId === p.vehicleId && (r.status !== 'terminada' && r.status !== 'cancelada')
+        && r.siteId === p.siteId && (r.prepTipo ?? 'entrada') === (p.tipo ?? 'entrada'));
 
     return activePreparations(state)
       .filter((p) => (p.preparerId === user?.id || !p.preparerId) && inScope(p.siteId))
@@ -76,12 +79,18 @@ export default function MyPrepScreen() {
             </Panel>
           ) : (
             <>
-              {pedidas.map((r) => (
-                <PedidaCard key={r.id} request={r} onAbierta={(id) => setOpenId(id)} />
-              ))}
-              {mias.map((p) => (
-                <PrepCard key={p.id} prep={p} onOpen={() => setOpenId(p.id)} />
-              ))}
+              {(['entrada', 'repaso'] as const).map((tipo) => {
+                const solicitudes = pedidas.filter((r) => (r.prepTipo ?? 'entrada') === tipo);
+                const trabajos = mias.filter((p) => (p.tipo ?? 'entrada') === tipo);
+                return <View key={tipo}>
+                  <Text style={{ fontSize: campo.strong, fontWeight: '700', color: c.text, marginVertical: space.sm }}>
+                    {tipo === 'repaso' ? 'Repasos de entrega' : 'Preparaciones completas'} · {solicitudes.length + trabajos.length}
+                  </Text>
+                  {solicitudes.map((r) => <PedidaCard key={r.id} request={r} onAbierta={setOpenId} />)}
+                  {trabajos.map((p) => <PrepCard key={p.id} prep={p} onOpen={() => setOpenId(p.id)} />)}
+                  {!solicitudes.length && !trabajos.length ? <Muted>Sin trabajos pendientes de este servicio.</Muted> : null}
+                </View>;
+              })}
             </>
           )}
         </View>
@@ -136,7 +145,7 @@ function PedidaCard({
       // Lo que se abre es lo que se pidió: un repaso abierto como
       // preparación de entrada se mediría contra dos horas y le pediría al
       // preparador el checklist entero.
-      tipo: request.prepTipo,
+      tipo: request.prepTipo ?? 'entrada',
     });
     // El id de la preparación se deriva del id del comando, así que se
     // puede encadenar sin esperar respuesta del servidor.
@@ -193,7 +202,7 @@ function PrepCard({ prep, onOpen }: { prep: Preparation; onOpen: () => void }) {
   const { done, total, pct } = prepProgress(prep);
   const fuera = prepIsOverSla(prep, now);
   const request = state.requests.find(
-    (r: ServiceRequest) => r.type === 'preparacion' && r.vehicleId === prep.vehicleId && r.status !== 'terminada'
+    (r: ServiceRequest) => r.type === 'preparacion' && r.vehicleId === prep.vehicleId && (r.status !== 'terminada' && r.status !== 'cancelada')
   );
   const plazo = request ? deadlineOf(state, request, now) : null;
   const enCurso = prep.runState === 'en_curso';
@@ -355,6 +364,12 @@ function WorkModal({
 
       {/* Checklist: una línea, un toque */}
       {prep.items.map((item) => {
+        if (item.requirementId === 'req-campana') return (
+          <CampanaCheck key={item.requirementId} estado={item.state}
+            disabled={!puede || (prep.runState === 'terminado' || prep.runState === 'cancelado')}
+            onChange={(next) => run({ type: 'prep.item', prepId: prep.id,
+              requirementId: item.requirementId, state: next })} />
+        );
         const hecho = item.state === 'completado';
         const noAplica = item.state === 'no_requerido';
         return (
@@ -416,8 +431,8 @@ function WorkModal({
       })}
 
       <Muted>
-        Pulsa una línea para marcarla o desmarcarla. Los requisitos «no requerido» no cuentan y se
-        configuran desde la web.
+        Pulsa una línea para marcarla o desmarcarla. En «Campaña de marca» puedes indicar
+        si el vehículo tiene campaña y, después, marcarla como realizada.
       </Muted>
 
       <FinishPrepModal

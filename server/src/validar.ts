@@ -13,6 +13,8 @@ export const TIPOS: ReadonlySet<string> = new Set<Command['type']>([
   'vehicle.check',
   'movement.register',
   'request.create',
+  'request.cancel',
+  'vehicle.setKeys',
   'request.update',
   'prep.create',
   'prep.start',
@@ -141,8 +143,42 @@ export function validarComando(cuerpo: unknown, userId: string, ahora = Date.now
   const fecha = new Date(c.at);
   if (Number.isNaN(fecha.getTime())) throw malaPeticion('La fecha del comando no es válida.');
 
-  const at = fecha.getTime() > ahora + MARGEN_FUTURO_MS ? new Date(ahora).toISOString() : c.at;
+  // El dominio compara fechas ISO. Dos husos distintos deben tener la misma
+  // representación para que una observación antigua no parezca posterior.
+  const at = fecha.getTime() > ahora + MARGEN_FUTURO_MS ? new Date(ahora).toISOString() : fecha.toISOString();
 
+  if (c.type.startsWith('prep.')) {
+    const campos = c.type === 'prep.create' ? ['vehicleId', 'siteId'] : ['prepId'];
+    if (c.type === 'prep.item') campos.push('requirementId');
+    for (const campo of campos) {
+      if (typeof c[campo] !== 'string' || !(c[campo] as string).trim()) {
+        throw malaPeticion(`Falta un identificador válido: ${campo}.`);
+      }
+    }
+    if (c.type === 'prep.item' && !['pendiente', 'completado', 'no_requerido'].includes(String(c.state))) {
+      throw malaPeticion('Estado de checklist no válido.');
+    }
+    if (c.type === 'prep.create' && c.tipo !== undefined && !['entrada', 'repaso'].includes(String(c.tipo))) {
+      throw malaPeticion('Tipo de servicio no válido.');
+    }
+    if (c.type === 'prep.pause' && (typeof c.reason !== 'string' || !c.reason.trim())) {
+      throw malaPeticion('Indica un motivo de espera.');
+    }
+  }
+  if (c.type === 'request.create' && c.prepTipo !== undefined &&
+      !['entrada', 'repaso'].includes(String(c.prepTipo))) {
+    throw malaPeticion('Tipo de servicio no válido.');
+  }
+
+  if (c.type === 'request.cancel') {
+    if (typeof c.requestId !== 'string' || !c.requestId.trim() || typeof c.reason !== 'string' || !c.reason.trim() || c.reason.length > 1000) throw malaPeticion('Indica la solicitud y un motivo de cancelación (máximo 1000 caracteres).');
+  }
+  if (c.type === 'vehicle.setKeys') {
+    if (typeof c.vehicleId !== 'string' || !c.vehicleId.trim() || (c.primary === undefined && c.secondary === undefined)) throw malaPeticion('Indica el vehículo y la llave que quieres actualizar.');
+    for (const k of ['primary', 'secondary']) if (c[k] !== undefined && c[k] !== null && (typeof c[k] !== 'string' || (c[k] as string).length > 200)) throw malaPeticion('La ubicación de llaves debe ser texto de hasta 200 caracteres.');
+  }
+  if (c.type === 'request.update' && !['solicitada','asignada','en_ruta','en_curso','terminada','bloqueada'].includes(String(c.status))) throw malaPeticion('Estado no válido. Para cancelar usa Cancelar solicitud.');
+  if (c.type === 'request.create' && !['traslado','preparacion'].includes(String(c.requestType))) throw malaPeticion('Tipo de solicitud no válido.');
   if (c.type === 'config.update') comprobarConfig(c.patch);
 
   return { ...(c as object), at, userId } as Command;

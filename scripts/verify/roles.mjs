@@ -359,12 +359,14 @@ export async function ejecutar(browser, BASE) {
     // Fija una fecha de entrega desde la ficha del coche.
     await page.goto(`${BASE}/flota`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(1000);
-    const placa = await page.evaluate(() => {
-      const t = [...document.querySelectorAll('div')].map((d) => d.textContent ?? '').join('\n');
-      const m = t.match(/\b\d{4}\s?[A-Z]{3}\b/);
-      return m ? m[0] : null;
-    });
-    await page.goto(`${BASE}/vehiculo/${encodeURIComponent(placa ?? '')}`, { waitUntil: 'networkidle' });
+    // La flota incluye coches de otros comerciales: solo puede gestionar
+    // la entrega de los suyos. La semilla identifica a Juan por su nombre.
+    const inicial = await estadoGuardado(page);
+    const propio = inicial.vehicles.find((v) =>
+      ['Juan', USUARIOS.comercial.name].includes(v.salesRep) && !v.archivedAt && !v.deliveredAt
+    );
+    if (!propio) throw new Error('Falta un coche de Juan en la semilla de pruebas');
+    await page.goto(`${BASE}/vehiculo/${encodeURIComponent(propio.id)}`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(1000);
 
     ok(
@@ -375,7 +377,7 @@ export async function ejecutar(browser, BASE) {
     await page.waitForTimeout(1000);
 
     const s = await estadoGuardado(page);
-    const coche = s?.vehicles?.find((v) => v.plate === placa);
+    const coche = s?.vehicles?.find((v) => v.id === propio.id);
     ok('COMERCIAL · la fecha queda guardada en el coche', !!coche?.deliveryDate, coche?.deliveryDate ?? '');
 
     // Se queda un coche libre. Los coches llegan de Quiter sin comercial,

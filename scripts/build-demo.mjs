@@ -13,6 +13,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { cssDeLaFuente } from './fuente.mjs';
+import { ventanaDemo } from './demo-navegacion.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -29,7 +30,7 @@ rmSync(BUILD, { recursive: true, force: true });
 execFileSync('npx', ['expo', 'export', '--platform', 'web', '--output-dir', BUILD, '--clear'], {
   cwd: ROOT,
   stdio: 'inherit',
-  env: { ...process.env, EXPO_WEB_OUTPUT: 'single' },
+  env: { ...process.env, EXPO_WEB_OUTPUT: 'single', EXPO_PUBLIC_API_URL: '' },
 });
 
 const jsDir = join(BUILD, '_expo/static/js/web');
@@ -43,7 +44,9 @@ if (bundle.includes('</script')) {
   throw new Error('El bundle contiene "</script": hay que escaparlo antes de incrustarlo.');
 }
 
-const html = `<title>Urkiola Car Service</title>
+const html = `<!DOCTYPE html><html lang="es"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Urkiola Car Service · Demo</title>
 <style>
 /* La fuente va dentro del propio fichero: la demostración se abre con doble
    clic y tiene que verse igual sin conexión. */
@@ -137,19 +140,6 @@ ${cssDeLaFuente()}
   /* React Native Web decide el tema con \`prefers-color-scheme\`. Cuando la
      página se ve dentro de un visor que marca el tema en <html data-theme>,
      ese ajuste manda sobre el del sistema: aquí se le hace llegar. */
-  (function () {
-    /* El router resuelve la pantalla inicial a partir de la ruta del
-       navegador. Si el fichero se sirve colgando de una subcarpeta
-       (o desde file://), esa ruta no corresponde a ninguna pantalla y
-       saldría "Unmatched Route": se normaliza a la raíz antes de arrancar. */
-    try {
-      if (window.location.pathname !== '/') {
-        window.history.replaceState(null, '', '/');
-      }
-    } catch (e) {
-      /* algunos contextos no permiten tocar el historial: se sigue igual */
-    }
-  })();
 
   (function () {
     var native = window.matchMedia.bind(window);
@@ -209,8 +199,13 @@ ${cssDeLaFuente()}
 </script>
 
 <script>
+(function (window) {
+var location = window.location;
+var history = window.history;
 ${bundle}
+})((${ventanaDemo.toString()})(window));
 </script>
+</html>
 `;
 
 mkdirSync(OUT_DIR, { recursive: true });

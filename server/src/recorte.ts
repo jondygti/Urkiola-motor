@@ -11,6 +11,7 @@
  * necesita para leer una ubicación, y su propio rol.
  */
 import type { AppState, Id, NotificationEvent, User, Vehicle } from '../../src/data/types';
+import { avisoLeido } from '../../src/data/selectors';
 
 /**
  * Qué campos del vehículo puede ver un proveedor externo y cuáles no.
@@ -24,6 +25,7 @@ import type { AppState, Id, NotificationEvent, User, Vehicle } from '../../src/d
  */
 export const CAMPOS_DEL_VEHICULO: Record<keyof Vehicle, 'va' | 'se-borra'> = {
   // Lo que necesita para reconocer el coche y llevarlo donde toca.
+  primaryKeyLocation: 'se-borra', secondaryKeyLocation: 'se-borra', keysUpdatedAt: 'se-borra', keysUpdatedBy: 'se-borra',
   id: 'va',
   vin8: 'va',
   vin: 'va',
@@ -32,6 +34,7 @@ export const CAMPOS_DEL_VEHICULO: Record<keyof Vehicle, 'va' | 'se-borra'> = {
   model: 'va',
   type: 'va',
   location: 'va',
+  locationObservedAt: 'va',
   targetSiteId: 'va',
   status: 'va',
   logisticActive: 'va',
@@ -72,7 +75,7 @@ export function estadoParaColaborador(s: AppState, u: User): AppState {
   const suyos = s.requests.filter(
     (r) =>
       r.type === 'traslado' &&
-      (r.assignedTo === u.id || (!!u.carrierId && r.carrierId === u.carrierId))
+      !!r.carrierId && (r.assignedTo === u.id || (!!u.carrierId && r.carrierId === u.carrierId))
   );
 
   const idsVehiculos = new Set(suyos.map((r) => r.vehicleId));
@@ -182,5 +185,14 @@ export function estadoParaSedes(s: AppState, u: User): AppState {
 
 /** El estado que le toca a cada uno. */
 export function estadoPara(s: AppState, u: User, colaboradorExterno: boolean): AppState {
-  return colaboradorExterno ? estadoParaColaborador(s, u) : estadoParaSedes(s, u);
+  const recortado = colaboradorExterno ? estadoParaColaborador(s, u) : estadoParaSedes(s, u);
+  return {
+    ...recortado,
+    // La API conserva `read` para los clientes antiguos, pero nunca enseña
+    // la lista de quién ha leído un aviso a sus demás destinatarios.
+    inbox: recortado.inbox.map((n) => {
+      const read = avisoLeido(n, u.id);
+      return { ...n, read, readBy: read ? [u.id] : [] };
+    }),
+  };
 }

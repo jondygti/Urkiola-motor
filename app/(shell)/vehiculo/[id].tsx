@@ -8,6 +8,7 @@ import {
   incidentsFor,
   movementsFor,
   preparationFor,
+  puedeGestionarEntrega,
   requestsFor,
   vehicleById,
   vehicleByRef,
@@ -27,6 +28,8 @@ import { NOTIFY_CONDITION_LABEL, VEHICLE_FLOW, VEHICLE_STATUS_LABEL } from '@/da
 import { VehicleActions } from '@/features/actions/VehicleActions';
 import { PrepPanel } from '@/features/prep/PrepPanel';
 import { CustomFields } from '@/features/common/CustomFields';
+import { CancelarSolicitud } from '@/features/actions/CancelarSolicitud';
+import { UbicacionLlaves } from '@/features/actions/UbicacionLlaves';
 import { DateField } from '@/features/common/DateField';
 import { IfCan, ScreenGuard, usePerms } from '@/features/common/Guard';
 import { ComercialVehiculo } from '@/features/actions/ComercialVehiculo';
@@ -36,7 +39,7 @@ import { IncidentStatusPill, SituationPill, TypePill, RequestStatusPill } from '
 export default function VehicleScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const state = useAppState();
-  const { run } = useStore();
+  const { run, user } = useStore();
   const router = useRouter();
   const { c } = useTheme();
   const { can, canAny } = usePerms();
@@ -108,6 +111,7 @@ export default function VehicleScreen() {
           <Detail label="Tipo" value={<TypePill type={vehicle.type} />} />
           <Detail label="Situación" value={<SituationPill situation={vehicle.situation} />} />
           <ComercialVehiculo vehicle={vehicle} onDone={setToast} />
+          <UbicacionLlaves vehicle={vehicle} />
           <Detail label="Estado logístico" value={vehicle.logisticActive ? 'Activo' : 'Solo parque Quiter'} />
           <Detail label="VIN-8" value={vehicle.vin8} />
           <Detail label="Bastidor" value={vehicle.vin} />
@@ -184,7 +188,7 @@ export default function VehicleScreen() {
           </Panel>
 
           <Panel title="📅 Entrega al cliente">
-            {can('entregas.gestionar') ? (
+            {puedeGestionarEntrega(state, user, vehicle) ? (
               <>
                 <DateField
                   value={vehicle.deliveryDate ?? null}
@@ -286,6 +290,7 @@ export default function VehicleScreen() {
                     <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>{formatDateTime(r.createdAt)}</Text>
                   </View>
                   <RequestStatusPill status={r.status} urgent={r.urgent} />
+                  <CancelarSolicitud request={r} />
                 </View>
               ))
             )}

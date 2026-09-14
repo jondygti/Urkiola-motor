@@ -42,7 +42,7 @@ export const vehicleByRef = (s: AppState, ref: string): Vehicle | undefined => {
 };
 
 export const openRequests = (s: AppState): ServiceRequest[] =>
-  s.requests.filter((r) => r.status !== 'terminada');
+  s.requests.filter((r) => (r.status !== 'terminada' && r.status !== 'cancelada'));
 
 export const openPrepRequests = (s: AppState): ServiceRequest[] =>
   openRequests(s).filter((r) => r.type === 'preparacion');
@@ -53,7 +53,7 @@ export const openTransferRequests = (s: AppState): ServiceRequest[] =>
 export const openIncidents = (s: AppState) => s.incidents.filter((i) => i.status !== 'cerrada');
 
 export const activePreparations = (s: AppState): Preparation[] =>
-  s.preparations.filter((p) => p.runState !== 'terminado');
+  s.preparations.filter((p) => (p.runState !== 'terminado' && p.runState !== 'cancelado'));
 
 export const blockedPreparations = (s: AppState): Preparation[] =>
   s.preparations.filter((p) => p.runState === 'bloqueado');
@@ -74,8 +74,23 @@ export const staleVehicles = (s: AppState): Vehicle[] =>
  */
 export function bandejaDe(s: AppState, user: User | null): NotificationEvent[] {
   if (!user) return [];
-  return s.inbox.filter((n) => !n.userIds || n.userIds.length === 0 || n.userIds.includes(user.id));
+  return s.inbox
+    .filter((n) => avisoPara(s, n, user))
+    .map((n) => ({ ...n, read: avisoLeido(n, user.id) }));
 }
+
+/** La escritura de una lectura respeta el mismo destinatario que la bandeja. */
+export function avisoPara(s: AppState, n: NotificationEvent, user: User): boolean {
+  if (n.userIds?.length && !n.userIds.includes(user.id)) return false;
+  if (!isSimpleRole(s, user)) return true;
+  return !!n.vehicleId && s.requests.some((r) =>
+    r.type === 'traslado' && r.vehicleId === n.vehicleId &&
+    (r.assignedTo === user.id || (!!user.carrierId && r.carrierId === user.carrierId))
+  );
+}
+
+export const avisoLeido = (n: NotificationEvent, userId: Id): boolean =>
+  n.readBy === undefined ? n.read : n.readBy.includes(userId);
 
 export const unreadCount = (s: AppState, user?: User | null): number =>
   (user === undefined ? s.inbox : bandejaDe(s, user)).filter((n) => !n.read).length;
@@ -227,7 +242,7 @@ export function recentActivity(s: AppState, limit = 12) {
 
 export function preparationFor(s: AppState, vehicleId: Id): Preparation | undefined {
   return (
-    s.preparations.find((p) => p.vehicleId === vehicleId && p.runState !== 'terminado') ??
+    s.preparations.find((p) => p.vehicleId === vehicleId && (p.runState !== 'terminado' && p.runState !== 'cancelado')) ??
     s.preparations.find((p) => p.vehicleId === vehicleId)
   );
 }
@@ -403,7 +418,7 @@ export interface CocheMio {
 export function misCoches(s: AppState, user: User | null): CocheMio[] {
   if (!user) return [];
 
-  const abiertas = s.preparations.filter((p) => p.runState !== 'terminado');
+  const abiertas = s.preparations.filter((p) => (p.runState !== 'terminado' && p.runState !== 'cancelado'));
   const conPrepAbierta = new Set(abiertas.map((p) => p.vehicleId));
 
   return s.vehicles
@@ -411,12 +426,12 @@ export function misCoches(s: AppState, user: User | null): CocheMio[] {
     .map((v): CocheMio => {
       const preparacion = abiertas.find((p) => p.vehicleId === v.id) ?? null;
       const traslado =
-        s.requests.find((r) => r.vehicleId === v.id && r.type === 'traslado' && r.status !== 'terminada') ??
+        s.requests.find((r) => r.vehicleId === v.id && r.type === 'traslado' && (r.status !== 'terminada' && r.status !== 'cancelada')) ??
         null;
       const prepPedida = conPrepAbierta.has(v.id)
         ? null
         : (s.requests.find(
-            (r) => r.vehicleId === v.id && r.type === 'preparacion' && r.status !== 'terminada'
+            (r) => r.vehicleId === v.id && r.type === 'preparacion' && (r.status !== 'terminada' && r.status !== 'cancelada')
           ) ?? null);
       const incidencias = s.incidents.filter((i) => i.vehicleId === v.id && i.status !== 'cerrada');
 
@@ -495,14 +510,14 @@ export function prepRequestsSinAbrir(s: AppState, userId: Id, now = Date.now()):
   const user = s.users.find((u) => u.id === userId);
   const inScope = (siteId: Id) => !user || user.siteIds.length === 0 || user.siteIds.includes(siteId);
   const yaAbierta = new Set(
-    s.preparations.filter((p) => p.runState !== 'terminado').map((p) => p.vehicleId)
+    s.preparations.filter((p) => (p.runState !== 'terminado' && p.runState !== 'cancelado')).map((p) => p.vehicleId)
   );
 
   return s.requests
     .filter(
       (r) =>
         r.type === 'preparacion' &&
-        r.status !== 'terminada' &&
+        (r.status !== 'terminada' && r.status !== 'cancelada') &&
         !yaAbierta.has(r.vehicleId) &&
         inScope(r.siteId) &&
         (r.assignedTo === null || r.assignedTo === userId)
@@ -525,6 +540,7 @@ export function zoneOccupancy(s: AppState, zoneId: Id) {
   const occupied = vehiclesInZone(s, zoneId).length;
   return {
     zone,
+    hasCapacity: positions.length > 0,
     capacity: zone?.capacity ?? positions.length,
     occupied,
     pct: positions.length ? Math.round((occupied / positions.length) * 100) : 0,
@@ -535,7 +551,7 @@ export function siteOccupancy(s: AppState, siteId: Id) {
   const zones = s.zones.filter((z) => z.siteId === siteId);
   const capacity = zones.reduce((a, z) => a + z.capacity, 0);
   const occupied = vehiclesAtSite(s, siteId).length;
-  return { zones: zones.length, capacity, occupied, pct: capacity ? Math.round((occupied / capacity) * 100) : 0 };
+  return { hasCapacity: zones.length > 0 && zones.every(z => z.capacity > 0), zones: zones.length, capacity, occupied, pct: capacity ? Math.round((occupied / capacity) * 100) : 0 };
 }
 
 /** Avisos de la tarjeta "Atención" del dashboard. */
@@ -714,7 +730,7 @@ export function myTransfers(s: AppState, userId: Id): ServiceRequest[] {
 
   return s.requests
     .filter((r) => {
-      if (r.type !== 'traslado' || r.status === 'terminada') return false;
+      if (r.type !== 'traslado' || r.status === 'terminada' || r.status === 'cancelada' || !r.carrierId) return false;
       if (r.assignedTo === userId) return true;
       return carrierId !== null && r.carrierId === carrierId;
     })
@@ -757,7 +773,7 @@ export interface Deadline {
  * Preparación: 48 h desde que el comercial la pide.
  */
 export function deadlineOf(s: AppState, r: ServiceRequest, now = Date.now()): Deadline {
-  if (!r.dueAt || r.status === 'terminada') {
+  if (!r.dueAt || r.status === 'terminada' || r.status === 'cancelada') {
     return { dueAt: r.dueAt, remainingMs: null, overdue: false, atRisk: false };
   }
   const remainingMs = new Date(r.dueAt).getTime() - now;
@@ -842,6 +858,12 @@ export function sedeDeEntrega(v: Vehicle): Id | null {
   return v.targetSiteId ?? v.location?.siteId ?? null;
 }
 
+/** La oficina gestiona la red; el comercial gestiona sus propias entregas. */
+export function puedeGestionarEntrega(s: AppState, user: User | null, v: Vehicle): boolean {
+  return can(s, user, 'entregas.gestionar') &&
+    (can(s, user, 'flota.editar') || esDelComercial(v, user));
+}
+
 export function upcomingDeliveries(s: AppState, days = 14): Vehicle[] {
   const limite = Date.now() + days * 86_400_000;
   return activeVehicles(s)
@@ -867,7 +889,7 @@ export function deliveryStatus(s: AppState, v: Vehicle, now = Date.now()): Deliv
   const prep = preparationFor(s, v.id);
   if (v.status !== 'apto_entrega' && v.status !== 'entregado') {
     if (!prep) missing.push('Sin preparación abierta');
-    else if (prep.runState !== 'terminado') {
+    else if ((prep.runState !== 'terminado' && prep.runState !== 'cancelado')) {
       const { done, total } = prepProgress(prep);
       missing.push(
         prep.runState === 'bloqueado'
@@ -878,7 +900,7 @@ export function deliveryStatus(s: AppState, v: Vehicle, now = Date.now()): Deliv
   }
 
   const traslado = s.requests.find(
-    (r) => r.vehicleId === v.id && r.type === 'traslado' && r.status !== 'terminada'
+    (r) => r.vehicleId === v.id && r.type === 'traslado' && (r.status !== 'terminada' && r.status !== 'cancelada')
   );
   if (traslado) missing.push('Traslado pendiente');
 
@@ -887,4 +909,17 @@ export function deliveryStatus(s: AppState, v: Vehicle, now = Date.now()): Deliv
   const ready = missing.length === 0;
   // En riesgo: quedan menos de 48 h y todavía falta algo.
   return { vehicle: v, inMs, missing, ready, atRisk: !ready && inMs < 48 * 3_600_000 };
+}
+
+/** Agrupa solo los encargos ya filtrados por usuario, sin mezclar sentidos. */
+export function agruparTrasladosPorTrayecto(solicitudes: ServiceRequest[]) {
+  const grupos = new Map<string, { id: string; origen: Id | null; destino: Id | null; solicitudes: ServiceRequest[] }>();
+  for (const r of solicitudes) {
+    const origen = r.from?.siteId ?? null;
+    const destino = r.to?.siteId ?? r.siteId ?? null;
+    const id = JSON.stringify([origen, destino]);
+    if (!grupos.has(id)) grupos.set(id, { id, origen, destino, solicitudes: [] });
+    grupos.get(id)!.solicitudes.push(r);
+  }
+  return [...grupos.values()];
 }

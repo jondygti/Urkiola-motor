@@ -40,11 +40,14 @@ import type {
 } from './types';
 import { REQUEST_STATUS_LABEL } from './types';
 import { CONFIG } from './seed';
+import { avisoPara } from './selectors';
 import { locationLabel, siteName, userName, vehicleTitle } from './format';
 
 /* ------------------------------------------------------------- comandos */
 
 export type Command =
+  | { type: 'request.cancel'; id: Id; at: string; userId: Id; requestId: Id; reason: string }
+  | { type: 'vehicle.setKeys'; id: Id; at: string; userId: Id; vehicleId: Id; primary?: string | null; secondary?: string | null }
   | { type: 'vehicle.check'; id: Id; at: string; userId: Id; vehicleId: Id; positionId?: Id | null }
   | {
       type: 'movement.register';
@@ -164,6 +167,7 @@ export type Command =
   | { type: 'reception.create'; id: Id; at: string; userId: Id; truckPlate: string; carrier: string; siteId: Id }
   | {
       type: 'reception.line';
+      zoneId?: Id | null;
       id: Id;
       at: string;
       userId: Id;
@@ -353,7 +357,7 @@ function addInbox(
   ev: Omit<NotificationEvent, 'id' | 'read'>,
   sufijo?: string
 ): AppState {
-  const item: NotificationEvent = { id: sufijo ?? derivado('nev'), read: false, ...ev };
+  const item: NotificationEvent = { id: sufijo ?? derivado('nev'), read: false, readBy: [], ...ev };
   if (yaCreado(state.inbox, item.id)) return state;
   return { ...state, inbox: [item, ...state.inbox].slice(0, 500) };
 }
@@ -441,6 +445,31 @@ function fireRules(
  * Es la misma idea de la regla de las plazas: mejor «en esta zona, plaza sin
  * confirmar» que una plaza concreta que es mentira.
  */
+function fechaDeUbicacion(v: Vehicle): number {
+  return Math.max(0, ...[v.locationObservedAt, v.lastCheckAt, v.lastMovementAt, v.deliveredAt]
+    .map((fecha) => fecha ? Date.parse(fecha) || 0 : 0));
+}
+
+function observacionAtrasada(v: Vehicle, cmd: Command): boolean {
+  return Date.parse(cmd.at) < fechaDeUbicacion(v);
+}
+
+/** Una observación antigua tampoco puede quitarle la plaza a otro coche
+ * comprobado después. Se conserva la zona, con la plaza sin confirmar. */
+function ubicacionObservable(state: AppState, lugar: LocationRef | null, vehicleId: Id, cmd: Command): LocationRef | null {
+  if (!lugar?.positionId) return lugar;
+  const ocupacionPosterior = state.vehicles.some((v) => v.id !== vehicleId &&
+    v.location?.positionId === lugar.positionId && observacionAtrasada(v, cmd));
+  return ocupacionPosterior ? { ...lugar, positionId: undefined } : lugar;
+}
+
+function anotarObservacionAntigua(state: AppState, vehicleId: Id, cmd: Command, detail: string): AppState {
+  return addEvent(state, {
+    vehicleId, kind: 'movimiento', title: 'Observación anterior recibida con retraso',
+    detail: `${detail}. Se conserva la ubicación comprobada después.`, at: cmd.at, userId: cmd.userId,
+  });
+}
+
 function liberarPlaza(state: AppState, positionId: Id | undefined | null, salvo: Id, cmd: Command): AppState {
   if (!positionId) return state;
   const ocupantes = state.vehicles.filter(
@@ -454,6 +483,7 @@ function liberarPlaza(state: AppState, positionId: Id | undefined | null, salvo:
       ...next,
       vehicles: replace(next.vehicles, otro.id, {
         location: { siteId: otro.location!.siteId, zoneId: otro.location!.zoneId, positionId: undefined },
+        locationObservedAt: cmd.at,
       }),
     };
     next = addEvent(next, {
@@ -660,12 +690,13 @@ function aplicar(state: AppState, cmd: Command): AppState {
     /* ------------------------------------------------ comprobación física */
     case 'vehicle.check': {
       if (!vehicle) return state;
+      if (observacionAtrasada(vehicle, cmd)) return anotarObservacionAntigua(state, vehicle.id, cmd, 'Comprobación física');
       // La sede y la zona salen de la plaza, no de donde teníamos apuntado
       // el coche: antes se mezclaban las dos y salía «Sondika · zona de
       // Anoeta». Una plaza que no existe no mueve el coche a ningún sitio.
-      const location: LocationRef | null = cmd.positionId
+      const location = ubicacionObservable(state, cmd.positionId
         ? (ubicacionDePlaza(state, cmd.positionId) ?? vehicle.location)
-        : vehicle.location;
+        : vehicle.location, vehicle.id, cmd);
 
       // Comprobar un coche en una plaza es una observación física: si está
       // aquí, el que teníamos apuntado en esta plaza ya no está.
@@ -674,6 +705,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
         lastCheckAt: cmd.at,
         lastCheckBy: userName(state, cmd.userId),
         location,
+        locationObservedAt: cmd.at,
       });
       return addEvent(next, {
         vehicleId: cmd.vehicleId,
@@ -690,18 +722,23 @@ function aplicar(state: AppState, cmd: Command): AppState {
       if (!vehicle) return state;
       if (yaCreado(state.movements, unico('mov', cmd))) return state;
       // Mover un coche a una sede que no existe no es mover un coche.
-      const destino = normalizarUbicacion(state, cmd.to);
+      const observado = normalizarUbicacion(state, cmd.to);
+      const destino = ubicacionObservable(state, observado, vehicle.id, cmd);
       if (!destino) return state;
       const movement: Movement = {
         id: unico('mov', cmd),
         vehicleId: cmd.vehicleId,
         from: vehicle.location,
-        to: destino,
+        to: observado!,
         userId: cmd.userId,
         at: cmd.at,
         status: 'completado',
         note: cmd.note,
       };
+      if (observacionAtrasada(vehicle, cmd)) {
+        return anotarObservacionAntigua({ ...state, movements: [movement, ...state.movements] }, vehicle.id, cmd,
+          `Movimiento a ${locationLabel(state, observado)}`);
+      }
       const changedSite = vehicle.location?.siteId !== destino.siteId;
 
       // Al cambiar de sede el coche queda aparcado a la espera, llegue a su
@@ -717,6 +754,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
         ...next,
         vehicles: replace(next.vehicles, cmd.vehicleId, {
           location: destino,
+          locationObservedAt: cmd.at,
           lastMovementAt: cmd.at,
           lastCheckAt: cmd.at,
           lastCheckBy: userName(state, cmd.userId),
@@ -725,9 +763,12 @@ function aplicar(state: AppState, cmd: Command): AppState {
       };
 
       // Un traslado completado cierra su solicitud.
-      if (cmd.completesTransfer || changedSite) {
+      if (changedSite) {
         const open = next.requests.find(
-          (r) => r.vehicleId === cmd.vehicleId && r.type === 'traslado' && r.status !== 'terminada'
+          (r) => r.vehicleId === cmd.vehicleId && r.type === 'traslado' && (r.status !== 'terminada' && r.status !== 'cancelada')
+            && (r.to?.siteId ?? r.siteId) === destino.siteId
+            && (!r.to?.zoneId || r.to.zoneId === destino.zoneId)
+            && (!r.to?.positionId || r.to.positionId === destino.positionId)
         );
         if (open) {
           next = {
@@ -777,6 +818,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
         return state;
       }
       if (!state.sites.some((x) => x.id === cmd.siteId)) return state;
+      if (conflictoSolicitud(state, cmd)) return state;
       // La preparación arranca el reloj al pedirla: es el plazo mínimo que
       // el comercial tiene que dar. Si el vehículo ya tiene fecha de entrega
       // comprometida, manda esa, que es la que de verdad importa. El
@@ -849,9 +891,59 @@ function aplicar(state: AppState, cmd: Command): AppState {
       });
     }
 
+    case 'request.cancel': {
+      const r = state.requests.find((r) => r.id === cmd.requestId);
+      const actor = state.users.find((u) => u.id === cmd.userId);
+      if (!r || r.status === 'cancelada' || motivoCancelacion(state, actor, r) || !cmd.reason?.trim()) return state;
+      if (cmd.at < r.createdAt || (r.pickedUpAt && cmd.at < r.pickedUpAt)) return state;
+      const motivo = cmd.reason.trim();
+      const datos = { cancelledAt: cmd.at, cancelledBy: cmd.userId, cancelReason: motivo };
+      let next = { ...state, requests: replace(state.requests, r.id, { status: 'cancelada', ...datos }) };
+      const preparaciones = r.type === 'preparacion' ? preparacionesDeSolicitud(state, r) : [];
+      for (const p of preparaciones) {
+        if (p.startedAt && cmd.at < p.startedAt) return state;
+        next = { ...next, preparations: replace(next.preparations, p.id, {
+          runState: 'cancelado', ...datos, runningSince: null, waitingSince: null,
+          effectiveMs: p.effectiveMs + transcurrido(p.runningSince, cmd),
+          waitingMs: p.waitingMs + transcurrido(p.waitingSince, cmd),
+        }) };
+      }
+      const abiertos = next.requests.filter((x) => x.vehicleId === r.vehicleId && x.status !== 'terminada' && x.status !== 'cancelada');
+      const prep = next.preparations.find((p) => p.vehicleId === r.vehicleId && p.runState !== 'terminado' && p.runState !== 'cancelado');
+      const viaje = abiertos.find((x) => x.type === 'traslado');
+      const coche = next.vehicles.find((v) => v.id === r.vehicleId);
+      const terminada = next.preparations.find((p) => p.vehicleId === r.vehicleId && p.runState === 'terminado');
+      if (coche) next = { ...next, vehicles: replace(next.vehicles, coche.id, {
+        status: viaje ? (viaje.pickedUpAt ? 'en_traslado' : 'traslado_solicitado') : prep ? 'en_preparacion' :
+          coche.status === 'entregado' ? 'entregado' : terminada && !preparaciones.some(p => p.startedAt) ? 'apto_entrega' : 'aparcado',
+        targetSiteId: viaje?.to?.siteId ?? viaje?.siteId ?? prep?.siteId ?? abiertos[0]?.siteId ?? null,
+      }) };
+      const userIds = [...new Set([r.assignedTo, ...preparaciones.map(p => p.preparerId),
+        ...state.users.filter(u => r.carrierId && u.carrierId === r.carrierId).map(u => u.id)].filter((id): id is string => !!id))];
+      if (userIds.length) next = addInbox(next, { ruleId: null, tone: 'info', at: cmd.at, vehicleId: r.vehicleId, userIds,
+        title: 'Solicitud cancelada', body: `${coche ? vehicleTitle(coche) : r.vehicleId}: ${motivo}` });
+      return addEvent(next, { vehicleId: r.vehicleId, kind: 'solicitud', title: 'Solicitud cancelada',
+        detail: `${r.id} · ${motivo} · ${userName(state, cmd.userId)}`, at: cmd.at, userId: cmd.userId });
+    }
+
+    case 'vehicle.setKeys': {
+      if (!vehicle || (vehicle.keysUpdatedAt && cmd.at < vehicle.keysUpdatedAt)) return state;
+      const patch: Partial<Vehicle> = {};
+      if (cmd.primary !== undefined) patch.primaryKeyLocation = cmd.primary?.trim() || null;
+      if (cmd.secondary !== undefined) patch.secondaryKeyLocation = cmd.secondary?.trim() || null;
+      const changed = Object.entries(patch).some(([k, val]) => (vehicle[k as keyof Vehicle] ?? null) !== val);
+      if (!changed) return state;
+      const next = { ...state, vehicles: replace(state.vehicles, vehicle.id, { ...patch, keysUpdatedAt: cmd.at, keysUpdatedBy: cmd.userId }) };
+      return addEvent(next, { vehicleId: vehicle.id, kind: 'solicitud', title: 'Ubicación de llaves actualizada',
+        detail: `${cmd.primary !== undefined ? `Principal: ${patch.primaryKeyLocation ?? 'sin indicar'}. ` : ''}${cmd.secondary !== undefined ? `Segunda: ${patch.secondaryKeyLocation ?? 'sin indicar'}. ` : ''}${userName(state, cmd.userId)}`,
+        at: cmd.at, userId: cmd.userId });
+    }
+
     case 'request.update': {
       const req = state.requests.find((r) => r.id === cmd.requestId);
-      if (!req) return state;
+      if (!req || req.status === 'cancelada' || cmd.status === 'cancelada') return state;
+      if (req.status === 'terminada' && cmd.status !== 'terminada' &&
+        conflictoSolicitud(state, { requestType: req.type, vehicleId: req.vehicleId, siteId: req.siteId, prepTipo: req.prepTipo })) return state;
 
       // Un comando que llega tarde no resucita un traslado ya entregado.
       //
@@ -927,7 +1019,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       if (!vehicle) return state;
       if (yaCreado(state.preparations, unico('prep', cmd))) return state;
       const existing = state.preparations.find(
-        (p) => p.vehicleId === cmd.vehicleId && p.runState !== 'terminado'
+        (p) => p.vehicleId === cmd.vehicleId && (p.runState !== 'terminado' && p.runState !== 'cancelado')
       );
       if (existing) return state;
       // Sondika almacena, no prepara. Estaba escrito como regla de negocio
@@ -939,7 +1031,8 @@ function aplicar(state: AppState, cmd: Command): AppState {
       // abre desde su cola lo que le han encargado, y un repaso abierto como
       // preparación de entrada se mediría contra dos horas.
       const pedidoAbierto = state.requests.find(
-        (r) => r.type === 'preparacion' && r.vehicleId === cmd.vehicleId && r.status !== 'terminada'
+        (r) => r.type === 'preparacion' && r.vehicleId === cmd.vehicleId && (r.status !== 'terminada' && r.status !== 'cancelada')
+          && r.siteId === cmd.siteId && (!cmd.tipo || (r.prepTipo ?? 'entrada') === cmd.tipo)
       );
       const tipo: TipoPreparacion = cmd.tipo ?? pedidoAbierto?.prepTipo ?? 'entrada';
       const target =
@@ -948,6 +1041,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
           : (state.config.prepTargetMinutes[vehicle.type] ?? 120) * 60_000;
       const prep: Preparation = {
         id: unico('prep', cmd),
+        requestId: pedidoAbierto?.id ?? null,
         vehicleId: cmd.vehicleId,
         siteId: cmd.siteId,
         preparerId: cmd.preparerId ?? null,
@@ -974,7 +1068,8 @@ function aplicar(state: AppState, cmd: Command): AppState {
       // acordarse de cambiarla a mano y se quedaba en «solicitada» aunque
       // el coche ya estuviera en el taller.
       const pedido = next.requests.find(
-        (r) => r.type === 'preparacion' && r.vehicleId === cmd.vehicleId && r.status !== 'terminada'
+        (r) => r.type === 'preparacion' && r.vehicleId === cmd.vehicleId && (r.status !== 'terminada' && r.status !== 'cancelada')
+          && r.siteId === cmd.siteId && (r.prepTipo ?? 'entrada') === tipo
       );
       if (pedido) {
         next = {
@@ -999,7 +1094,9 @@ function aplicar(state: AppState, cmd: Command): AppState {
     case 'prep.start':
     case 'prep.resume': {
       const p = state.preparations.find((x) => x.id === cmd.prepId);
-      if (!p || p.runState === 'terminado') return state;
+      if (!p || (p.runState === 'terminado' || p.runState === 'cancelado')) return state;
+      if (p.runState === 'en_curso') return state;
+      if (p.waitingSince && cmd.at < p.waitingSince) return state;
       const waitedMs = transcurrido(p.waitingSince, cmd);
       const next: AppState = {
         ...state,
@@ -1025,7 +1122,9 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
     case 'prep.pause': {
       const p = state.preparations.find((x) => x.id === cmd.prepId);
-      if (!p) return state;
+      if (!p || (p.runState === 'terminado' || p.runState === 'cancelado')) return state;
+      if (p.runningSince && cmd.at < p.runningSince) return state;
+      if (p.waitingSince && cmd.at < p.waitingSince) return state;
       const ranMs = transcurrido(p.runningSince, cmd);
       let next: AppState = {
         ...state,
@@ -1033,7 +1132,8 @@ function aplicar(state: AppState, cmd: Command): AppState {
           runState: cmd.blocked ? 'bloqueado' : 'en_espera',
           effectiveMs: p.effectiveMs + ranMs,
           runningSince: null,
-          waitingSince: cmd.at,
+          // Cambiar el motivo no reinicia la espera que ya estaba corriendo.
+          waitingSince: p.waitingSince ?? cmd.at,
           waitReason: cmd.reason,
         }),
       };
@@ -1057,7 +1157,8 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
     case 'prep.item': {
       const p = state.preparations.find((x) => x.id === cmd.prepId);
-      if (!p) return state;
+      if (!p || (p.runState === 'terminado' || p.runState === 'cancelado')) return state;
+      if (!['pendiente', 'completado', 'no_requerido'].includes(cmd.state)) return state;
       const items = p.items.map((i) =>
         i.requirementId === cmd.requirementId
           ? {
@@ -1086,7 +1187,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
     case 'prep.finish': {
       const p = state.preparations.find((x) => x.id === cmd.prepId);
-      if (!p) return state;
+      if (!p || (p.runState === 'terminado' || p.runState === 'cancelado')) return state;
       // Si el preparador dice dónde deja el coche, el movimiento se registra
       // antes de cerrar: así la ficha no se queda diciendo que sigue en el
       // taller. Es el mismo comando de siempre, con un id derivado del de
@@ -1111,6 +1212,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
           phase: 'apto_entrega',
           items,
           effectiveMs: p.effectiveMs + ranMs,
+          waitingMs: p.waitingMs + transcurrido(p.waitingSince, cmd),
           runningSince: null,
           waitingSince: null,
           waitReason: null,
@@ -1121,7 +1223,8 @@ function aplicar(state: AppState, cmd: Command): AppState {
         vehicles: replace(base.vehicles, p.vehicleId, { status: 'apto_entrega' }),
       };
       const openReq = next.requests.find(
-        (r) => r.vehicleId === p.vehicleId && r.type === 'preparacion' && r.status !== 'terminada'
+        (r) => r.vehicleId === p.vehicleId && r.type === 'preparacion' && (r.status !== 'terminada' && r.status !== 'cancelada')
+          && r.siteId === p.siteId && (r.prepTipo ?? 'entrada') === (p.tipo ?? 'entrada')
       );
       if (openReq) next = { ...next, requests: replace(next.requests, openReq.id, { status: 'terminada' }) };
 
@@ -1133,7 +1236,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       return addEvent(next, {
         vehicleId: p.vehicleId,
         kind: 'preparacion',
-        title: 'Preparación terminada · apto entrega',
+        title: p.tipo === 'repaso' ? 'Repaso de entrega terminado · apto entrega' : 'Preparación terminada · apto entrega',
         detail: cmd.to
           ? `${userName(state, cmd.userId)} · lo deja en ${locationLabel(next, cmd.to, true)}`
           : userName(state, cmd.userId),
@@ -1170,7 +1273,8 @@ function aplicar(state: AppState, cmd: Command): AppState {
       if (!count || !v) return state;
       if (count.found.some((f) => f.vehicleId === cmd.vehicleId)) return state;
 
-      const expectedPos = v.location?.positionId;
+      const mismaZona = v.location?.siteId === count.siteId && (!count.zoneId || v.location?.zoneId === count.zoneId);
+      const expectedPos = mismaZona ? v.location?.positionId : undefined;
       const found = {
         vehicleId: cmd.vehicleId,
         at: cmd.at,
@@ -1178,18 +1282,23 @@ function aplicar(state: AppState, cmd: Command): AppState {
         positionId: cmd.positionId ?? expectedPos,
         misplaced: !!cmd.positionId && !!expectedPos && cmd.positionId !== expectedPos,
       };
+      if (observacionAtrasada(v, cmd)) {
+        return anotarObservacionAntigua({ ...state,
+          counts: replace(state.counts, count.id, { found: [...count.found, found] }),
+        }, v.id, cmd, `Comprobado en recuento ${count.code}`);
+      }
       // Igual que en la comprobación suelta: manda la plaza. Antes se
       // mezclaba la sede del recuento con la zona de la plaza y podía salir
       // una ubicación que no existe en ningún sitio.
-      const location: LocationRef | null = cmd.positionId
+      const location = ubicacionObservable(state, cmd.positionId
         ? (ubicacionDePlaza(state, cmd.positionId) ?? v.location)
-        : v.location;
+        : mismaZona ? v.location : normalizarUbicacion(state, { siteId: count.siteId, zoneId: count.zoneId ?? undefined }), v.id, cmd);
 
       // El recuento es una observación física: si el coche está aquí, el que
       // teníamos apuntado en esta plaza ya no está.
       const base = liberarPlaza(
         tocarVehiculo(state, cmd.vehicleId, { location }),
-        cmd.positionId,
+        location?.positionId,
         cmd.vehicleId,
         cmd
       );
@@ -1200,6 +1309,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
           lastCheckAt: cmd.at,
           lastCheckBy: userName(state, cmd.userId),
           location,
+          locationObservedAt: cmd.at,
         }),
       };
       return addEvent(next, {
@@ -1322,8 +1432,9 @@ function aplicar(state: AppState, cmd: Command): AppState {
         const sede = v.location?.siteId;
         if (!sede || !next.sites.find((x) => x.id === sede)?.prepares) continue;
         // Ni encima de lo que ya está pedido o abierto.
-        if (next.preparations.some((p) => p.vehicleId === v.id && p.runState !== 'terminado')) continue;
-        if (next.requests.some((r) => r.type === 'preparacion' && r.vehicleId === v.id && r.status !== 'terminada')) {
+        if (next.preparations.some((p) => p.vehicleId === v.id && (p.runState !== 'terminado' && p.runState !== 'cancelado'))) continue;
+        if (next.requests.some((r) => r.status === 'cancelada' && r.vehicleId === v.id && r.prepTipo === 'repaso' && r.cancelledAt?.slice(0, 10) === dia)) continue;
+        if (next.requests.some((r) => r.type === 'preparacion' && r.vehicleId === v.id && (r.status !== 'terminada' && r.status !== 'cancelada'))) {
           continue;
         }
 
@@ -1378,9 +1489,22 @@ function aplicar(state: AppState, cmd: Command): AppState {
     }
 
     case 'inbox.read':
-      return { ...state, inbox: replace(state.inbox, cmd.eventId, { read: true }) };
-    case 'inbox.readAll':
-      return { ...state, inbox: state.inbox.map((n) => ({ ...n, read: true })) };
+    case 'inbox.readAll': {
+      const quien = state.users.find((u) => u.id === cmd.userId);
+      if (!quien) return state;
+      return {
+        ...state,
+        inbox: state.inbox.map((n) => {
+          if (cmd.type === 'inbox.read' && n.id !== cmd.eventId) return n;
+          if (!avisoPara(state, n, quien)) return n;
+          // Los avisos antiguos ya leídos mantienen su estado. No se puede
+          // deducir quién los leyó; las lecturas nuevas sí son individuales.
+          if (n.readBy === undefined && n.read) return n;
+          const anteriores = n.readBy ?? [];
+          return anteriores.includes(quien.id) ? n : { ...n, readBy: [...anteriores, quien.id] };
+        }),
+      };
+    }
 
     /* ----------------------------------------------------------- recepción */
     case 'reception.create': {
@@ -1414,21 +1538,25 @@ function aplicar(state: AppState, cmd: Command): AppState {
         damage: cmd.damage !== undefined ? cmd.damage : base.damage,
         positionId: cmd.positionId !== undefined ? cmd.positionId : base.positionId,
         photos: cmd.photos ?? base.photos,
+        zoneId: cmd.zoneId !== undefined ? cmd.zoneId : ('zoneId' in base ? base.zoneId : null),
       };
       const lines = idx >= 0 ? rec.lines.map((l, i) => (i === idx ? line : l)) : [...rec.lines, line];
 
       let next: AppState = { ...state, receptions: replace(state.receptions, cmd.receptionId, { lines }) };
 
       // Al descargar y asignar plaza, el vehículo entra en campa.
-      if (matched && line.unloaded && line.positionId) {
+      if (matched && line.unloaded && (line.positionId || line.zoneId)) {
+        const coche = state.vehicles.find((v) => v.id === matched)!;
+        if (observacionAtrasada(coche, cmd)) return anotarObservacionAntigua(next, matched, cmd, `Descarga del camión ${rec.truckPlate}`);
         // La plaza manda sobre la sede del albarán: si el operario descarga
         // en una plaza de otra campa, el coche está donde está la plaza.
-        const donde = normalizarUbicacion(state, { siteId: rec.siteId, positionId: line.positionId });
+        const donde = ubicacionObservable(state, normalizarUbicacion(state, { siteId: rec.siteId, zoneId: line.zoneId ?? undefined, positionId: line.positionId ?? undefined }), matched, cmd);
         next = liberarPlaza(activate(next, matched), donde?.positionId, matched, cmd);
         next = {
           ...next,
           vehicles: replace(next.vehicles, matched, {
             location: donde,
+            locationObservedAt: cmd.at,
             status: 'aparcado',
             receivedAt: cmd.at,
             lastCheckAt: cmd.at,
@@ -1483,9 +1611,9 @@ function aplicar(state: AppState, cmd: Command): AppState {
       const anterior = state.sites.find((x) => x.id === cmd.site.id);
       if (anterior?.prepares && !cmd.site.prepares) {
         const enMarcha =
-          state.preparations.some((p) => p.siteId === cmd.site.id && p.runState !== 'terminado') ||
+          state.preparations.some((p) => p.siteId === cmd.site.id && (p.runState !== 'terminado' && p.runState !== 'cancelado')) ||
           state.requests.some(
-            (r) => r.siteId === cmd.site.id && r.type === 'preparacion' && r.status !== 'terminada'
+            (r) => r.siteId === cmd.site.id && r.type === 'preparacion' && (r.status !== 'terminada' && r.status !== 'cancelada')
           );
         if (enMarcha) return state;
       }
@@ -1666,7 +1794,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       // Con traslados abiertos no se borra: se desactiva para que deje de
       // aparecer al asignar, pero el histórico sigue teniendo su nombre.
       const enUso = state.requests.some(
-        (r) => r.carrierId === cmd.carrierId && r.status !== 'terminada'
+        (r) => r.carrierId === cmd.carrierId && (r.status !== 'terminada' && r.status !== 'cancelada')
       );
       if (enUso) {
         return {
@@ -1683,10 +1811,10 @@ function aplicar(state: AppState, cmd: Command): AppState {
       let next: AppState = apuntarEnVehiculo(state, cmd.vehicleId, { deliveryDate: cmd.deliveryDate });
 
       // Si ya hay una preparación pedida, su plazo pasa a ser la entrega.
-      const prepReq = next.requests.find(
-        (r) => r.vehicleId === cmd.vehicleId && r.type === 'preparacion' && r.status !== 'terminada'
+      const prepReqs = next.requests.filter(
+        (r) => r.vehicleId === cmd.vehicleId && r.type === 'preparacion' && (r.status !== 'terminada' && r.status !== 'cancelada')
       );
-      if (prepReq) {
+      for (const prepReq of prepReqs) {
         next = {
           ...next,
           requests: replace(next.requests, prepReq.id, {
@@ -1711,6 +1839,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
     case 'vehicle.deliver': {
       if (!vehicle) return state;
+      if (observacionAtrasada(vehicle, cmd)) return anotarObservacionAntigua(state, vehicle.id, cmd, 'Entrega al cliente');
       // Repetirlo no vuelve a entregarlo ni duplica el apunte.
       if (vehicle.status === 'entregado' && !vehicle.logisticActive) return state;
 
@@ -1724,6 +1853,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
           status: 'entregado',
           logisticActive: false,
           location: null,
+          locationObservedAt: cmd.at,
           targetSiteId: null,
           // Con `cmd.at`, no con la hora de ahora: el comercial que entrega
           // en el parking sin cobertura marca la entrega cuando ocurre, y
@@ -1737,7 +1867,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       // quede abierto se cierra aquí, o se queda en la cola de alguien
       // esperando a un coche que ya no está.
       const prepAbierta = next.preparations.find(
-        (p) => p.vehicleId === cmd.vehicleId && p.runState !== 'terminado'
+        (p) => p.vehicleId === cmd.vehicleId && (p.runState !== 'terminado' && p.runState !== 'cancelado')
       );
       if (prepAbierta) {
         next = {
@@ -1836,7 +1966,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
         return { ...state, vehicles: replace(state.vehicles, existente.id, relleno) };
       }
 
-      const donde = normalizarUbicacion(state, cmd.location);
+      const donde = ubicacionObservable(state, normalizarUbicacion(state, cmd.location), id, cmd);
 
       const vehicle: Vehicle = {
         id,
@@ -1853,6 +1983,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
         origin: cmd.origin?.trim() || 'Alta manual',
         logisticActive: true,
         location: donde,
+        locationObservedAt: cmd.at,
         targetSiteId: null,
         status: donde ? 'aparcado' : 'recepcionado',
         lastCheckAt: cmd.at,
@@ -1909,4 +2040,31 @@ export function applyAll(state: AppState, commands: Command[]): AppState {
 /** Objetivo por defecto en ms para un tipo de vehículo. */
 export function defaultTargetMs(type: 'VN' | 'VO'): number {
   return (CONFIG.prepTargetMinutes[type] ?? 120) * 60_000;
+}
+
+
+export function preparacionesDeSolicitud(s: AppState, r: ServiceRequest) {
+  return s.preparations.filter(p => p.runState !== 'terminado' && p.runState !== 'cancelado' &&
+    (p.requestId ? p.requestId === r.id : p.vehicleId === r.vehicleId && p.siteId === r.siteId && (p.tipo ?? 'entrada') === (r.prepTipo ?? 'entrada')));
+}
+
+export function motivoCancelacion(s: AppState, u: User | null | undefined, r: ServiceRequest): string | null {
+  if (!u?.active) return 'Usuario no autorizado.';
+  const rol = s.config.roles.find(x => x.id === u.role);
+  if (rol?.simple || u.carrierId) return 'El transportista puede comunicar una incidencia, no cancelar solicitudes.';
+  if (r.status === 'terminada') return 'La solicitud ya ha terminado.';
+  const gestiona = rol?.permissions.includes('solicitudes.gestionar') || rol?.permissions.includes('admin.configurar');
+  if (gestiona) return u.siteIds.length && !u.siteIds.includes(r.siteId) ? 'Solicitud de otra sede.' : null;
+  if (r.createdBy !== u.id) return 'Solo el creador o Logística pueden cancelar.';
+  const iniciada = r.type === 'traslado' ? !!r.pickedUpAt || r.status === 'en_ruta' :
+    preparacionesDeSolicitud(s, r).some(p => !!p.startedAt || !!p.runningSince || p.effectiveMs > 0);
+  return iniciada ? 'El trabajo ya ha comenzado. Debe gestionarlo Logística.' : null;
+}
+
+export function conflictoSolicitud(s: AppState, c: Pick<Extract<Command, { type: 'request.create' }>, 'requestType' | 'vehicleId' | 'siteId' | 'prepTipo'>): string | null {
+  const abiertas = s.requests.filter(r => r.vehicleId === c.vehicleId && r.status !== 'terminada' && r.status !== 'cancelada');
+  if (c.requestType === 'traslado' && abiertas.some(r => r.type === 'traslado')) return 'Este vehículo ya tiene un traslado abierto. Cancélalo antes de pedir otro.';
+  if (c.requestType === 'preparacion' && (abiertas.some(r => r.type === 'preparacion' && r.siteId === c.siteId && (r.prepTipo ?? 'entrada') === (c.prepTipo ?? 'entrada')) ||
+    s.preparations.some(p => p.vehicleId === c.vehicleId && p.siteId === c.siteId && (p.tipo ?? 'entrada') === (c.prepTipo ?? 'entrada') && p.runState !== 'terminado' && p.runState !== 'cancelado'))) return 'Ya existe una solicitud o preparación equivalente abierta.';
+  return null;
 }

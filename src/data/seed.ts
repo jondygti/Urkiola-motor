@@ -679,7 +679,10 @@ function buildFleet(positions: Position[]): Build {
     });
     // Los tres primeros se entregan hoy; el resto, en las próximas semanas.
     const dias = i < 3 ? 0 : 3 + Math.floor(rnd() * 40);
-    coche.deliveryDate = new Date(NOW + dias * DAY + 10 * HOUR).toISOString();
+    // Partir del inicio del día: sumar diez horas a la hora actual hacía
+    // desaparecer los repasos de «hoy» al abrir la demo por la tarde.
+    const inicioDia = Math.floor(NOW / DAY) * DAY;
+    coche.deliveryDate = new Date(inicioDia + dias * DAY + 10 * HOUR).toISOString();
     vehicles.push(coche);
   }
 

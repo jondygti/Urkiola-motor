@@ -16,7 +16,7 @@ export default function AdminScreen() {
   const { c } = useTheme();
 
   const [tab, setTab] = useState<
-    'operativa' | 'ubicaciones' | 'flota' | 'usuarios' | 'transporte' | 'sistema'
+    'operativa' | 'repaso' | 'ubicaciones' | 'flota' | 'usuarios' | 'transporte' | 'sistema'
   >('operativa');
   const [editing, setEditing] = useState<Requirement | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -52,6 +52,7 @@ export default function AdminScreen() {
           onChange={setTab}
           options={[
             { value: 'operativa', label: 'Preparación' },
+            { value: 'repaso', label: 'Repaso de entrega' },
             { value: 'ubicaciones', label: 'Ubicaciones' },
             { value: 'flota', label: 'Flota y columnas' },
             { value: 'usuarios', label: 'Usuarios y roles' },
@@ -61,10 +62,11 @@ export default function AdminScreen() {
         />
       </Toolbar>
 
-      {tab === 'operativa' ? (
+      {tab === 'operativa' || tab === 'repaso' ? (
         <>
           <Grid cols={2} minWidth={380}>
-            <Panel title="⏱️ Objetivos de preparación">
+            <Panel title={tab === 'repaso' ? '🧽 Servicio de repaso de entrega' : '⏱️ Preparación completa'}>
+              {tab === 'operativa' ? <>
               <Field label="Vehículo nuevo (VN) · minutos">
                 <Input
                   value={String(state.config.prepTargetMinutes.VN)}
@@ -79,8 +81,9 @@ export default function AdminScreen() {
                   keyboardType="numeric"
                 />
               </Field>
-              <Field
-                label="Repaso de entrega · minutos"
+              </> : null}
+              {tab === 'repaso' ? <Field
+                label="Objetivo del servicio · minutos"
                 hint="La limpieza del día de la entrega. Va aparte porque no es el mismo trabajo."
               >
                 <Input
@@ -93,7 +96,8 @@ export default function AdminScreen() {
                   }
                   keyboardType="numeric"
                 />
-              </Field>
+              </Field> : null}
+              {tab === 'operativa' ? <>
               <Field label="Horas de plazo del transportista" hint="Desde que recoge las llaves.">
                 <Input
                   value={String(state.config.transferDeadlineHours)}
@@ -135,6 +139,11 @@ export default function AdminScreen() {
                 plazo comprometido para tenerlo listo. Los plazos se calculan al crear la solicitud, así que
                 cambiarlos aquí no mueve lo ya comprometido.
               </Muted>
+              </> : <Muted>
+                Servicio independiente para limpiar por dentro y por fuera el día de la entrega.
+                Tiene su propio checklist y cronómetro. Se solicita automáticamente el día de entrega
+                de los coches listos en una sede de preparación.
+              </Muted>}
             </Panel>
 
             <Panel title="☑️ Estados de los requisitos">
@@ -156,7 +165,7 @@ export default function AdminScreen() {
 
           <Spacer h={space.lg} />
 
-          <Panel title="✅ Requisitos de preparación configurables">
+          <Panel title={tab === 'repaso' ? '✅ Checklist del repaso de entrega' : '✅ Checklist de preparación completa'}>
             <Toolbar>
               <Btn
                 variant="primary"
@@ -166,7 +175,7 @@ export default function AdminScreen() {
                     label: '',
                     vehicleTypes: [],
                     siteIds: [],
-                    tipos: ['entrada'],
+                    tipos: [tab === 'repaso' ? 'repaso' : 'entrada'],
                     timed: true,
                     optional: false,
                     order: state.config.requirements.length + 1,
@@ -176,7 +185,8 @@ export default function AdminScreen() {
                 + Nuevo requisito
               </Btn>
             </Toolbar>
-            {state.config.requirements.map((r) => (
+            {state.config.requirements.filter((r) => !r.tipos?.length ||
+              r.tipos.includes(tab === 'repaso' ? 'repaso' : 'entrada')).map((r) => (
               <View
                 key={r.id}
                 style={{

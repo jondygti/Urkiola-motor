@@ -4,6 +4,7 @@ import { campo, Btn, Field, H1, Input, Modal, Muted, Notice, Panel, Pill, Screen
 import { useStore } from '@/data/store';
 import {
   carrierName,
+  agruparTrasladosPorTrayecto,
   deadlineOf,
   mesesConEntregas,
   misTrasladosPorFase,
@@ -11,7 +12,7 @@ import {
   resumenTransporte,
   trasladosHechos,
 } from '@/data/selectors';
-import { formatDateTime, locationLabel, timeAgo, vehicleName, vehicleRef } from '@/data/format';
+import { formatDateTime, siteName, locationLabel, timeAgo, vehicleName, vehicleRef } from '@/data/format';
 import { DELAY_REASON_LABEL, type DelayReason, type ServiceRequest, type Vehicle } from '@/data/types';
 import { ScreenGuard } from '@/features/common/Guard';
 import { DeadlineChip } from '@/features/common/DeadlineChip';
@@ -78,7 +79,7 @@ export default function MyTransfersScreen() {
               </Muted>
             </Panel>
           ) : (
-            porRecoger.map((r) => <TransferCard key={r.id} request={r} onDone={setToast} />)
+            <Trayectos key="recoger" solicitudes={porRecoger} onDone={setToast} />
           )
         ) : pestana === 'recogidos' ? (
           recogidos.length === 0 ? (
@@ -89,7 +90,7 @@ export default function MyTransfersScreen() {
               </Muted>
             </Panel>
           ) : (
-            recogidos.map((r) => <TransferCard key={r.id} request={r} onDone={setToast} />)
+            <Trayectos key="recogidos" solicitudes={recogidos} onDone={setToast} />
           )
         ) : (
           <Entregados hechos={hechos} />
@@ -104,6 +105,36 @@ export default function MyTransfersScreen() {
       </Screen>
     </ScreenGuard>
   );
+}
+
+/** Los grupos parten de la lista autorizada y conservan su orden de urgencia. */
+function Trayectos({ solicitudes, onDone }: { solicitudes: ServiceRequest[]; onDone: (m: string) => void }) {
+  const { state } = useStore();
+  const [ruta, setRuta] = useState('__todas__');
+  const grupos = agruparTrasladosPorTrayecto(solicitudes);
+  const elegida = grupos.some((g) => g.id === ruta) ? ruta : '__todas__';
+  const nombre = (g: typeof grupos[number]) =>
+    `${g.origen ? siteName(state, g.origen) : 'Origen sin indicar'} → ${g.destino ? siteName(state, g.destino) : 'Destino sin indicar'}`;
+  return <>
+    <Panel title="Organizar por trayecto">
+      <Muted>Vehículos agrupados por recogida y entrega para organizar la carga del camión.</Muted>
+      <Spacer h={space.sm} />
+      <Select full title="Trayecto" value={elegida} onChange={setRuta} options={[
+        { value: '__todas__', label: `Todos los trayectos · ${solicitudes.length} coches` },
+        ...grupos.map((g) => ({ value: g.id, label: `${nombre(g)} · ${g.solicitudes.length} coches` })),
+      ]} />
+    </Panel>
+    <Spacer />
+    {grupos.filter((g) => elegida === '__todas__' || g.id === elegida).map((g) => (
+      <View key={g.id} testID="grupo-trayecto">
+        <Panel title={nombre(g)}>
+          <Muted>{g.solicitudes.length} {g.solicitudes.length === 1 ? 'coche' : 'coches'} · {g.solicitudes.filter((r) => r.urgent).length} urgentes</Muted>
+        </Panel>
+        <Spacer h={space.sm} />
+        {g.solicitudes.map((r) => <TransferCard key={r.id} request={r} onDone={onDone} />)}
+      </View>
+    ))}
+  </>;
 }
 
 function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m: string) => void }) {

@@ -161,7 +161,7 @@ export function UsersAdmin({ onDone }: { onDone: (m: string) => void }) {
 /* --------------------------------------------------------------- usuario */
 
 function UserModal({ user, onClose, onDone }: { user: User; onClose: () => void; onDone: (m: string) => void }) {
-  const { state, run, user: me } = useStore();
+  const { state, run, user: me, mode } = useStore();
   const isNew = user.id === '';
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
@@ -213,6 +213,9 @@ function UserModal({ user, onClose, onDone }: { user: User; onClose: () => void;
           </>
         }
       >
+        {isNew && mode === 'api' ? (
+          <Notice>Después de sincronizar el alta, esta persona puede crear su contraseña desde «Primer acceso o nueva contraseña». Recibirá el enlace en su correo.</Notice>
+        ) : null}
         <Field label="Nombre y apellidos">
           <Input value={name} onChangeText={setName} placeholder="Ej.: Aitor Mendiola" />
         </Field>
