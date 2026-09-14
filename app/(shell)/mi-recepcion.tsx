@@ -108,9 +108,10 @@ function UnloadFlow({
       state.vehicles.map((v) => v.location?.positionId).filter(Boolean) as string[]
     );
     const delSitio = state.zones.filter((z) => z.siteId === reception.siteId);
-    const conHueco = delSitio.find((z) =>
-      state.positions.some((pos) => pos.zoneId === z.id && !ocupadasIni.has(pos.id))
-    );
+    const conHueco = delSitio.find((z) => {
+      const plazas = state.positions.filter((pos) => pos.zoneId === z.id);
+      return plazas.length === 0 || plazas.some((pos) => !ocupadasIni.has(pos.id));
+    });
     return (conHueco ?? delSitio[0])?.id ?? '';
   });
   const [positionId, setPositionId] = useState<string | null>(null);
@@ -132,9 +133,10 @@ function UnloadFlow({
   // La siguiente plaza libre se propone sola: es lo que se hace el 90 % de las veces.
   const propuesta = positionId === '__sin_plaza__' ? null : positionId ?? libres[0]?.id ?? null;
 
-  const librasDe = (id: string) =>
-    state.positions.filter((pos) => pos.zoneId === id && !ocupadas.has(pos.id)).length;
-  const siguienteConHueco = zones.find((z) => z.id !== zoneId && librasDe(z.id) > 0);
+  const plazasDe = (id: string) => state.positions.filter((pos) => pos.zoneId === id);
+  const librasDe = (id: string) => plazasDe(id).filter((pos) => !ocupadas.has(pos.id)).length;
+  const sinPlazas = (id: string) => plazasDe(id).length === 0;
+  const siguienteConHueco = zones.find((z) => z.id !== zoneId && (sinPlazas(z.id) || librasDe(z.id) > 0));
   const encontrado = vehicleByRef(state, ref);
 
   const descargar = (damage: string | null, photos: string[] = []) => {
@@ -218,7 +220,7 @@ function UnloadFlow({
             options={zones.map((z) => ({
               value: z.id,
               label: z.name,
-              hint: `${state.positions.filter((p) => p.zoneId === z.id && !ocupadas.has(p.id)).length} libres`,
+              hint: state.positions.some((p) => p.zoneId === z.id) ? `${state.positions.filter((p) => p.zoneId === z.id && !ocupadas.has(p.id)).length} libres` : 'Sin plazas individuales',
             }))}
             title="Zona de descarga"
             searchable
@@ -242,7 +244,7 @@ function UnloadFlow({
             <Notice tone="danger">Esta zona está llena.</Notice>
             {siguienteConHueco ? (
               <Btn full onPress={() => setZoneId(siguienteConHueco.id)}>
-                Ir a {siguienteConHueco.name} · {librasDe(siguienteConHueco.id)} libres
+                Ir a {siguienteConHueco.name} · {sinPlazas(siguienteConHueco.id) ? 'sin plazas individuales' : `${librasDe(siguienteConHueco.id)} libres`}
               </Btn>
             ) : (
               <Notice tone="danger">No queda ni una plaza libre en esta sede.</Notice>
@@ -276,6 +278,7 @@ function UnloadFlow({
             .reverse()
             .map((l) => {
               const pos = state.positions.find((p) => p.id === l.positionId);
+              const zone = state.zones.find((z) => z.id === l.zoneId || z.id === pos?.zoneId);
               return (
                 <View
                   key={l.ref}
@@ -290,7 +293,7 @@ function UnloadFlow({
                 >
                   <Text style={{ fontSize: campo.body, fontWeight: '700', color: c.text, flex: 1 }}>{l.ref}</Text>
                   {l.damage ? <Pill tone="red">Daños</Pill> : null}
-                  <Text style={{ fontSize: campo.small, color: c.textMuted }}>{pos?.code ?? '—'}</Text>
+                  <Text style={{ fontSize: campo.small, color: c.textMuted }}>{pos?.code ?? zone?.name ?? '—'}</Text>
                 </View>
               );
             })}

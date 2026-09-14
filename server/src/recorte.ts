@@ -25,7 +25,7 @@ import { avisoLeido } from '../../src/data/selectors';
  */
 export const CAMPOS_DEL_VEHICULO: Record<keyof Vehicle, 'va' | 'se-borra'> = {
   // Lo que necesita para reconocer el coche y llevarlo donde toca.
-  primaryKeyLocation: 'se-borra', secondaryKeyLocation: 'se-borra', keysUpdatedAt: 'se-borra', keysUpdatedBy: 'se-borra',
+  primaryKeyLocation: 'se-borra', secondaryKeyLocation: 'se-borra', primaryKeyUpdatedAt: 'se-borra', primaryKeyUpdatedBy: 'se-borra', secondaryKeyUpdatedAt: 'se-borra', secondaryKeyUpdatedBy: 'se-borra', keysUpdatedAt: 'se-borra', keysUpdatedBy: 'se-borra',
   id: 'va',
   vin8: 'va',
   vin: 'va',
@@ -60,6 +60,14 @@ export const CAMPOS_DEL_VEHICULO: Record<keyof Vehicle, 'va' | 'se-borra'> = {
 function vehiculoRecortado(v: Vehicle): Vehicle {
   return {
     ...v,
+    primaryKeyLocation: null,
+    secondaryKeyLocation: null,
+    primaryKeyUpdatedAt: null,
+    primaryKeyUpdatedBy: null,
+    secondaryKeyUpdatedAt: null,
+    secondaryKeyUpdatedBy: null,
+    keysUpdatedAt: null,
+    keysUpdatedBy: null,
     salesRep: null,
     custom: undefined,
     deliveryDate: null,

@@ -350,10 +350,10 @@ function ScanModal({
   const [feedback, setFeedback] = useState<string | null>(null);
 
   const found = vehicleByRef(state, ref);
-  const positions = useMemo(
-    () => state.positions.filter((p) => (count.zoneId ? p.zoneId === count.zoneId : p.zoneId.startsWith(count.siteId))),
-    [state.positions, count]
-  );
+  const positions = useMemo(() => {
+    const zoneIds = new Set(state.zones.filter((z) => z.siteId === count.siteId).map((z) => z.id));
+    return state.positions.filter((p) => (count.zoneId ? p.zoneId === count.zoneId : zoneIds.has(p.zoneId)));
+  }, [state.positions, state.zones, count]);
 
   const confirm = (vehicleId: string) => {
     const already = count.found.some((f) => f.vehicleId === vehicleId);

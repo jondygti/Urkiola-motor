@@ -93,6 +93,11 @@ export const VEHICLE_FLOW: VehicleStatus[] = [
 export interface Vehicle {
   primaryKeyLocation?: string | null;
   secondaryKeyLocation?: string | null;
+  primaryKeyUpdatedAt?: ISODate | null;
+  primaryKeyUpdatedBy?: Id | null;
+  secondaryKeyUpdatedAt?: ISODate | null;
+  secondaryKeyUpdatedBy?: Id | null;
+  /** Último cambio de cualquiera de las dos, para compatibilidad e interfaz. */
   keysUpdatedAt?: ISODate | null;
   keysUpdatedBy?: Id | null;
   id: Id;

@@ -222,7 +222,10 @@ export function RequestModal({
   const puedeFijarEntrega = puedeGestionarEntrega(state, user, vehicle);
   const [prepTipo, setPrepTipo] = useState<'entrada' | 'repaso'>('entrada');
   const prepSites = state.sites.filter((s) => s.prepares);
-  const [siteId, setSiteId] = useState(vehicle.targetSiteId ?? prepSites[0].id);
+  const destinoInicial = type === 'preparacion'
+    ? (prepSites.some((s) => s.id === vehicle.targetSiteId) ? vehicle.targetSiteId! : (prepSites[0]?.id ?? ''))
+    : (vehicle.targetSiteId ?? state.sites[0]?.id ?? '');
+  const [siteId, setSiteId] = useState(destinoInicial);
   const [urgent, setUrgent] = useState(false);
   const [note, setNote] = useState('');
 
@@ -244,6 +247,10 @@ export function RequestModal({
   const carrierElegido = carrierTocado ? carrierId : (sugerida?.id ?? null);
 
   const submit = () => {
+    if (!siteId) {
+      setAviso(type === 'preparacion' ? 'No hay ninguna sede de preparación configurada.' : 'No hay ninguna sede configurada.');
+      return;
+    }
     const conflicto = conflictoSolicitud(state, { requestType: type, vehicleId: vehicle.id, siteId, prepTipo });
     if (conflicto) { setAviso(conflicto); return; }
     // Si la entrega es antes del plazo mínimo, se avisa y hay que confirmar.
@@ -280,7 +287,7 @@ export function RequestModal({
       onClose={onClose}
       title={type === 'traslado' ? '🚚 Solicitar traslado' : '🧽 Solicitar servicio'}
       footer={
-        <Btn variant="primary" full onPress={submit}>
+        <Btn variant="primary" full disabled={!siteId} onPress={submit}>
           {aviso ? 'Pedir igualmente' : 'Crear solicitud'}
         </Btn>
       }
