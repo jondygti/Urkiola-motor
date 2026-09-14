@@ -381,7 +381,10 @@ test('un coche sin comercial no genera un aviso que no va a leer nadie', () => {
 
 test('pedir una preparación avisa a los preparadores', () => {
   let s = buildSeedState();
-  const v = s.vehicles.find((x) => x.logisticActive)!;
+  // Encargo nuevo: la semilla puede tener ya una preparación pedida.
+  const v = s.vehicles.find((x) => x.logisticActive &&
+    !s.requests.some(r => r.vehicleId === x.id && r.type === 'preparacion' && r.siteId === 'leioa' && r.status !== 'terminada' && r.status !== 'cancelada') &&
+    !s.preparations.some(p => p.vehicleId === x.id && p.siteId === 'leioa' && p.runState !== 'terminado' && p.runState !== 'cancelado'))!;
   const antes = s.inbox.length;
   s = aplicar(s, {
     type: 'request.create',

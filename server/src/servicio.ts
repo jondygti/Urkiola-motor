@@ -354,6 +354,13 @@ export class Servicio {
       if (!this.estadoActual.config.roles.some((r) => r.id === cmd.user.role)) throw malaPeticion('Ese rol no existe.');
     }
 
+    if (cmd.type === 'request.update' && cmd.status !== 'terminada') {
+      const r = this.estadoActual.requests.find(r => r.id === cmd.requestId);
+      if (r?.status === 'terminada') {
+        const conflicto = conflictoSolicitud(this.estadoActual, { requestType: r.type, vehicleId: r.vehicleId, siteId: r.siteId, prepTipo: r.prepTipo });
+        if (conflicto) throw malaPeticion(conflicto);
+      }
+    }
     if (cmd.type === 'request.create') {
       const conflicto = conflictoSolicitud(this.estadoActual, cmd);
       if (conflicto) throw malaPeticion(conflicto);

@@ -942,6 +942,8 @@ function aplicar(state: AppState, cmd: Command): AppState {
     case 'request.update': {
       const req = state.requests.find((r) => r.id === cmd.requestId);
       if (!req || req.status === 'cancelada' || cmd.status === 'cancelada') return state;
+      if (req.status === 'terminada' && cmd.status !== 'terminada' &&
+        conflictoSolicitud(state, { requestType: req.type, vehicleId: req.vehicleId, siteId: req.siteId, prepTipo: req.prepTipo })) return state;
 
       // Un comando que llega tarde no resucita un traslado ya entregado.
       //

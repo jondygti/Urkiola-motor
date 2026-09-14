@@ -42,3 +42,10 @@ test('24 logística cancela preparación iniciada y detiene sus relojes sin comp
 test('25 segunda llave se conserva al cambiar solo principal', () => { let s = applyCommand(base(), cmd({type:'vehicle.setKeys',vehicleId:'coche',secondary:'Cliente'},'u-log')); s = applyCommand(s,cmd({type:'vehicle.setKeys',vehicleId:'coche',primary:'Taller'},'u-log')); assert.equal(s.vehicles[0].secondaryKeyLocation,'Cliente'); assert.equal(s.vehicles[0].primaryKeyLocation,'Taller'); s=applyCommand(s,cmd({type:'vehicle.setKeys',vehicleId:'coche',primary:null},'u-log')); assert.equal(s.vehicles[0].secondaryKeyLocation,'Cliente'); assert.equal(s.vehicles[0].primaryKeyLocation,null); });
 
 test('26 reintentos antiguos no reabren una solicitud cancelada', () => { const s = cancelar(pedir()); assert.deepEqual(applyCommand(s,cmd({type:'request.update',requestId:s.requests[0].id,status:'en_ruta'},'u-iker')),s); });
+
+test('27 reapertura no duplica un traslado activo', () => {
+  let s = pedir();
+  s.requests.unshift({ ...s.requests[0], id: 'historico', status: 'terminada', deliveredAt: at });
+  const t = applyCommand(s, cmd({ type: 'request.update', requestId: 'historico', status: 'solicitada' }, 'u-log'));
+  assert.equal(t.requests[0].status, 'terminada');
+});

@@ -760,7 +760,7 @@ export async function ejecutar(browser, BASE) {
     const coche = antes.vehicles.find(v=>v.vin8);
     await rec.page.getByPlaceholder('Escribe o escanea').fill(coche.vin8);
     // La zona actual es la primera con hueco: abrir el selector desde el campo.
-    const campo = rec.page.getByText('Zona', { exact: true }).first().locator('xpath=..');
+    const campo = rec.page.getByText('ZONA', { exact: true }).first().locator('xpath=..');
     await campo.locator('[tabindex="0"]').first().click();
     await rec.page.getByText('Parking sin plazas', { exact: true }).last().click();
     await pulsar(rec.page, '✓ Descargado · siguiente', { exact: true });
