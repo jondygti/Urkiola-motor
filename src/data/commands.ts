@@ -927,15 +927,39 @@ function aplicar(state: AppState, cmd: Command): AppState {
     }
 
     case 'vehicle.setKeys': {
-      if (!vehicle || (vehicle.keysUpdatedAt && cmd.at < vehicle.keysUpdatedAt)) return state;
+      if (!vehicle) return state;
       const patch: Partial<Vehicle> = {};
-      if (cmd.primary !== undefined) patch.primaryKeyLocation = cmd.primary?.trim() || null;
-      if (cmd.secondary !== undefined) patch.secondaryKeyLocation = cmd.secondary?.trim() || null;
-      const changed = Object.entries(patch).some(([k, val]) => (vehicle[k as keyof Vehicle] ?? null) !== val);
-      if (!changed) return state;
-      const next = { ...state, vehicles: replace(state.vehicles, vehicle.id, { ...patch, keysUpdatedAt: cmd.at, keysUpdatedBy: cmd.userId }) };
+      const primaryAt = vehicle.primaryKeyUpdatedAt ?? (vehicle.primaryKeyLocation != null ? vehicle.keysUpdatedAt : null);
+      const secondaryAt = vehicle.secondaryKeyUpdatedAt ?? (vehicle.secondaryKeyLocation != null ? vehicle.keysUpdatedAt : null);
+      let primaryChanged = false;
+      let secondaryChanged = false;
+
+      if (cmd.primary !== undefined && (!primaryAt || cmd.at >= primaryAt)) {
+        const value = cmd.primary?.trim() || null;
+        if ((vehicle.primaryKeyLocation ?? null) !== value) {
+          primaryChanged = true;
+          patch.primaryKeyLocation = value;
+          patch.primaryKeyUpdatedAt = cmd.at;
+          patch.primaryKeyUpdatedBy = cmd.userId;
+        }
+      }
+      if (cmd.secondary !== undefined && (!secondaryAt || cmd.at >= secondaryAt)) {
+        const value = cmd.secondary?.trim() || null;
+        if ((vehicle.secondaryKeyLocation ?? null) !== value) {
+          secondaryChanged = true;
+          patch.secondaryKeyLocation = value;
+          patch.secondaryKeyUpdatedAt = cmd.at;
+          patch.secondaryKeyUpdatedBy = cmd.userId;
+        }
+      }
+      if (!primaryChanged && !secondaryChanged) return state;
+      if (!vehicle.keysUpdatedAt || cmd.at >= vehicle.keysUpdatedAt) {
+        patch.keysUpdatedAt = cmd.at;
+        patch.keysUpdatedBy = cmd.userId;
+      }
+      const next = { ...state, vehicles: replace(state.vehicles, vehicle.id, patch) };
       return addEvent(next, { vehicleId: vehicle.id, kind: 'solicitud', title: 'Ubicación de llaves actualizada',
-        detail: `${cmd.primary !== undefined ? `Principal: ${patch.primaryKeyLocation ?? 'sin indicar'}. ` : ''}${cmd.secondary !== undefined ? `Segunda: ${patch.secondaryKeyLocation ?? 'sin indicar'}. ` : ''}${userName(state, cmd.userId)}`,
+        detail: `${primaryChanged ? `Principal: ${patch.primaryKeyLocation ?? 'sin indicar'}. ` : ''}${secondaryChanged ? `Segunda: ${patch.secondaryKeyLocation ?? 'sin indicar'}. ` : ''}${userName(state, cmd.userId)}`,
         at: cmd.at, userId: cmd.userId });
     }
 
@@ -1473,7 +1497,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       // Traslados encargados que nadie ha ido a recoger.
       const limiteRecogida = state.config.pickupAlertHours ?? 24;
       for (const r of state.requests) {
-        if (r.type !== 'traslado' || r.status === 'terminada' || r.pickedUpAt) continue;
+        if (r.type !== 'traslado' || r.status === 'terminada' || r.status === 'cancelada' || r.pickedUpAt) continue;
         const horas = (ahora - new Date(r.createdAt).getTime()) / 3_600_000;
         if (horas < limiteRecogida) continue;
         const v = state.vehicles.find((x) => x.id === r.vehicleId) ?? null;
@@ -1650,25 +1674,27 @@ function aplicar(state: AppState, cmd: Command): AppState {
     }
 
     case 'zone.upsert': {
+      if (!Number.isInteger(cmd.positions) || cmd.positions < 0) return state;
+      const current = state.positions.filter((p) => p.zoneId === cmd.zone.id);
+      const occupied = new Set(
+        state.vehicles.map((v) => v.location?.positionId).filter(Boolean) as string[]
+      );
+      const occupiedCount = current.filter((p) => occupied.has(p.id)).length;
+      if (cmd.positions < occupiedCount) return state;
+
+      const normalizedZone = { ...cmd.zone, capacity: cmd.positions };
       const exists = state.zones.some((z) => z.id === cmd.zone.id);
       const zones = exists
-        ? state.zones.map((z) => (z.id === cmd.zone.id ? cmd.zone : z))
-        : [...state.zones, cmd.zone];
-
-      const current = state.positions.filter((p) => p.zoneId === cmd.zone.id);
+        ? state.zones.map((z) => (z.id === cmd.zone.id ? normalizedZone : z))
+        : [...state.zones, normalizedZone];
       let positions = [...state.positions];
 
       if (cmd.positions > current.length) {
-        // Se añaden plazas al final, sin tocar las existentes.
         for (let i = current.length; i < cmd.positions; i++) {
           const n = String(i + 1).padStart(2, '0');
           positions.push({ id: `${cmd.zone.id}-p${n}`, zoneId: cmd.zone.id, code: `P${n}` });
         }
       } else if (cmd.positions < current.length) {
-        // Al reducir, solo se quitan las plazas vacías, empezando por el final.
-        const occupied = new Set(
-          state.vehicles.map((v) => v.location?.positionId).filter(Boolean) as string[]
-        );
         const removable = current
           .slice()
           .reverse()
@@ -1693,21 +1719,25 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
     case 'position.add': {
       const code = cmd.code.trim().toUpperCase();
-      if (!code) return state;
+      const zone = state.zones.find((z) => z.id === cmd.zoneId);
+      if (!zone || !code) return state;
       if (state.positions.some((p) => p.zoneId === cmd.zoneId && p.code === code)) return state;
-      return {
-        ...state,
-        positions: [
-          ...state.positions,
-          { id: `${cmd.zoneId}-${code.toLowerCase()}`, zoneId: cmd.zoneId, code },
-        ],
-      };
+      const positions = [
+        ...state.positions,
+        { id: `${cmd.zoneId}-${code.toLowerCase()}`, zoneId: cmd.zoneId, code },
+      ];
+      const capacity = positions.filter((p) => p.zoneId === cmd.zoneId).length;
+      return { ...state, positions, zones: replace(state.zones, zone.id, { capacity }) };
     }
 
     case 'position.delete': {
+      const position = state.positions.find((p) => p.id === cmd.positionId);
+      if (!position) return state;
       const occupied = state.vehicles.some((v) => v.location?.positionId === cmd.positionId);
       if (occupied) return state;
-      return { ...state, positions: state.positions.filter((p) => p.id !== cmd.positionId) };
+      const positions = state.positions.filter((p) => p.id !== cmd.positionId);
+      const capacity = positions.filter((p) => p.zoneId === position.zoneId).length;
+      return { ...state, positions, zones: replace(state.zones, position.zoneId, { capacity }) };
     }
 
     /* ---------------------------------------------------- usuarios y roles */
@@ -1884,7 +1914,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
         };
       }
       for (const r of next.requests) {
-        if (r.vehicleId !== cmd.vehicleId || r.status === 'terminada') continue;
+        if (r.vehicleId !== cmd.vehicleId || r.status === 'terminada' || r.status === 'cancelada') continue;
         next = { ...next, requests: replace(next.requests, r.id, { status: 'terminada' as RequestStatus }) };
       }
 
@@ -2064,7 +2094,7 @@ export function motivoCancelacion(s: AppState, u: User | null | undefined, r: Se
 export function conflictoSolicitud(s: AppState, c: Pick<Extract<Command, { type: 'request.create' }>, 'requestType' | 'vehicleId' | 'siteId' | 'prepTipo'>): string | null {
   const abiertas = s.requests.filter(r => r.vehicleId === c.vehicleId && r.status !== 'terminada' && r.status !== 'cancelada');
   if (c.requestType === 'traslado' && abiertas.some(r => r.type === 'traslado')) return 'Este vehículo ya tiene un traslado abierto. Cancélalo antes de pedir otro.';
-  if (c.requestType === 'preparacion' && (abiertas.some(r => r.type === 'preparacion' && r.siteId === c.siteId && (r.prepTipo ?? 'entrada') === (c.prepTipo ?? 'entrada')) ||
-    s.preparations.some(p => p.vehicleId === c.vehicleId && p.siteId === c.siteId && (p.tipo ?? 'entrada') === (c.prepTipo ?? 'entrada') && p.runState !== 'terminado' && p.runState !== 'cancelado'))) return 'Ya existe una solicitud o preparación equivalente abierta.';
+  if (c.requestType === 'preparacion' && (abiertas.some(r => r.type === 'preparacion' && (r.prepTipo ?? 'entrada') === (c.prepTipo ?? 'entrada')) ||
+    s.preparations.some(p => p.vehicleId === c.vehicleId && (p.tipo ?? 'entrada') === (c.prepTipo ?? 'entrada') && p.runState !== 'terminado' && p.runState !== 'cancelado'))) return 'Ya existe una solicitud o preparación equivalente abierta.';
   return null;
 }

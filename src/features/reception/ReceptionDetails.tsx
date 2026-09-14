@@ -68,7 +68,7 @@ export function ReceptionDetails({ reception, onDone }: { reception: Reception; 
       key: 'position',
       header: 'Ubicación',
       width: 170,
-      value: (l) => (l.positionId ? locationLabel(state, { siteId: reception!.siteId, positionId: l.positionId }, true) : '—'),
+      value: (l) => (l.positionId || l.zoneId ? locationLabel(state, { siteId: reception!.siteId, zoneId: l.zoneId ?? undefined, positionId: l.positionId ?? undefined }, true) : '—'),
       render: (l) => {
         const pos = state.positions.find((p) => p.id === l.positionId);
         const zone = state.zones.find((z) => z.id === pos?.zoneId);
@@ -285,7 +285,7 @@ function LineModal({
         hint="Es la prueba para reclamar al transportista."
       />
       <Notice>
-        Al marcar el vehículo como descargado con una plaza asignada, queda aparcado en esa plaza y
+        Al marcar el vehículo como descargado con una zona o plaza asignada, queda ubicado allí y
         comprobado físicamente con fecha, hora y usuario.
       </Notice>
 

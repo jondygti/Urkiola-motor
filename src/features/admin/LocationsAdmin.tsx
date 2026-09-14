@@ -131,7 +131,7 @@ export function LocationsAdmin({ onDone }: { onDone: (m: string) => void }) {
                     </Text>
                     <Pill tone="neutral">{z.kind}</Pill>
                     <Text style={{ fontSize: tipografia.body, fontWeight: '700', color: c.text }}>
-                      {occ.occupied}/{plazas} plazas
+                      {occ.hasCapacity ? `${occ.occupied}/${plazas} plazas` : `${occ.occupied} coches`}
                     </Text>
                   </View>
                   {occ.hasCapacity ? <ProgressBar pct={occ.pct} tone={occ.pct > 90 ? 'red' : 'ok'} /> : <Muted>Sin plazas individuales</Muted>}
@@ -268,7 +268,9 @@ function ZoneModal({ zone, onClose, onDone }: { zone: Zone; onClose: () => void;
   const [error, setError] = useState<string | null>(null);
 
   const occupied = vehiclesInZone(state, zone.id).length;
-  const current = state.positions.filter((p) => p.zoneId === zone.id).length;
+  const currentPositions = state.positions.filter((p) => p.zoneId === zone.id);
+  const current = currentPositions.length;
+  const occupiedPositions = currentPositions.filter((p) => state.vehicles.some((v) => v.location?.positionId === p.id)).length;
   const wanted = Number(capacity.replace(/\D/g, '')) || 0;
 
   const save = () => {
@@ -279,8 +281,8 @@ function ZoneModal({ zone, onClose, onDone }: { zone: Zone; onClose: () => void;
     if (isNew && state.zones.some((z) => z.id === id)) {
       return setError('Ya existe una zona con ese nombre en esta sede.');
     }
-    if (!isNew && wanted > 0 && wanted < occupied) {
-      return setError(`No puedes bajar de ${occupied} plazas: hay coches ocupándolas.`);
+    if (!isNew && wanted < occupiedPositions) {
+      return setError(`No puedes bajar de ${occupiedPositions} plazas: hay coches ocupándolas.`);
     }
     run({
       type: 'zone.upsert',
@@ -338,7 +340,7 @@ function ZoneModal({ zone, onClose, onDone }: { zone: Zone; onClose: () => void;
         </Field>
         {!isNew && occupied > 0 ? (
           <Notice>
-            {occupied} de las {current} plazas están ocupadas ahora mismo.
+            {occupied} coches en esta zona{current ? ` · ${current} plazas numeradas` : ' · sin plazas individuales'}.
           </Notice>
         ) : null}
         {error ? <Notice tone="danger">{error}</Notice> : null}

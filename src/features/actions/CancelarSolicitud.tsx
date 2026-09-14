@@ -4,7 +4,7 @@ import { useStore } from '@/data/store';
 import { motivoCancelacion } from '@/data/commands';
 import type { ServiceRequest } from '@/data/types';
 
-export function CancelarSolicitud({ request }: { request: ServiceRequest }) {
+export function CancelarSolicitud({ request, onCancelled }: { request: ServiceRequest; onCancelled?: () => void }) {
   const { state, user, run } = useStore();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('');
@@ -20,6 +20,7 @@ export function CancelarSolicitud({ request }: { request: ServiceRequest }) {
         if (!actual || rechazo) { setError(rechazo ?? 'Solicitud no disponible.'); return; }
         run({ type: 'request.cancel', requestId: request.id, reason: reason.trim() });
         setOpen(false);
+        onCancelled?.();
       }}>Confirmar cancelación</Btn>}>
       <Notice>Se retirará el encargo de las colas activas y quedará en el histórico. La ubicación del coche no cambia.</Notice>
       <Spacer />

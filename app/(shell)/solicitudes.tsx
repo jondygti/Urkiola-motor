@@ -343,7 +343,7 @@ function ManageModal({
           {locationLabel(state, request.from)} → {locationLabel(state, request.to)}
         </Muted>
       </Field>
-      <CancelarSolicitud request={state.requests.find(r => r.id === request.id) ?? request} />
+      <CancelarSolicitud request={state.requests.find(r => r.id === request.id) ?? request} onCancelled={() => onDone('Solicitud cancelada.')} />
       <Field label="Estado">
         <Select
           full
