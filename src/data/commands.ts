@@ -1674,32 +1674,33 @@ function aplicar(state: AppState, cmd: Command): AppState {
     }
 
     case 'zone.upsert': {
-      if (!Number.isInteger(cmd.positions) || cmd.positions < 0) return state;
+      const positionsSolicitadas = cmd.positions ?? cmd.zone.capacity;
+      if (!Number.isInteger(positionsSolicitadas) || positionsSolicitadas < 0) return state;
       const current = state.positions.filter((p) => p.zoneId === cmd.zone.id);
       const occupied = new Set(
         state.vehicles.map((v) => v.location?.positionId).filter(Boolean) as string[]
       );
       const occupiedCount = current.filter((p) => occupied.has(p.id)).length;
-      if (cmd.positions < occupiedCount) return state;
+      if (positionsSolicitadas < occupiedCount) return state;
 
-      const normalizedZone = { ...cmd.zone, capacity: cmd.positions };
+      const normalizedZone = { ...cmd.zone, capacity: positionsSolicitadas };
       const exists = state.zones.some((z) => z.id === cmd.zone.id);
       const zones = exists
         ? state.zones.map((z) => (z.id === cmd.zone.id ? normalizedZone : z))
         : [...state.zones, normalizedZone];
       let positions = [...state.positions];
 
-      if (cmd.positions > current.length) {
-        for (let i = current.length; i < cmd.positions; i++) {
+      if (positionsSolicitadas > current.length) {
+        for (let i = current.length; i < positionsSolicitadas; i++) {
           const n = String(i + 1).padStart(2, '0');
           positions.push({ id: `${cmd.zone.id}-p${n}`, zoneId: cmd.zone.id, code: `P${n}` });
         }
-      } else if (cmd.positions < current.length) {
+      } else if (positionsSolicitadas < current.length) {
         const removable = current
           .slice()
           .reverse()
           .filter((p) => !occupied.has(p.id))
-          .slice(0, current.length - cmd.positions)
+          .slice(0, current.length - positionsSolicitadas)
           .map((p) => p.id);
         positions = positions.filter((p) => !removable.includes(p.id));
       }

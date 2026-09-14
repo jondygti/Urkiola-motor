@@ -383,8 +383,8 @@ test('pedir una preparación avisa a los preparadores', () => {
   let s = buildSeedState();
   // Encargo nuevo: la semilla puede tener ya una preparación pedida.
   const v = s.vehicles.find((x) => x.logisticActive &&
-    !s.requests.some(r => r.vehicleId === x.id && r.type === 'preparacion' && r.siteId === 'leioa' && r.status !== 'terminada' && r.status !== 'cancelada') &&
-    !s.preparations.some(p => p.vehicleId === x.id && p.siteId === 'leioa' && p.runState !== 'terminado' && p.runState !== 'cancelado'))!;
+    !s.requests.some(r => r.vehicleId === x.id && r.type === 'preparacion' && (r.prepTipo ?? 'entrada') === 'entrada' && r.status !== 'terminada' && r.status !== 'cancelada') &&
+    !s.preparations.some(p => p.vehicleId === x.id && (p.tipo ?? 'entrada') === 'entrada' && p.runState !== 'terminado' && p.runState !== 'cancelado'))!;
   const antes = s.inbox.length;
   s = aplicar(s, {
     type: 'request.create',
