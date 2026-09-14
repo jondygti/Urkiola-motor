@@ -1,0 +1,24 @@
+name: Aplicar auditoria Astra final
+
+on:
+  push:
+    branches:
+      - codex/auditoria-astra-final
+
+permissions:
+  contents: write
+
+jobs:
+  aplicar:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Aplicar correcciones verificadas
+        run: python scripts/aplicar-auditoria-astra-final.py
+      - name: Guardar correcciones
+        run: |
+          git config user.name "Urkiola audit"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "[audit-fix] Corregir bordes detectados en la auditoria Astra"
+          git push
