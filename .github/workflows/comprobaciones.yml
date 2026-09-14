@@ -88,3 +88,33 @@ jobs:
       - run: npm run server:test
       - run: npm run test:sync
       - run: node --test scripts/verify/demo-navegacion.test.mjs
+
+  demo:
+    name: Generar demo navegable
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [navegador, servidor]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_API_URL: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Instalar dependencias
+        run: npm ci --no-audit --no-fund
+      - name: Generar demo actualizada
+        run: npm run build:demo
+      - name: Publicar demo descargable
+        uses: actions/upload-artifact@v4
+        with:
+          name: urkiola-demo-${{ github.sha }}
+          path: demo/urkiola-car-service-demo.html
+          if-no-files-found: error
+          retention-days: 30
