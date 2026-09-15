@@ -88,7 +88,7 @@ jobs:
           "🔑 Llaves listas en Leioa · Logística. Recógelas antes de ir a por el coche a Sondika.",
           "🔑 Llaves listas en Leioa · Logística{request.keysReadyAt ? ` desde ${formatDateTime(request.keysReadyAt)}` : ''}. Recógelas antes de ir a por el coche a Sondika.")
 
-          # Regresiones: quién/cuándo y compatibilidad con solicitudes viejas.
+          # Regresiones nuevas: quién/cuándo y compatibilidad con solicitudes viejas.
           reemplaza('server/pruebas/llaves-traslados.test.ts',
           """  state = applyCommand(state, preparar);\n  assert.equal(state.requests.find((r) => r.id === requestId)?.status, 'asignada');\n\n  const recoger""",
           """  state = applyCommand(state, preparar);\n  const preparada = state.requests.find((r) => r.id === requestId)!;\n  assert.equal(preparada.status, 'asignada');\n  assert.equal(preparada.keysReadyAt, at(10));\n  assert.equal(preparada.keysReadyBy, logistica.id);\n\n  const recoger""")
@@ -100,6 +100,28 @@ jobs:
           if marker not in s:
               raise SystemExit('No se encontró marcador para regresión legacy')
           p.write_text(s.replace(marker, extra + marker, 1))
+
+          # Pruebas históricas: preparar las llaves forma parte del escenario,
+          # sin alterar lo que cada prueba pretende medir después.
+          reemplaza('server/pruebas/comandos.test.ts',
+          """  if (suyo.from?.siteId === 'sondika' && suyo.status !== 'asignada' && !suyo.pickedUpAt) {""",
+          """  if (suyo.from?.siteId === 'sondika' && !suyo.keysReadyAt && !suyo.pickedUpAt) {""")
+
+          reemplaza('server/pruebas/comandos.test.ts',
+          """  const iker = await entrar(p.servicio, 'transporte@urkiolacarservice.com');\n\n  const suyo = p.servicio.estado.requests.find(\n    (r) =>\n      r.type === 'traslado' &&\n      (r.status === 'solicitada' || r.status === 'asignada') &&\n      r.carrierId === 'gruas-francis'\n  )!;\n\n  await p.servicio.ejecutar(""",
+          """  const iker = await entrar(p.servicio, 'transporte@urkiolacarservice.com');\n  const log = await entrar(p.servicio, 'logistica@urkiolacarservice.com');\n\n  const suyo = p.servicio.estado.requests.find(\n    (r) =>\n      r.type === 'traslado' &&\n      (r.status === 'solicitada' || r.status === 'asignada') &&\n      r.carrierId === 'gruas-francis'\n  )!;\n\n  if (suyo.from?.siteId === 'sondika' && !suyo.keysReadyAt && !suyo.pickedUpAt) {\n    await p.servicio.ejecutar(\n      cmd('request.update', { requestId: suyo.id, status: 'asignada' }, { userId: log.id }),\n      log\n    );\n  }\n\n  await p.servicio.ejecutar(""")
+
+          reemplaza('server/pruebas/revision.test.ts',
+          """  const req = s.requests.find((r) => r.vehicleId === v.id && r.type === 'traslado')!;\n  // Recoge las llaves hace tres días: el plazo de 48 h ya se ha pasado.\n  s = applyCommand(s, {""",
+          """  const req = s.requests.find((r) => r.vehicleId === v.id && r.type === 'traslado')!;\n  // Logística las dejó listas antes de la recogida histórica.\n  s = applyCommand(s, {\n    ...orden({ type: 'request.update', requestId: req.id, status: 'asignada' }),\n    at: new Date(Date.now() - 73 * 3_600_000).toISOString(),\n  } as Command);\n  // Recoge las llaves hace tres días: el plazo de 48 h ya se ha pasado.\n  s = applyCommand(s, {""")
+
+          reemplaza('server/pruebas/revision.test.ts',
+          """  const req = s.requests.find((r) => r.vehicleId === v.id && r.type === 'traslado')!;\n  s = aplicar(s, { type: 'request.update', requestId: req.id, status: 'en_ruta' });\n  s = aplicar(s, {\n    type: 'request.update',\n    requestId: req.id,\n    status: 'terminada',\n    delayReason: 'trafico',""",
+          """  const req = s.requests.find((r) => r.vehicleId === v.id && r.type === 'traslado')!;\n  s = aplicar(s, { type: 'request.update', requestId: req.id, status: 'asignada' });\n  s = aplicar(s, { type: 'request.update', requestId: req.id, status: 'en_ruta' });\n  s = aplicar(s, {\n    type: 'request.update',\n    requestId: req.id,\n    status: 'terminada',\n    delayReason: 'trafico',""")
+
+          reemplaza('server/pruebas/revision.test.ts',
+          """  const req = s.requests.find((r) => r.vehicleId === v.id && r.type === 'traslado')!;\n\n  const recoger = { ...orden({ type: 'request.update', requestId: req.id, status: 'en_ruta' }), at: hace(hRecoge) } as Command;""",
+          """  const req = s.requests.find((r) => r.vehicleId === v.id && r.type === 'traslado')!;\n\n  s = applyCommand(s, {\n    ...orden({ type: 'request.update', requestId: req.id, status: 'asignada' }),\n    at: hace(hRecoge + 0.5),\n  } as Command);\n  const recoger = { ...orden({ type: 'request.update', requestId: req.id, status: 'en_ruta' }), at: hace(hRecoge) } as Command;""")
           PY
 
       - name: Comprobar antes de guardar
@@ -113,6 +135,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/data/commands.ts server/src/permisos.ts 'app/(shell)/solicitudes.tsx' 'app/(shell)/mis-traslados.tsx' server/pruebas/llaves-traslados.test.ts
+          git add src/data/commands.ts server/src/permisos.ts 'app/(shell)/solicitudes.tsx' 'app/(shell)/mis-traslados.tsx' server/pruebas/llaves-traslados.test.ts server/pruebas/comandos.test.ts server/pruebas/revision.test.ts
           git commit -m "Completar trazabilidad del flujo de llaves"
           git push origin HEAD:main
