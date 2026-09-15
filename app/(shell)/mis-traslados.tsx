@@ -145,6 +145,8 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
 
   const vehicle = state.vehicles.find((v) => v.id === request.vehicleId);
   const enRuta = request.status === 'en_ruta';
+  const requiereLlavesDeLeioa = request.from?.siteId === 'sondika';
+  const llavesListas = !requiereLlavesDeLeioa || request.status === 'asignada' || !!request.pickedUpAt;
   const plazo = deadlineOf(state, request);
 
   const recoger = () => {
@@ -189,7 +191,15 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
         <Text style={{ fontSize: campo.title, fontWeight: '900', color: c.text, flex: 1, minWidth: 140 }}>
           {vehicle ? vehicleRef(vehicle) : request.vehicleId}
         </Text>
-        {enRuta ? <Pill tone="blue">En ruta</Pill> : <Pill tone="amber">Llaves sin recoger</Pill>}
+        {enRuta ? (
+          <Pill tone="blue">En ruta</Pill>
+        ) : requiereLlavesDeLeioa && !llavesListas ? (
+          <Pill tone="amber">Llaves pendientes</Pill>
+        ) : requiereLlavesDeLeioa ? (
+          <Pill tone="ok">Llaves listas</Pill>
+        ) : (
+          <Pill tone="amber">Llaves sin recoger</Pill>
+        )}
         {request.urgent ? <Pill tone="red">Urgente</Pill> : null}
         <DeadlineChip deadline={plazo} compact />
       </View>
@@ -197,7 +207,14 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
 
       <Spacer h={space.md} />
 
-      <Leg label="RECOGER EN" value={locationLabel(state, request.from)} icon="📍" />
+      {requiereLlavesDeLeioa && !enRuta ? (
+        <>
+          <Leg label="LLAVES EN" value="Leioa · Logística" icon="🔑" />
+          <Leg label="COCHE EN" value={locationLabel(state, request.from)} icon="📍" />
+        </>
+      ) : (
+        <Leg label="RECOGER EN" value={locationLabel(state, request.from)} icon="📍" />
+      )}
       <Leg label="ENTREGAR EN" value={locationLabel(state, request.to)} icon="🏁" />
       {request.carrierId ? (
         <Text style={{ fontSize: campo.micro, color: c.textFaint, marginTop: 4 }}>
@@ -218,17 +235,31 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
           llaves y no de vehículo porque es lo que arranca el plazo: el
           transportista pasa por la oficina, coge las llaves y desde ahí
           cuentan las horas, aunque cargue el coche más tarde. */}
-      <Btn
-        variant="primary"
-        full
-        onPress={enRuta ? (tarde ? () => setMotivoOpen(true) : () => entregar()) : recoger}
-      >
-        {enRuta ? '✓ He entregado el vehículo' : '🔑 He recogido las llaves'}
-      </Btn>
+      {!enRuta && requiereLlavesDeLeioa && !llavesListas ? (
+        <Notice tone="warn">
+          Logística está preparando las llaves en Leioa. Cuando aparezcan como listas podrás registrar la recogida.
+        </Notice>
+      ) : (
+        <Btn
+          variant="primary"
+          full
+          onPress={enRuta ? (tarde ? () => setMotivoOpen(true) : () => entregar()) : recoger}
+        >
+          {enRuta ? '✓ He entregado el vehículo' : '🔑 He recogido las llaves'}
+        </Btn>
+      )}
       <Spacer h={space.xs} />
       {enRuta ? (
         <Muted>
           🔑 Llaves recogidas {request.pickedUpAt ? formatDateTime(request.pickedUpAt) : '—'}.
+        </Muted>
+      ) : requiereLlavesDeLeioa && llavesListas ? (
+        <Muted>
+          🔑 Llaves listas en Leioa · Logística. Recógelas antes de ir a por el coche a Sondika.
+        </Muted>
+      ) : requiereLlavesDeLeioa ? (
+        <Muted>
+          El plazo todavía no empieza: espera a que Logística deje las llaves listas.
         </Muted>
       ) : (
         <Muted>
