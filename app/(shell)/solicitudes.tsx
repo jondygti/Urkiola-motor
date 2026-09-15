@@ -2,7 +2,7 @@ import { CancelarSolicitud } from '@/features/actions/CancelarSolicitud';
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { Btn, Column, DataTable, Field, Grid, H1, Modal, Muted, Notice, Panel, Screen, Select, Spacer, Toolbar, space, tipografia, useTheme } from '@/ui';
-import { useAppState, useStore } from '@/data/store';
+import { useStore } from '@/data/store';
 import { activeCarriers, carrierName, deadlineOf, requestsBySite } from '@/data/selectors';
 import { formatDateTime, locationLabel, siteName, userName, vehicleName, vehicleRef } from '@/data/format';
 import { REQUEST_STATUS_LABEL, type RequestStatus, type ServiceRequest } from '@/data/types';
@@ -12,8 +12,11 @@ import { ScreenGuard, usePerms } from '@/features/common/Guard';
 
 const ALL = '__all__';
 
+const esTrasladoDesdeSondika = (r: ServiceRequest) =>
+  r.type === 'traslado' && r.from?.siteId === 'sondika';
+
 export default function RequestsScreen() {
-  const state = useAppState();
+  const { state, run } = useStore();
   const { c } = useTheme();
   const openVehicle = useOpenVehicle();
   const { can } = usePerms();
@@ -26,6 +29,14 @@ export default function RequestsScreen() {
   const [toast, setToast] = useState<string | null>(null);
 
   const bySite = requestsBySite(state);
+
+  const llavesPorPreparar = useMemo(
+    () =>
+      state.requests
+        .filter((r) => esTrasladoDesdeSondika(r) && r.status === 'solicitada')
+        .sort((a, b) => Number(b.urgent) - Number(a.urgent) || a.createdAt.localeCompare(b.createdAt)),
+    [state.requests]
+  );
 
   const rows = useMemo(
     () =>
@@ -129,7 +140,13 @@ export default function RequestsScreen() {
       render: (r) => (
         <DeadlineChip
           deadline={deadlineOf(state, r)}
-          emptyLabel={r.type === 'traslado' ? '🔑 Llaves sin recoger' : undefined}
+          emptyLabel={
+            esTrasladoDesdeSondika(r) && r.status === 'solicitada'
+              ? '🔑 Por preparar'
+              : r.type === 'traslado'
+                ? '🔑 Llaves sin recoger'
+                : undefined
+          }
         />
       ),
     },
@@ -157,7 +174,14 @@ export default function RequestsScreen() {
         type: 'select',
         options: Object.entries(REQUEST_STATUS_LABEL).map(([, label]) => ({ value: label, label })),
       },
-      render: (r) => <RequestStatusPill status={r.status} urgent={r.urgent} />,
+      render: (r) =>
+        esTrasladoDesdeSondika(r) && r.status === 'solicitada' ? (
+          <Cell>🔑 Llaves por preparar</Cell>
+        ) : esTrasladoDesdeSondika(r) && r.status === 'asignada' ? (
+          <Cell>🔑 Llaves listas</Cell>
+        ) : (
+          <RequestStatusPill status={r.status} urgent={r.urgent} />
+        ),
     },
     {
       key: 'actions',
@@ -179,6 +203,59 @@ export default function RequestsScreen() {
       <Muted>Traslados y preparaciones, filtrados por sede y estado del flujo de trabajo.</Muted>
 
       {toast ? <Notice>{toast}</Notice> : null}
+
+      {puedeGestionar ? (
+        <>
+          <Spacer />
+          <Panel title={`🔑 Llaves por preparar · ${llavesPorPreparar.length}`}>
+            {llavesPorPreparar.length === 0 ? (
+              <Muted>No hay llaves pendientes de preparar para coches de Sondika.</Muted>
+            ) : (
+              llavesPorPreparar.map((r, index) => {
+                const v = state.vehicles.find((x) => x.id === r.vehicleId);
+                return (
+                  <View
+                    key={r.id}
+                    style={{
+                      paddingVertical: space.sm,
+                      borderBottomWidth: index === llavesPorPreparar.length - 1 ? 0 : 1,
+                      borderBottomColor: c.border,
+                      gap: 4,
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, flexWrap: 'wrap' }}>
+                      <View style={{ flex: 1, minWidth: 220 }}>
+                        <Text style={{ fontSize: tipografia.body, fontWeight: '800', color: c.text }}>
+                          {v ? vehicleRef(v) : r.vehicleId} {r.urgent ? '· URGENTE' : ''}
+                        </Text>
+                        <Text style={{ fontSize: tipografia.small, color: c.textMuted }}>
+                          Sondika → {locationLabel(state, r.to, true)}
+                        </Text>
+                        <Text style={{ fontSize: tipografia.micro, color: c.textFaint }}>
+                          Llaves: {v?.primaryKeyLocation || 'Leioa · Logística'} ·{' '}
+                          {r.carrierId ? carrierName(state, r.carrierId) : 'transportista sin asignar'}
+                        </Text>
+                      </View>
+                      <Btn
+                        small
+                        variant="primary"
+                        onPress={() => {
+                          run({ type: 'request.update', requestId: r.id, status: 'asignada' });
+                          setToast(`${v ? vehicleRef(v) : 'Vehículo'} · llaves preparadas para recoger.`);
+                        }}
+                      >
+                        🔑 Llaves preparadas
+                      </Btn>
+                    </View>
+                  </View>
+                );
+              })
+            )}
+          </Panel>
+        </>
+      ) : null}
+
+      <Spacer />
 
       <Toolbar>
         <Select
@@ -271,6 +348,8 @@ function ManageModal({
   const [carrierId, setCarrierId] = useState<string | null>(request.carrierId);
   const { can } = usePerms();
   const puedePreparar = can('preparacion.gestionar');
+  const requiereLlaves = esTrasladoDesdeSondika(request);
+  const llavesPreparadas = !requiereLlaves || request.status === 'asignada' || !!request.pickedUpAt;
 
   const candidates = state.users.filter((u) =>
     request.type === 'traslado' ? u.role === 'transportista' || u.role === 'logistica' : u.role === 'preparador'
@@ -295,7 +374,18 @@ function ManageModal({
           >
             Guardar cambios
           </Btn>
-          {request.type === 'traslado' && !request.pickedUpAt && (request.status !== 'terminada' && request.status !== 'cancelada') ? (
+          {requiereLlaves && request.status === 'solicitada' ? (
+            <Btn
+              full
+              onPress={() => {
+                run({ type: 'request.update', requestId: request.id, status: 'asignada', assignedTo, carrierId });
+                onDone('Llaves preparadas en Leioa · Logística. El transportista ya puede recogerlas.');
+              }}
+            >
+              🔑 Llaves preparadas
+            </Btn>
+          ) : null}
+          {request.type === 'traslado' && !request.pickedUpAt && (request.status !== 'terminada' && request.status !== 'cancelada') && llavesPreparadas ? (
             <Btn
               full
               onPress={() => {
@@ -349,7 +439,12 @@ function ManageModal({
           full
           value={status}
           onChange={(v) => setStatus(v as RequestStatus)}
-          options={Object.entries(REQUEST_STATUS_LABEL).filter(([key]) => key !== 'cancelada').map(([value, label]) => ({ value, label }))}
+          options={Object.entries(REQUEST_STATUS_LABEL)
+            .filter(([key]) => key !== 'cancelada' && !(requiereLlaves && !llavesPreparadas && key === 'en_ruta'))
+            .map(([value, label]) => ({
+              value,
+              label: requiereLlaves && value === 'asignada' ? 'Llaves listas' : label,
+            }))}
           title="Estado"
         />
       </Field>
@@ -360,6 +455,15 @@ function ManageModal({
               🔑 Recogidas {formatDateTime(request.pickedUpAt)} · entrega antes de{' '}
               {request.dueAt ? formatDateTime(request.dueAt) : '—'}
             </Muted>
+          ) : requiereLlaves && request.status === 'asignada' ? (
+            <Notice>
+              Llaves listas en Leioa · Logística. El transportista ya puede recogerlas.
+            </Notice>
+          ) : requiereLlaves ? (
+            <Notice tone="warn">
+              Pendientes de preparar en Leioa · Logística. Hasta marcarlas como preparadas el transportista
+              no puede registrar la recogida.
+            </Notice>
           ) : (
             <Notice tone="warn">
               Sin recoger: el plazo de {state.config.transferDeadlineHours} h todavía no ha empezado. El
