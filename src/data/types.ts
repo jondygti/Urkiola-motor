@@ -213,6 +213,10 @@ export interface ServiceRequest {
    * Administración, lo ya comprometido no se mueve.
    */
   dueAt: ISODate | null;
+  /** Cuándo Logística dejó preparadas las llaves para este traslado. */
+  keysReadyAt?: ISODate | null;
+  /** Quién confirmó que las llaves estaban preparadas. */
+  keysReadyBy?: Id | null;
   /** Cuándo se recogieron las llaves (solo traslados). */
   pickedUpAt: ISODate | null;
   /**
