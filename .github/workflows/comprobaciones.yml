@@ -3,7 +3,7 @@ name: Comprobaciones de Urkiola
 on:
   pull_request:
   push:
-    branches: [main, 'codex/**']
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -19,7 +19,6 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
-      # Un fallo de rutas no cancela las pruebas de roles.
       fail-fast: false
       matrix:
         suite: [roles, rutas, funciones, api]

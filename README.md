@@ -1,239 +1,105 @@
 # Urkiola Car Service
 
-## Decisiones vigentes · instrucciones v2
+Plataforma web + Android para controlar la logística, ubicación, traslado, preparación, recepción, incidencias y recuentos de vehículos de Urkiola Motor.
 
-Arquitectura objetivo: Render para la API y Supabase para PostgreSQL, Auth
-y Storage, conservando Expo/React Native y Android en Google Play. Preparar
-el diseño para empresas aisladas; la implementación actual aún no es SaaS.
+## Estado actual · 15/09/2026
 
-- [Arquitectura y diferencias con el código](docs/ARCHITECTURE.md)
-- [Android y Google Play](docs/MOBILE_ANDROID.md)
-- [Hoja de ruta y criterios de validación](docs/ROADMAP.md)
+`main` es la **única rama permanente y la fuente de verdad** del proyecto. La última versión funcional fue auditada a fondo, integrada en `main` y pasó en GitHub Actions las suites de servidor, TypeScript, sincronización/offline, API, roles, funciones, rutas y generación de la demo navegable.
 
-Estas decisiones sustituyen las recomendaciones anteriores de Railway y
-autenticación propia como destino final. No se ha migrado ni desplegado.
+No está todavía desplegada en producción ni publicada en Google Play. El siguiente bloque es infraestructura y piloto real, no añadir funcionalidades.
 
-Aplicación de gestión logística de flota para Urkiola Car Service, hecha a
-partir del mockup `Urkiola_Car_Service_V18_ABRIBLE.html`.
+Arquitectura objetivo de producción:
 
-**Un solo código, dos destinos:**
+- **GitHub**: código y CI.
+- **Render**: API/backend Node + TypeScript.
+- **Supabase**: PostgreSQL, Auth y Storage.
+- **Expo / React Native**: una base de código para web y Android.
+- **Google Play**: distribución Android.
+- **Quiter AutoWeb + QBI Premium**: fuente comercial/DMS; la empresa ya ha contratado QBI Premium, pero la integración aún no está implementada.
 
-| Destino | Para quién | Cómo se distribuye |
-|---|---|---|
-| Web | Gestión y control (oficina) | Página estática en cualquier hosting |
-| Android | Campa, transporte y preparación | Google Play (canal de prueba interna) |
+Importante: el backend actual ya funciona con PostgreSQL y Storage, pero todavía usa autenticación propia con scrypt + JWT. **Supabase Auth es el objetivo de producción y requiere una migración específica**; no se considera hecho por estar documentado.
 
-El proyecto también compila para iOS y la configuración está escrita, pero
-queda fuera de alcance: Apple exige 99 US$/año para instalar en un iPhone.
-Quien use iPhone entra al panel web desde el navegador.
+## Documentación que manda
 
-No son dos aplicaciones: es la misma, escrita con Expo y React Native, que
-se adapta a la pantalla. En escritorio muestra el menú lateral y las tablas
-del mockup; en el móvil, barra inferior, menú deslizante y fichas.
+1. [`docs/ESTADO-ACTUAL.md`](docs/ESTADO-ACTUAL.md) — qué está hecho y qué falta hoy.
+2. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — arquitectura actual y objetivo de producción.
+3. [`docs/DESPLIEGUE.md`](docs/DESPLIEGUE.md) — Render + Supabase, staging y producción.
+4. [`docs/QBI-PREMIUM.md`](docs/QBI-PREMIUM.md) — integración prevista Quiter/QBI.
+5. [`docs/ROADMAP.md`](docs/ROADMAP.md) — orden recomendado desde aquí.
+6. [`docs/SEGURIDAD.md`](docs/SEGURIDAD.md) — controles actuales y pendientes antes de producción.
+7. [`docs/MOBILE_ANDROID.md`](docs/MOBILE_ANDROID.md) — Android y Google Play.
+8. [`docs/PRUEBAS-GITHUB.md`](docs/PRUEBAS-GITHUB.md) — CI y demo automática.
+
+Los documentos fechados como `REVISION-2026-09-13.md` se conservan como histórico. Si contradicen los documentos anteriores, prevalece el estado actual.
+
+## Política de ramas
+
+- `main` es la única rama permanente.
+- Para cambios pequeños y controlados se puede trabajar directamente sobre `main` después de verificar el estado.
+- Para cambios de riesgo alto puede usarse una rama temporal + PR, pero se elimina inmediatamente después del merge.
+- No se mantienen ramas `claude/*`, `codex/*`, `astra/*` ni similares como archivo: Git conserva commits y PRs.
 
 ## Verlo funcionando
 
-La demostración navegable, con el parque de ejemplo y todos los perfiles:
-<https://claude.ai/code/artifact/5440986e-ca76-42a4-8723-60b62a6f202a>
+La demo se genera desde el código actual con:
 
-Se genera con `npm run build:demo` en un único fichero HTML que se abre con
-doble clic, sin servidor ni conexión.
+```bash
+npm run build:demo
+```
 
-## Ramas
+Además, cada `push` a `main` ejecuta primero todas las comprobaciones. Solo si quedan verdes, GitHub Actions publica un artefacto `urkiola-demo-<sha>` con `urkiola-car-service-demo.html` durante 30 días.
 
-`main` es el proyecto: la rama estable y la que hay que mirar para saber
-cómo está la aplicación hoy. El trabajo de cada sesión va en su propia rama
-`claude/…` y se junta en `main` al terminar.
+La demo es offline y de ejemplo. No sustituye la prueba contra Render/Supabase ni Android real.
 
-## Arrancar en local
+## Arranque local
 
 ```bash
 npm install
-npm start          # abre el menú de Expo
-npm run web        # solo la web, en el navegador
-npm run android    # Android (emulador o móvil con Expo Go)
-npm run ios        # iOS (requiere macOS o usa Expo Go)
+npm start
+npm run web
+npm run android
 ```
 
-La primera vez entra con cualquiera de los perfiles de demostración que
-aparecen en la pantalla de acceso. Cada rol ve un menú distinto.
-
-## Modo demostración y modo conectado
-
-Sin backend configurado, la app arranca con un parque de ejemplo (428
-vehículos activos repartidos entre Sondika, Leioa, Galdakao, Anoeta e Irun)
-y guarda los cambios en el propio dispositivo. Sirve para validar la
-operativa con el equipo antes de montar el servidor.
-
-El backend está escrito, en [`server/`](server). Para levantarlo en local y
-usar la app contra él, sin contratar nada:
+Backend local:
 
 ```bash
-npm run server                                    # el servidor, en el 8080
+npm run server
 EXPO_PUBLIC_API_URL=http://127.0.0.1:8080 npm run web
 ```
 
-Los usuarios de ejemplo entran con la contraseña `urkiola` (lo avisa la
-consola del servidor al arrancar). En producción se cambia por lo de
-siempre: un administrador inicial y contraseñas de verdad.
-
-No hay que tocar ninguna pantalla: `EXPO_PUBLIC_API_URL` es lo único que
-cambia. Ojo, **se incrusta al compilar y Metro la cachea**, así que al
-cambiarla hay que compilar con `--clear`.
-
-El contrato que cumple el servidor está en
-[`docs/BACKEND-API.md`](docs/BACKEND-API.md) y cómo desplegarlo, en
-[`server/README.md`](server/README.md).
-
-## Estructura
-
-```
-app/                      Rutas (expo-router). Un fichero = una pantalla
-  (shell)/                Pantallas dentro del armazón con menú
-  login.tsx               Acceso
-src/
-  data/
-    types.ts              Modelo de dominio
-    commands.ts           TODA la lógica de negocio, en funciones puras
-    seed.ts               Parque de ejemplo
-    selectors.ts          Cálculos derivados (KPI, SLA, ocupación…)
-    store.tsx             Estado, persistencia y cola de subida sin cobertura
-    api.ts                Cliente HTTP
-    push.ts               Notificaciones push
-    format.ts             Fechas, duraciones, nombres
-  ui/                     Sistema de diseño (colores del mockup + modo oscuro)
-  features/
-    admin/                Ubicaciones, usuarios y roles, columnas y campos
-    shell/                Menú lateral, pestañas y estado de sincronización
-    actions/              Modales de movimiento, solicitud, incidencia, aviso
-    prep/                 Panel de preparación con cronómetros y checklist
-    scan/                 Lectura de códigos (cámara en Android)
-    common/               Píldoras de estado y celdas reutilizables
-server/                   El backend: rutas, permisos, almacén y pruebas
-deploy/                   Caddy y variables para la opción de servidor propio
-docs/                     Documentación
-scripts/generate-icons.mjs  Genera los iconos de marca
-```
-
-La pieza clave es `src/data/commands.ts`: cada acción de la app es un
-*comando* y `applyCommand(state, cmd)` es una función pura sin React. El
-servidor **importa ese mismo fichero**, así que las reglas de negocio están
-escritas una sola vez y no hay dos versiones que puedan discrepar.
-
-## Documentación
-
-- [`docs/DESPLIEGUE.md`](docs/DESPLIEGUE.md) — **dónde alojarlo**: por qué
-  Railway y Supabase, qué contratar, cómo desplegar, copias de seguridad y
-  la alternativa de servidor propio.
-- [`docs/DISTRIBUCION.md`](docs/DISTRIBUCION.md) — publicar en Google Play:
-  canales, ficha, plazos y cómo actualizar sin pasar por revisión.
-- [`docs/BACKEND-API.md`](docs/BACKEND-API.md) — contrato de la API,
-  tablas de PostgreSQL e integración con Quiter.
-- [`server/README.md`](server/README.md) — el backend: cómo arrancarlo,
-  cómo está montado, variables de entorno y qué le falta todavía.
-- [`docs/SEGURIDAD.md`](docs/SEGURIDAD.md) — **el repaso de seguridad
-  propio**: qué se ha revisado y resuelto, qué decisiones son conscientes y
-  por qué, y qué queda para la auditoría externa.
-- [`docs/MANTENIMIENTO.md`](docs/MANTENIMIENTO.md) — **cómo se sigue
-  cambiando el sistema una vez está en marcha**: actualizaciones sin pasar
-  por las tiendas, migraciones, entornos, copias de seguridad y qué no
-  hacer nunca.
-- [`docs/PANTALLAS.md`](docs/PANTALLAS.md) — qué había en el mockup V18 y
-  dónde está ahora.
-- [`CLAUDE.md`](CLAUDE.md) — resumen del proyecto y reglas de trabajo, para
-  quien se incorpore (persona o asistente).
-- [`docs/APOYO-TECNICO.md`](docs/APOYO-TECNICO.md) — **la red de seguridad**:
-  qué revisión de seguridad encargar antes de meter datos reales, qué pedir
-  a un técnico externo de respaldo, cómo saber si vale y cuánto cuesta.
+Sin `EXPO_PUBLIC_API_URL`, la app usa el parque de demostración y guarda localmente.
 
 ## Comprobaciones
 
 ```bash
-npm run typecheck     # TypeScript en modo estricto
-npm run verify        # recorre la app con un navegador: 266 cargas + 186 comprobaciones
-npm run server:test   # el backend por dentro: 141 comprobaciones + 10.000 comandos al azar
-npm run verify:api    # la app compilada contra el servidor real: 25 comprobaciones
-npm run build:web     # genera dist/ listo para publicar
-npm run icons         # regenera los iconos de assets/
+npm run typecheck
+npm run server:test
+npm run test:sync
+npm run verify
+npm run verify:api
+npm run build:web
+npm run build:demo
 ```
 
-## Todo se configura desde la propia app
+No se documentan aquí cantidades fijas de asserts porque cambian con las regresiones. La referencia correcta es siempre el log del commit concreto en GitHub Actions.
 
-Sedes, tejavanas y plazas; requisitos del checklist; objetivos de tiempo;
-usuarios, roles y permisos; qué columnas se ven en la lista de flota y
-campos propios para clasificar los coches de otras formas. Nada de eso está
-fijado en el código: se cambia desde Administración, sin desplegar.
+## Reglas operativas principales
 
-Cada rol decide además qué ve en el teléfono, así que **la app es
-deliberadamente más corta que la web**: abre en el trabajo del día y enseña
-solo tres o cuatro secciones. El detalle está en
-[`docs/PANTALLAS.md`](docs/PANTALLAS.md).
+- Sondika es almacén; no prepara.
+- Leioa, Galdakao, Anoeta e Irun pueden preparar.
+- VN se identifica principalmente por bastidor; VO por matrícula, conservando VIN cuando exista.
+- La plaza individual es opcional: una zona puede existir sin plazas numeradas.
+- Un traslado solo se completa al llegar al destino real de esa solicitud.
+- Traslados cancelados no se reabren por reintentos ni generan avisos de recogida.
+- `carrierId` determina qué empresa de transporte ve un traslado; sin empresa asignada, ningún transportista externo lo ve.
+- Preparación completa y repaso son servicios distintos y no se duplican de forma incompatible.
+- La cancelación conserva histórico, autor, fecha y motivo; no mueve físicamente el vehículo.
+- La ubicación de llave principal y segunda llave es opcional, independiente y auditada; no se expone a transportistas externos.
+- El servidor valida permisos, recorta el estado por usuario y es idempotente por `command.id`.
+- La app conserva trabajo offline y reintenta sin duplicar operaciones.
 
-Lo que más se repite tiene su propia pantalla corta: **mover un coche** es
-matrícula (o bastidor, o escanear), dónde lo dejas y botón. El destino se
-queda puesto para el siguiente, que es como se baja media tejavana sin
-volver a tocar la pantalla.
+## Siguiente paso
 
-## Funciona sin cobertura
+Si no se añaden más funciones, el orden recomendado es:
 
-En campa y en sótanos no siempre hay señal, así que la app está pensada
-para eso:
-
-- guarda todos los datos en el dispositivo y arranca aunque no haya red;
-- lo que se registra sin conexión se guarda en una cola que sobrevive a
-  cerrar la app;
-- se sube solo al recuperar cobertura, al volver a primer plano o cada
-  30 segundos;
-- una barra arriba dice cuántos cambios quedan por subir;
-- no se fía de lo que diga el móvil sobre si hay red: lo comprueba contra
-  el servidor, porque las sondas de conectividad fallan justo detrás de un
-  proxy o un portal cautivo.
-
-El servidor tiene que ser idempotente por `command.id` para que un
-reintento no duplique un movimiento. Está detallado en
-[`docs/BACKEND-API.md`](docs/BACKEND-API.md).
-
-## Reglas de negocio implementadas
-
-Salen del mockup y se han mantenido tal cual:
-
-- **Quiter aporta el parque maestro; Urkiola controla la logística.** Un
-  vehículo pasa a estar «activo logístico» en cuanto tiene ubicación,
-  movimiento, solicitud, preparación, incidencia o recuento.
-- **Sondika almacena; Leioa, Galdakao, Anoeta e Irun preparan.**
-- **Cada requisito de preparación tiene tres estados**: completado,
-  pendiente o no requerido. Los «no requerido» no cuentan en el porcentaje
-  ni impiden la entrega.
-- **«Preentrega cliente» es un simple check**, sin cronómetro propio.
-- **Tiempo efectivo y tiempo en espera se miden por separado**: el SLA se
-  compara solo contra el efectivo.
-- **Sin QR**: el vehículo se identifica por matrícula o por los 8 últimos
-  caracteres del bastidor.
-- **Objetivos configurables**: VN 2 h, VO 2 h 30 min, aviso a las 72 h sin
-  comprobación física. Todo editable en Administración.
-- **Plazos comprometidos, distintos del objetivo de trabajo**: el
-  transportista tiene **48 h desde que recoge las llaves** —lo marca él en
-  su móvil, o la oficina por él si llama por teléfono—, y el comercial
-  debe dar **48 h mínimo** para preparar un vehículo. El objetivo de 2 h es
-  cuánto debe durar el trabajo; las 48 h son cuándo tiene que estar. Las dos
-  cifras se configuran por separado.
-- **La fecha de entrega al cliente manda sobre el plazo por defecto**, y
-  pedir una preparación con menos de 48 h de margen avisa y obliga a
-  confirmar.
-- **Los traslados se encargan a una empresa de transporte** según la zona
-  (Bizkaia / fuera). La app propone cuál por la ruta, y cada transportista
-  ve solo los de su empresa.
-- **Al terminar una preparación se dice dónde queda el coche**, y eso
-  registra el movimiento en el mismo gesto: la ficha no se queda diciendo
-  que sigue en el box cuando ya está en el parking de entregas.
-- **La plaza concreta siempre es opcional.** La zona basta para que cuadre
-  la ocupación, y una plaza inventada es peor que ninguna.
-- **El coche que se lleva el cliente sale de la flota y deja su hueco.** Lo
-  marca quien vende. Es lo único que libera la plaza: un coche vendido que
-  sigue apuntado en su hueco se come la campa poco a poco, y quien baja a
-  aparcar se encuentra un sitio marcado como lleno que está vacío.
-- **Las flotas de renting se repasan el día de la entrega.** Llegan muchos
-  coches de golpe, se preparan enteros y esperan meses en la azotea de
-  Leioa. El día de la entrega se les repasa la limpieza: media hora, dos
-  requisitos, y lo pone el reloj solo en la cola del preparador —una entrega
-  de flota son cuarenta coches y a mano no lo pide nadie.
+**staging Render + Supabase → prueba con datos controlados → QBI Premium → piloto con pocos usuarios/coches → Android interno → producción → integración completa Quiter → multiempresa solo cuando Urkiola esté estable.**

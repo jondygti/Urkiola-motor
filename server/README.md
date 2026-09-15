@@ -1,149 +1,104 @@
 # Servidor de Urkiola Car Service
 
-El backend de la aplicación. Implementa el contrato de
-[`../docs/BACKEND-API.md`](../docs/BACKEND-API.md) **reutilizando la lógica
-de negocio de la app**: importa `src/data/commands.ts` tal cual, así que las
-reglas (plazos, preparaciones, permisos de movimiento, recuentos…) son las
-mismas en el móvil, en la web y aquí. No hay dos versiones que puedan
-discrepar.
+Backend Node/TypeScript de la aplicación. Reutiliza `src/data/commands.ts`, por lo que web, Android y servidor comparten reglas de negocio.
 
-## Probarlo en un portátil, sin contratar nada
+## Estado
+
+- implementado y probado localmente/CI;
+- soporta fichero local y PostgreSQL;
+- soporta disco local o Supabase Storage para fotos;
+- autenticación actual: scrypt + JWT propios;
+- objetivo de producción: Render + Supabase PostgreSQL/Auth/Storage;
+- QBI Premium contratado, pero sincronizador aún no implementado.
+
+## Local
 
 ```bash
-npm install          # dentro de server/
+npm install
 npm run dev
 ```
 
-Levanta en el puerto 8080 con el parque de ejemplo y guarda los datos en
-`server/datos/estado.json`. Todos los usuarios de ejemplo entran con la
-contraseña `urkiola` (lo avisa por consola al arrancar).
-
-Para ver la app conectada a él, desde la raíz del proyecto:
+Desde la raíz:
 
 ```bash
-EXPO_PUBLIC_API_URL=http://127.0.0.1:8080 npx expo start --web --clear
+EXPO_PUBLIC_API_URL=http://127.0.0.1:8080 npm run web
 ```
 
 ## Comprobaciones
 
 ```bash
-npm test                 # dentro de server/: pruebas del servidor
-npm run verify:api       # en la raíz: la app real contra este servidor
-npm run test:sync        # en la raíz: sesiones y colas en el StoreProvider
+npm test
+# desde la raíz
+npm run typecheck
+npm run test:sync
+npm run verify:api
 ```
 
-`npm test` cubre contraseñas y sesiones, permisos comando a comando,
-idempotencia, comandos que llegan tarde, el estado recortado del
-transportista y que un reinicio no pierda nada.
+## Componentes
 
-Dos de ellas merecen mención aparte:
-
-- **`matriz-permisos.test.ts`** es una tabla de los 44 comandos contra los 6
-  roles, escrita a mano. No comprueba lo que hace el código, sino lo que
-  tiene que hacer: si alguien añade un comando y se olvida del permiso, o
-  afloja uno sin querer, sale ahí.
-- **`invariantes.test.ts`** simula una jornada entera —camión, traslado,
-  preparación con bloqueo, recuento, incidencia y entrega— y comprueba que
-  al final los datos siguen teniendo sentido: nadie en dos plazas, ninguna
-  referencia huérfana, ningún cronómetro hacia atrás. Y que repetir todos
-  los comandos no duplica nada.
-
-`npm run verify:api` compila la web apuntando a este servidor y la recorre
-con un navegador: entra con contraseña, mueve un coche y comprueba que el
-movimiento ha llegado al servidor y que **otro dispositivo lo ve**.
-
-## Cómo está montado
-
-```
+```text
 src/
-  index.ts        arranque
-  config.ts       variables de entorno
-  http.ts         las rutas (node:http, sin framework)
-  servicio.ts     el núcleo: aplica comandos en fila y guarda
-  auth.ts         contraseñas (scrypt) y sesiones (JWT), con node:crypto
-  permisos.ts     qué puede hacer cada rol, comando a comando
-  recorte.ts      qué parte del estado ve cada uno
-  validar.ts      forma de los comandos que llegan
-  push.ts         entrega de los avisos a Expo
-  almacen/        fichero (local) · postgres (producción) · esquema.sql
-pruebas/          comprobaciones automáticas
+  index.ts
+  config.ts
+  http.ts
+  servicio.ts
+  auth.ts
+  permisos.ts
+  recorte.ts
+  validar.ts
+  push.ts
+  almacen/
+pruebas/
 ```
 
-### La idea de fondo
+## Garantías que no deben romperse
 
-El servidor guarda **el histórico de comandos**: todo lo que ha pasado, con
-quién lo hizo y cuándo. El estado actual es el resultado de aplicarlos en
-orden, y se guarda una foto cada 50 comandos para no tener que rehacerlos
-todos al arrancar. Si la foto se pierde, se reconstruye sola.
+- autorización de cada comando en backend;
+- `userId` tomado de la identidad autenticada, no del cliente;
+- idempotencia por `command.id`;
+- aplicación ordenada de comandos;
+- `cmd.at` para acciones offline;
+- estado recortado por usuario/transportista;
+- una empresa de transporte no ve a otra;
+- ubicaciones de llaves no salen a transportistas;
+- cancelaciones no se reabren por reintentos;
+- destinos de traslado se respetan al completar;
+- zonas sin plazas numeradas son válidas.
 
-Eso da tres cosas gratis: trazabilidad completa (lo que pide la operativa de
-recuentos), poder rehacer el estado si algo se corrompe, y que el móvil
-pueda trabajar sin cobertura y mandar después lo que hizo.
+## Instancias
 
-### Una sola instancia
+El diseño actual mantiene estado en memoria y coordina escritura. Usar **una instancia activa** en Render hasta que se rediseñe explícitamente para paralelismo.
 
-El estado vive en memoria y los comandos se aplican de uno en uno, así que
-**este servidor funciona con una sola instancia**. Con Postgres coge un
-cerrojo en la base de datos: si arranca un segundo proceso, espera a que el
-primero suelte (para que un despliegue nuevo releve al viejo sin cortar) y
-si no lo suelta, falla con un mensaje claro en vez de corromper los datos.
+## Variables principales
 
-Para el tamaño de esto —cinco sedes, unos cientos de coches, unas decenas de
-comandos al día— sobra de largo. Si algún día no bastara, lo que hay que
-cambiar es `servicio.ts`, no la app ni las reglas de negocio.
+- `PORT`
+- `DATABASE_URL`
+- `JWT_SECRET` (mientras exista auth propia)
+- `URKIOLA_ADMIN_EMAIL`
+- `URKIOLA_ADMIN_PASSWORD`
+- `URKIOLA_SEMILLA`
+- `CORS_ORIGEN`
+- `PUBLIC_URL`
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_BUCKET`
+- variables de correo/push.
 
-## Variables de entorno
+Nunca poner secrets en `EXPO_PUBLIC_*`.
 
-| Variable | Para qué | Por defecto |
-|---|---|---|
-| `PORT` | Puerto | `8080` |
-| `DATABASE_URL` | Postgres. Sin ella, guarda en fichero | *(vacío)* |
-| `JWT_SECRET` | Firma de las sesiones. **Obligatorio en producción** | *(aleatorio en local)* |
-| `URKIOLA_ADMIN_EMAIL` | Administrador inicial | *(vacío)* |
-| `URKIOLA_ADMIN_PASSWORD` | Su contraseña | *(vacío)* |
-| `URKIOLA_SEMILLA` | `demo` (parque de ejemplo) o `vacia` | `demo` |
-| `CORS_ORIGEN` | Direcciones desde las que se permite el navegador | `*` |
-| `SESION_DIAS` | Duración de la sesión | `30` |
-| `URKIOLA_DATOS` | Fichero del almacén local | `datos/estado.json` |
-| `URKIOLA_FOTO_CADA` | Comandos entre foto y foto | `50` |
-| `EXPO_PUSH` | `0` para no mandar avisos | activado |
-| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Supabase Storage para las fotos. Sin esto se guardan en disco | *(vacío)* |
-| `SUPABASE_BUCKET` | Bucket de las fotos | `urkiola-fotos` |
-| `URKIOLA_FOTOS` | Carpeta de las fotos en disco | `datos/fotos` |
-| `URKIOLA_MAX_FOTO_MB` | Tamaño máximo de una foto | `8` |
-| `EMAIL_API_KEY` | Proveedor de correo para el enlace de restablecer. Sin esto, el correo sale por consola | *(vacío)* |
-| `EMAIL_API_URL` / `EMAIL_FROM` | Dirección del proveedor y remitente | Resend |
-| `PUBLIC_URL` | Dirección del panel, para armar el enlace del correo | *(vacío)* |
-| `URKIOLA_MINUTOS_ENLACE` | Lo que vale el enlace de restablecer | `60` |
-| `URKIOLA_CLAVE_PRUEBAS` | Contraseña única de los usuarios de ejemplo | `urkiola` |
+## Producción
 
-Genera el secreto con `openssl rand -hex 32`. En producción, sin
-`JWT_SECRET` el servidor **no arranca**: es a propósito.
+Ver [`../docs/DESPLIEGUE.md`](../docs/DESPLIEGUE.md). Primero staging. La migración a Supabase Auth es una tarea separada y debe ser reversible.
 
-## Rutas
+## QBI Premium
 
-| Método | Ruta | Quién |
-|---|---|---|
-| `GET` | `/health` | cualquiera |
-| `POST` | `/auth/login` | cualquiera |
-| `POST` | `/auth/password` | quien ha entrado (la suya) o un administrador (la de otro) |
-| `GET` | `/state` | quien ha entrado |
-| `POST` | `/commands` | quien ha entrado |
-| `POST` | `/auth/olvidada` | cualquiera (siempre contesta lo mismo) |
-| `POST` | `/auth/restablecer` | quien tenga el código del correo |
-| `POST` | `/fotos` | quien ha entrado |
-| `GET` | `/fotos/:id` | quien ha entrado |
-| `POST` | `/push/token` | quien ha entrado |
+No existe todavía `/import/quiter` de producción ni un sincronizador real. La empresa ha contratado QBI Premium y el diseño está en [`../docs/QBI-PREMIUM.md`](../docs/QBI-PREMIUM.md).
 
-Los códigos de respuesta importan: la app **descarta** el trabajo del
-operario ante un `4xx` y lo **reintenta** ante un `5xx`. Por eso cualquier
-fallo interno sale como 500, y el 400 se reserva para comandos que nunca van
-a poder aplicarse.
+No implementar contra tablas o endpoints imaginados. Cuando Quiter entregue documentación/acceso:
 
-## Lo que todavía no hace
-
-- **Importación de Quiter** (`POST /import/quiter`). Está pendiente de que
-  Jon consiga un export real; sin verlo no se escribe el importador.
-- **Consultas para informes.** Hoy la app pide el estado entero, que le
-  basta. Para Power BI o similares habrá que volcar el histórico a las
-  tablas relacionales descritas en `docs/BACKEND-API.md`.
+1. descubrir campos reales;
+2. crear staging;
+3. dry-run;
+4. upsert idempotente;
+5. no sobrescribir logística Urkiola;
+6. registrar conflictos y última sincronización.

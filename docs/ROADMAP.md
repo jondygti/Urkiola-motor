@@ -1,30 +1,36 @@
 # Hoja de ruta
 
-Referencia: instrucciones v2 de Jon y `ARCHITECTURE.md`, 13/09/2026.
-Esta entrega documenta el objetivo; no contrata, migra ni despliega servicios.
+Actualizado: **15/09/2026**.
 
-| Fase | Trabajo | Criterio de salida |
+La fase de añadir funciones está en pausa. La prioridad es convertir la base auditada en un sistema de producción controlado.
+
+| Fase | Estado | Criterio de salida |
 | --- | --- | --- |
-| 1. Validar operativa | Demo, campañas, preparación y repaso; revisar cierres y solicitudes por tipo | Jon valida recorridos; pruebas con datos guardados y servicios distintos |
-| 2. Entorno de pruebas | Render + Supabase PostgreSQL/Storage, secretos y TLS | API y dos dispositivos probados; restauración de datos y archivos verificada |
-| 3. Identidad | Supabase Auth y membresías; migración de usuarios/sesiones | Autoría conservada, recuperación y permisos probados; colas preservadas |
-| 4. Aislamiento empresarial | Tenant en entidades, consultas, almacenamiento, tareas y configuración | Pruebas con dos empresas sin acceso cruzado ni colisiones |
-| 5. Android | EAS, AAB, firma, privacidad y canal interno | Pruebas reales y requisitos vigentes de Play comprobados |
-| 6. Primera implantación | Validación operativa, seguridad, soporte y recuperación | Entorno aprobado para uso real; sin cuentas ni datos demo |
-| 7. Quiter y evolución comercial | Export real, adaptador DMS, catálogo configurable | Importación auditable; segundo cliente sin bifurcar el núcleo |
+| 0. Base funcional y auditoría | **Hecha** | `main` auditado; CI completa verde; demo generada |
+| 1. Staging | Siguiente | Render + Supabase separados de producción; API/web/fotos funcionando |
+| 2. Recuperación y seguridad de entorno | Pendiente | backup SQL + Storage y restauración probados; 2FA/DPA/CORS/TLS revisados |
+| 3. Auth | Pendiente | migración controlada a Supabase Auth sin perder autoría ni colas |
+| 4. QBI Premium | Pendiente | acceso/documentación real; staging; sincronización auditable de solo lectura |
+| 5. Piloto operativo | Pendiente | 20–30 coches y pocos usuarios reales; incidencias bloqueantes resueltas |
+| 6. Android interno | Pendiente | AAB firmado y probado por Google Play Internal testing |
+| 7. Producción Urkiola | Pendiente | entorno limpio, datos reales, responsables, recuperación y soporte definidos |
+| 8. Multiempresa/comercialización | Futuro | aislamiento completo entre dos empresas demostrado |
 
-La fase de aislamiento es obligatoria antes de admitir un segundo cliente.
-No añadir ahora facturación, suscripciones ni administración global SaaS.
-No cambiar frameworks ni crear todas las tablas/rutas por anticipación.
+## QBI
 
-## Estado y límites conocidos
+QBI Premium ya está contratado. No programar contra una estructura inventada: primero obtener de Quiter la documentación, método de conexión/exportación y campos disponibles. Ver `QBI-PREMIUM.md`.
 
-El backend dispone de pruebas de dominio y sincronización, pero en este
-entorno siguen pendientes las pruebas visuales completas, Android real y
-PostgreSQL. El intento de descargar Chromium falló. No confundir compilación
-correcta con recorrido visual comprobado. Los límites de la primera entrega
-están en `CONTINUIDAD.md`.
+## Criterio para no volver a desarrollar de más
 
-Prioridades técnicas: aislamiento del estado global, migración controlada de
-Auth, certificados TLS, copias de Storage y diferenciación completa del ciclo
-de vida de los servicios. Ninguna se considera resuelta solo por documentarla.
+Durante staging y piloto solo se corrigen:
+
+- errores;
+- problemas de seguridad;
+- bloqueos operativos;
+- incompatibilidades con datos reales.
+
+Las mejoras de comodidad se anotan y se priorizan después del piloto.
+
+## Antes de un segundo cliente
+
+Multiempresa sigue siendo obligatoria antes de vender el sistema a otro concesionario. No añadir facturación, suscripciones o panel SaaS antes de demostrar aislamiento real.

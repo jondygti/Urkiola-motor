@@ -1,124 +1,97 @@
-# Arquitectura objetivo
+# Arquitectura de Urkiola Car Service
 
-Decisión de Jon, 13 de septiembre de 2026. Fuente: documento
-`Urkiola_Car_Service_Instrucciones_Codex_v2.pdf`. Este documento prevalece
-sobre recomendaciones anteriores de proveedores. Describe un objetivo,
-no una migración realizada ni un despliegue aprobado.
+Actualizado: **15/09/2026**.
 
-## Componentes y responsabilidades
+## Principio
 
-| Componente | Objetivo | Situación revisada |
+Separar siempre **lo que existe hoy** de **lo que se usará en producción**.
+
+| Área | Implementación actual | Objetivo de producción |
 | --- | --- | --- |
-| Código | GitHub como fuente de verdad | Repositorio existente; trabajar en ramas |
-| Web y Android | Mantener Expo / React Native | Código compartido existente |
-| Backend | API independiente en Render | Backend Node/TypeScript existente; sin despliegue verificado |
-| Datos | Supabase PostgreSQL | Adaptador PostgreSQL existente; estado global y diario de comandos |
-| Identidad | Supabase Auth | Actualmente JWT HS256 y contraseñas scrypt propios |
-| Archivos | Supabase Storage | Adaptador existente; acceso a fotos autorizado por la API |
-| Notificaciones | Backend decide destinatarios; envío push desacoplado | Implementación Expo existente |
-| DMS | Adaptador Quiter opcional a través de la API | Sin export real ni integración implementada |
+| Código | GitHub, `main` | Igual; `main` única rama permanente |
+| Cliente | Expo / React Native web + Android | Igual |
+| API | Node/TypeScript en `server/` | Render |
+| Base de datos | fichero local o PostgreSQL mediante adaptador | Supabase PostgreSQL |
+| Identidad | scrypt + JWT propios | Supabase Auth, con migración controlada |
+| Archivos | disco local o adaptador Supabase | Supabase Storage privado |
+| Notificaciones | Expo push desde backend | Igual, desacoplado del dominio |
+| DMS | sin integración real | Quiter AutoWeb → QBI Premium → sincronizador → Supabase/Urkiola |
 
-Web y Android llaman a la misma API. El backend valida identidad, permisos,
-reglas, entradas y destinatarios. La lógica pura de `src/data/commands.ts`
-se conserva: compartirla con el cliente permite el modo offline, pero la
-autorización del cliente no sustituye a la del servidor. Separar adaptadores
-de identidad, persistencia, archivos, push y DMS para evitar que las reglas
-dependan de un proveedor.
+La lógica de negocio se mantiene en `src/data/commands.ts` y se ejecuta tanto en cliente como en servidor. La autorización del servidor nunca depende de que el cliente haya ocultado un botón.
 
-## API, procesos y trazabilidad
+## Backend
 
-El contrato actual está en `BACKEND-API.md`: `/state`, `/commands` y rutas
-de autenticación, archivos y push. Las futuras rutas `/api/v1/vehicles`,
-`/transfers`, `/preparations`, `/delivery-checks`, `/incidents` e `/inventory`
-son una orientación; no se crean ahora ni se rompe el cliente existente.
-Versionar cambios de contrato con un periodo de compatibilidad para móviles
-que aún no se hayan actualizado.
+La API conserva como contrato estable:
 
-Traslado, preparación completa y repaso de entrega son servicios distintos.
-Cada ejecución necesita solicitud, responsable, estado, inicio, finalización,
-observaciones, histórico y métricas propios. El repaso ya se representa por
-`tipo: repaso` / `prepTipo: repaso`, con checklist y objetivo separados,
-pero comparte las estructuras de preparación. No confundir esta distinción
-con una separación completa del ciclo de vida: revisar búsquedas y cierres
-por vehículo que no distinguen tipo antes de admitir servicios simultáneos.
-«Preentrega cliente», requisito simple del checklist actual, no equivale
-automáticamente a un servicio de repaso completo.
+- lectura de estado autorizado;
+- envío de comandos idempotentes;
+- fotos/documentos protegidos;
+- sesión/identidad;
+- push.
 
-Conservar comandos deterministas e idempotentes, actor validado, fecha de
-observación y fecha de recepción. El objetivo de auditoría incluye entidad,
-estado anterior y nuevo, ubicaciones y correlación con el comando. No afirmar
-que todos esos campos ya existen en todos los eventos; auditar cobertura.
-Los snapshots aceleran la reconstrucción, no sustituyen al histórico.
+El servidor procesa comandos en orden y actualmente está diseñado para **una instancia activa** con coordinación mediante PostgreSQL. No escalar horizontalmente sin rediseñar `servicio.ts` y las garantías de orden.
 
-## Multi-tenancy / SaaS readiness
+## Offline e idempotencia
 
-Modelo conceptual: empresa (tenant), sedes y ubicaciones; miembros y permisos;
-vehículos, servicios, archivos, eventos y configuración asociados a la empresa.
-Un usuario de Supabase Auth puede tener varias membresías. El rol pertenece
-a la membresía, no a un identificador global de usuario.
+La aplicación puede aplicar un comando localmente sin cobertura y enviarlo después. Por eso:
 
-1. Resolver la identidad desde el token verificado y comprobar la membresía
-   activa para el tenant seleccionado en cada petición. Nunca confiar en un
-   `tenant_id` o rol aportado por el cliente sin esta comprobación.
-2. Cada dato empresarial debe llevar `tenant_id` o una relación inequívoca,
-   con claves foráneas y restricciones que impidan referencias entre empresas.
-   La unicidad de VIN, matrículas e idempotencia se define por empresa cuando
-   proceda; no reutilizar identificadores de vehículos globalmente por VIN-8.
-3. Consultas, comandos, exportaciones, búsquedas, auditoría, tareas programadas
-   y destinatarios push deben trabajar dentro de ese ámbito. También las
-   cachés y colas offline: servidor + identidad + tenant. Las colas actuales
-   separan servidor/cuenta, pero todavía no empresa.
-4. Archivos en buckets privados con referencias y metadatos en PostgreSQL.
-   Resolver pertenencia antes de descargar o firmar una URL. Un prefijo de
-   ruta por empresa ayuda a organizar, pero no constituye autorización.
-5. Valorar RLS como defensa adicional. El backend debe seguir autorizando;
-   una clave de servicio puede eludir RLS y nunca debe estar en web/Android.
-   Probar explícitamente accesos cruzados entre dos empresas, incluidos
-   archivos, IDs conocidos, historial, comandos repetidos y trabajos offline.
-6. Configuración por empresa: sedes, zonas, estados, tipos de servicio,
-   requisitos, objetivos, roles, transportistas y reglas. Administradores de
-   empresa sin acceso global implícito. No construir ahora facturación,
-   suscripciones ni panel global de la plataforma.
+- el ID del comando es estable;
+- repetirlo no puede duplicar efectos;
+- las entidades derivadas usan IDs deterministas;
+- `cmd.at` representa cuándo ocurrió la acción;
+- un comando antiguo no debe deshacer un estado posterior;
+- caché, cola y rechazos se separan por servidor/cuenta.
 
-La implementación actual NO ofrece aislamiento multiempresa. Antes de añadir
-otro cliente: introducir el ámbito en repositorios y dominio, migrar los
-datos de Urkiola a un tenant inicial con copia y reversión, verificar relaciones
-y reconstrucción, y ejecutar pruebas negativas de separación. No basta con
-añadir una columna a una tabla mientras sigue existiendo un estado global.
+## Ubicaciones
 
-## Diferencias y acoplamientos concretos
+Sede → zona → plaza. La plaza es opcional. Una zona con cero plazas numeradas es válida y representa un parking donde se conoce la zona, no el hueco exacto.
 
-| Código / documentación | Diferencia o acoplamiento | Tratamiento futuro |
-| --- | --- | --- |
-| `server/src/almacen/esquema.sql` | Snapshot `foto` con `id = 1`; diario y credenciales sin tenant | Particionar estado, diario e índices por empresa; migración verificable |
-| `server/src/almacen/postgres.ts` | Estado en memoria, cerrojo global y una instancia escritora | Mantener una instancia hasta diseñar concurrencia; comprobar conexión compatible con cerrojos de sesión |
-| Mismo adaptador | TLS remoto con `rejectUnauthorized: false` | Validar certificados y conexión real antes de producción |
-| `server/src/auth.ts`, `servicio.ts` | Identidad propia y administrador inicial `u-admin` | Migrar a Auth con correspondencia estable de usuarios, historial y membresías |
-| `src/data/seed.ts` | Sedes, personas, roles y empresas de ejemplo de Urkiola | Mantener como demo/plantilla de implantación, no datos globales de nuevos tenants |
-| `src/data/selectors.ts` | Indicador ligado a `sondika`; comercial asociado mediante texto | Indicadores configurables y asignación por identidad estable |
-| `src/data/commands.ts` | Fase especial ligada a `req-preentrega`; identificación por VIN-8 | Capacidades configurables de requisitos y ámbito empresarial de IDs |
-| `app.config.ts`, `eas.json` | Marca, package y destinos de Urkiola | Decidir app compartida o variantes antes de vender; no cambiar el package publicado |
-| Mejora local `CampanaCheck.tsx` | Control específico de `req-campana` | Generalizar como capacidad configurable cuando se aborde el catálogo de servicios |
-| `docs/DESPLIEGUE.md` | Railway y rechazo de Supabase Auth | Referencia histórica; objetivo vigente Render + Supabase Auth |
+Sondika es almacén y no prepara. Leioa, Galdakao, Anoeta e Irun son sedes de preparación según configuración.
 
-Las mejoras de demo (campaña y separación visual de servicios) pueden estar
-en el árbol de trabajo antes de su publicación. No equivalen a multi-tenancy
-ni a cambios ya incorporados en `main`.
+## Seguridad
 
-## Identidad, archivos e integración
+El backend valida actor, permiso y ámbito. El transportista externo recibe estado recortado y no debe recibir datos internos como comerciales, configuración completa o ubicación de llaves.
 
-Migrar Auth mediante una fase específica: asociar identidad externa al usuario
-de dominio, validar emisor/audiencia/firma/expiración, gestionar renovación y
-baja, y definir el primer acceso. No trasladar hashes existentes asumiendo
-compatibilidad ni perder la autoría histórica o las colas al cambiar los IDs.
-Permisos configurables bajo mínimo privilegio, incluyendo aislamiento de
-transportistas; perfiles orientativos del PDF no son nuevos roles implantados.
+En producción:
 
-Respaldar y restaurar tanto PostgreSQL como objetos de Storage. El script
-actual no copia objetos de Supabase; disponer de una copia de la base de datos
-no basta para recuperar fotografías y albaranes. Probar restauración completa.
+- secretos solo en Render/Supabase;
+- service role de Supabase solo en backend;
+- Storage privado;
+- CORS explícito;
+- TLS validado;
+- 2FA en cuentas de proveedores;
+- restauración probada, no solo backups existentes.
 
-Quiter -> adaptador del backend -> validación y mapeo -> persistencia.
-Registrar cada importación, conflictos, origen y resultado; no sobrescribir
-observaciones físicas posteriores. Esperar documentación/export real y no
-inventar endpoints de Quiter. Permitir otros DMS sin alterar el núcleo.
+## Supabase Auth
+
+La autenticación propia actual funciona y está probada, pero no es el destino final decidido. La migración a Supabase Auth debe conservar:
+
+- identidad estable del usuario de dominio;
+- autoría histórica;
+- permisos y membresías;
+- sesiones/renovación;
+- colas offline existentes;
+- baja inmediata de acceso.
+
+No migrar hashes suponiendo compatibilidad. Crear una correspondencia explícita entre identidad Supabase y usuario de Urkiola.
+
+## QBI Premium
+
+La empresa ha contratado **QBI Premium**. No se supone todavía qué protocolo, tablas, credenciales o frecuencia proporciona Quiter: se espera la documentación real.
+
+Diseño objetivo:
+
+`Quiter AutoWeb → QBI Premium → sincronizador de solo lectura en Render → staging en Supabase → mapeo/validación → dominio Urkiola`
+
+Quiter manda en datos comerciales/DMS. Urkiola manda en logística física. Detalle en [`QBI-PREMIUM.md`](QBI-PREMIUM.md).
+
+## Multiempresa
+
+No está implementado. Antes de vender a un segundo concesionario:
+
+- introducir `tenant/company` de forma consistente;
+- aislar datos, archivos, cachés, comandos, notificaciones y configuración;
+- probar accesos cruzados negativos;
+- migrar Urkiola al primer tenant con reversión posible.
+
+No basta con añadir una columna `companyId` a una tabla si el estado sigue siendo global.

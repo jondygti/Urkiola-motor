@@ -1,30 +1,39 @@
-# Urkiola Motor
+# Instrucciones de trabajo · Urkiola Car Service
 
-Las instrucciones v2 de Jon están recogidas en `docs/ARCHITECTURE.md`,
-`docs/MOBILE_ANDROID.md` y `docs/ROADMAP.md`. Prevalecen sobre las decisiones
-anteriores de proveedores: objetivo Render + Supabase PostgreSQL/Auth/Storage,
-Android en Google Play y preparación para multiempresa. Documentar primero;
-no ejecutar migraciones, contratar ni desplegar por esta decisión documental.
+Antes de modificar el proyecto, leer:
 
-Lee `CLAUDE.md` antes de modificar el proyecto. Contiene las decisiones de
-Jon y las reglas de negocio de la aplicación; su nombre procede del
-desarrollo anterior y no exige usar una herramienta concreta.
+1. `docs/ESTADO-ACTUAL.md`
+2. `docs/ARCHITECTURE.md`
+3. `docs/ROADMAP.md`
+4. `docs/SEGURIDAD.md`
+5. `CLAUDE.md` para las reglas de negocio históricas que siguen vigentes.
 
-`docs/CONTINUIDAD.md` recoge la primera entrega de correcciones preparada
-con Codex y sus límites de comprobación. Complementa la guía anterior.
+## Fuente de verdad
 
-Trabaja en una rama propia y conserva `main` como referencia estable.
-Explica a Jon el efecto de los cambios en castellano y en lenguaje llano.
+`main` es la única rama permanente. No mantener ramas por herramienta o sesión. Si un cambio complejo necesita una rama temporal, debe fusionarse y eliminarse al terminar.
 
-Comprobaciones de esta entrega, desde la raíz:
+Objetivo de producción: **Render + Supabase PostgreSQL/Auth/Storage + Expo/Android + Google Play**. QBI Premium está contratado, pero la sincronización con Quiter todavía no está implementada.
+
+## Reglas de modificación
+
+- Reproducir cada problema antes de corregirlo.
+- Si algo ya funciona, no tocarlo.
+- Mantener arquitectura, comandos compartidos, funcionamiento offline, idempotencia y seguridad backend.
+- No hacer refactors generales ni cambios estéticos ajenos al encargo.
+- Añadir regresiones para fallos corregidos.
+- No borrar ni relajar pruebas para hacerlas pasar.
+- Distinguir siempre entre **código actual** y **arquitectura objetivo**.
+- No inventar APIs, tablas o campos de Quiter/QBI sin documentación real.
+- No subir secretos, `.env`, credenciales de QBI, Render o Supabase.
+
+## Comprobaciones mínimas
 
 ```sh
 npm run typecheck
 npm run server:test
 npm run test:sync
-npm run build:web
+npm run verify
+npm run verify:api
 ```
 
-Las pruebas de sincronización ejecutan el `StoreProvider` real con red y
-almacenamiento simulados. Para comprobar pantallas y navegación están
-`npm run verify` y `npm run verify:api`, que necesitan Chromium/Playwright.
+GitHub Actions debe quedar verde antes de considerar estable un cambio. En `main`, la demo se publica únicamente después de que servidor y navegador pasen.
