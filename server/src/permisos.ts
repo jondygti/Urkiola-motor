@@ -39,15 +39,34 @@ function trasladoSuyo(s: AppState, u: User, requestId: Id): boolean {
   return !!u.carrierId && r.carrierId === u.carrierId;
 }
 
-/** ¿Hay algún traslado abierto suyo sobre este vehículo? */
-function vehiculoDeSuTraslado(s: AppState, u: User, vehicleId: Id): boolean {
-  return s.requests.some(
+/** El traslado abierto de este vehículo que corresponde al transportista. */
+function trasladoAbiertoSuyo(s: AppState, u: User, vehicleId: Id) {
+  return s.requests.find(
     (r) =>
       r.type === 'traslado' && !!r.carrierId &&
       r.vehicleId === vehicleId &&
       (r.status !== 'terminada' && r.status !== 'cancelada') &&
       (r.assignedTo === u.id || (!!u.carrierId && r.carrierId === u.carrierId))
   );
+}
+
+/** ¿Hay algún traslado abierto suyo sobre este vehículo? */
+function vehiculoDeSuTraslado(s: AppState, u: User, vehicleId: Id): boolean {
+  return !!trasladoAbiertoSuyo(s, u, vehicleId);
+}
+
+/**
+ * Los coches de Sondika tienen las llaves en Logística de Leioa. Para esos
+ * traslados, «asignada» significa que Logística ya las ha preparado y el
+ * transportista puede pasar a recogerlas.
+ */
+function necesitaLlavesPreparadas(s: AppState, requestId: Id): boolean {
+  const r = s.requests.find((x) => x.id === requestId);
+  if (!r || r.type !== 'traslado') return false;
+  const origen = r.from?.siteId;
+  if (!origen) return false;
+  if (origen === 'sondika') return true;
+  return s.sites.find((site) => site.id === origen)?.name.trim().toLowerCase() === 'sondika';
 }
 
 /**
@@ -109,20 +128,37 @@ function permisoColaborador(s: AppState, u: User, cmd: Command): Rechazo {
   const fuera = 'Solo puedes trabajar con los traslados que tienes asignados.';
 
   switch (cmd.type) {
-    case 'movement.register':
+    case 'movement.register': {
+      const r = trasladoAbiertoSuyo(s, u, cmd.vehicleId);
+      if (!r) return fuera;
+      // Un proveedor no puede saltarse el paso de recoger las llaves llamando
+      // directamente al endpoint de movimientos.
+      if (necesitaLlavesPreparadas(s, r.id) && !r.pickedUpAt) {
+        return 'Primero tienes que recoger las llaves preparadas por Logística.';
+      }
+      return null;
+    }
+
     case 'vehicle.check':
     case 'vehicle.activate':
     case 'incident.create':
       return vehiculoDeSuTraslado(s, u, cmd.vehicleId) ? null : fuera;
 
     case 'request.update': {
-      if (!trasladoSuyo(s, u, cmd.requestId)) return fuera;
+      const r = s.requests.find((x) => x.id === cmd.requestId);
+      if (!r || !trasladoSuyo(s, u, cmd.requestId)) return fuera;
       // Solo hacia adelante: recogido y entregado. Ni se lo asigna a otro
       // ni se lo pasa a otra empresa.
       const avance = cmd.status === 'en_ruta' || cmd.status === 'terminada';
       if (!avance) return 'Solo puedes marcar la recogida y la entrega.';
       if (cmd.assignedTo !== undefined || cmd.carrierId !== undefined) {
         return 'No puedes reasignar un traslado.';
+      }
+      if (cmd.status === 'en_ruta' && necesitaLlavesPreparadas(s, r.id) && r.status !== 'asignada' && !r.pickedUpAt) {
+        return 'Logística todavía no ha marcado las llaves como preparadas.';
+      }
+      if (cmd.status === 'terminada' && !r.pickedUpAt) {
+        return 'Primero tienes que registrar la recogida de las llaves.';
       }
       return null;
     }
@@ -174,7 +210,14 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
       return tiene(s, u, 'solicitudes.crear') ? null : 'No puedes crear solicitudes.';
 
     case 'request.update': {
-      if (cmd.status === 'cancelada' || s.requests.find(r => r.id === cmd.requestId)?.status === 'cancelada') return 'Usa Cancelar solicitud; una cancelación no se reabre.';
+      const r = s.requests.find((x) => x.id === cmd.requestId);
+      if (cmd.status === 'cancelada' || r?.status === 'cancelada') return 'Usa Cancelar solicitud; una cancelación no se reabre.';
+      // Para los coches de Sondika, el paso «asignada» es deliberado: indica
+      // que Logística ya ha preparado las llaves en Leioa. Ni la oficina ni
+      // un cliente manipulado pueden saltar directamente a «en ruta».
+      if (cmd.status === 'en_ruta' && r && necesitaLlavesPreparadas(s, r.id) && r.status !== 'asignada' && !r.pickedUpAt) {
+        return 'Marca primero las llaves como preparadas.';
+      }
       if (tiene(s, u, 'solicitudes.gestionar')) return null;
       // El transportista sí puede mover su propio traslado, pero solo
       // adelante: recogido y terminado. Ni lo asigna ni lo cancela.
