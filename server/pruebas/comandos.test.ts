@@ -197,7 +197,7 @@ test('el transportista solo mueve los coches de sus traslados', async (t) => {
   // Antes de mover un coche de Sondika, Logística prepara las llaves y el
   // transportista registra que las ha recogido. La prueba sigue midiendo lo
   // mismo —solo mueve coches de sus traslados— respetando ahora el flujo real.
-  if (suyo.from?.siteId === 'sondika' && suyo.status !== 'asignada' && !suyo.pickedUpAt) {
+  if (suyo.from?.siteId === 'sondika' && !suyo.keysReadyAt && !suyo.pickedUpAt) {
     await p.servicio.ejecutar(
       cmd('request.update', { requestId: suyo.id, status: 'asignada' }, { userId: log.id }),
       log
@@ -282,6 +282,7 @@ test('el transportista sí puede recoger y entregar lo suyo, y nada más', async
   const p = await servidorDePruebas();
   t.after(() => p.limpiar());
   const iker = await entrar(p.servicio, 'transporte@urkiolacarservice.com');
+  const log = await entrar(p.servicio, 'logistica@urkiolacarservice.com');
 
   const suyo = p.servicio.estado.requests.find(
     (r) =>
@@ -289,6 +290,13 @@ test('el transportista sí puede recoger y entregar lo suyo, y nada más', async
       (r.status === 'solicitada' || r.status === 'asignada') &&
       r.carrierId === 'gruas-francis'
   )!;
+
+  if (suyo.from?.siteId === 'sondika' && !suyo.keysReadyAt && !suyo.pickedUpAt) {
+    await p.servicio.ejecutar(
+      cmd('request.update', { requestId: suyo.id, status: 'asignada' }, { userId: log.id }),
+      log
+    );
+  }
 
   await p.servicio.ejecutar(
     cmd('request.update', { requestId: suyo.id, status: 'en_ruta' }, { userId: iker.id }),

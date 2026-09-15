@@ -66,7 +66,10 @@ test('un traslado desde Sondika no puede recoger llaves hasta que Logística las
   const preparar = cmd({ type: 'request.update', requestId, status: 'asignada' }, logistica.id, 10);
   assert.equal(comprobarPermiso(state, logistica, preparar), null);
   state = applyCommand(state, preparar);
-  assert.equal(state.requests.find((r) => r.id === requestId)?.status, 'asignada');
+  const preparada = state.requests.find((r) => r.id === requestId)!;
+  assert.equal(preparada.status, 'asignada');
+  assert.equal(preparada.keysReadyAt, at(10));
+  assert.equal(preparada.keysReadyBy, logistica.id);
 
   const recoger = cmd({ type: 'request.update', requestId, status: 'en_ruta' }, transportista.id, 11);
   assert.equal(comprobarPermiso(state, transportista, recoger), null);
@@ -85,6 +88,16 @@ test('el transportista tampoco puede saltarse las llaves registrando directament
     to: { siteId: 'galdakao' },
   });
   assert.match(rechazo ?? '', /primero tienes que recoger las llaves/i);
+});
+
+test('un traslado antiguo asignado sin keysReadyAt sigue pendiente de llaves', () => {
+  const { state, requestId, transportista } = escenario('sondika');
+  const antiguo = {
+    ...state,
+    requests: state.requests.map((r) => r.id === requestId ? { ...r, status: 'asignada' as const, keysReadyAt: undefined, keysReadyBy: undefined } : r),
+  };
+  const rechazo = puede(antiguo, transportista, { type: 'request.update', requestId, status: 'en_ruta' });
+  assert.match(rechazo ?? '', /todavía no ha marcado las llaves como preparadas/i);
 });
 
 test('un traslado desde otra sede conserva el flujo anterior y puede recoger directamente', () => {

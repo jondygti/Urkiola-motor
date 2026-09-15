@@ -146,7 +146,7 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
   const vehicle = state.vehicles.find((v) => v.id === request.vehicleId);
   const enRuta = request.status === 'en_ruta';
   const requiereLlavesDeLeioa = request.from?.siteId === 'sondika';
-  const llavesListas = !requiereLlavesDeLeioa || request.status === 'asignada' || !!request.pickedUpAt;
+  const llavesListas = !requiereLlavesDeLeioa || !!request.keysReadyAt || !!request.pickedUpAt;
   const plazo = deadlineOf(state, request);
 
   const recoger = () => {
@@ -255,7 +255,7 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
         </Muted>
       ) : requiereLlavesDeLeioa && llavesListas ? (
         <Muted>
-          🔑 Llaves listas en Leioa · Logística. Recógelas antes de ir a por el coche a Sondika.
+          🔑 Llaves listas en Leioa · Logística{request.keysReadyAt ? ` desde ${formatDateTime(request.keysReadyAt)}` : ''}. Recógelas antes de ir a por el coche a Sondika.
         </Muted>
       ) : requiereLlavesDeLeioa ? (
         <Muted>

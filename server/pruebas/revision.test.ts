@@ -468,6 +468,11 @@ test('entregar fuera de plazo guarda el motivo; a tiempo no guarda nada', () => 
     to: { siteId: 'leioa' },
   });
   const req = s.requests.find((r) => r.vehicleId === v.id && r.type === 'traslado')!;
+  // Logística las dejó listas antes de la recogida histórica.
+  s = applyCommand(s, {
+    ...orden({ type: 'request.update', requestId: req.id, status: 'asignada' }),
+    at: new Date(Date.now() - 73 * 3_600_000).toISOString(),
+  } as Command);
   // Recoge las llaves hace tres días: el plazo de 48 h ya se ha pasado.
   s = applyCommand(s, {
     ...orden({ type: 'request.update', requestId: req.id, status: 'en_ruta' }),
@@ -498,6 +503,7 @@ test('un traslado entregado a tiempo no guarda motivo aunque lo manden', () => {
     to: { siteId: 'leioa' },
   });
   const req = s.requests.find((r) => r.vehicleId === v.id && r.type === 'traslado')!;
+  s = aplicar(s, { type: 'request.update', requestId: req.id, status: 'asignada' });
   s = aplicar(s, { type: 'request.update', requestId: req.id, status: 'en_ruta' });
   s = aplicar(s, {
     type: 'request.update',
@@ -533,6 +539,10 @@ function trasladoEntregado(hRecoge: number, hEntrega: number) {
   } as Command);
   const req = s.requests.find((r) => r.vehicleId === v.id && r.type === 'traslado')!;
 
+  s = applyCommand(s, {
+    ...orden({ type: 'request.update', requestId: req.id, status: 'asignada' }),
+    at: hace(hRecoge + 0.5),
+  } as Command);
   const recoger = { ...orden({ type: 'request.update', requestId: req.id, status: 'en_ruta' }), at: hace(hRecoge) } as Command;
   s = applyCommand(s, recoger);
   s = applyCommand(s, {

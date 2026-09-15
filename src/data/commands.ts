@@ -845,6 +845,8 @@ function aplicar(state: AppState, cmd: Command): AppState {
         assignedTo: null,
         note: cmd.note,
         dueAt,
+        keysReadyAt: null,
+        keysReadyBy: null,
         pickedUpAt: null,
         deliveredAt: null,
         deliveredBy: null,
@@ -984,6 +986,25 @@ function aplicar(state: AppState, cmd: Command): AppState {
         return state;
       }
 
+      const origenSondika =
+        req.from?.siteId === 'sondika' ||
+        state.sites.find((site) => site.id === req.from?.siteId)?.name.trim().toLowerCase() === 'sondika';
+
+      // Una asignación antigua no demuestra que las llaves estén listas. El
+      // hecho queda fechado y firmado expresamente en la propia solicitud.
+      // Tampoco se puede volver a la fase previa una vez recogidas.
+      if (req.type === 'traslado' && req.pickedUpAt && cmd.status === 'asignada') return state;
+
+      const preparaLlaves =
+        req.type === 'traslado' && origenSondika && cmd.status === 'asignada' && !req.keysReadyAt && !req.pickedUpAt;
+
+      // Esta regla vive también en la lógica compartida, no solo en permisos:
+      // un cliente offline no debe poder ponerse «en ruta» localmente antes
+      // de que Logística haya confirmado las llaves.
+      if (req.type === 'traslado' && origenSondika && cmd.status === 'en_ruta' && !req.keysReadyAt && !req.pickedUpAt) {
+        return state;
+      }
+
       // Al recoger las llaves arranca el plazo del transportista.
       const recoge = req.type === 'traslado' && cmd.status === 'en_ruta' && !req.pickedUpAt;
       const patch: Partial<ServiceRequest> = {
@@ -991,6 +1012,10 @@ function aplicar(state: AppState, cmd: Command): AppState {
         assignedTo: cmd.assignedTo !== undefined ? cmd.assignedTo : req.assignedTo,
         carrierId: cmd.carrierId !== undefined ? cmd.carrierId : req.carrierId,
       };
+      if (preparaLlaves) {
+        patch.keysReadyAt = cmd.at;
+        patch.keysReadyBy = cmd.userId;
+      }
       if (recoge) {
         patch.pickedUpAt = cmd.at;
         patch.dueAt = new Date(
@@ -1031,8 +1056,12 @@ function aplicar(state: AppState, cmd: Command): AppState {
         // en la trazabilidad se nombra por lo que es y no por el estado.
         title: recoge
           ? `Llaves recogidas · empiezan ${state.config.transferDeadlineHours} h`
-          : `Solicitud ${REQUEST_STATUS_LABEL[cmd.status].toLowerCase()}`,
-        detail: `${req.type === 'traslado' ? 'Traslado' : 'Preparación'} · ${userName(state, cmd.userId)}`,
+          : preparaLlaves
+            ? 'Llaves preparadas'
+            : `Solicitud ${REQUEST_STATUS_LABEL[cmd.status].toLowerCase()}`,
+        detail: preparaLlaves
+          ? `Leioa · Logística · ${userName(state, cmd.userId)}`
+          : `${req.type === 'traslado' ? 'Traslado' : 'Preparación'} · ${userName(state, cmd.userId)}`,
         at: cmd.at,
         userId: cmd.userId,
       });

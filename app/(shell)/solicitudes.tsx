@@ -33,7 +33,7 @@ export default function RequestsScreen() {
   const llavesPorPreparar = useMemo(
     () =>
       state.requests
-        .filter((r) => esTrasladoDesdeSondika(r) && r.status === 'solicitada')
+        .filter((r) => esTrasladoDesdeSondika(r) && r.status !== 'terminada' && r.status !== 'cancelada' && !r.keysReadyAt && !r.pickedUpAt)
         .sort((a, b) => Number(b.urgent) - Number(a.urgent) || a.createdAt.localeCompare(b.createdAt)),
     [state.requests]
   );
@@ -141,7 +141,7 @@ export default function RequestsScreen() {
         <DeadlineChip
           deadline={deadlineOf(state, r)}
           emptyLabel={
-            esTrasladoDesdeSondika(r) && r.status === 'solicitada'
+            esTrasladoDesdeSondika(r) && !r.keysReadyAt && !r.pickedUpAt
               ? '🔑 Por preparar'
               : r.type === 'traslado'
                 ? '🔑 Llaves sin recoger'
@@ -175,9 +175,9 @@ export default function RequestsScreen() {
         options: Object.entries(REQUEST_STATUS_LABEL).map(([, label]) => ({ value: label, label })),
       },
       render: (r) =>
-        esTrasladoDesdeSondika(r) && r.status === 'solicitada' ? (
+        esTrasladoDesdeSondika(r) && !r.keysReadyAt && !r.pickedUpAt ? (
           <Cell>🔑 Llaves por preparar</Cell>
-        ) : esTrasladoDesdeSondika(r) && r.status === 'asignada' ? (
+        ) : esTrasladoDesdeSondika(r) && !!r.keysReadyAt && !r.pickedUpAt ? (
           <Cell>🔑 Llaves listas</Cell>
         ) : (
           <RequestStatusPill status={r.status} urgent={r.urgent} />
@@ -349,7 +349,7 @@ function ManageModal({
   const { can } = usePerms();
   const puedePreparar = can('preparacion.gestionar');
   const requiereLlaves = esTrasladoDesdeSondika(request);
-  const llavesPreparadas = !requiereLlaves || request.status === 'asignada' || !!request.pickedUpAt;
+  const llavesPreparadas = !requiereLlaves || !!request.keysReadyAt || !!request.pickedUpAt;
 
   const candidates = state.users.filter((u) =>
     request.type === 'traslado' ? u.role === 'transportista' || u.role === 'logistica' : u.role === 'preparador'
@@ -374,7 +374,7 @@ function ManageModal({
           >
             Guardar cambios
           </Btn>
-          {requiereLlaves && request.status === 'solicitada' ? (
+          {requiereLlaves && !request.keysReadyAt && !request.pickedUpAt ? (
             <Btn
               full
               onPress={() => {
@@ -443,7 +443,7 @@ function ManageModal({
             .filter(([key]) => key !== 'cancelada' && !(requiereLlaves && !llavesPreparadas && key === 'en_ruta'))
             .map(([value, label]) => ({
               value,
-              label: requiereLlaves && value === 'asignada' ? 'Llaves listas' : label,
+              label: requiereLlaves && request.keysReadyAt && value === 'asignada' ? 'Llaves listas' : label,
             }))}
           title="Estado"
         />
@@ -455,9 +455,10 @@ function ManageModal({
               🔑 Recogidas {formatDateTime(request.pickedUpAt)} · entrega antes de{' '}
               {request.dueAt ? formatDateTime(request.dueAt) : '—'}
             </Muted>
-          ) : requiereLlaves && request.status === 'asignada' ? (
+          ) : requiereLlaves && request.keysReadyAt ? (
             <Notice>
-              Llaves listas en Leioa · Logística. El transportista ya puede recogerlas.
+              Llaves listas en Leioa · Logística desde {formatDateTime(request.keysReadyAt)}
+              {request.keysReadyBy ? ` · ${userName(state, request.keysReadyBy)}` : ''}. El transportista ya puede recogerlas.
             </Notice>
           ) : requiereLlaves ? (
             <Notice tone="warn">

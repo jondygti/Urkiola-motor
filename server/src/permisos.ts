@@ -57,8 +57,8 @@ function vehiculoDeSuTraslado(s: AppState, u: User, vehicleId: Id): boolean {
 
 /**
  * Los coches de Sondika tienen las llaves en Logística de Leioa. Para esos
- * traslados, «asignada» significa que Logística ya las ha preparado y el
- * transportista puede pasar a recogerlas.
+ * traslados el hecho fiable es `keysReadyAt`: una asignación antigua o un
+ * cambio de responsable no cuenta como preparación de llaves.
  */
 function necesitaLlavesPreparadas(s: AppState, requestId: Id): boolean {
   const r = s.requests.find((x) => x.id === requestId);
@@ -154,7 +154,7 @@ function permisoColaborador(s: AppState, u: User, cmd: Command): Rechazo {
       if (cmd.assignedTo !== undefined || cmd.carrierId !== undefined) {
         return 'No puedes reasignar un traslado.';
       }
-      if (cmd.status === 'en_ruta' && necesitaLlavesPreparadas(s, r.id) && r.status !== 'asignada' && !r.pickedUpAt) {
+      if (cmd.status === 'en_ruta' && necesitaLlavesPreparadas(s, r.id) && !r.keysReadyAt && !r.pickedUpAt) {
         return 'Logística todavía no ha marcado las llaves como preparadas.';
       }
       if (cmd.status === 'terminada' && !r.pickedUpAt) {
@@ -212,10 +212,9 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
     case 'request.update': {
       const r = s.requests.find((x) => x.id === cmd.requestId);
       if (cmd.status === 'cancelada' || r?.status === 'cancelada') return 'Usa Cancelar solicitud; una cancelación no se reabre.';
-      // Para los coches de Sondika, el paso «asignada» es deliberado: indica
-      // que Logística ya ha preparado las llaves en Leioa. Ni la oficina ni
-      // un cliente manipulado pueden saltar directamente a «en ruta».
-      if (cmd.status === 'en_ruta' && r && necesitaLlavesPreparadas(s, r.id) && r.status !== 'asignada' && !r.pickedUpAt) {
+      // En Sondika no basta con que el traslado esté asignado: Logística
+      // tiene que haber dejado constancia expresa de que las llaves están listas.
+      if (cmd.status === 'en_ruta' && r && necesitaLlavesPreparadas(s, r.id) && !r.keysReadyAt && !r.pickedUpAt) {
         return 'Marca primero las llaves como preparadas.';
       }
       if (tiene(s, u, 'solicitudes.gestionar')) return null;
