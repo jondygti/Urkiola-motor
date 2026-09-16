@@ -85,6 +85,7 @@ export const VEHICLE_FLOW: VehicleStatus[] = [
   'recepcionado',
   'aparcado',
   'traslado_solicitado',
+  'en_traslado',
   'en_preparacion',
   'apto_entrega',
   'entregado',

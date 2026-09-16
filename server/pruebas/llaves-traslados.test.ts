@@ -28,6 +28,9 @@ function escenario(origen: 'sondika' | 'leioa' = 'sondika') {
       status: 'aparcado',
       location: { siteId: origen },
       targetSiteId: null,
+      locationObservedAt: null,
+      lastCheckAt: null,
+      lastMovementAt: null,
       deliveredAt: null,
       deliveredBy: null,
     } : v),
@@ -78,6 +81,7 @@ test('un traslado desde Sondika no puede recoger llaves hasta que Logística las
   assert.equal(request.status, 'en_ruta');
   assert.equal(request.pickedUpAt, at(11));
   assert.ok(request.dueAt);
+  assert.equal(state.vehicles.find((v) => v.id === request.vehicleId)?.status, 'en_traslado');
 });
 
 test('el transportista tampoco puede saltarse las llaves registrando directamente el movimiento', () => {
@@ -108,12 +112,20 @@ test('un traslado desde otra sede conserva el flujo anterior y puede recoger dir
   );
 });
 
-test('un transportista no puede marcar entregado un traslado sin haber recogido las llaves', () => {
-  const { state, requestId, transportista } = escenario('sondika');
-  const rechazo = puede(state, transportista, {
-    type: 'request.update',
-    requestId,
-    status: 'terminada',
-  });
-  assert.match(rechazo ?? '', /primero tienes que registrar la recogida/i);
+test('un traslado no se puede cerrar a mano: lo cierra el movimiento al destino', () => {
+  let { state, requestId, vehicleId, logistica, transportista } = escenario('sondika');
+  state = applyCommand(state, cmd({ type: 'request.update', requestId, status: 'asignada' }, logistica.id, 10));
+  state = applyCommand(state, cmd({ type: 'request.update', requestId, status: 'en_ruta' }, transportista.id, 11));
+
+  const cerrarTransportista = puede(state, transportista, { type: 'request.update', requestId, status: 'terminada' }, 12);
+  const cerrarLogistica = puede(state, logistica, { type: 'request.update', requestId, status: 'terminada' }, 12);
+  assert.match(cerrarTransportista ?? '', /mov(er|imiento).*destino|destino del traslado/i);
+  assert.match(cerrarLogistica ?? '', /movimiento.*destino|llega.*destino/i);
+
+  state = applyCommand(state, cmd({ type: 'movement.register', vehicleId, to: { siteId: 'leioa' } }, transportista.id, 12));
+  assert.equal(state.requests.find((r) => r.id === requestId)?.status, 'en_ruta', 'otra sede no lo cierra');
+
+  state = applyCommand(state, cmd({ type: 'movement.register', vehicleId, to: { siteId: 'galdakao' } }, transportista.id, 13));
+  assert.equal(state.requests.find((r) => r.id === requestId)?.status, 'terminada');
+  assert.equal(state.vehicles.find((v) => v.id === vehicleId)?.location?.siteId, 'galdakao');
 });

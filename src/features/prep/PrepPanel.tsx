@@ -47,9 +47,11 @@ export function PrepPanel({
   const waiting = prepWaitingMs(prep, now);
   const { done, total, pct } = prepProgress(prep);
   const overSla = prepIsOverSla(prep, now);
-  const finished = (prep.runState === 'terminado' || prep.runState === 'cancelado');
-  const bloqueado = finished || !puedeEjecutar;
-  const apt = finished || (pct === 100 && prep.phase === 'apto_entrega');
+  const terminada = prep.runState === 'terminado';
+  const cancelada = prep.runState === 'cancelado';
+  const cerrada = terminada || cancelada;
+  const bloqueado = cerrada || !puedeEjecutar;
+  const apt = !cancelada && (terminada || (pct === 100 && prep.phase === 'apto_entrega'));
 
   const cycle = (requirementId: string, current: CheckState) => {
     const next: CheckState = current === 'completado' ? 'pendiente' : 'completado';
@@ -193,7 +195,7 @@ export function PrepPanel({
           <Btn small={compact} onPress={() => setPauseOpen(true)}>
             ⏸ Pausar
           </Btn>
-        ) : !finished ? (
+        ) : !cerrada ? (
           <Btn
             variant="primary"
             small={compact}
@@ -204,13 +206,13 @@ export function PrepPanel({
             ▶ {prep.startedAt ? 'Reanudar' : 'Iniciar'}
           </Btn>
         ) : null}
-        {!finished && puedeEjecutar ? (
+        {!cerrada && puedeEjecutar ? (
           <Btn variant="primary" small={compact} onPress={() => setFinishOpen(true)}>
             ✓ Finalizar preparación
           </Btn>
-        ) : finished ? (
+        ) : cerrada ? (
           <Muted>
-            Terminada · {formatShortDuration(prep.effectiveMs)} efectivos · preparador{' '}
+            {cancelada ? 'Cancelada' : 'Terminada'} · {formatShortDuration(prep.effectiveMs)} efectivos · preparador{' '}
             {userName(state, prep.preparerId)}
           </Muted>
         ) : null}

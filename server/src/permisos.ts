@@ -147,18 +147,17 @@ function permisoColaborador(s: AppState, u: User, cmd: Command): Rechazo {
     case 'request.update': {
       const r = s.requests.find((x) => x.id === cmd.requestId);
       if (!r || !trasladoSuyo(s, u, cmd.requestId)) return fuera;
-      // Solo hacia adelante: recogido y entregado. Ni se lo asigna a otro
-      // ni se lo pasa a otra empresa.
-      const avance = cmd.status === 'en_ruta' || cmd.status === 'terminada';
-      if (!avance) return 'Solo puedes marcar la recogida y la entrega.';
+      // El transportista registra la recogida aquí. La entrega no es un
+      // estado que se pulse: la registra movement.register al llegar al destino.
+      if (cmd.status === 'terminada') {
+        return 'La entrega se registra al mover el coche hasta el destino del traslado.';
+      }
+      if (cmd.status !== 'en_ruta') return 'Solo puedes registrar la recogida de las llaves.';
       if (cmd.assignedTo !== undefined || cmd.carrierId !== undefined) {
         return 'No puedes reasignar un traslado.';
       }
-      if (cmd.status === 'en_ruta' && necesitaLlavesPreparadas(s, r.id) && !r.keysReadyAt && !r.pickedUpAt) {
+      if (necesitaLlavesPreparadas(s, r.id) && !r.keysReadyAt && !r.pickedUpAt) {
         return 'Logística todavía no ha marcado las llaves como preparadas.';
-      }
-      if (cmd.status === 'terminada' && !r.pickedUpAt) {
-        return 'Primero tienes que registrar la recogida de las llaves.';
       }
       return null;
     }
@@ -212,16 +211,33 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
     case 'request.update': {
       const r = s.requests.find((x) => x.id === cmd.requestId);
       if (cmd.status === 'cancelada' || r?.status === 'cancelada') return 'Usa Cancelar solicitud; una cancelación no se reabre.';
+      if (!r) return 'Solicitud inexistente.';
+
+      if (r.type === 'traslado') {
+        if (!['solicitada', 'asignada', 'en_ruta'].includes(cmd.status)) {
+          return cmd.status === 'terminada'
+            ? 'El traslado se completa al registrar el movimiento que llega a su destino.'
+            : 'Ese estado no pertenece al flujo de un traslado.';
+        }
+        if (r.pickedUpAt && cmd.status !== 'en_ruta') {
+          return 'Con las llaves recogidas el traslado sigue en ruta hasta llegar al destino.';
+        }
+      } else if (!['solicitada', 'asignada', 'en_curso', 'bloqueada'].includes(cmd.status)) {
+        return cmd.status === 'terminada'
+          ? 'La solicitud se completa al finalizar la preparación.'
+          : 'Ese estado no pertenece al flujo de una preparación.';
+      }
+
       // En Sondika no basta con que el traslado esté asignado: Logística
       // tiene que haber dejado constancia expresa de que las llaves están listas.
       if (cmd.status === 'en_ruta' && r && necesitaLlavesPreparadas(s, r.id) && !r.keysReadyAt && !r.pickedUpAt) {
         return 'Marca primero las llaves como preparadas.';
       }
       if (tiene(s, u, 'solicitudes.gestionar')) return null;
-      // El transportista sí puede mover su propio traslado, pero solo
-      // adelante: recogido y terminado. Ni lo asigna ni lo cancela.
+      // Un rol interno con «traslados propios» puede registrar la recogida;
+      // la entrega también se cierra únicamente mediante el movimiento físico.
       const suyo = tiene(s, u, 'traslados.propios') && trasladoSuyo(s, u, cmd.requestId);
-      const avance = cmd.status === 'en_ruta' || cmd.status === 'terminada';
+      const avance = cmd.status === 'en_ruta';
       if (suyo && avance && cmd.assignedTo === undefined && cmd.carrierId === undefined) return null;
       return 'No puedes cambiar esta solicitud.';
     }

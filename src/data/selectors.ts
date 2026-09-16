@@ -187,7 +187,6 @@ export function prepKpis(s: AppState, now = Date.now()): PrepKpis {
 /** Resumen por sede de la pantalla de solicitudes. */
 export function requestsBySite(s: AppState) {
   return s.sites
-    .filter((site) => site.prepares)
     .map((site) => {
       const list = openRequests(s).filter((r) => r.siteId === site.id);
       return {

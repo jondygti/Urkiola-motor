@@ -2,7 +2,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { servidorDePruebas, CLAVE } from './ayuda';
-import { CAMPOS_DEL_VEHICULO } from '../src/recorte';
+import { CAMPOS_DEL_VEHICULO, estadoParaSedes } from '../src/recorte';
+import { buildSeedState } from '../../src/data/seed';
 import type { Vehicle } from '../../src/data/types';
 
 test('el transportista solo ve sus traslados y sin datos comerciales', async (t) => {
@@ -65,6 +66,36 @@ test('quien tiene sedes asignadas recibe lo suyo, no el parque entero', async (t
 
   assert.ok(visto.vehicles.length < p.servicio.estado.vehicles.length);
   for (const prep of visto.preparations) assert.equal(prep.siteId, 'leioa');
+});
+
+test('targetSiteId vacío no abre a un usuario el parque de otras sedes', () => {
+  const s = buildSeedState();
+  const pedro = s.users.find((u) => u.id === 'u-pedro')!;
+  const ajeno = s.vehicles.find((v) => v.location?.siteId === 'irun')!;
+  const preparado = {
+    ...s,
+    vehicles: s.vehicles.map((v) => v.id === ajeno.id ? { ...v, targetSiteId: null, salesRep: null } : v),
+  };
+  const visto = estadoParaSedes(preparado, pedro);
+  assert.equal(visto.vehicles.some((v) => v.id === ajeno.id), false);
+});
+
+test('el comercial conserva el stock central y sus coches aunque estén fuera', () => {
+  const s = buildSeedState();
+  const juan = s.users.find((u) => u.id === 'u-juan')!;
+  const central = s.vehicles.find((v) => v.location?.siteId === 'sondika')!;
+  const ajeno = s.vehicles.find((v) => v.location?.siteId === 'irun' && v.id !== central.id)!;
+  const preparado = {
+    ...s,
+    vehicles: s.vehicles.map((v) => {
+      if (v.id === central.id) return { ...v, targetSiteId: null, salesRep: null };
+      if (v.id === ajeno.id) return { ...v, targetSiteId: null, salesRep: 'Otra Persona' };
+      return v;
+    }),
+  };
+  const visto = estadoParaSedes(preparado, juan);
+  assert.ok(visto.vehicles.some((v) => v.id === central.id), 've el stock de la campa central');
+  assert.equal(visto.vehicles.some((v) => v.id === ajeno.id), false, 'no recibe un coche ajeno de Irun');
 });
 
 test('el administrador lo ve todo', async (t) => {

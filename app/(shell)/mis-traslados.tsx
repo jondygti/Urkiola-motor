@@ -74,8 +74,8 @@ export default function MyTransfersScreen() {
           porRecoger.length === 0 ? (
             <Panel>
               <Muted>
-                Nada por recoger. Cuando logística te asigne un traslado aparecerá aquí; puedes cerrar la
-                app, que te llegará un aviso.
+                Nada por recoger. Cuando logística te asigne un traslado aparecerá aquí en cuanto el
+                dispositivo sincronice.
               </Muted>
             </Panel>
           ) : (
@@ -177,6 +177,7 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
 
   return (
     <View
+      testID="transfer-card"
       style={{
         borderWidth: 1,
         borderColor: enRuta ? c.primary : c.border,

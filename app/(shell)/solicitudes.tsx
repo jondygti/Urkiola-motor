@@ -188,7 +188,7 @@ export default function RequestsScreen() {
       header: '',
       width: 110,
       render: (r) =>
-        puedeGestionar ? (
+        puedeGestionar && r.status !== 'terminada' && r.status !== 'cancelada' ? (
           <Btn small onPress={() => setEditing(r)}>
             Gestionar
           </Btn>
@@ -440,7 +440,15 @@ function ManageModal({
           value={status}
           onChange={(v) => setStatus(v as RequestStatus)}
           options={Object.entries(REQUEST_STATUS_LABEL)
-            .filter(([key]) => key !== 'cancelada' && !(requiereLlaves && !llavesPreparadas && key === 'en_ruta'))
+            .filter(([key]) => {
+              const permitido = request.type === 'traslado'
+                ? ['solicitada', 'asignada', 'en_ruta'].includes(key)
+                : ['solicitada', 'asignada', 'en_curso', 'bloqueada'].includes(key);
+              if (!permitido) return false;
+              if (request.type === 'traslado' && request.pickedUpAt && key !== 'en_ruta') return false;
+              if (requiereLlaves && !llavesPreparadas && key === 'en_ruta') return false;
+              return true;
+            })
             .map(([value, label]) => ({
               value,
               label: requiereLlaves && request.keysReadyAt && value === 'asignada' ? 'Llaves listas' : label,

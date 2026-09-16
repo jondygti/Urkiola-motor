@@ -11,7 +11,7 @@
  * necesita para leer una ubicación, y su propio rol.
  */
 import type { AppState, Id, NotificationEvent, User, Vehicle } from '../../src/data/types';
-import { avisoLeido } from '../../src/data/selectors';
+import { avisoLeido, can, esDelComercial } from '../../src/data/selectors';
 
 /**
  * Qué campos del vehículo puede ver un proveedor externo y cuáles no.
@@ -168,11 +168,18 @@ export function estadoParaSedes(s: AppState, u: User): AppState {
   if (!u.siteIds || u.siteIds.length === 0) return conSusAvisos;
   s = conSusAvisos;
   const suyas = new Set(u.siteIds);
-  const dentro = (siteId: Id | null | undefined) => !siteId || suyas.has(siteId);
+  const campas = new Set(s.sites.filter((site) => site.kind === 'campa').map((site) => site.id));
+  const vendeCoches = can(s, u, 'flota.asignarse');
 
-  const vehicles = s.vehicles.filter(
-    (v) => dentro(v.location?.siteId) || dentro(v.targetSiteId)
-  );
+  const vehicles = s.vehicles.filter((v) => {
+    const enSuSede = !!v.location?.siteId && suyas.has(v.location.siteId);
+    const vaASuSede = !!v.targetSiteId && suyas.has(v.targetSiteId);
+    // El comercial necesita ver el stock central aunque duerma en Sondika,
+    // y sus propios coches aunque estén temporalmente fuera de su sede.
+    const stockCentral = vendeCoches && !!v.location?.siteId && campas.has(v.location.siteId);
+    const cocheSuyo = vendeCoches && esDelComercial(v, u);
+    return enSuSede || vaASuSede || stockCentral || cocheSuyo;
+  });
   const ids = new Set(vehicles.map((v) => v.id));
 
   return {

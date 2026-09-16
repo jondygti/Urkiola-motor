@@ -192,71 +192,69 @@ export async function ejecutar(browser, BASE) {
 
   /* --------------------------------------------- 4 · recogida de llaves */
   {
+    // Mismo navegador/dispositivo para comprobar el relevo Logística → transportista.
     const { context, page, errores } = await entrarComo(browser, USUARIOS.transportista);
     await page.goto(`${BASE}/mis-traslados`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(800);
 
-    const antes = await page.evaluate(() => document.body.innerText);
-    ok('10 · el transportista ve que faltan las llaves', antes.includes('Llaves sin recoger'));
-    ok(
-      '10 · y el botón habla de llaves, no de vehículo',
-      await page.getByText('🔑 He recogido las llaves').first().isVisible()
-    );
+    const inicial = await estadoGuardado(page);
+    const target = inicial?.requests
+      ?.filter((r) => r.type === 'traslado' && r.carrierId === USUARIOS.transportista.carrierId &&
+        r.from?.siteId === 'sondika' && r.status !== 'terminada' && r.status !== 'cancelada' &&
+        !r.keysReadyAt && !r.pickedUpAt)
+      .sort((a, b) => Number(b.urgent) - Number(a.urgent) || a.createdAt.localeCompare(b.createdAt))[0];
+    ok('10 · hay un traslado de Sondika esperando llaves', !!target);
 
-    await page.getByText('🔑 He recogido las llaves').first().click();
-    await page.waitForTimeout(700);
+    if (target) {
+      const vehiculo = inicial.vehicles.find((v) => v.id === target.vehicleId);
+      const ref = vehiculo?.plate ?? vehiculo?.vin8 ?? target.vehicleId;
+      const cardPendiente = page.getByTestId('transfer-card').filter({ hasText: ref }).first();
+      ok('10 · el transportista ve las llaves pendientes', (await cardPendiente.textContent() ?? '').includes('Llaves pendientes'));
+      ok('10 · no puede recogerlas antes de tiempo', (await cardPendiente.getByText('🔑 He recogido las llaves').count()) === 0);
 
-    const s = await estadoGuardado(page);
-    const req = s?.requests
-      ?.filter((r) => r.type === 'traslado' && r.pickedUpAt)
-      .sort((a, b) => new Date(b.pickedUpAt).getTime() - new Date(a.pickedUpAt).getTime())[0];
-    const reciente = req && Date.now() - new Date(req.pickedUpAt).getTime() < 60_000;
-    const horas = req ? (new Date(req.dueAt).getTime() - new Date(req.pickedUpAt).getTime()) / 3_600_000 : 0;
-    ok('10 · al pulsarlo se guarda la hora de las llaves', !!reciente);
-    ok('10 · y el plazo arranca ahí: 48 h justas', horas === 48, `${horas} h`);
-    ok(
-      '10 · la trazabilidad lo nombra por lo que es',
-      (s?.events?.[0]?.title ?? '').startsWith('Llaves recogidas'),
-      s?.events?.[0]?.title ?? ''
-    );
-    // Al recoger las llaves el traslado cambia de fase: pasa de «por
-    // recoger» a los que lleva encima, que es donde tiene que buscarlo
-    // cuando vaya a entregarlo.
-    await pulsar(page, 'Los llevo yo');
-    await page.waitForTimeout(800);
-    const enRuta = await page.evaluate(() => document.body.innerText);
-    ok('10 · el traslado pasa a los que lleva encima', enRuta.includes('En ruta'));
-    ok('10 · y la tarjeta dice cuándo se recogieron', enRuta.includes('Llaves recogidas'));
-    ok('10 · sin errores de JavaScript', errores.length === 0, errores[0] ?? '');
-    await context.close();
-  }
-  {
-    const { context, page, errores } = await entrarComo(browser, USUARIOS.logistica, 1440);
-    await page.goto(`${BASE}/solicitudes`, { waitUntil: 'networkidle' });
-    await page.waitForTimeout(800);
-    await elegirEnLista(page, 'Todos los tipos', 'Traslado');
-    await elegirEnLista(page, 'Abiertas', 'Solicitada');
-    await page.getByText('Gestionar', { exact: true }).first().click();
-    await page.waitForTimeout(600);
+      await cambiarDeUsuario(context, page, USUARIOS.logistica, `${BASE}/solicitudes`);
+      await page.waitForTimeout(800);
+      const antesLogistica = await estadoGuardado(page);
+      const cola = antesLogistica.requests
+        .filter((r) => r.type === 'traslado' && r.from?.siteId === 'sondika' &&
+          r.status !== 'terminada' && r.status !== 'cancelada' && !r.keysReadyAt && !r.pickedUpAt)
+        .sort((a, b) => Number(b.urgent) - Number(a.urgent) || a.createdAt.localeCompare(b.createdAt));
+      const indice = cola.findIndex((r) => r.id === target.id);
+      ok('10 · Logística lo tiene en «Llaves por preparar»', indice >= 0);
+      if (indice >= 0) {
+        await page.getByText('🔑 Llaves preparadas', { exact: true }).nth(indice).click();
+        await page.waitForTimeout(700);
+      }
+      const trasPreparar = await estadoGuardado(page);
+      const preparado = trasPreparar.requests.find((r) => r.id === target.id);
+      ok('10 · al prepararlas queda quién y cuándo', !!preparado?.keysReadyAt && preparado?.keysReadyBy === USUARIOS.logistica.id);
 
-    const modal = await page.evaluate(() => document.body.innerText);
-    ok('11 · la oficina ve que el plazo no ha empezado', modal.includes('todavía no ha empezado'));
-    ok(
-      '11 · y tiene el botón para registrarlo ella',
-      await page.getByText('🔑 Han recogido las llaves').first().isVisible()
-    );
+      await cambiarDeUsuario(context, page, USUARIOS.transportista, `${BASE}/mis-traslados`);
+      await page.waitForTimeout(800);
+      const cardLista = page.getByTestId('transfer-card').filter({ hasText: ref }).first();
+      ok('11 · el transportista las ve listas', (await cardLista.textContent() ?? '').includes('Llaves listas'));
+      await cardLista.getByText('🔑 He recogido las llaves').click();
+      await page.waitForTimeout(700);
 
-    await page.getByText('🔑 Han recogido las llaves').first().click();
-    await page.waitForTimeout(700);
-    const s = await estadoGuardado(page);
-    const req = s?.requests
-      ?.filter((r) => r.type === 'traslado' && r.pickedUpAt)
-      .sort((a, b) => new Date(b.pickedUpAt).getTime() - new Date(a.pickedUpAt).getTime())[0];
-    ok(
-      '11 · queda registrado desde la oficina',
-      !!req && Date.now() - new Date(req.pickedUpAt).getTime() < 60_000 && req.status === 'en_ruta',
-      req?.status ?? ''
-    );
+      const despues = await estadoGuardado(page);
+      const req = despues?.requests?.find((r) => r.id === target.id);
+      const coche = despues?.vehicles?.find((v) => v.id === target.vehicleId);
+      const reciente = req?.pickedUpAt && Date.now() - new Date(req.pickedUpAt).getTime() < 60_000;
+      const horas = req?.pickedUpAt && req?.dueAt
+        ? (new Date(req.dueAt).getTime() - new Date(req.pickedUpAt).getTime()) / 3_600_000
+        : 0;
+      ok('11 · se guarda la hora de recogida', !!reciente);
+      ok('11 · el plazo arranca ahí: 48 h justas', horas === 48, `${horas} h`);
+      ok('11 · el vehículo pasa a «En traslado»', coche?.status === 'en_traslado', coche?.status ?? '');
+      ok('11 · la trazabilidad habla de llaves recogidas',
+        despues.events.some((e) => e.vehicleId === target.vehicleId && e.title.startsWith('Llaves recogidas')));
+
+      await pulsar(page, 'Los llevo yo');
+      await page.waitForTimeout(700);
+      const cardRuta = page.getByTestId('transfer-card').filter({ hasText: ref }).first();
+      ok('11 · pasa a «Los llevo yo»', (await cardRuta.textContent() ?? '').includes('En ruta'));
+    }
+
     ok('11 · sin errores de JavaScript', errores.length === 0, errores[0] ?? '');
     await context.close();
   }

@@ -87,7 +87,7 @@ export function revisar(s: AppState): Problema[] {
      cronómetros contando lo mismo. */
   const abiertas = new Map<Id, number>();
   for (const p of s.preparations) {
-    if (p.runState === 'terminado') continue;
+    if (p.runState === 'terminado' || p.runState === 'cancelado') continue;
     abiertas.set(p.vehicleId, (abiertas.get(p.vehicleId) ?? 0) + 1);
   }
   for (const [v, cuantas] of abiertas) {
@@ -124,13 +124,13 @@ export function revisar(s: AppState): Problema[] {
      verdad: son historia y no se pueden volver falsas. Lo que no puede
      quedar es trabajo pendiente en una sede donde no lo va a hacer nadie. */
   for (const p of s.preparations) {
-    if (p.runState === 'terminado') continue;
+    if (p.runState === 'terminado' || p.runState === 'cancelado') continue;
     if (!s.sites.find((x) => x.id === p.siteId)?.prepares) {
       mal('solo preparan las sedes que preparan', `preparación ${p.id} en ${p.siteId}`);
     }
   }
   for (const r of s.requests) {
-    if (r.type !== 'preparacion' || r.status === 'terminada') continue;
+    if (r.type !== 'preparacion' || r.status === 'terminada' || r.status === 'cancelada') continue;
     if (!s.sites.find((x) => x.id === r.siteId)?.prepares) {
       mal('solo preparan las sedes que preparan', `solicitud ${r.id} en ${r.siteId}`);
     }

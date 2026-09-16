@@ -1048,7 +1048,10 @@ function aplicar(state: AppState, cmd: Command): AppState {
         }
       }
 
-      const next: AppState = { ...state, requests: replace(state.requests, cmd.requestId, patch) };
+      let next: AppState = { ...state, requests: replace(state.requests, cmd.requestId, patch) };
+      if (recoge) {
+        next = { ...next, vehicles: replace(next.vehicles, req.vehicleId, { status: 'en_traslado' }) };
+      }
       return addEvent(next, {
         vehicleId: req.vehicleId,
         kind: 'solicitud',
