@@ -20,7 +20,9 @@ jobs:
         with:
           node-version: '24'
       - name: Aplicar correcciones reproducidas
-        run: python .github/scripts/aplicar_auditoria_actual.py
+        run: |
+          python .github/scripts/aplicar_auditoria_actual.py
+          python .github/scripts/corregir_prep_panel_auditoria.py
       - name: Comprobar antes de guardar
         run: |
           npm ci --no-audit --no-fund
