@@ -22,14 +22,16 @@ jobs:
           from pathlib import Path
           p = Path('scripts/verify/funciones.mjs')
           s = p.read_text()
-          old = """    ok('21 · conserva la recogida de llaves dentro del grupo', await page.getByText('🔑 He recogido las llaves', { exact: true }).first().isVisible());"""
-          new = """    const grupoTexto = await grupos.first().innerText();
-    const conservaLlaves =
-      grupoTexto.includes('🔑 He recogido las llaves') ||
-      grupoTexto.includes('Llaves pendientes') ||
-      grupoTexto.includes('Llaves listas') ||
-      grupoTexto.includes('Logística está preparando las llaves');
-    ok('21 · conserva el flujo de llaves dentro del grupo', conservaLlaves, grupoTexto);"""
+          old = "    ok('21 · conserva la recogida de llaves dentro del grupo', await page.getByText('🔑 He recogido las llaves', { exact: true }).first().isVisible());"
+          new = "\n".join([
+              "    const grupoTexto = await grupos.first().innerText();",
+              "    const conservaLlaves =",
+              "      grupoTexto.includes('🔑 He recogido las llaves') ||",
+              "      grupoTexto.includes('Llaves pendientes') ||",
+              "      grupoTexto.includes('Llaves listas') ||",
+              "      grupoTexto.includes('Logística está preparando las llaves');",
+              "    ok('21 · conserva el flujo de llaves dentro del grupo', conservaLlaves, grupoTexto);",
+          ])
           if old not in s:
               raise SystemExit('No se encontró la aserción antigua')
           p.write_text(s.replace(old, new, 1))
