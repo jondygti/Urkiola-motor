@@ -23,6 +23,7 @@ jobs:
         run: |
           python .github/scripts/aplicar_auditoria_actual.py
           python .github/scripts/corregir_prep_panel_auditoria.py
+          python .github/scripts/corregir_test_llaves_auditoria.py
       - name: Comprobar antes de guardar
         run: |
           npm ci --no-audit --no-fund
