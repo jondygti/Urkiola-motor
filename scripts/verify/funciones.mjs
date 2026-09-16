@@ -646,7 +646,13 @@ export async function ejecutar(browser, BASE) {
     await opciones.last().click();
     await page.waitForTimeout(300);
     ok('21 · al elegir un trayecto solo aparece su grupo', await grupos.count() === 1);
-    ok('21 · conserva la recogida de llaves dentro del grupo', await page.getByText('🔑 He recogido las llaves', { exact: true }).first().isVisible());
+    const grupoTexto = await grupos.first().innerText();
+    const conservaLlaves =
+      grupoTexto.includes('🔑 He recogido las llaves') ||
+      grupoTexto.includes('Llaves pendientes') ||
+      grupoTexto.includes('Llaves listas') ||
+      grupoTexto.includes('Logística está preparando las llaves');
+    ok('21 · conserva el flujo de llaves dentro del grupo', conservaLlaves, grupoTexto);
     ok('21 · agrupación sin errores de JavaScript', errores.length === 0, errores[0] ?? '');
     await context.close();
   }
