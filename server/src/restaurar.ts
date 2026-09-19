@@ -106,24 +106,11 @@ async function main() {
       );
     }
 
-    // En una transacción: o entra todo o no entra nada. Una restauración a
-    // medias es peor que no haber empezado.
-    await cliente.query('begin');
-    for (const cmd of comandos) {
-      await cliente.query(
-        'insert into comandos (id, tipo, usuario, at, payload) values ($1,$2,$3,$4,$5)',
-        [cmd.id, cmd.type, cmd.userId, cmd.at, JSON.stringify(cmd)]
-      );
-    }
-    for (const c of credenciales) {
-      await cliente.query(
-        'insert into credenciales (usuario, email, hash) values ($1,$2,$3)',
-        [c.usuario, c.email, c.hash]
-      );
-    }
-    await cliente.query('commit');
-
     /* --------------------------------------------- las fotos */
+    // Primero se repone la evidencia. Las escrituras en Storage son upsert,
+    // así que si se corta aquí se puede repetir sin miedo. Solo después se
+    // confirma la historia en Postgres: nunca dejamos una base restaurada
+    // que apunte a fotos que todavía no llegaron.
     const carpetaFotos = path.join(origen, 'fotos');
     let fotos = 0;
     if (fs.existsSync(carpetaFotos)) {
@@ -145,6 +132,24 @@ async function main() {
         fotos = nombres.length;
       }
     }
+
+    // En una transacción: o entra toda la historia o no entra nada. Si esta
+    // parte falla, las fotos ya copiadas son huérfanas inocuas y la
+    // restauración se puede repetir porque la base sigue vacía.
+    await cliente.query('begin');
+    for (const cmd of comandos) {
+      await cliente.query(
+        'insert into comandos (id, tipo, usuario, at, payload) values ($1,$2,$3,$4,$5)',
+        [cmd.id, cmd.type, cmd.userId, cmd.at, JSON.stringify(cmd)]
+      );
+    }
+    for (const c of credenciales) {
+      await cliente.query(
+        'insert into credenciales (usuario, email, hash) values ($1,$2,$3)',
+        [c.usuario, c.email, c.hash]
+      );
+    }
+    await cliente.query('commit');
 
     console.log(`\n✔ Restaurado: ${comandos.length} comandos, ${credenciales.length} contraseñas, ${fotos} fotos.`);
     console.log('  La foto del estado la rehace el servidor al arrancar. Arráncalo y comprueba /health.');
