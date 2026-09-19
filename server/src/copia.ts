@@ -46,7 +46,7 @@ async function main() {
 
   const cliente = new Client({
     connectionString: config.databaseUrl,
-    ssl: /localhost|127\.0\.0\.1/.test(config.databaseUrl) ? undefined : { rejectUnauthorized: false },
+    ssl: /localhost|127\.0\.0\.1/.test(config.databaseUrl) ? undefined : { rejectUnauthorized: true },
   });
   await cliente.connect();
 
