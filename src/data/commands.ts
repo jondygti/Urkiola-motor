@@ -242,6 +242,15 @@ export type Command =
       salesRepUserId?: Id | null;
     }
   | {
+      type: 'vehicle.setCommercial';
+      id: Id;
+      at: string;
+      userId: Id;
+      vehicleId: Id;
+      commercialArea: CommercialArea;
+      commercialCategory: CommercialCategory;
+    }
+  | {
       type: 'vehicle.create';
       id: Id;
       at: string;
@@ -2051,6 +2060,28 @@ function aplicar(state: AppState, cmd: Command): AppState {
         detail: `${nombre ?? '—'}${
           vehicle.salesRep ? ` · antes ${vehicle.salesRep}` : ''
         } · ${userName(state, cmd.userId)}`,
+        at: cmd.at,
+        userId: cmd.userId,
+      });
+    }
+
+    /* ----------------------------------------- clasificación comercial */
+    case 'vehicle.setCommercial': {
+      if (!vehicle) return state;
+      if (
+        (vehicle.commercialArea ?? (vehicle.type === 'VO' ? 'vo' : 'vn')) === cmd.commercialArea &&
+        (vehicle.commercialCategory ?? (vehicle.type === 'VO' ? 'VO' : 'VN')) === cmd.commercialCategory
+      ) return state;
+
+      const next = apuntarEnVehiculo(state, cmd.vehicleId, {
+        commercialArea: cmd.commercialArea,
+        commercialCategory: cmd.commercialCategory,
+      });
+      return addEvent(next, {
+        vehicleId: cmd.vehicleId,
+        kind: 'estado',
+        title: 'Clasificación comercial actualizada',
+        detail: `${cmd.commercialCategory} · stock ${cmd.commercialArea === 'vo' ? 'VO' : 'VN'} · ${userName(state, cmd.userId)}`,
         at: cmd.at,
         userId: cmd.userId,
       });
