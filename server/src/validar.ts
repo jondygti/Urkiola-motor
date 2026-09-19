@@ -53,6 +53,7 @@ export const TIPOS: ReadonlySet<string> = new Set<Command['type']>([
   'customField.upsert',
   'customField.delete',
   'vehicle.setCustom',
+  'vehicle.setCommercial',
   'carrier.upsert',
   'carrier.delete',
   'vehicle.setDelivery',
