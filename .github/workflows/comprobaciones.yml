@@ -27,7 +27,7 @@ jobs:
       EXPO_NO_TELEMETRY: '1'
       EXPO_PUBLIC_API_URL: ''
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -75,7 +75,7 @@ jobs:
     env:
       CI: 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -103,7 +103,7 @@ jobs:
       EXPO_NO_TELEMETRY: '1'
       EXPO_PUBLIC_API_URL: ''
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: actions/setup-node@v4
