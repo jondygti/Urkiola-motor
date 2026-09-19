@@ -331,6 +331,17 @@ export interface ChecklistItem {
   timed: boolean;
 }
 
+export interface FinalPreparationPhotos {
+  /** Diagonal delantera izquierda: frontal y lateral izquierdo. */
+  frontLeft: string;
+  /** Diagonal delantera derecha: frontal y lateral derecho. */
+  frontRight: string;
+  /** Diagonal trasera izquierda: trasera y lateral izquierdo. */
+  rearLeft: string;
+  /** Diagonal trasera derecha: trasera y lateral derecho. */
+  rearRight: string;
+}
+
 export interface Preparation {
   requestId?: Id | null;
   cancelledAt?: ISODate | null;
@@ -355,6 +366,10 @@ export interface Preparation {
   waitReason: string | null;
   startedAt: ISODate | null;
   finishedAt: ISODate | null;
+  /** Reportaje obligatorio al cerrar: deja constancia del estado exterior. */
+  finalPhotos?: FinalPreparationPhotos | null;
+  /** Incidencia creada durante el cierre cuando el preparador declara un daño. */
+  damageIncidentId?: Id | null;
 }
 
 /* ------------------------------------------------------------- recuento */
