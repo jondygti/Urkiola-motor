@@ -71,6 +71,10 @@ export function leerConfig(env: NodeJS.ProcessEnv = process.env): Config {
     secreto = randomBytes(32).toString('hex');
   }
 
+  if (produccion && secreto.length < 32) {
+    throw new Error('JWT_SECRET es demasiado corto. Usa al menos 32 caracteres aleatorios.');
+  }
+
   const origenes = (env.CORS_ORIGEN ?? '*')
     .split(',')
     .map((o) => o.trim())
