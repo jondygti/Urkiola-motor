@@ -366,6 +366,15 @@ export class Servicio {
       if (conflicto) throw malaPeticion(conflicto);
       if (cmd.carrierId && !this.estadoActual.carriers.some(c => c.id === cmd.carrierId && c.active)) throw malaPeticion('Empresa de transporte no válida.');
     }
+    if (cmd.type === 'prep.finish') {
+      const p = this.estadoActual.preparations.find((x) => x.id === cmd.prepId);
+      if (!p) throw malaPeticion('Preparación inexistente.');
+      const fotos = cmd.finalPhotos;
+      const refs = fotos ? [fotos.frontLeft, fotos.frontRight, fotos.rearLeft, fotos.rearRight] : [];
+      if (refs.length !== 4 || refs.some((x) => !x.startsWith('foto:'))) {
+        throw malaPeticion('Las cuatro fotos finales tienen que estar subidas antes de terminar.');
+      }
+    }
     const antes = this.estadoActual;
     const despues = applyCommand(antes, cmd);
 
