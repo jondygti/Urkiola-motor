@@ -6,6 +6,7 @@ import { can } from '@/data/selectors';
 import { locationLabel, vehicleRef } from '@/data/format';
 import type { FinalPreparationPhotos, Preparation } from '@/data/types';
 import { capturarYSubir, type FotoTomada } from '@/features/actions/photos';
+import { descartarFotoPendiente } from '@/data/photoQueue';
 import {
   DestinationFields,
   destinationLabel,
@@ -84,7 +85,11 @@ export function FinishPrepModal({
     setTomando(key);
     try {
       const foto = await capturarYSubir('camera');
-      if (foto) setFotos((actuales) => ({ ...actuales, [key]: foto }));
+      if (foto) {
+        const anterior = fotos[key];
+        if (anterior && !anterior.subida) void descartarFotoPendiente(anterior.ref);
+        setFotos((actuales) => ({ ...actuales, [key]: foto }));
+      }
     } finally {
       setTomando(null);
     }
