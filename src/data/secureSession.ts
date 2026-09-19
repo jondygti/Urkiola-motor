@@ -12,7 +12,14 @@ const SECURE_TOKEN_KEY = `urkiola.api.token.${safeServer}`;
 export async function leerTokenSeguro(): Promise<string | null> {
   if (Platform.OS === 'web') return AsyncStorage.getItem(LEGACY_API_TOKEN_KEY);
   const SecureStore = await import('expo-secure-store');
-  return SecureStore.getItemAsync(SECURE_TOKEN_KEY);
+  const seguro = await SecureStore.getItemAsync(SECURE_TOKEN_KEY);
+  if (seguro) return seguro;
+  // Migración automática desde la versión que guardaba el JWT en AsyncStorage.
+  const antiguo = await AsyncStorage.getItem(LEGACY_API_TOKEN_KEY);
+  if (!antiguo) return null;
+  await SecureStore.setItemAsync(SECURE_TOKEN_KEY, antiguo);
+  await AsyncStorage.removeItem(LEGACY_API_TOKEN_KEY);
+  return antiguo;
 }
 
 export async function guardarTokenSeguro(token: string): Promise<void> {
