@@ -189,3 +189,30 @@ test('/health devuelve 500 si el almacenamiento esencial deja de responder', asy
   const res = await fetch(`http://127.0.0.1:${port}/health`);
   assert.equal(res.status, 500);
 });
+
+
+test('el límite por IP no se esquiva falsificando el primer X-Forwarded-For', async (t) => {
+  const p = await servidorDePruebas();
+  const servidor = crearServidor(p.servicio, p.config);
+  await new Promise<void>((resolve) => servidor.listen(0, '127.0.0.1', resolve));
+  t.after(async () => {
+    await new Promise<void>((resolve) => servidor.close(() => resolve()));
+    await p.limpiar();
+  });
+  const port = (servidor.address() as AddressInfo).port;
+  let ultimo = 0;
+  for (let i = 0; i <= 60; i++) {
+    const res = await fetch(`http://127.0.0.1:${port}/auth/olvidada`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // Cada cliente inventa un primer salto diferente; el proxy de
+        // confianza conserva como último la dirección real.
+        'X-Forwarded-For': `203.0.113.${i % 250}, 198.51.100.77`,
+      },
+      body: JSON.stringify({ email: `nadie-${i}@example.invalid` }),
+    });
+    ultimo = res.status;
+  }
+  assert.equal(ultimo, 429);
+});
