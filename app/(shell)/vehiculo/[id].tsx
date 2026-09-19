@@ -33,6 +33,7 @@ import { UbicacionLlaves } from '@/features/actions/UbicacionLlaves';
 import { DateField } from '@/features/common/DateField';
 import { IfCan, ScreenGuard, usePerms } from '@/features/common/Guard';
 import { ComercialVehiculo } from '@/features/actions/ComercialVehiculo';
+import { ClasificacionComercial } from '@/features/actions/ClasificacionComercial';
 import { EntregarVehiculo } from '@/features/actions/EntregarVehiculo';
 import { IncidentStatusPill, SituationPill, TypePill, RequestStatusPill } from '@/features/common/bits';
 
@@ -110,6 +111,7 @@ export default function VehicleScreen() {
         <Panel title="🚗 Identificación">
           <Detail label="Tipo" value={<TypePill type={vehicle.type} />} />
           <Detail label="Situación" value={<SituationPill situation={vehicle.situation} />} />
+          <ClasificacionComercial vehicle={vehicle} onDone={setToast} />
           <ComercialVehiculo vehicle={vehicle} onDone={setToast} />
           <UbicacionLlaves vehicle={vehicle} />
           <Detail label="Estado logístico" value={vehicle.logisticActive ? 'Activo' : 'Solo parque Quiter'} />
