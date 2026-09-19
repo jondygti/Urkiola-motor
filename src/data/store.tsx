@@ -67,7 +67,9 @@ const TOKEN_KEY = 'urkiola.token.v1';
 // el repaso, y no habría objetivo de tiempo para él.
 // 20: lecturas por usuario y caché/cola separadas por servidor y cuenta.
 // 21: cancelaciones, llaves y zona opcional de recepción; conserva datos v20.
-const STATE_SCHEMA_VERSION = 21;
+// 22: el requisito Fotos pasa a ser un reportaje final obligatorio de cuatro
+// diagonales y la preparación conserva esas evidencias.
+const STATE_SCHEMA_VERSION = 22;
 
 interface StoredState {
   v: number;
