@@ -15,6 +15,7 @@ import { PrepStatePill } from '@/features/common/bits';
 import { usePerms } from '@/features/common/Guard';
 import { FinishPrepModal } from './FinishPrep';
 import { CampanaCheck } from './CampanaCheck';
+import { Fotos } from '@/features/actions/CampoFotos';
 
 const STATE_LABEL: Record<CheckState, string> = {
   completado: '✅ Completado',
@@ -128,6 +129,27 @@ export function PrepPanel({
             <CampanaCheck key={item.requirementId} estado={item.state} disabled={bloqueado}
               onChange={(next) => setItemState(item.requirementId, next)} />
           );
+          if (item.requirementId === 'req-fotos') return (
+            <View
+              key={item.requirementId}
+              style={{
+                backgroundColor: item.state === 'completado' ? c.checkDoneBg : c.checkPendingBg,
+                borderWidth: 1,
+                borderColor: item.state === 'completado' ? c.checkDoneBorder : c.checkPendingBorder,
+                borderRadius: radius.md,
+                padding: 10,
+              }}
+            >
+              <Text style={{ fontSize: tipografia.body, color: c.text, fontWeight: '600' }}>
+                {item.state === 'completado' ? '✅' : '📷'} {item.label}
+              </Text>
+              <Text style={{ fontSize: tipografia.micro, color: c.textMuted, marginTop: 3 }}>
+                {item.state === 'completado'
+                  ? `${item.by ?? '—'}${item.at ? ` · ${new Date(item.at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}` : ''}`
+                  : 'Se completa al finalizar con las cuatro diagonales del vehículo.'}
+              </Text>
+            </View>
+          );
           return (
             <View
               key={item.requirementId}
@@ -187,6 +209,19 @@ export function PrepPanel({
           );
         })}
       </View>
+
+      {prep.finalPhotos ? (
+        <>
+          <Spacer h={space.md} />
+          <Muted>Reportaje final · 4 diagonales</Muted>
+          <Fotos refs={[
+            prep.finalPhotos.frontLeft,
+            prep.finalPhotos.frontRight,
+            prep.finalPhotos.rearLeft,
+            prep.finalPhotos.rearRight,
+          ]} />
+        </>
+      ) : null}
 
       <Toolbar>
         {!puedeEjecutar ? (
