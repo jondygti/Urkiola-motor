@@ -142,8 +142,10 @@ async function main() {
         `${resumen.movimientos} movimientos, ${resumen.solicitudes} solicitudes.`
     );
     if (faltan.length) {
-      console.warn(`\n⚠ Faltan ${faltan.length} fotos que el histórico menciona: ${faltan.slice(0, 5).join(', ')}`);
-      console.warn('  La copia vale igual, pero esas fotos ya no están. Míralo.');
+      throw new Error(
+        `La copia NO está completa: faltan ${faltan.length} fotos que el histórico menciona: ` +
+        faltan.slice(0, 5).join(', ')
+      );
     }
     console.log('\n  Guárdala FUERA del servidor. Una copia que vive en el mismo sitio');
     console.log('  que los datos no es una copia: es el mismo fichero dos veces.');
