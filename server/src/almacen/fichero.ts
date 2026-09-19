@@ -70,6 +70,10 @@ export class AlmacenFichero implements Almacen {
     return { estado: this.datos.estado, comandosDesdeFoto: this.datos.comandos };
   }
 
+  async salud() {
+    await this.escribiendo;
+  }
+
   async yaAplicado(id: Id) {
     return this.aplicados.has(id);
   }
