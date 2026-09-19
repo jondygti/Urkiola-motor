@@ -6,7 +6,7 @@ import { applyCommand, type Command } from '../../src/data/commands';
 import type { AppState, Preparation } from '../../src/data/types';
 import { comprobarPermiso } from '../src/permisos';
 import { leerConfig } from '../src/config';
-import { fotosReferenciadas } from '../src/copia-nucleo';
+import { fotosReferenciadas, problemasDeLaCopia, type ResumenCopia } from '../src/copia-nucleo';
 import { crearServidor } from '../src/http';
 import { servidorDePruebas, CLAVE } from './ayuda';
 
@@ -215,4 +215,24 @@ test('el límite por IP no se esquiva falsificando el primer X-Forwarded-For', a
     ultimo = res.status;
   }
   assert.equal(ultimo, 429);
+});
+
+
+test('una copia con evidencia fotográfica ausente se considera inválida', () => {
+  const resumen: ResumenCopia = {
+    fecha: new Date().toISOString(),
+    comandos: 1,
+    credenciales: 1,
+    fotos: 3,
+    bytesFotos: 100,
+    vehiculos: 1,
+    movimientos: 0,
+    solicitudes: 0,
+    preparaciones: 1,
+    fotosReferenciadas: 4,
+    fotosQueFaltan: ['foto-que-falta.jpg'],
+    semilla: 'vacia',
+    fotosEn: 'copia-externa',
+  };
+  assert.match(problemasDeLaCopia(resumen, resumen).join('\n'), /Faltan 1 fotos/i);
 });
