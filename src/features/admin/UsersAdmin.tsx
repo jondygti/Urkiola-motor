@@ -169,6 +169,8 @@ function UserModal({ user, onClose, onDone }: { user: User; onClose: () => void;
   const [siteIds, setSiteIds] = useState<string[]>(user.siteIds);
   const [active, setActive] = useState(user.active);
   const [carrierId, setCarrierId] = useState<string | null>(user.carrierId ?? null);
+  const [managerId, setManagerId] = useState<string | null>(user.managerId ?? null);
+  const [managedBrands, setManagedBrands] = useState((user.managedBrands ?? []).join(', '));
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -183,9 +185,20 @@ function UserModal({ user, onClose, onDone }: { user: User; onClose: () => void;
       return setError('Ya hay otro usuario con ese correo.');
     }
     const id = isNew ? `u-${slug(cleanName)}-${Date.now().toString(36).slice(-4)}` : user.id;
+    const marcas = [...new Set(managedBrands.split(',').map((x) => x.trim()).filter(Boolean))];
     run({
       type: 'user.upsert',
-      user: { id, name: cleanName, email: cleanEmail, role, siteIds, active, carrierId },
+      user: {
+        id,
+        name: cleanName,
+        email: cleanEmail,
+        role,
+        siteIds,
+        active,
+        carrierId: state.config.roles.find((r) => r.id === role)?.permissions.includes('traslados.propios') ? carrierId : null,
+        managerId: role === 'comercial' ? managerId : null,
+        managedBrands: role === 'director_comercial' ? marcas : [],
+      },
     });
     onDone(isNew ? `${cleanName} dado de alta.` : `${cleanName} actualizado.`);
     onClose();
@@ -253,7 +266,45 @@ function UserModal({ user, onClose, onDone }: { user: User; onClose: () => void;
           </Field>
         ) : null}
 
-        <Field label="Sedes" hint="Sin marcar ninguna, ve todas las sedes.">
+        {role === 'director_comercial' ? (
+          <Field
+            label="Marcas que dirige"
+            hint="Separadas por comas. Se aplican al stock VN/KM0/demo; los VO de sus comerciales también quedan en su ámbito."
+          >
+            <Input
+              value={managedBrands}
+              onChangeText={setManagedBrands}
+              placeholder="Ej.: Peugeot, Citroën, Opel"
+            />
+          </Field>
+        ) : null}
+
+        {role === 'comercial' ? (
+          <Field
+            label="Responsable comercial"
+            hint="Permite que su director vea también los VO que este comercial tenga asignados."
+          >
+            <Select
+              full
+              value={managerId}
+              onChange={setManagerId}
+              placeholder="Sin responsable asignado"
+              options={state.users
+                .filter((u) => u.active && (u.role === 'director_comercial' || u.role === 'responsable_vo'))
+                .map((u) => ({ value: u.id, label: u.name, hint: roleLabel(state, u.role) }))}
+              title="Responsable comercial"
+            />
+          </Field>
+        ) : null}
+
+        <Field
+          label="Sedes"
+          hint={
+            role === 'director_comercial' || role === 'responsable_vo'
+              ? 'El ámbito comercial limita los coches aunque no marques sedes.'
+              : 'Sin marcar ninguna, ve todas las sedes.'
+          }
+        >
           {state.sites.map((s) => (
             <Checkbox
               key={s.id}
