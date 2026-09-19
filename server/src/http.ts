@@ -247,6 +247,7 @@ async function enrutar(
 
 
   if (ruta === '/health' && metodo === 'GET') {
+    await servicio.salud();
     return { codigo: 200, cuerpo: { ok: true } };
   }
 
