@@ -131,7 +131,24 @@ export const USERS: User[] = [
   { id: 'u-iker', name: 'Iker Solano', role: 'transportista', siteIds: [], email: 'transporte@urkiolacarservice.com', active: true, carrierId: 'gruas-francis' },
   { id: 'u-aitor', name: 'Aitor Bengoa', role: 'transportista', siteIds: [], email: 'betigoiz@urkiolacarservice.com', active: true, carrierId: 'gruas-betigoiz' },
   { id: 'u-nerea', name: 'Nerea Goiri', role: 'recepcion', siteIds: ['sondika'], email: 'recepcion@urkiolacarservice.com', active: true },
-  { id: 'u-juan', name: 'Juan Bilbao', role: 'comercial', siteIds: ['leioa'], email: 'juan@urkiolacarservice.com', active: true },
+  {
+    id: 'u-dir-vn',
+    name: 'Dirección VN',
+    role: 'director_comercial',
+    siteIds: [],
+    email: 'direccion.vn@urkiolacarservice.com',
+    active: true,
+    managedBrands: ['BMW', 'MINI'],
+  },
+  {
+    id: 'u-resp-vo',
+    name: 'Responsable VO',
+    role: 'responsable_vo',
+    siteIds: [],
+    email: 'responsable.vo@urkiolacarservice.com',
+    active: true,
+  },
+  { id: 'u-juan', name: 'Juan Bilbao', role: 'comercial', siteIds: ['leioa'], email: 'juan@urkiolacarservice.com', active: true, managerId: 'u-dir-vn' },
 ];
 
 /* ------------------------------------------------------- roles y permisos */
@@ -211,6 +228,20 @@ export const ROLES: RoleConfig[] = [
     ],
     // En el móvil entra directo a la descarga del camión.
     mobileSections: ['/mi-recepcion', '/mover', '/recuentos', '/flota'],
+    builtin: true,
+  },
+  {
+    id: 'director_comercial',
+    label: 'Director comercial',
+    permissions: ['flota.ver', 'solicitudes.crear', 'entregas.gestionar'],
+    mobileSections: ['/flota', '/entregas'],
+    builtin: true,
+  },
+  {
+    id: 'responsable_vo',
+    label: 'Responsable VO',
+    permissions: ['flota.ver', 'solicitudes.crear', 'entregas.gestionar'],
+    mobileSections: ['/flota', '/entregas'],
     builtin: true,
   },
   {
@@ -384,6 +415,16 @@ function makeVehicle(partial: Partial<Vehicle>): Vehicle {
   const entry = pick(CATALOG);
   const type = partial.type ?? entry.type;
   const vin8 = partial.vin8 ?? randomVin8();
+  const salesRep = partial.salesRep !== undefined ? partial.salesRep : chance(0.6) ? pick(SALES_REPS) : null;
+  const coincidentes = salesRep
+    ? USERS.filter((u) => u.active && u.role === 'comercial' && (
+        u.name.trim().toLowerCase() === salesRep.trim().toLowerCase() ||
+        u.name.trim().toLowerCase().startsWith(`${salesRep.trim().toLowerCase()} `)
+      ))
+    : [];
+  const salesRepId = partial.salesRepId !== undefined
+    ? partial.salesRepId
+    : coincidentes.length === 1 ? coincidentes[0].id : null;
   return {
     id: partial.id ?? `v-${vin8}`,
     vin8,
@@ -393,7 +434,10 @@ function makeVehicle(partial: Partial<Vehicle>): Vehicle {
     model: partial.model ?? pick(entry.models),
     type,
     situation: partial.situation ?? (chance(0.45) ? 'pedido' : 'stock'),
-    salesRep: partial.salesRep !== undefined ? partial.salesRep : chance(0.6) ? pick(SALES_REPS) : null,
+    commercialArea: partial.commercialArea ?? (type === 'VO' ? 'vo' : 'vn'),
+    commercialCategory: partial.commercialCategory ?? (type === 'VO' ? 'VO' : 'VN'),
+    salesRep,
+    salesRepId,
     origin: partial.origin ?? 'Camión · recepción',
     logisticActive: partial.logisticActive ?? true,
     location: partial.location ?? null,
