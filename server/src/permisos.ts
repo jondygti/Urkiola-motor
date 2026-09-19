@@ -76,7 +76,20 @@ function necesitaLlavesPreparadas(s: AppState, requestId: Id): boolean {
  */
 function cochePropioDeComercial(s: AppState, u: User, vehicleId: Id): boolean {
   const v = s.vehicles.find((x) => x.id === vehicleId);
-  return !!v?.salesRep && v.salesRep.trim().toLowerCase() === u.name.trim().toLowerCase();
+  if (!v?.salesRep) return false;
+  const rep = v.salesRep.trim().toLowerCase();
+  const nombre = u.name.trim().toLowerCase();
+  if (rep === nombre) return true;
+
+  // Compatibilidad con datos históricos/Quiter que guardaban solo el nombre
+  // de pila. Solo se acepta si identifica de forma unívoca a un comercial
+  // activo; dos «Juan» nunca deben compartir coches por accidente.
+  const primero = nombre.split(/\s+/)[0];
+  if (rep !== primero) return false;
+  const coincidentes = s.users.filter(
+    (x) => x.active && x.role === 'comercial' && x.name.trim().toLowerCase().split(/\s+/)[0] === primero
+  );
+  return coincidentes.length === 1 && coincidentes[0].id === u.id;
 }
 
 function puedePedirTraslado(s: AppState, u: User, cmd: Extract<Command, { type: 'request.create' }>): boolean {
@@ -84,12 +97,17 @@ function puedePedirTraslado(s: AppState, u: User, cmd: Extract<Command, { type: 
   const v = s.vehicles.find((x) => x.id === cmd.vehicleId);
   if (!v) return false;
   const destino = cmd.to?.siteId ?? cmd.siteId;
-  if (!u.siteIds.includes(destino)) return false;
-
   const origen = v.location?.siteId ?? v.targetSiteId;
+  const propio = cochePropioDeComercial(s, u, v.id);
+
+  // Un comercial puede pedir que SU coche vaya a otra sede de la red. Para
+  // coches ajenos, tanto el origen/destino como el stock central se ciñen a
+  // su ámbito.
+  if (propio) return true;
+  if (!u.siteIds.includes(destino)) return false;
   const enSuAmbito = !!origen && u.siteIds.includes(origen);
   const stockCentral = origen === 'sondika' && tiene(s, u, 'flota.asignarse');
-  return enSuAmbito || stockCentral || cochePropioDeComercial(s, u, v.id);
+  return enSuAmbito || stockCentral;
 }
 
 function puedeEditarLlaves(s: AppState, u: User, vehicleId: Id): boolean {
