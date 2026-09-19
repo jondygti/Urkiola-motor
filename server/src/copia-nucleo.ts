@@ -89,7 +89,7 @@ export function resumirCopia(entrada: {
   bytesFotos: number;
   semilla: 'demo' | 'vacia';
   fotosEn: string;
-  /** Con las fotos en Supabase, de copiarlas se encarga el proveedor. */
+  /** Compatibilidad con copias antiguas que no incluían objetos de Storage. */
   fotosFuera?: boolean;
   fecha?: string;
 }): ResumenCopia {
@@ -140,6 +140,10 @@ export function problemasDeLaCopia(guardado: ResumenCopia, rehecho: ResumenCopia
       `Al rehacerla salen ${rehecho.vehiculos} vehículos y la copia decía ${guardado.vehiculos}: ` +
         'las reglas de negocio han cambiado desde que se hizo.'
     );
+  }
+  if (guardado.fotosQueFaltan.length || rehecho.fotosQueFaltan.length) {
+    const faltan = [...new Set([...guardado.fotosQueFaltan, ...rehecho.fotosQueFaltan])];
+    malo.push(`Faltan ${faltan.length} fotos referenciadas en la copia: ${faltan.slice(0, 5).join(', ')}`);
   }
   return malo;
 }
