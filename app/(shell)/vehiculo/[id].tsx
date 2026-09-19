@@ -13,6 +13,8 @@ import {
   vehicleById,
   vehicleByRef,
   vehicleTimeline,
+  esGestorComercial,
+  vehiculoEnAmbitoComercial,
 } from '@/data/selectors';
 import {
   formatDate,
@@ -49,7 +51,11 @@ export default function VehicleScreen() {
   // Por id interno o por lo que la gente tiene a mano: la matrícula o los
   // ocho últimos del bastidor. Así un enlace pegado en un mensaje
   // (/vehiculo/1234ABC) abre la ficha en vez de decir que no existe.
-  const vehicle = vehicleById(state, id) ?? vehicleByRef(state, id ?? '');
+  const encontrado = vehicleById(state, id) ?? vehicleByRef(state, id ?? '');
+  const vehicle =
+    encontrado && (!esGestorComercial(user) || vehiculoEnAmbitoComercial(state, user, encontrado))
+      ? encontrado
+      : undefined;
 
   if (!vehicle) {
     return (
