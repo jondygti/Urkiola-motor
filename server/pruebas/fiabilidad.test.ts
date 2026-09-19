@@ -9,6 +9,13 @@ import { comprobarPermiso } from '../src/permisos';
 import { cmd, servidorDePruebas } from './ayuda';
 import type { AppState, NotificationEvent } from '../../src/data/types';
 
+const FOTOS_FINAL = {
+  frontLeft: 'foto:final-fl.jpg',
+  frontRight: 'foto:final-fr.jpg',
+  rearLeft: 'foto:final-rl.jpg',
+  rearRight: 'foto:final-rr.jpg',
+} as const;
+
 /** Dos coches sin observaciones recientes, con dos plazas conocidas. */
 function campa() {
   const seed = buildSeedState();
