@@ -194,6 +194,12 @@ export function validarComando(cuerpo: unknown, userId: string, ahora = Date.now
       (typeof c.salesRepUserId !== 'string' || !c.salesRepUserId.trim())) {
     throw malaPeticion('El usuario comercial indicado no es válido.');
   }
+  if (c.type === 'vehicle.setCommercial') {
+    if (!['vn', 'vo'].includes(String(c.commercialArea))) throw malaPeticion('Área comercial no válida.');
+    if (!['VN', 'KM0', 'DEMO', 'VO'].includes(String(c.commercialCategory))) {
+      throw malaPeticion('Categoría comercial no válida.');
+    }
+  }
   if (c.type === 'vehicle.create') {
     if (c.commercialArea !== undefined && !['vn', 'vo'].includes(String(c.commercialArea))) {
       throw malaPeticion('Área comercial no válida.');
