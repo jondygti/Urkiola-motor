@@ -1309,6 +1309,8 @@ function aplicar(state: AppState, cmd: Command): AppState {
           // Nunca antes de haber empezado: un móvil con la hora mal puesta
           // registraría una preparación que dura menos de cero.
           finishedAt: p.startedAt && cmd.at < p.startedAt ? p.startedAt : cmd.at,
+          finalPhotos: finales,
+          damageIncidentId: descripcionDano ? `inc-${cmd.id}-damage` : null,
         }),
         vehicles: replace(base.vehicles, p.vehicleId, { status: 'apto_entrega' }),
       };
