@@ -1,6 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
 import { api, apiEnabled } from '@/data/api';
+import { registrarFotoPendiente } from '@/data/photoQueue';
 
 /**
  * Toma una foto con la cámara o la elige de la galería.
@@ -54,8 +55,15 @@ export async function capturarYSubir(source: 'camera' | 'library' = 'camera'): P
     const ref = await api.subirFoto(uri);
     return { ref, vistaPrevia: uri, subida: true };
   } catch {
-    // Sin cobertura o servidor caído: se guarda la ruta local para no
-    // perder la foto, pero se avisa de que solo la ve este móvil.
-    return { ref: uri, vistaPrevia: uri, subida: false };
+    // Sin cobertura: se copia al espacio privado y duradero de la app. El
+    // sincronizador la subirá antes de enviar el comando que la referencia.
+    try {
+      const ref = await registrarFotoPendiente(uri);
+      return { ref, vistaPrevia: ref, subida: false };
+    } catch {
+      // Si ni siquiera podemos conservarla de forma duradera (disco lleno,
+      // permiso roto…), no fingimos que está guardada.
+      return null;
+    }
   }
 }

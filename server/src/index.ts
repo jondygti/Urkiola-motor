@@ -62,7 +62,7 @@ async function main() {
 
   const barrer = () => { void servicio.barrerAvisos().catch((e) => console.error('No se han podido revisar los avisos:', e)); };
   barrer();
-  const reloj = setInterval(barrer, 60_000);
+  const reloj = setInterval(barrer, 60 * 60_000);
   reloj.unref();
 
   servidor.listen(config.puerto, () => {

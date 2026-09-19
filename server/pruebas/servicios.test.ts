@@ -4,6 +4,13 @@ import { applyCommand, type Command } from '../../src/data/commands';
 import { buildSeedState } from '../../src/data/seed';
 import { comprobarPermiso } from '../src/permisos';
 
+const FOTOS_FINAL = {
+  frontLeft: 'foto:final-fl.jpg',
+  frontRight: 'foto:final-fr.jpg',
+  rearLeft: 'foto:final-rl.jpg',
+  rearRight: 'foto:final-rr.jpg',
+} as const;
+
 for (const tipo of ['entrada', 'repaso'] as const) {
   test(`abrir y terminar ${tipo} no altera la solicitud del otro servicio`, () => {
     let state = buildSeedState();
@@ -24,7 +31,7 @@ for (const tipo of ['entrada', 'repaso'] as const) {
     const prep = state.preparations[0];
     assert.equal(prep.tipo, tipo);
     assert.equal(prep.items.some(i => i.requirementId === 'req-repaso-ext'), tipo === 'repaso');
-    const terminar = orden({ type: 'prep.finish', prepId: prep.id });
+    const terminar = orden({ type: 'prep.finish', finalPhotos: FOTOS_FINAL, prepId: prep.id });
     state = applyCommand(state, terminar);
     assert.equal(state.requests.find(r => r.id === propia.id)?.status, 'terminada');
     assert.deepEqual(state.requests.find(r => r.id === otra.id), otra);

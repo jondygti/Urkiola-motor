@@ -6,6 +6,13 @@ import { validarComando } from '../src/validar';
 import { comprobarPermiso } from '../src/permisos';
 import type { AppState } from '../../src/data/types';
 
+const FOTOS_FINAL = {
+  frontLeft: 'foto:final-fl.jpg',
+  frontRight: 'foto:final-fr.jpg',
+  rearLeft: 'foto:final-rl.jpg',
+  rearRight: 'foto:final-rr.jpg',
+} as const;
+
 const hora = (min: number) => new Date(Date.UTC(2026, 8, 13, 10, min)).toISOString();
 let n = 0;
 function aplicar(s: AppState, min: number, datos: object) {
@@ -35,7 +42,7 @@ test('cambiar el motivo de espera no borra el tiempo esperando', () => {
 test('terminar durante una espera conserva los minutos de espera', () => {
   let s = trabajo(); const prepId = s.preparations[0].id;
   s = aplicar(s, 10, { type: 'prep.pause', prepId, reason: 'Piezas' });
-  s = aplicar(s, 30, { type: 'prep.finish', prepId });
+  s = aplicar(s, 30, { type: 'prep.finish', finalPhotos: FOTOS_FINAL, prepId });
   assert.equal(s.preparations[0].waitingMs, 20 * 60000);
 });
 test('una pausa atrasada no deshace una reanudación posterior', () => {
@@ -47,7 +54,7 @@ test('una pausa atrasada no deshace una reanudación posterior', () => {
 });
 test('una pausa o un check atrasado no reabre un servicio terminado', () => {
   let s = trabajo(); const prepId = s.preparations[0].id;
-  s = aplicar(s, 30, { type: 'prep.finish', prepId });
+  s = aplicar(s, 30, { type: 'prep.finish', finalPhotos: FOTOS_FINAL, prepId });
   assert.deepEqual(aplicar(s, 20, { type: 'prep.pause', prepId, reason: 'Piezas' }), s);
   assert.deepEqual(aplicar(s, 20, { type: 'prep.item', prepId,
     requirementId: s.preparations[0].items[0].requirementId, state: 'pendiente' }), s);

@@ -70,6 +70,58 @@ function necesitaLlavesPreparadas(s: AppState, requestId: Id): boolean {
 }
 
 /**
+ * Excepciones deliberadas al reparto por sedes, expresadas aquí y no como
+ * un «undefined» genérico. Evita que quien tiene una sede pueda operar por
+ * API sobre cualquier coche de la red solo porque la pantalla no lo ofrece.
+ */
+function cochePropioDeComercial(s: AppState, u: User, vehicleId: Id): boolean {
+  const v = s.vehicles.find((x) => x.id === vehicleId);
+  if (!v?.salesRep) return false;
+  const rep = v.salesRep.trim().toLowerCase();
+  const nombre = u.name.trim().toLowerCase();
+  if (rep === nombre) return true;
+
+  // Compatibilidad con datos históricos/Quiter que guardaban solo el nombre
+  // de pila. Solo se acepta si identifica de forma unívoca a un comercial
+  // activo; dos «Juan» nunca deben compartir coches por accidente.
+  const primero = nombre.split(/\s+/)[0];
+  if (rep !== primero) return false;
+  const coincidentes = s.users.filter(
+    (x) => x.active && x.role === 'comercial' && x.name.trim().toLowerCase().split(/\s+/)[0] === primero
+  );
+  return coincidentes.length === 1 && coincidentes[0].id === u.id;
+}
+
+function puedePedirTraslado(s: AppState, u: User, cmd: Extract<Command, { type: 'request.create' }>): boolean {
+  if (cmd.requestType !== 'traslado' || u.siteIds.length === 0) return true;
+  const v = s.vehicles.find((x) => x.id === cmd.vehicleId);
+  if (!v) return false;
+  const destino = cmd.to?.siteId ?? cmd.siteId;
+  const origen = v.location?.siteId ?? v.targetSiteId;
+  const propio = cochePropioDeComercial(s, u, v.id);
+
+  // Un comercial puede pedir que SU coche vaya a otra sede de la red. Para
+  // coches ajenos, tanto el origen/destino como el stock central se ciñen a
+  // su ámbito.
+  if (propio) return true;
+  if (!u.siteIds.includes(destino)) return false;
+  const enSuAmbito = !!origen && u.siteIds.includes(origen);
+  const stockCentral = origen === 'sondika' && tiene(s, u, 'flota.asignarse');
+  return enSuAmbito || stockCentral;
+}
+
+function puedeEditarLlaves(s: AppState, u: User, vehicleId: Id): boolean {
+  if (u.siteIds.length === 0) return true;
+  const v = s.vehicles.find((x) => x.id === vehicleId);
+  if (!v) return false;
+  return (
+    (!!v.location?.siteId && u.siteIds.includes(v.location.siteId)) ||
+    (!!v.targetSiteId && u.siteIds.includes(v.targetSiteId)) ||
+    cochePropioDeComercial(s, u, vehicleId)
+  );
+}
+
+/**
  * Sede a la que afecta el comando, para comprobar el reparto por sedes.
  * Devuelve `undefined` cuando el comando no va contra ninguna en concreto.
  */
@@ -203,10 +255,17 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
     }
 
     case 'vehicle.setKeys':
-      return tiene(s, u, 'flota.editar') || tiene(s, u, 'movimientos.registrar') ? null : 'No puedes editar la ubicación de llaves.';
+      if (!(tiene(s, u, 'flota.editar') || tiene(s, u, 'movimientos.registrar'))) {
+        return 'No puedes editar la ubicación de llaves.';
+      }
+      return puedeEditarLlaves(s, u, cmd.vehicleId) ? null : 'Ese vehículo no está dentro de tu ámbito para editar llaves.';
 
     case 'request.create':
-      return tiene(s, u, 'solicitudes.crear') ? null : 'No puedes crear solicitudes.';
+      if (!tiene(s, u, 'solicitudes.crear')) return 'No puedes crear solicitudes.';
+      if (cmd.requestType === 'traslado' && !puedePedirTraslado(s, u, cmd)) {
+        return 'No puedes solicitar ese traslado: el vehículo o el destino están fuera de tu ámbito.';
+      }
+      return null;
 
     case 'request.update': {
       const r = s.requests.find((x) => x.id === cmd.requestId);

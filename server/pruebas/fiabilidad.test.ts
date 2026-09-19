@@ -9,6 +9,13 @@ import { comprobarPermiso } from '../src/permisos';
 import { cmd, servidorDePruebas } from './ayuda';
 import type { AppState, NotificationEvent } from '../../src/data/types';
 
+const FOTOS_FINAL = {
+  frontLeft: 'foto:final-fl.jpg',
+  frontRight: 'foto:final-fr.jpg',
+  rearLeft: 'foto:final-rl.jpg',
+  rearRight: 'foto:final-rr.jpg',
+} as const;
+
 /** Dos coches sin observaciones recientes, con dos plazas conocidas. */
 function campa() {
   const seed = buildSeedState();
@@ -174,7 +181,19 @@ test('el reloj del servidor prepara el repaso del día sin abrir un cliente y no
   const abrir = cmd('prep.create', { vehicleId: id, siteId: 'leioa' });
   await servicio.ejecutar(abrir, admin);
   const preparador = servicio.estado.users.find((u) => u.role === 'preparador')!;
-  await servicio.ejecutar(cmd('prep.finish', { prepId: idCreadoPor('prep', abrir) }), preparador);
+  const ids: string[] = [];
+  for (let i = 0; i < 4; i++) {
+    ids.push(await servicio.guardarFoto(Buffer.from([137, 80, 78, 71, i]), 'image/png'));
+  }
+  await servicio.ejecutar(cmd('prep.finish', {
+    prepId: idCreadoPor('prep', abrir),
+    finalPhotos: {
+      frontLeft: `foto:${ids[0]}`,
+      frontRight: `foto:${ids[1]}`,
+      rearLeft: `foto:${ids[2]}`,
+      rearRight: `foto:${ids[3]}`,
+    },
+  }), preparador);
   await servicio.barrerAvisos(hoy);
   await servicio.barrerAvisos(hoy);
   assert.equal(servicio.estado.requests.filter((r) => r.vehicleId === id && r.prepTipo === 'repaso').length, 1);

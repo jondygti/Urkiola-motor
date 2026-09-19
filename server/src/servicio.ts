@@ -157,6 +157,9 @@ export class Servicio {
     const { config } = this;
 
     if (config.adminEmail && config.adminPassword) {
+      // El primer acceso también cumple la política; una contraseña débil en
+      // una variable de Render no debe crear una puerta trasera inicial.
+      comprobarFortaleza(config.adminPassword);
       const existente = this.estadoActual.users.find(
         (u) => u.email.toLowerCase() === config.adminEmail.toLowerCase()
       );
@@ -333,7 +336,9 @@ export class Servicio {
     const persona = this.estadoActual.users.find((u) => u.active &&
       !esColaboradorExterno(this.estadoActual, u));
     if (!persona) return;
-    await this.ejecutar({ type: 'alerts.sweep', id: `reloj-${at.slice(0, 16)}`, at, userId: persona.id }, persona);
+    // Un barrido por hora es suficiente para umbrales de 24/72 h y evita
+    // llenar el histórico con 60 comandos idénticos cada hora.
+    await this.ejecutar({ type: 'alerts.sweep', id: `reloj-${at.slice(0, 13)}`, at, userId: persona.id }, persona);
   }
 
   private async ejecutarEnSerie(cuerpo: unknown, user: User): Promise<{ repetido: boolean }> {
@@ -366,6 +371,29 @@ export class Servicio {
       if (conflicto) throw malaPeticion(conflicto);
       if (cmd.carrierId && !this.estadoActual.carriers.some(c => c.id === cmd.carrierId && c.active)) throw malaPeticion('Empresa de transporte no válida.');
     }
+    const comprobarFotosSubidas = async (refs: string[]) => {
+      for (const ref of refs) {
+        if (!ref.startsWith('foto:')) {
+          throw malaPeticion('La evidencia fotográfica tiene que estar subida al servidor.');
+        }
+        const id = ref.slice('foto:'.length);
+        if (!id || !(await this.fotos.leer(id))) {
+          throw malaPeticion('Falta una foto en el almacenamiento. Vuelve a subirla antes de continuar.');
+        }
+      }
+    };
+
+    if (cmd.type === 'prep.finish') {
+      const p = this.estadoActual.preparations.find((x) => x.id === cmd.prepId);
+      if (!p) throw malaPeticion('Preparación inexistente.');
+      const fotos = cmd.finalPhotos;
+      const refs = fotos ? [fotos.frontLeft, fotos.frontRight, fotos.rearLeft, fotos.rearRight] : [];
+      if (refs.length !== 4) throw malaPeticion('Para terminar hacen falta las cuatro fotos finales.');
+      await comprobarFotosSubidas(refs);
+    }
+    if (cmd.type === 'incident.create') await comprobarFotosSubidas(cmd.photos);
+    if (cmd.type === 'reception.line' && cmd.photos?.length) await comprobarFotosSubidas(cmd.photos);
+    if (cmd.type === 'reception.albaran') await comprobarFotosSubidas([cmd.uri]);
     const antes = this.estadoActual;
     const despues = applyCommand(antes, cmd);
 
@@ -386,6 +414,11 @@ export class Servicio {
     }
 
     return { repetido: false };
+  }
+
+  /** Render usa esto para no enviar tráfico a una instancia sin base de datos. */
+  async salud(): Promise<void> {
+    await this.almacen.salud();
   }
 
   /* ------------------------------------------- restablecer contraseña */

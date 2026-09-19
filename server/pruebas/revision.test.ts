@@ -18,6 +18,13 @@ import { revisar } from './invariantes';
 import { bandejaDe, misCoches } from '../../src/data/selectors';
 import type { AppState, Id } from '../../src/data/types';
 
+const FOTOS_FINAL = {
+  frontLeft: 'foto:final-fl.jpg',
+  frontRight: 'foto:final-fr.jpg',
+  rearLeft: 'foto:final-rl.jpg',
+  rearRight: 'foto:final-rr.jpg',
+} as const;
+
 let n = 0;
 const orden = (x: Record<string, unknown>): Command =>
   ({ id: `rev-${(n += 1)}`, at: new Date().toISOString(), userId: 'u-admin', ...x }) as Command;
@@ -246,7 +253,7 @@ test('una preparación no termina antes de haber empezado', () => {
   s = applyCommand(s, orden({ type: 'prep.start', prepId: prep.id }));
 
   const enElPasado = new Date(Date.now() - 3_600_000).toISOString();
-  s = applyCommand(s, { ...orden({ type: 'prep.finish', prepId: prep.id }), at: enElPasado } as Command);
+  s = applyCommand(s, { ...orden({ type: 'prep.finish', finalPhotos: FOTOS_FINAL, prepId: prep.id }), at: enElPasado } as Command);
 
   const fin = s.preparations.find((p) => p.id === prep.id)!;
   assert.ok(fin.finishedAt! >= fin.startedAt!, `${fin.finishedAt} no puede ser anterior a ${fin.startedAt}`);
@@ -355,7 +362,7 @@ test('el aviso de coche listo va al comercial de ese coche, no a todos', () => {
   s = aplicar(s, { type: 'prep.create', vehicleId: v.id, siteId: 'leioa' });
   const prep = s.preparations.find((p) => p.vehicleId === v.id)!;
   s = aplicar(s, { type: 'prep.start', prepId: prep.id });
-  s = aplicar(s, { type: 'prep.finish', prepId: prep.id });
+  s = aplicar(s, { type: 'prep.finish', finalPhotos: FOTOS_FINAL, prepId: prep.id });
 
   const nuevos = s.inbox.slice(0, s.inbox.length - antes);
   const listo = nuevos.find((n) => n.vehicleId === v.id && n.body.includes('listo'));
@@ -370,7 +377,7 @@ test('un coche sin comercial no genera un aviso que no va a leer nadie', () => {
   s = aplicar(s, { type: 'prep.create', vehicleId: v.id, siteId: 'leioa' });
   const prep = s.preparations.find((p) => p.vehicleId === v.id)!;
   s = aplicar(s, { type: 'prep.start', prepId: prep.id });
-  s = aplicar(s, { type: 'prep.finish', prepId: prep.id });
+  s = aplicar(s, { type: 'prep.finish', finalPhotos: FOTOS_FINAL, prepId: prep.id });
   const nuevos = s.inbox.slice(0, s.inbox.length - antes);
   assert.equal(
     nuevos.filter((n) => n.userIds && n.userIds.length === 0).length,

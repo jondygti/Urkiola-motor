@@ -17,6 +17,13 @@ import { revisar, type Problema } from './invariantes';
 import { buildSeedState } from '../../src/data/seed';
 import type { AppState, Id } from '../../src/data/types';
 
+const FOTOS_FINAL = {
+  frontLeft: 'foto:final-fl.jpg',
+  frontRight: 'foto:final-fr.jpg',
+  rearLeft: 'foto:final-rl.jpg',
+  rearRight: 'foto:final-rr.jpg',
+} as const;
+
 let n = 0;
 const orden = (input: CommandInput, at?: string): Command =>
   ({
@@ -153,7 +160,7 @@ function jornada(): { estado: AppState; guion: Command[] } {
     (p) => p.zoneId === zonaLeioa.id && !s.vehicles.some((v) => v.location?.positionId === p.id)
   )!;
   paso({
-    type: 'prep.finish',
+    type: 'prep.finish', finalPhotos: FOTOS_FINAL,
     prepId,
     to: { siteId: 'leioa', zoneId: zonaLeioa.id, positionId: huecoLeioa.id },
     userId: 'u-pedro',

@@ -3,6 +3,7 @@ import { Image, Pressable, Text, View } from 'react-native';
 import { Btn, Field, Notice, radius, space, useTheme, tipografia } from '@/ui';
 import { urlDeFoto } from '@/data/api';
 import { capturarYSubir, type FotoTomada } from './photos';
+import { descartarFotoPendiente } from '@/data/photoQueue';
 
 /**
  * Campo para hacer fotos y subirlas.
@@ -40,6 +41,8 @@ export function CampoFotos({
   };
 
   const quitar = (ref: string) => {
+    const foto = tomadas.find((f) => f.ref === ref);
+    if (foto && !foto.subida) void descartarFotoPendiente(ref);
     const siguiente = tomadas.filter((f) => f.ref !== ref);
     setTomadas(siguiente);
     onChange(siguiente.map((f) => f.ref));
@@ -83,8 +86,8 @@ export function CampoFotos({
         <>
           <View style={{ height: space.sm }} />
           <Notice tone="warn">
-            {pendientes === 1 ? 'Una foto no ha subido' : `${pendientes} fotos no han subido`}: se han
-            quedado en este móvil y no las ve nadie más. Repítelas cuando vuelva la cobertura.
+            {pendientes === 1 ? 'Una foto no ha subido' : `${pendientes} fotos no han subido`}: están
+            guardadas en este móvil y se subirán automáticamente cuando vuelva la cobertura.
           </Notice>
         </>
       ) : null}

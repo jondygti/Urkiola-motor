@@ -30,7 +30,7 @@ export class AlmacenPostgres implements Almacen {
     this.pool = new Pool({
       connectionString: url,
       // Supabase y Railway exigen TLS pero con certificado propio.
-      ssl: /localhost|127\.0\.0\.1/.test(url) ? undefined : { rejectUnauthorized: false },
+      ssl: /localhost|127\.0\.0\.1/.test(url) ? undefined : { rejectUnauthorized: true },
       max: 5,
     });
   }
@@ -60,7 +60,7 @@ export class AlmacenPostgres implements Almacen {
   private async cogerCerrojo() {
     this.cerrojo = new Client({
       connectionString: this.url,
-      ssl: /localhost|127\.0\.0\.1/.test(this.url) ? undefined : { rejectUnauthorized: false },
+      ssl: /localhost|127\.0\.0\.1/.test(this.url) ? undefined : { rejectUnauthorized: true },
     });
     await this.cerrojo.connect();
     const limite = Date.now() + this.esperaCerrojoMs;
@@ -78,6 +78,10 @@ export class AlmacenPostgres implements Almacen {
       console.warn('Esperando a que la instancia anterior suelte la base de datos…');
       await new Promise((r) => setTimeout(r, 2000));
     }
+  }
+
+  async salud() {
+    await this.pool.query('select 1');
   }
 
   async yaAplicado(id: Id) {

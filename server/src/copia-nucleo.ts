@@ -69,10 +69,15 @@ export function rehacerEstado(comandos: Command[], semilla: 'demo' | 'vacia'): A
 export function fotosReferenciadas(estado: AppState): Set<string> {
   const refs = new Set<string>();
   const real = (f: string) => !!f && !f.includes('://');
-  for (const i of estado.incidents) for (const f of i.photos ?? []) if (real(f)) refs.add(f);
+  const id = (f: string) => f.startsWith('foto:') ? f.slice('foto:'.length) : f;
+  for (const i of estado.incidents) for (const f of i.photos ?? []) if (real(f)) refs.add(id(f));
+  for (const p of estado.preparations) {
+    const fotos = p.finalPhotos ? Object.values(p.finalPhotos) : [];
+    for (const f of fotos) if (real(f)) refs.add(id(f));
+  }
   for (const r of estado.receptions) {
-    if (r.albaranUri && real(r.albaranUri)) refs.add(r.albaranUri);
-    for (const l of r.lines) for (const f of l.photos ?? []) if (real(f)) refs.add(f);
+    if (r.albaranUri && real(r.albaranUri)) refs.add(id(r.albaranUri));
+    for (const l of r.lines) for (const f of l.photos ?? []) if (real(f)) refs.add(id(f));
   }
   return refs;
 }
@@ -84,13 +89,14 @@ export function resumirCopia(entrada: {
   bytesFotos: number;
   semilla: 'demo' | 'vacia';
   fotosEn: string;
-  /** Con las fotos en Supabase, de copiarlas se encarga el proveedor. */
+  /** Compatibilidad con copias antiguas que no incluían objetos de Storage. */
   fotosFuera?: boolean;
   fecha?: string;
 }): ResumenCopia {
   const estado = rehacerEstado(entrada.comandos, entrada.semilla);
   const refs = fotosReferenciadas(estado);
-  const enCopia = new Set(entrada.ficherosDeFoto.map((f) => path.basename(f)));
+  const ficherosFoto = entrada.ficherosDeFoto.filter((f) => !f.endsWith('.tipo'));
+  const enCopia = new Set(ficherosFoto.map((f) => path.basename(f)));
   const faltan = entrada.fotosFuera
     ? []
     : [...refs].filter((ref) => !enCopia.has(path.basename(ref)));
@@ -99,7 +105,7 @@ export function resumirCopia(entrada: {
     fecha: entrada.fecha ?? new Date().toISOString(),
     comandos: entrada.comandos.length,
     credenciales: entrada.credenciales.length,
-    fotos: entrada.ficherosDeFoto.length,
+    fotos: ficherosFoto.length,
     bytesFotos: entrada.bytesFotos,
     vehiculos: estado.vehicles.length,
     movimientos: estado.movements.length,
@@ -134,6 +140,10 @@ export function problemasDeLaCopia(guardado: ResumenCopia, rehecho: ResumenCopia
       `Al rehacerla salen ${rehecho.vehiculos} vehículos y la copia decía ${guardado.vehiculos}: ` +
         'las reglas de negocio han cambiado desde que se hizo.'
     );
+  }
+  if (guardado.fotosQueFaltan.length || rehecho.fotosQueFaltan.length) {
+    const faltan = [...new Set([...guardado.fotosQueFaltan, ...rehecho.fotosQueFaltan])];
+    malo.push(`Faltan ${faltan.length} fotos referenciadas en la copia: ${faltan.slice(0, 5).join(', ')}`);
   }
   return malo;
 }

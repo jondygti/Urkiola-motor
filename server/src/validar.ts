@@ -164,6 +164,17 @@ export function validarComando(cuerpo: unknown, userId: string, ahora = Date.now
     if (c.type === 'prep.pause' && (typeof c.reason !== 'string' || !c.reason.trim())) {
       throw malaPeticion('Indica un motivo de espera.');
     }
+    if (c.type === 'prep.finish') {
+      const fotos = c.finalPhotos as Record<string, unknown> | undefined;
+      const claves = ['frontLeft', 'frontRight', 'rearLeft', 'rearRight'];
+      if (!fotos || claves.some((k) => typeof fotos[k] !== 'string' || !(fotos[k] as string).trim())) {
+        throw malaPeticion('Para terminar hacen falta las cuatro fotos finales del vehículo.');
+      }
+      if (c.damageDescription !== undefined && c.damageDescription !== null &&
+          (typeof c.damageDescription !== 'string' || !c.damageDescription.trim())) {
+        throw malaPeticion('Describe el daño detectado o indica que no hay daños.');
+      }
+    }
   }
   if (c.type === 'request.create' && c.prepTipo !== undefined &&
       !['entrada', 'repaso'].includes(String(c.prepTipo))) {

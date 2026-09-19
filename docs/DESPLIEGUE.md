@@ -1,6 +1,6 @@
 # Despliegue definitivo: Render + Supabase
 
-Actualizado: **15/09/2026**. Sustituye las recomendaciones antiguas de Railway o VPS como destino principal.
+Actualizado: **19/09/2026**. Sustituye las recomendaciones antiguas de Railway o VPS como destino principal.
 
 ## Objetivo
 
@@ -35,7 +35,15 @@ Nunca usar la base de producción para pruebas.
 
 ## Render
 
-El backend se construye desde `server/`/Docker según la configuración del repositorio. Mientras el servidor mantenga el modelo de estado actual, usar **una instancia activa**.
+El backend se construye desde `server/` según la configuración del repositorio. Mientras el servidor mantenga el modelo de estado actual, usar **una sola instancia activa**.
+
+### Despliegue sin solapamiento
+
+El backend mantiene un cerrojo exclusivo de PostgreSQL porque el estado se aplica en serie en memoria. Por tanto, **no se puede usar un despliegue que mantenga simultáneamente la instancia antigua y la nueva**.
+
+En Render hay que configurar un ciclo que detenga la instancia anterior antes de iniciar la nueva. Una opción compatible con el diseño actual es adjuntar un disco persistente mínimo al servicio (aunque Urkiola no guarde allí sus datos): Render desactiva el zero-downtime deploy en servicios con persistent disk. El disco se usa únicamente para serializar el ciclo de vida; PostgreSQL y las fotos siguen en Supabase.
+
+Antes del piloto hay que probar expresamente un redeploy con móviles conectados y con comandos offline pendientes. La app está diseñada para conservarlos y reintentarlos cuando la API vuelve.
 
 Variables mínimas mientras siga la autenticación actual:
 
@@ -49,7 +57,10 @@ Variables mínimas mientras siga la autenticación actual:
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SUPABASE_BUCKET`
-- variables de correo y push cuando se activen.
+- `EMAIL_API_KEY`
+- variables de push cuando se activen.
+
+En `NODE_ENV=production` el servidor **se niega a arrancar** si faltan PostgreSQL, Supabase Storage, correo, administrador inicial, URL pública o `URKIOLA_SEMILLA=vacia`. No existe fallback silencioso a fichero local o datos demo.
 
 `SUPABASE_SERVICE_ROLE_KEY` nunca entra en web/Android.
 
@@ -69,7 +80,7 @@ Cuando se migre a Supabase Auth, retirar las variables y endpoints propios solo 
 
 - bucket privado;
 - archivos servidos/autorizados por backend o mediante URLs firmadas de corta duración;
-- backup de objetos separado del backup SQL.
+- backup de objetos separado del backup SQL; `npm run copia` descarga también el bucket de Storage para generar una copia externa completa.
 
 ### Auth
 

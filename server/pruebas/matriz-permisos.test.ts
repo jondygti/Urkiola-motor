@@ -17,6 +17,13 @@ import { buildSeedState } from '../../src/data/seed';
 import type { AppState, Id, User } from '../../src/data/types';
 import type { Command, CommandInput } from '../../src/data/commands';
 
+const FOTOS_FINAL = {
+  frontLeft: 'foto:final-fl.jpg',
+  frontRight: 'foto:final-fr.jpg',
+  rearLeft: 'foto:final-rl.jpg',
+  rearRight: 'foto:final-rr.jpg',
+} as const;
+
 type Rol = 'admin' | 'logistica' | 'preparador' | 'transportista' | 'recepcion' | 'comercial';
 
 const ROLES: Rol[] = ['admin', 'logistica', 'preparador', 'transportista', 'recepcion', 'comercial'];
@@ -174,7 +181,7 @@ function ejemplos(s: AppState): Record<string, CommandInput> {
     'prep.pause': { type: 'prep.pause', prepId: prep.id, reason: 'Material' },
     'prep.resume': { type: 'prep.resume', prepId: prep.id },
     'prep.item': { type: 'prep.item', prepId: prep.id, requirementId: 'req-lavado', state: 'completado' },
-    'prep.finish': { type: 'prep.finish', prepId: prep.id },
+    'prep.finish': { type: 'prep.finish', finalPhotos: FOTOS_FINAL, prepId: prep.id },
     'count.create': { type: 'count.create', siteId: 'sondika', zoneId: null, code: 'R-PRUEBA' },
     'count.finding': { type: 'count.finding', countId: recuento.id, vehicleId: vehiculo.id },
     'count.close': { type: 'count.close', countId: recuento.id },

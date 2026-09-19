@@ -11,6 +11,7 @@ import type {
   AppState,
   CheckState,
   FleetCount,
+  FinalPreparationPhotos,
   Id,
   Incident,
   IncidentType,
@@ -113,6 +114,10 @@ export type Command =
       prepId: Id;
       /** Dónde deja el coche el preparador. Opcional: si no lo dice, no se mueve. */
       to?: LocationRef;
+      /** Cuatro diagonales obligatorias del estado del coche al terminar. */
+      finalPhotos?: FinalPreparationPhotos;
+      /** Si ve un daño, queda registrado en la misma operación de cierre. */
+      damageDescription?: string | null;
     }
   | { type: 'prep.item'; id: Id; at: string; userId: Id; prepId: Id; requirementId: Id; state: CheckState }
   | { type: 'count.create'; id: Id; at: string; userId: Id; siteId: Id; zoneId: Id | null; code: string }
@@ -1244,12 +1249,34 @@ function aplicar(state: AppState, cmd: Command): AppState {
     case 'prep.finish': {
       const p = state.preparations.find((x) => x.id === cmd.prepId);
       if (!p || (p.runState === 'terminado' || p.runState === 'cancelado')) return state;
+      const finales = cmd.finalPhotos;
+      if (!finales || [finales.frontLeft, finales.frontRight, finales.rearLeft, finales.rearRight].some((x) => !x?.trim())) {
+        return state;
+      }
+
+      // Si el preparador declara un daño, la incidencia nace dentro del mismo
+      // comando. Así no existe el estado «preparación terminada» sin que el
+      // golpe que vio quede registrado.
+      const descripcionDano = cmd.damageDescription?.trim() || null;
+      const conIncidencia: AppState = descripcionDano
+        ? applyCommand(state, {
+            type: 'incident.create',
+            id: `${cmd.id}-damage`,
+            at: cmd.at,
+            userId: cmd.userId,
+            vehicleId: p.vehicleId,
+            incidentType: 'preparacion',
+            description: descripcionDano,
+            photos: [finales.frontLeft, finales.frontRight, finales.rearLeft, finales.rearRight],
+          })
+        : state;
+
       // Si el preparador dice dónde deja el coche, el movimiento se registra
       // antes de cerrar: así la ficha no se queda diciendo que sigue en el
       // taller. Es el mismo comando de siempre, con un id derivado del de
       // esta orden para que un reintento no duplique el movimiento.
       const base: AppState = cmd.to
-        ? applyCommand(state, {
+        ? applyCommand(conIncidencia, {
             type: 'movement.register',
             id: `${cmd.id}-mov`,
             at: cmd.at,
@@ -1258,9 +1285,16 @@ function aplicar(state: AppState, cmd: Command): AppState {
             to: cmd.to,
             note: 'Ubicación al terminar la preparación',
           })
-        : state;
+        : conIncidencia;
       const ranMs = transcurrido(p.runningSince, cmd);
-      const items = p.items.map((i) => (i.state === 'pendiente' ? { ...i, state: 'completado' as CheckState } : i));
+      const items = p.items.map((i) => {
+        if (i.state !== 'pendiente') return i;
+        return {
+          ...i,
+          state: 'completado' as CheckState,
+          ...(i.requirementId === 'req-fotos' ? { by: userName(state, cmd.userId), at: cmd.at } : {}),
+        };
+      });
       let next: AppState = {
         ...base,
         preparations: replace(base.preparations, cmd.prepId, {
@@ -1275,6 +1309,8 @@ function aplicar(state: AppState, cmd: Command): AppState {
           // Nunca antes de haber empezado: un móvil con la hora mal puesta
           // registraría una preparación que dura menos de cero.
           finishedAt: p.startedAt && cmd.at < p.startedAt ? p.startedAt : cmd.at,
+          finalPhotos: finales,
+          damageIncidentId: descripcionDano ? `inc-${cmd.id}-damage` : null,
         }),
         vehicles: replace(base.vehicles, p.vehicleId, { status: 'apto_entrega' }),
       };

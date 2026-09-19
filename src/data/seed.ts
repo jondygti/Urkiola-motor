@@ -339,7 +339,7 @@ const REQUIREMENTS: Requirement[] = [
   { id: 'req-lavado', label: 'Lavado', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 1 },
   { id: 'req-pdi', label: 'PDI', vehicleTypes: ['VN'], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 2 },
   { id: 'req-combustible', label: 'Combustible', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 3 },
-  { id: 'req-fotos', label: 'Fotos', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 4 },
+  { id: 'req-fotos', label: 'Reportaje final (4 fotos)', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: false, optional: false, order: 4 },
   { id: 'req-alfombrillas', label: 'Alfombrillas', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 5 },
   { id: 'req-matriculas', label: 'Matrículas', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 6 },
   { id: 'req-baliza', label: 'Baliza', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 7 },
@@ -728,14 +728,19 @@ function checklistFor(type: 'VN' | 'VO', completed: number): Preparation['items'
   const applicable = REQUIREMENTS.filter(
     (r) => r.vehicleTypes.length === 0 || r.vehicleTypes.includes(type)
   );
-  return applicable.map((r, idx) => ({
-    requirementId: r.id,
-    label: r.label,
-    timed: r.timed,
-    state: r.optional && chance(0.6) ? 'no_requerido' : idx < completed ? 'completado' : 'pendiente',
-    by: idx < completed ? pick(['Pedro Larrea', 'Ane Zubiaur', 'Jon Etxaniz']) : undefined,
-    at: idx < completed ? iso(Math.floor(rnd() * 5) * HOUR) : undefined,
-  }));
+  return applicable.map((r, idx) => {
+    // El reportaje final solo se completa al cerrar la preparación con las
+    // cuatro fotos reales. La semilla no debe inventarlo como hecho antes.
+    const completado = r.id !== 'req-fotos' && idx < completed;
+    return {
+      requirementId: r.id,
+      label: r.label,
+      timed: r.timed,
+      state: r.optional && chance(0.6) ? 'no_requerido' : completado ? 'completado' : 'pendiente',
+      by: completado ? pick(['Pedro Larrea', 'Ane Zubiaur', 'Jon Etxaniz']) : undefined,
+      at: completado ? iso(Math.floor(rnd() * 5) * HOUR) : undefined,
+    };
+  });
 }
 
 /* ------------------------------------------------------ estado completo */

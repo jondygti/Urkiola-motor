@@ -20,6 +20,7 @@ import path from 'node:path';
 import { Client } from 'pg';
 import { problemasDeLaCopia, rehacerEstado, resumirCopia } from './copia-nucleo';
 import { leerConfig } from './config';
+import { FotosEnSupabase } from './almacen/fotos';
 import type { Command } from '../../src/data/commands';
 
 const config = leerConfig(process.env);
@@ -60,7 +61,9 @@ async function main() {
     bytesFotos: 0,
     semilla: config.semilla,
     fotosEn: config.carpetaFotos,
-    fotosFuera: resumen?.fotosEn === 'supabase',
+    // Compatibilidad con copias antiguas, que confiaban en Storage y no
+    // incluían los objetos. Las nuevas siempre llevan la carpeta fotos/.
+    fotosFuera: resumen?.fotosEn === 'supabase' && !fs.existsSync(path.join(origen, 'fotos')),
   });
 
   console.log(`\nCopia de ${resumen?.fecha ?? 'fecha desconocida'}`);
@@ -83,7 +86,7 @@ async function main() {
   if (!config.databaseUrl) throw new Error('Sin DATABASE_URL no hay dónde restaurar.');
   const cliente = new Client({
     connectionString: config.databaseUrl,
-    ssl: /localhost|127\.0\.0\.1/.test(config.databaseUrl) ? undefined : { rejectUnauthorized: false },
+    ssl: /localhost|127\.0\.0\.1/.test(config.databaseUrl) ? undefined : { rejectUnauthorized: true },
   });
   await cliente.connect();
 
@@ -103,8 +106,36 @@ async function main() {
       );
     }
 
-    // En una transacción: o entra todo o no entra nada. Una restauración a
-    // medias es peor que no haber empezado.
+    /* --------------------------------------------- las fotos */
+    // Primero se repone la evidencia. Las escrituras en Storage son upsert,
+    // así que si se corta aquí se puede repetir sin miedo. Solo después se
+    // confirma la historia en Postgres: nunca dejamos una base restaurada
+    // que apunte a fotos que todavía no llegaron.
+    const carpetaFotos = path.join(origen, 'fotos');
+    let fotos = 0;
+    if (fs.existsSync(carpetaFotos)) {
+      const nombres = fs.readdirSync(carpetaFotos).filter((f) => !f.endsWith('.tipo'));
+      if (config.supabaseUrl && config.supabaseClave) {
+        const remoto = new FotosEnSupabase(config.supabaseUrl, config.supabaseClave, config.supabaseBucket);
+        for (const f of nombres) {
+          const tipo = fs.existsSync(path.join(carpetaFotos, `${f}.tipo`))
+            ? fs.readFileSync(path.join(carpetaFotos, `${f}.tipo`), 'utf8')
+            : 'image/jpeg';
+          await remoto.guardar(f, { cuerpo: fs.readFileSync(path.join(carpetaFotos, f)), tipo });
+          fotos += 1;
+        }
+      } else {
+        fs.mkdirSync(config.carpetaFotos, { recursive: true });
+        for (const f of fs.readdirSync(carpetaFotos)) {
+          fs.copyFileSync(path.join(carpetaFotos, f), path.join(config.carpetaFotos, f));
+        }
+        fotos = nombres.length;
+      }
+    }
+
+    // En una transacción: o entra toda la historia o no entra nada. Si esta
+    // parte falla, las fotos ya copiadas son huérfanas inocuas y la
+    // restauración se puede repetir porque la base sigue vacía.
     await cliente.query('begin');
     for (const cmd of comandos) {
       await cliente.query(
@@ -119,17 +150,6 @@ async function main() {
       );
     }
     await cliente.query('commit');
-
-    /* --------------------------------------------- las fotos */
-    const carpetaFotos = path.join(origen, 'fotos');
-    let fotos = 0;
-    if (fs.existsSync(carpetaFotos)) {
-      fs.mkdirSync(config.carpetaFotos, { recursive: true });
-      for (const f of fs.readdirSync(carpetaFotos)) {
-        fs.copyFileSync(path.join(carpetaFotos, f), path.join(config.carpetaFotos, f));
-        fotos += 1;
-      }
-    }
 
     console.log(`\n✔ Restaurado: ${comandos.length} comandos, ${credenciales.length} contraseñas, ${fotos} fotos.`);
     console.log('  La foto del estado la rehace el servidor al arrancar. Arráncalo y comprueba /health.');

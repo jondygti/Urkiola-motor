@@ -7,6 +7,12 @@ import { API_URL, ApiError, api, apiEnabled, haySesion, setAuthToken } from './a
 import { buildSeedState } from './seed';
 import { registerForPush } from './push';
 import { isSimpleRole } from './selectors';
+import { confirmarFotosPendientes, resolverFotosPendientes } from './photoQueue';
+import {
+  borrarTokenSeguro,
+  guardarTokenSeguro,
+  leerTokenSeguro,
+} from './secureSession';
 import type { AppState, Id, User } from './types';
 
 const STATE_KEY = 'urkiola.state.v1';
@@ -61,7 +67,9 @@ const TOKEN_KEY = 'urkiola.token.v1';
 // el repaso, y no habría objetivo de tiempo para él.
 // 20: lecturas por usuario y caché/cola separadas por servidor y cuenta.
 // 21: cancelaciones, llaves y zona opcional de recepción; conserva datos v20.
-const STATE_SCHEMA_VERSION = 21;
+// 22: el requisito Fotos pasa a ser un reportaje final obligatorio de cuatro
+// diagonales y la preparación conserva esas evidencias.
+const STATE_SCHEMA_VERSION = 22;
 
 interface StoredState {
   v: number;
@@ -128,7 +136,6 @@ const StoreContext = createContext<StoreValue | null>(null);
 /** Cada servidor y cada persona conservan su propio trabajo. */
 const SERVIDOR_KEY = `urkiola.api.${encodeURIComponent(API_URL)}`;
 const API_SESSION_KEY = `${SERVIDOR_KEY}.session`;
-const API_TOKEN_KEY = `${SERVIDOR_KEY}.token`;
 const clavesDe = (id: Id) => ({
   estado: `${SERVIDOR_KEY}.user.${encodeURIComponent(id)}.state`,
   trabajo: `${SERVIDOR_KEY}.user.${encodeURIComponent(id)}.work`,
@@ -226,7 +233,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     }
     // No se borra ni se intenta enviar el trabajo pendiente de esa cuenta.
-    void guardar(() => AsyncStorage.multiRemove(apiEnabled ? [API_SESSION_KEY, API_TOKEN_KEY] : [SESSION_KEY, TOKEN_KEY]));
+    if (apiEnabled) {
+      void borrarTokenSeguro().catch(() => undefined);
+      void guardar(() => AsyncStorage.removeItem(API_SESSION_KEY));
+    } else {
+      void guardar(() => AsyncStorage.multiRemove([SESSION_KEY, TOKEN_KEY]));
+    }
     if (mensaje) setError(mensaje);
   }, [guardar]);
 
@@ -277,10 +289,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         await persistirTrabajo();
         if (!vigente()) return;
         try {
-          await api.send(next);
+          // Una foto hecha sin cobertura no puede llegar al backend como una
+          // ruta local del teléfono. Se sube primero y el comando se reescribe
+          // solo para el envío; si la red corta después, la subida queda
+          // recordada y no se duplica en el siguiente intento.
+          const resuelto = await resolverFotosPendientes(next);
+          await api.send(resuelto.value);
           if (!vigente()) return;
-          confirmado.current = applyCommand(confirmado.current, next);
-          cambiarTrabajo(queueRef.current.filter((c) => c.id !== next.id));
+          confirmado.current = applyCommand(confirmado.current, resuelto.value);
+          const restantes = queueRef.current.filter((c) => c.id !== next.id);
+          cambiarTrabajo(restantes);
+          await confirmarFotosPendientes(
+            resuelto.refsLocales,
+            [...restantes, ...rejectedRef.current.map((r) => r.command)]
+          );
           enviados = true;
         } catch (err) {
           if (!vigente()) return;
@@ -380,11 +402,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               await AsyncStorage.setItem(clavesDe(persona.id).estado, JSON.stringify({ ...saved, v: STATE_SCHEMA_VERSION }));
             }
           }
-          await AsyncStorage.multiSet([[API_SESSION_KEY, legacySession], [API_TOKEN_KEY, legacyToken]]);
+          await AsyncStorage.setItem(API_SESSION_KEY, legacySession);
+          await guardarTokenSeguro(legacyToken);
           await AsyncStorage.multiRemove([SESSION_KEY, TOKEN_KEY, STATE_KEY]);
         }
         const [savedSession, savedToken] = await Promise.all([
-          AsyncStorage.getItem(API_SESSION_KEY), AsyncStorage.getItem(API_TOKEN_KEY),
+          AsyncStorage.getItem(API_SESSION_KEY), leerTokenSeguro(),
         ]);
         if (cancelado) return;
         if (savedSession && savedToken) {
@@ -456,7 +479,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setAuthToken(token);
       await cargarCuenta(persona, turno);
       if (generacion.current !== turno) return 'La sesión ha cambiado. Vuelve a entrar.';
-      await guardar(() => AsyncStorage.multiSet([[API_TOKEN_KEY, token], [API_SESSION_KEY, JSON.stringify(persona)]]));
+      await Promise.all([
+        guardarTokenSeguro(token),
+        guardar(() => AsyncStorage.setItem(API_SESSION_KEY, JSON.stringify(persona))),
+      ]);
       await sincronizar();
       if (!userRef.current) return 'La sesión no está disponible. Vuelve a entrar.';
       if (!datosCargados.current) {

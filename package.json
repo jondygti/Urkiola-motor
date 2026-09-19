@@ -42,12 +42,17 @@
     "react-native": "0.86.2",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
-    "react-native-web": "~0.21.0"
+    "react-native-web": "~0.21.0",
+    "expo-file-system": "57.0.5",
+    "expo-secure-store": "57.0.2"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
     "@types/react": "~19.2.2",
     "react-test-renderer": "19.2.3",
     "typescript": "~6.0.3"
+  },
+  "overrides": {
+    "js-yaml": "4.3.2"
   }
 }

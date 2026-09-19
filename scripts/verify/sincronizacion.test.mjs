@@ -76,6 +76,15 @@ async function dispositivo(t, { db = new Map(), remoto = seed.buildSeedState(), 
       haySesion: () => token !== null, setAuthToken: (v) => { token = v; } },
     './commands': commands, './seed': seed, './selectors': selectors,
     './push': { registerForPush: async () => null },
+    './photoQueue': {
+      resolverFotosPendientes: async (value) => ({ value, refsLocales: [] }),
+      confirmarFotosPendientes: async () => {},
+    },
+    './secureSession': {
+      leerTokenSeguro: async () => storage.getItem(`${servidor}.token`),
+      guardarTokenSeguro: async (value) => storage.setItem(`${servidor}.token`, value),
+      borrarTokenSeguro: async () => storage.removeItem(`${servidor}.token`),
+    },
   };
   const mod = { exports: {} };
   new Function('require', 'module', 'exports', 'setInterval', 'clearInterval', codigo)(

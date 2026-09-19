@@ -54,6 +54,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     package: BUNDLE_ID,
     versionCode: 1,
+    // La caché logística puede contener matrículas, ubicaciones y trabajo
+    // pendiente. No debe copiarse al backup general de Android.
+    allowBackup: false,
     predictiveBackGestureEnabled: false,
     adaptiveIcon: {
       foregroundImage: './assets/android-icon-foreground.png',

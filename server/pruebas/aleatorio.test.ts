@@ -21,6 +21,13 @@ import { buildSeedState } from '../../src/data/seed';
 import { revisar } from './invariantes';
 import type { AppState, Id } from '../../src/data/types';
 
+const FOTOS_FINAL = {
+  frontLeft: 'foto:final-fl.jpg',
+  frontRight: 'foto:final-fr.jpg',
+  rearLeft: 'foto:final-rl.jpg',
+  rearRight: 'foto:final-rr.jpg',
+} as const;
+
 /* --------------------------------------------------------------- el azar */
 
 /** Generador con semilla: la misma semilla da siempre la misma tanda. */
@@ -152,7 +159,7 @@ const GENERADORES: { peso: number; gen: Generador }[] = [
     peso: 4,
     gen: (s, r) => {
       const p = uno(r, abiertas(s));
-      return p ? { type: 'prep.finish', prepId: p.id, to: aVeces(r) ? (ubicacion(s, r) ?? undefined) : undefined } : null;
+      return p ? { type: 'prep.finish', finalPhotos: FOTOS_FINAL, prepId: p.id, to: aVeces(r) ? (ubicacion(s, r) ?? undefined) : undefined } : null;
     },
   },
   {

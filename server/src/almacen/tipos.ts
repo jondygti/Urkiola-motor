@@ -57,6 +57,9 @@ export interface Almacen {
   /** Prepara la base de datos y devuelve el estado guardado, si lo hay. */
   iniciar(): Promise<{ estado: AppState | null; comandosDesdeFoto: Command[] }>;
 
+  /** Comprueba que el almacenamiento esencial responde. */
+  salud(): Promise<void>;
+
   /** ¿Se aplicó ya este comando? Es lo que hace la API idempotente. */
   yaAplicado(id: Id): Promise<boolean>;
 
