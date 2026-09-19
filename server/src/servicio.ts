@@ -366,15 +366,29 @@ export class Servicio {
       if (conflicto) throw malaPeticion(conflicto);
       if (cmd.carrierId && !this.estadoActual.carriers.some(c => c.id === cmd.carrierId && c.active)) throw malaPeticion('Empresa de transporte no válida.');
     }
+    const comprobarFotosSubidas = async (refs: string[]) => {
+      for (const ref of refs) {
+        if (!ref.startsWith('foto:')) {
+          throw malaPeticion('La evidencia fotográfica tiene que estar subida al servidor.');
+        }
+        const id = ref.slice('foto:'.length);
+        if (!id || !(await this.fotos.leer(id))) {
+          throw malaPeticion('Falta una foto en el almacenamiento. Vuelve a subirla antes de continuar.');
+        }
+      }
+    };
+
     if (cmd.type === 'prep.finish') {
       const p = this.estadoActual.preparations.find((x) => x.id === cmd.prepId);
       if (!p) throw malaPeticion('Preparación inexistente.');
       const fotos = cmd.finalPhotos;
       const refs = fotos ? [fotos.frontLeft, fotos.frontRight, fotos.rearLeft, fotos.rearRight] : [];
-      if (refs.length !== 4 || refs.some((x) => !x.startsWith('foto:'))) {
-        throw malaPeticion('Las cuatro fotos finales tienen que estar subidas antes de terminar.');
-      }
+      if (refs.length !== 4) throw malaPeticion('Para terminar hacen falta las cuatro fotos finales.');
+      await comprobarFotosSubidas(refs);
     }
+    if (cmd.type === 'incident.create') await comprobarFotosSubidas(cmd.photos);
+    if (cmd.type === 'reception.line' && cmd.photos?.length) await comprobarFotosSubidas(cmd.photos);
+    if (cmd.type === 'reception.albaran') await comprobarFotosSubidas([cmd.uri]);
     const antes = this.estadoActual;
     const despues = applyCommand(antes, cmd);
 
