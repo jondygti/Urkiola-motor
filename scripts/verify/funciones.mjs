@@ -124,19 +124,20 @@ export async function ejecutar(browser, BASE) {
     await elegirEnLista(page, 'Parking 03', 'Parking 02');
     const finalizar = page.getByText('✓ Terminar y dejarlo en', { exact: false }).first();
     ok('6 · el botón confirma el sitio', await finalizar.isVisible(), (await finalizar.textContent()) ?? '');
+    ok('6 · no permite terminar sin el reportaje', await finalizar.isDisabled());
 
-    await finalizar.click();
-    await page.waitForTimeout(700);
+    for (const texto of ['Delantera izquierda', 'Delantera derecha', 'Trasera izquierda', 'Trasera derecha']) {
+      ok(`6 · pide foto ${texto.toLowerCase()}`, await page.getByText(texto, { exact: true }).isVisible());
+    }
+    ok(
+      '6 · explica que faltan las cuatro fotos',
+      await page.getByText('Faltan 4 fotos', { exact: false }).isVisible()
+    );
 
-    const s = await estadoGuardado(page);
-    const prep = s?.preparations?.find((p) => p.runState === 'terminado' && p.finishedAt);
-    const mov = s?.movements?.[0];
-    const veh = s?.vehicles?.find((v) => v.id === prep?.vehicleId);
-    ok('6 · la preparación queda terminada', !!prep, prep?.finishedAt ?? '');
-    ok('6 · y genera el movimiento a la vez', mov?.note === 'Ubicación al terminar la preparación', mov?.to?.zoneId ?? '');
-    ok('6 · el coche queda en el sitio indicado', veh?.location?.zoneId === mov?.to?.zoneId && veh?.location?.zoneId?.includes('park-02'));
-    ok('6 · y sigue apto para entrega', veh?.status === 'apto_entrega', veh?.status ?? '');
-
+    // La captura de cámara real no se automatiza en Chromium headless. El
+    // cierre correcto con cuatro ficheros reales se prueba contra backend en
+    // preproduccion.test.ts; aquí comprobamos que la interfaz no lo deja
+    // saltar.
     ok('7 · sin errores de JavaScript', errores.length === 0, errores[0] ?? '');
     await context.close();
   }
