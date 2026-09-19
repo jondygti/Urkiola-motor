@@ -83,6 +83,10 @@ jobs:
           node-version: '24'
       - run: npm ci --no-audit --no-fund
       - run: npm --prefix server ci --no-audit --no-fund
+      - name: Auditar dependencias de producción
+        run: |
+          npm audit --omit=dev --audit-level=high
+          npm --prefix server audit --omit=dev --audit-level=high
       - run: npm run typecheck
       - run: npm run server:test
       - run: npm run test:sync
