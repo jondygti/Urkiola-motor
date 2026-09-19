@@ -69,10 +69,15 @@ export function rehacerEstado(comandos: Command[], semilla: 'demo' | 'vacia'): A
 export function fotosReferenciadas(estado: AppState): Set<string> {
   const refs = new Set<string>();
   const real = (f: string) => !!f && !f.includes('://');
-  for (const i of estado.incidents) for (const f of i.photos ?? []) if (real(f)) refs.add(f);
+  const id = (f: string) => f.startsWith('foto:') ? f.slice('foto:'.length) : f;
+  for (const i of estado.incidents) for (const f of i.photos ?? []) if (real(f)) refs.add(id(f));
+  for (const p of estado.preparations) {
+    const fotos = p.finalPhotos ? Object.values(p.finalPhotos) : [];
+    for (const f of fotos) if (real(f)) refs.add(id(f));
+  }
   for (const r of estado.receptions) {
-    if (r.albaranUri && real(r.albaranUri)) refs.add(r.albaranUri);
-    for (const l of r.lines) for (const f of l.photos ?? []) if (real(f)) refs.add(f);
+    if (r.albaranUri && real(r.albaranUri)) refs.add(id(r.albaranUri));
+    for (const l of r.lines) for (const f of l.photos ?? []) if (real(f)) refs.add(id(f));
   }
   return refs;
 }
@@ -90,7 +95,8 @@ export function resumirCopia(entrada: {
 }): ResumenCopia {
   const estado = rehacerEstado(entrada.comandos, entrada.semilla);
   const refs = fotosReferenciadas(estado);
-  const enCopia = new Set(entrada.ficherosDeFoto.map((f) => path.basename(f)));
+  const ficherosFoto = entrada.ficherosDeFoto.filter((f) => !f.endsWith('.tipo'));
+  const enCopia = new Set(ficherosFoto.map((f) => path.basename(f)));
   const faltan = entrada.fotosFuera
     ? []
     : [...refs].filter((ref) => !enCopia.has(path.basename(ref)));
@@ -99,7 +105,7 @@ export function resumirCopia(entrada: {
     fecha: entrada.fecha ?? new Date().toISOString(),
     comandos: entrada.comandos.length,
     credenciales: entrada.credenciales.length,
-    fotos: entrada.ficherosDeFoto.length,
+    fotos: ficherosFoto.length,
     bytesFotos: entrada.bytesFotos,
     vehiculos: estado.vehicles.length,
     movimientos: estado.movements.length,
