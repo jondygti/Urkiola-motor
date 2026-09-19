@@ -29,6 +29,7 @@ import path from 'node:path';
 import { Client } from 'pg';
 import { resumirCopia } from './copia-nucleo';
 import { leerConfig } from './config';
+import { FotosEnSupabase } from './almacen/fotos';
 import type { Command } from '../../src/data/commands';
 
 const config = leerConfig(process.env);
@@ -73,8 +74,20 @@ async function main() {
     /* ------------------------------------------------------ las fotos */
     let fotos = 0;
     let bytesFotos = 0;
-    if (config.supabaseUrl) {
-      console.log('· Las fotos están en Supabase: las copia el proveedor, aquí no se tocan.');
+    if (config.supabaseUrl && config.supabaseClave) {
+      const destinoFotos = path.join(carpeta, 'fotos');
+      fs.mkdirSync(destinoFotos, { recursive: true });
+      const remoto = new FotosEnSupabase(config.supabaseUrl, config.supabaseClave, config.supabaseBucket);
+      const ids = await remoto.listarIds();
+      for (const id of ids) {
+        const foto = await remoto.leer(id);
+        if (!foto) throw new Error(`La foto ${id} estaba listada en Storage pero no se pudo leer.`);
+        fs.writeFileSync(path.join(destinoFotos, path.basename(id)), foto.cuerpo);
+        fs.writeFileSync(path.join(destinoFotos, `${path.basename(id)}.tipo`), foto.tipo, 'utf8');
+        fotos += 1;
+        bytesFotos += foto.cuerpo.length;
+      }
+      console.log(`· Copiadas ${fotos} fotos desde Supabase Storage fuera del proveedor.`);
     } else if (fs.existsSync(config.carpetaFotos)) {
       const destinoFotos = path.join(carpeta, 'fotos');
       fs.mkdirSync(destinoFotos, { recursive: true });
@@ -82,8 +95,10 @@ async function main() {
         const origen = path.join(config.carpetaFotos, f);
         if (!fs.statSync(origen).isFile()) continue;
         fs.copyFileSync(origen, path.join(destinoFotos, f));
-        fotos += 1;
-        bytesFotos += fs.statSync(origen).size;
+        if (!f.endsWith('.tipo')) {
+          fotos += 1;
+          bytesFotos += fs.statSync(origen).size;
+        }
       }
     } else {
       console.log(`· No hay carpeta de fotos en ${config.carpetaFotos}: todavía no se ha subido ninguna.`);
@@ -100,8 +115,8 @@ async function main() {
       ficherosDeFoto: fs.existsSync(carpetaEnCopia) ? fs.readdirSync(carpetaEnCopia) : [],
       bytesFotos,
       semilla: config.semilla,
-      fotosEn: config.supabaseUrl ? 'supabase' : config.carpetaFotos,
-      fotosFuera: !!config.supabaseUrl,
+      fotosEn: config.supabaseUrl ? 'copia-externa-supabase-storage' : config.carpetaFotos,
+      fotosFuera: false,
     });
     const faltan = resumen.fotosQueFaltan;
     fs.writeFileSync(path.join(carpeta, 'copia.json'), JSON.stringify(resumen, null, 2));
