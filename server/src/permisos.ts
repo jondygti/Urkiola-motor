@@ -358,6 +358,7 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
       return tiene(s, u, 'notificaciones.gestionar') ? null : 'No puedes configurar avisos.';
 
     case 'vehicle.setCustom':
+    case 'vehicle.setCommercial':
       return tiene(s, u, 'flota.editar') ? null : 'No puedes editar campos del vehículo.';
 
     case 'vehicle.setSalesRep': {
