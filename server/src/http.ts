@@ -74,11 +74,16 @@ const SIN_SESION = ['/auth/login', '/auth/olvidada', '/auth/restablecer'];
 /**
  * De dónde viene la petición.
  *
- * Detrás de Railway o de Caddy, la dirección del socket es la del proxy: la
- * de verdad viene en `X-Forwarded-For`. Solo se usa para contar intentos.
+ * Detrás de Render, la dirección del socket es la del proxy: la de verdad
+ * viene en `X-Forwarded-For`. Tomamos el último salto, el añadido por el
+ * proxy de confianza; el primero puede venir falsificado por el cliente.
  */
 function origenDe(req: http.IncomingMessage): string {
-  const reenviada = String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim();
+  const cadena = String(req.headers['x-forwarded-for'] ?? '')
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean);
+  const reenviada = cadena.at(-1);
   return reenviada || req.socket.remoteAddress || 'desconocido';
 }
 
