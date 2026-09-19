@@ -61,7 +61,7 @@ jobs:
           fi
       - name: Conservar resultados
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: chromium-${{ matrix.suite }}-${{ github.run_attempt }}
           path: resultados/
@@ -115,7 +115,7 @@ jobs:
       - name: Generar demo actualizada
         run: npm run build:demo
       - name: Publicar demo descargable
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: urkiola-demo-${{ github.sha }}
           path: demo/urkiola-car-service-demo.html
