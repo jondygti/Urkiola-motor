@@ -117,4 +117,30 @@ export class FotosEnSupabase implements AlmacenFotos {
       () => undefined
     );
   }
+
+  /** Lista el bucket completo por páginas para poder hacer una copia externa. */
+  async listarIds(): Promise<string[]> {
+    const ids: string[] = [];
+    let offset = 0;
+    const limit = 1000;
+    for (;;) {
+      const res = await this.fetchImpl(
+        `${this.url.replace(/\/+$/, '')}/storage/v1/object/list/${encodeURIComponent(this.bucket)}`,
+        {
+          method: 'POST',
+          headers: { ...this.cabeceras, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prefix: '', limit, offset, sortBy: { column: 'name', order: 'asc' } }),
+        }
+      );
+      if (!res.ok) {
+        throw new Error(`Supabase Storage devolvió ${res.status} al listar el bucket: ${await res.text()}`);
+      }
+      const pagina = (await res.json()) as { name?: string }[];
+      const nombres = pagina.map((x) => x.name).filter((x): x is string => !!x);
+      ids.push(...nombres);
+      if (pagina.length < limit) break;
+      offset += pagina.length;
+    }
+    return ids;
+  }
 }
