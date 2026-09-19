@@ -139,6 +139,10 @@ test('el backend rechaza referencias foto: que no existen y acepta cuatro fotos 
 
 test('producción se niega a arrancar si faltan servicios críticos', () => {
   assert.throws(
+    () => leerConfig({ NODE_ENV: 'production', JWT_SECRET: 'corto', CORS_ORIGEN: 'https://app.example' }),
+    /JWT_SECRET es demasiado corto/
+  );
+  assert.throws(
     () => leerConfig({ NODE_ENV: 'production', JWT_SECRET: 'x'.repeat(64), CORS_ORIGEN: 'https://app.example' }),
     /Configuración de producción incompleta/
   );
