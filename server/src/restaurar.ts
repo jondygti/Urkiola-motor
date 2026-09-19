@@ -20,6 +20,7 @@ import path from 'node:path';
 import { Client } from 'pg';
 import { problemasDeLaCopia, rehacerEstado, resumirCopia } from './copia-nucleo';
 import { leerConfig } from './config';
+import { FotosEnSupabase } from './almacen/fotos';
 import type { Command } from '../../src/data/commands';
 
 const config = leerConfig(process.env);
@@ -60,7 +61,9 @@ async function main() {
     bytesFotos: 0,
     semilla: config.semilla,
     fotosEn: config.carpetaFotos,
-    fotosFuera: resumen?.fotosEn === 'supabase',
+    // Compatibilidad con copias antiguas, que confiaban en Storage y no
+    // incluían los objetos. Las nuevas siempre llevan la carpeta fotos/.
+    fotosFuera: resumen?.fotosEn === 'supabase' && !fs.existsSync(path.join(origen, 'fotos')),
   });
 
   console.log(`\nCopia de ${resumen?.fecha ?? 'fecha desconocida'}`);
@@ -124,10 +127,22 @@ async function main() {
     const carpetaFotos = path.join(origen, 'fotos');
     let fotos = 0;
     if (fs.existsSync(carpetaFotos)) {
-      fs.mkdirSync(config.carpetaFotos, { recursive: true });
-      for (const f of fs.readdirSync(carpetaFotos)) {
-        fs.copyFileSync(path.join(carpetaFotos, f), path.join(config.carpetaFotos, f));
-        fotos += 1;
+      const nombres = fs.readdirSync(carpetaFotos).filter((f) => !f.endsWith('.tipo'));
+      if (config.supabaseUrl && config.supabaseClave) {
+        const remoto = new FotosEnSupabase(config.supabaseUrl, config.supabaseClave, config.supabaseBucket);
+        for (const f of nombres) {
+          const tipo = fs.existsSync(path.join(carpetaFotos, `${f}.tipo`))
+            ? fs.readFileSync(path.join(carpetaFotos, `${f}.tipo`), 'utf8')
+            : 'image/jpeg';
+          await remoto.guardar(f, { cuerpo: fs.readFileSync(path.join(carpetaFotos, f)), tipo });
+          fotos += 1;
+        }
+      } else {
+        fs.mkdirSync(config.carpetaFotos, { recursive: true });
+        for (const f of fs.readdirSync(carpetaFotos)) {
+          fs.copyFileSync(path.join(carpetaFotos, f), path.join(config.carpetaFotos, f));
+        }
+        fotos = nombres.length;
       }
     }
 
