@@ -415,7 +415,20 @@ function makeVehicle(partial: Partial<Vehicle>): Vehicle {
   const entry = pick(CATALOG);
   const type = partial.type ?? entry.type;
   const vin8 = partial.vin8 ?? randomVin8();
+
+  // Mantener exactamente el orden de consumo del PRNG de la demo: varios
+  // tests dependen de que el mismo seed produzca el mismo parque.
+  const vin = partial.vin ?? `WBA${randomVin8()}${vin8}`;
+  const plate = partial.plate !== undefined
+    ? partial.plate
+    : type === 'VO' || chance(0.45)
+      ? randomPlate()
+      : null;
+  const brand = partial.brand ?? entry.brand;
+  const model = partial.model ?? pick(entry.models);
+  const situation = partial.situation ?? (chance(0.45) ? 'pedido' : 'stock');
   const salesRep = partial.salesRep !== undefined ? partial.salesRep : chance(0.6) ? pick(SALES_REPS) : null;
+
   const coincidentes = salesRep
     ? USERS.filter((u) => u.active && u.role === 'comercial' && (
         u.name.trim().toLowerCase() === salesRep.trim().toLowerCase() ||
@@ -425,15 +438,21 @@ function makeVehicle(partial: Partial<Vehicle>): Vehicle {
   const salesRepId = partial.salesRepId !== undefined
     ? partial.salesRepId
     : coincidentes.length === 1 ? coincidentes[0].id : null;
+
+  const lastCheckAt = partial.lastCheckAt ?? iso(Math.floor(rnd() * 30) * HOUR);
+  const lastCheckBy = partial.lastCheckBy ?? pick(['Pedro Larrea', 'Ane Zubiaur', 'Nerea Goiri']);
+  const lastMovementAt = partial.lastMovementAt ?? iso(Math.floor(rnd() * 6) * DAY);
+  const receivedAt = partial.receivedAt ?? iso(Math.floor(rnd() * 40) * DAY);
+
   return {
     id: partial.id ?? `v-${vin8}`,
     vin8,
-    vin: partial.vin ?? `WBA${randomVin8()}${vin8}`,
-    plate: partial.plate !== undefined ? partial.plate : type === 'VO' || chance(0.45) ? randomPlate() : null,
-    brand: partial.brand ?? entry.brand,
-    model: partial.model ?? pick(entry.models),
+    vin,
+    plate,
+    brand,
+    model,
     type,
-    situation: partial.situation ?? (chance(0.45) ? 'pedido' : 'stock'),
+    situation,
     commercialArea: partial.commercialArea ?? (type === 'VO' ? 'vo' : 'vn'),
     commercialCategory: partial.commercialCategory ?? (type === 'VO' ? 'VO' : 'VN'),
     salesRep,
@@ -443,10 +462,10 @@ function makeVehicle(partial: Partial<Vehicle>): Vehicle {
     location: partial.location ?? null,
     targetSiteId: partial.targetSiteId ?? null,
     status: partial.status ?? 'aparcado',
-    lastCheckAt: partial.lastCheckAt ?? iso(Math.floor(rnd() * 30) * HOUR),
-    lastCheckBy: partial.lastCheckBy ?? pick(['Pedro Larrea', 'Ane Zubiaur', 'Nerea Goiri']),
-    lastMovementAt: partial.lastMovementAt ?? iso(Math.floor(rnd() * 6) * DAY),
-    receivedAt: partial.receivedAt ?? iso(Math.floor(rnd() * 40) * DAY),
+    lastCheckAt,
+    lastCheckBy,
+    lastMovementAt,
+    receivedAt,
   };
 }
 
