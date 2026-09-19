@@ -1,6 +1,6 @@
 # Estado actual de Urkiola Car Service
 
-Actualizado: **15 de septiembre de 2026**.
+Actualizado: **19 de septiembre de 2026**.
 
 Este documento responde a una pregunta: **¿qué está realmente hecho hoy?** No mezcla planes futuros con implementación actual.
 
@@ -19,7 +19,10 @@ La aplicación dispone de:
 - idempotencia por `command.id`;
 - roles, permisos y recorte de estado en backend;
 - sedes, zonas y plazas configurables, incluidas zonas sin plazas numeradas;
-- flota VN/VO, comercial, ubicaciones, movimientos e histórico;
+- flota VN/VO, clasificación comercial (VN/KM0/demo/VO), comercial, ubicaciones, movimientos e histórico;
+- ámbito comercial con Director comercial por marcas y Responsable VO;
+- relación comercial → responsable, para que un Director VN incluya también los VO vendidos por su equipo;
+- comercial visible para preparación y para la operativa interna de traslados;
 - traslados con empresa de transporte, recogida, entrega y rutas;
 - flujo de llaves para traslados desde Sondika: Logística las prepara en Leioa, queda registrado quién y cuándo, y el transportista no puede recoger ni mover el coche hasta que estén listas;
 - preparación completa y repaso;
@@ -30,6 +33,18 @@ La aplicación dispone de:
 - recuentos;
 - notificaciones y barridos programables desde el servidor;
 - entrega al cliente y salida de flota activa.
+
+## Ámbito comercial
+
+La responsabilidad comercial se separa de la persona que vende el coche:
+
+- **Responsable VO**: ve todo el stock cuyo área comercial es VO, aunque lo venda un comercial de VN.
+- **Director comercial**: ve el stock VN/KM0/demo de las marcas que tenga asignadas y, además, los VO asignados a comerciales que dependan de él.
+- **Comercial**: conserva su relación individual con cada vehículo mediante un identificador estable; el nombre de comercial se mantiene por compatibilidad con Quiter y datos históricos.
+- Director comercial y Responsable VO pueden **solicitar traslados y preparaciones** dentro de su ámbito. El backend rechaza solicitudes sobre coches fuera de él.
+- La categoría (VN, KM0, demo, VO) es independiente del responsable del stock (VN o VO). Esto permite que un demo matriculado siga bajo Dirección VN o que pase explícitamente a VO.
+- Logística/administración pueden corregir esa clasificación desde la ficha del vehículo.
+- El transportista externo no recibe comercial, jerarquía ni clasificación comercial en su estado recortado.
 
 ## Flujo de llaves Sondika → transporte
 

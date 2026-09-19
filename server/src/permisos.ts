@@ -10,7 +10,7 @@
  */
 import type { AppState, Id, Permission, User } from '../../src/data/types';
 import { motivoCancelacion, type Command } from '../../src/data/commands';
-import { can, esDelComercial, isSimpleRole, puedeGestionarEntrega } from '../../src/data/selectors';
+import { can, esDelComercial, esGestorComercial, isSimpleRole, puedeGestionarEntrega, vehiculoEnAmbitoComercial } from '../../src/data/selectors';
 
 /** Dos formas de escribir el mismo nombre: «Juan» y «Juan Bilbao». */
 function mismoNombre(a: string, b: string): boolean {
@@ -76,20 +76,23 @@ function necesitaLlavesPreparadas(s: AppState, requestId: Id): boolean {
  */
 function cochePropioDeComercial(s: AppState, u: User, vehicleId: Id): boolean {
   const v = s.vehicles.find((x) => x.id === vehicleId);
-  if (!v?.salesRep) return false;
-  const rep = v.salesRep.trim().toLowerCase();
-  const nombre = u.name.trim().toLowerCase();
-  if (rep === nombre) return true;
+  if (!v) return false;
+  if (v.salesRepId) return v.salesRepId === u.id;
+  if (!v.salesRep) return false;
 
-  // Compatibilidad con datos históricos/Quiter que guardaban solo el nombre
-  // de pila. Solo se acepta si identifica de forma unívoca a un comercial
-  // activo; dos «Juan» nunca deben compartir coches por accidente.
-  const primero = nombre.split(/\s+/)[0];
-  if (rep !== primero) return false;
-  const coincidentes = s.users.filter(
-    (x) => x.active && x.role === 'comercial' && x.name.trim().toLowerCase().split(/\s+/)[0] === primero
-  );
-  return coincidentes.length === 1 && coincidentes[0].id === u.id;
+  // Compatibilidad con datos históricos/Quiter que guardaban solo texto.
+  if (esDelComercial(v, u)) {
+    const rep = v.salesRep.trim().toLowerCase();
+    const nombre = u.name.trim().toLowerCase();
+    if (rep === nombre) return true;
+    const primero = nombre.split(/\s+/)[0];
+    if (rep !== primero) return false;
+    const coincidentes = s.users.filter(
+      (x) => x.active && x.role === 'comercial' && x.name.trim().toLowerCase().split(/\s+/)[0] === primero
+    );
+    return coincidentes.length === 1 && coincidentes[0].id === u.id;
+  }
+  return false;
 }
 
 function puedePedirTraslado(s: AppState, u: User, cmd: Extract<Command, { type: 'request.create' }>): boolean {
@@ -260,12 +263,17 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
       }
       return puedeEditarLlaves(s, u, cmd.vehicleId) ? null : 'Ese vehículo no está dentro de tu ámbito para editar llaves.';
 
-    case 'request.create':
+    case 'request.create': {
       if (!tiene(s, u, 'solicitudes.crear')) return 'No puedes crear solicitudes.';
+      const vehiculo = s.vehicles.find((v) => v.id === cmd.vehicleId);
+      if (esGestorComercial(u) && (!vehiculo || !vehiculoEnAmbitoComercial(s, u, vehiculo))) {
+        return 'Ese vehículo está fuera de tu ámbito comercial.';
+      }
       if (cmd.requestType === 'traslado' && !puedePedirTraslado(s, u, cmd)) {
         return 'No puedes solicitar ese traslado: el vehículo o el destino están fuera de tu ámbito.';
       }
       return null;
+    }
 
     case 'request.update': {
       const r = s.requests.find((x) => x.id === cmd.requestId);
@@ -350,6 +358,7 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
       return tiene(s, u, 'notificaciones.gestionar') ? null : 'No puedes configurar avisos.';
 
     case 'vehicle.setCustom':
+    case 'vehicle.setCommercial':
       return tiene(s, u, 'flota.editar') ? null : 'No puedes editar campos del vehículo.';
 
     case 'vehicle.setSalesRep': {

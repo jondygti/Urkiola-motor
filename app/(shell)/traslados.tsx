@@ -225,6 +225,9 @@ export default function TransfersDoneScreen() {
                 <Text style={{ fontSize: tipografia.small, color: c.text }}>
                   {locationLabel(state, request.from, true)} → {locationLabel(state, request.to, true)}
                 </Text>
+                <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>
+                  Comercial: {vehicle?.salesRep ?? 'Sin asignar'}
+                </Text>
                 <Text style={{ fontSize: tipografia.micro, color: c.textFaint }}>
                   🔑 {request.pickedUpAt ? formatDateTime(request.pickedUpAt) : 'Sin recogida apuntada'} · 🏁{' '}
                   {request.deliveredAt ? formatDateTime(request.deliveredAt) : 'Sin entrega apuntada'}

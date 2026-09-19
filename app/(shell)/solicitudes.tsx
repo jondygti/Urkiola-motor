@@ -92,6 +92,16 @@ export default function RequestsScreen() {
       },
     },
     {
+      key: 'salesRep',
+      header: 'Comercial',
+      width: 145,
+      value: (r) => state.vehicles.find((x) => x.id === r.vehicleId)?.salesRep ?? 'Sin asignar',
+      render: (r) => {
+        const v = state.vehicles.find((x) => x.id === r.vehicleId);
+        return <Cell muted={!v?.salesRep}>{v?.salesRep ?? 'Sin asignar'}</Cell>;
+      },
+    },
+    {
       key: 'site',
       header: 'Sede',
       width: 110,
@@ -232,7 +242,7 @@ export default function RequestsScreen() {
                           Sondika → {locationLabel(state, r.to, true)}
                         </Text>
                         <Text style={{ fontSize: tipografia.micro, color: c.textFaint }}>
-                          Llaves: {v?.primaryKeyLocation || 'Leioa · Logística'} ·{' '}
+                          Comercial: {v?.salesRep ?? 'sin asignar'} · Llaves: {v?.primaryKeyLocation || 'Leioa · Logística'} ·{' '}
                           {r.carrierId ? carrierName(state, r.carrierId) : 'transportista sin asignar'}
                         </Text>
                       </View>
@@ -427,6 +437,9 @@ function ManageModal({
     >
       <Field label="Vehículo">
         <Muted>{vehicle ? `${vehicleName(vehicle)} · ${vehicleRef(vehicle)}` : request.vehicleId}</Muted>
+      </Field>
+      <Field label="Comercial">
+        <Muted>{vehicle?.salesRep ?? 'Sin asignar'}</Muted>
       </Field>
       <Field label="Ruta">
         <Muted>

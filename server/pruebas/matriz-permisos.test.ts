@@ -24,9 +24,9 @@ const FOTOS_FINAL = {
   rearRight: 'foto:final-rr.jpg',
 } as const;
 
-type Rol = 'admin' | 'logistica' | 'preparador' | 'transportista' | 'recepcion' | 'comercial';
+type Rol = 'admin' | 'logistica' | 'preparador' | 'transportista' | 'recepcion' | 'comercial' | 'director_comercial' | 'responsable_vo';
 
-const ROLES: Rol[] = ['admin', 'logistica', 'preparador', 'transportista', 'recepcion', 'comercial'];
+const ROLES: Rol[] = ['admin', 'logistica', 'preparador', 'transportista', 'recepcion', 'comercial', 'director_comercial', 'responsable_vo'];
 
 /** Quién puede ejecutar cada comando. Lo que no está listado, no puede. */
 const PUEDEN: Record<string, Rol[]> = {
@@ -40,7 +40,7 @@ const PUEDEN: Record<string, Rol[]> = {
   // Solicitudes
   'request.cancel': ['admin', 'logistica'],
   'vehicle.setKeys': ['admin', 'logistica', 'preparador', 'recepcion', 'comercial'],
-  'request.create': ['admin', 'logistica', 'preparador', 'comercial'],
+  'request.create': ['admin', 'logistica', 'preparador', 'comercial', 'director_comercial', 'responsable_vo'],
   'request.update': ['admin', 'logistica'],
 
   // Preparación. Ojo con `prep.create`: aquí se comprueba el caso base, un
@@ -85,11 +85,12 @@ const PUEDEN: Record<string, Rol[]> = {
 
   // Vehículo
   'vehicle.setCustom': ['admin', 'logistica'],
-  'vehicle.setDelivery': ['admin', 'logistica', 'comercial'],
+  'vehicle.setCommercial': ['admin', 'logistica'],
+  'vehicle.setDelivery': ['admin', 'logistica', 'comercial', 'director_comercial', 'responsable_vo'],
   // Dar el coche por entregado va con las entregas: lo marca quien vende y
   // la oficina por él. Al preparador y al transportista no les toca, y al
   // transportista además le sacaría el coche de su propio traslado.
-  'vehicle.deliver': ['admin', 'logistica', 'comercial'],
+  'vehicle.deliver': ['admin', 'logistica', 'comercial', 'director_comercial', 'responsable_vo'],
   'vehicle.create': ['admin', 'logistica', 'recepcion'],
   // Aquí el ejemplo es un coche SIN comercial y asignándoselo a sí mismo,
   // que es lo que puede hacer un comercial. Que no pueda quitarle uno a
@@ -224,6 +225,12 @@ function ejemplos(s: AppState): Record<string, CommandInput> {
       fieldId: campo.id,
       value: 'x',
     },
+    'vehicle.setCommercial': {
+      type: 'vehicle.setCommercial',
+      vehicleId: vehiculo.id,
+      commercialArea: 'vn',
+      commercialCategory: 'DEMO',
+    },
     'vehicle.setDelivery': {
       type: 'vehicle.setDelivery',
       vehicleId: vehiculo.id,
@@ -283,9 +290,31 @@ test('cada rol puede exactamente lo que debe', () => {
 
       // La matriz comprueba el permiso del rol sobre una entrega propia.
       // La denegación sobre coches ajenos se comprueba por separado.
-      const escenario = (tipo === 'vehicle.deliver' || tipo === 'vehicle.setDelivery') && rol === 'comercial'
-        ? { ...estado, vehicles: estado.vehicles.map((v) => v.id === (cmd as { vehicleId: string }).vehicleId ? { ...v, salesRep: user.name } : v) }
-        : estado;
+      let escenario = estado;
+      if ((tipo === 'vehicle.deliver' || tipo === 'vehicle.setDelivery') && rol === 'comercial') {
+        escenario = {
+          ...estado,
+          vehicles: estado.vehicles.map((v) =>
+            v.id === (cmd as { vehicleId: string }).vehicleId ? { ...v, salesRep: user.name, salesRepId: user.id } : v
+          ),
+        };
+      }
+      if (['request.create', 'vehicle.deliver', 'vehicle.setDelivery'].includes(tipo) &&
+          (rol === 'director_comercial' || rol === 'responsable_vo')) {
+        const vehicleId = (cmd as { vehicleId: string }).vehicleId;
+        escenario = {
+          ...escenario,
+          vehicles: escenario.vehicles.map((v) =>
+            v.id === vehicleId
+              ? {
+                  ...v,
+                  commercialArea: rol === 'responsable_vo' ? 'vo' as const : 'vn' as const,
+                  brand: rol === 'director_comercial' ? (user.managedBrands?.[0] ?? v.brand) : v.brand,
+                }
+              : v
+          ),
+        };
+      }
       const rechazo = comprobarPermiso(escenario, user, cmd);
       const deberia = PUEDEN[tipo]!.includes(rol);
       const puede = rechazo === null;

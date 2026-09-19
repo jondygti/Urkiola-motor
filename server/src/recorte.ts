@@ -11,7 +11,7 @@
  * necesita para leer una ubicación, y su propio rol.
  */
 import type { AppState, Id, NotificationEvent, User, Vehicle } from '../../src/data/types';
-import { avisoLeido, can, esDelComercial } from '../../src/data/selectors';
+import { avisoLeido, can, esDelComercial, esGestorComercial, vehiculoEnAmbitoComercial } from '../../src/data/selectors';
 
 /**
  * Qué campos del vehículo puede ver un proveedor externo y cuáles no.
@@ -33,6 +33,9 @@ export const CAMPOS_DEL_VEHICULO: Record<keyof Vehicle, 'va' | 'se-borra'> = {
   brand: 'va',
   model: 'va',
   type: 'va',
+  commercialArea: 'se-borra',
+  commercialCategory: 'se-borra',
+  salesRepId: 'se-borra',
   location: 'va',
   locationObservedAt: 'va',
   targetSiteId: 'va',
@@ -69,6 +72,9 @@ function vehiculoRecortado(v: Vehicle): Vehicle {
     keysUpdatedAt: null,
     keysUpdatedBy: null,
     salesRep: null,
+    salesRepId: null,
+    commercialArea: undefined,
+    commercialCategory: undefined,
     custom: undefined,
     deliveryDate: null,
     deliveredAt: null,
@@ -161,6 +167,26 @@ function paraEste(n: NotificationEvent, u: User): boolean {
   return !n.userIds || n.userIds.length === 0 || n.userIds.includes(u.id);
 }
 
+export function estadoParaAmbitoComercial(s: AppState, u: User): AppState {
+  const vehicles = s.vehicles.filter((v) => vehiculoEnAmbitoComercial(s, u, v));
+  const ids = new Set(vehicles.map((v) => v.id));
+
+  return {
+    ...s,
+    vehicles,
+    movements: s.movements.filter((m) => ids.has(m.vehicleId)),
+    requests: s.requests.filter((r) => ids.has(r.vehicleId)),
+    preparations: s.preparations.filter((p) => ids.has(p.vehicleId)),
+    incidents: s.incidents.filter((i) => ids.has(i.vehicleId)),
+    // Recuentos y recepciones son trabajo físico de campa, no del ámbito
+    // comercial. No se envían por comodidad ni quedan en el dispositivo.
+    counts: [],
+    receptions: [],
+    events: s.events.filter((e) => !e.vehicleId || ids.has(e.vehicleId)),
+    inbox: s.inbox.filter((n) => paraEste(n, u) && (!n.vehicleId || ids.has(n.vehicleId))),
+  };
+}
+
 export function estadoParaSedes(s: AppState, u: User): AppState {
   // Los avisos se filtran para todos, tengan sedes o no: el administrador
   // tampoco necesita en el móvil los avisos dirigidos a otra persona.
@@ -200,7 +226,11 @@ export function estadoParaSedes(s: AppState, u: User): AppState {
 
 /** El estado que le toca a cada uno. */
 export function estadoPara(s: AppState, u: User, colaboradorExterno: boolean): AppState {
-  const recortado = colaboradorExterno ? estadoParaColaborador(s, u) : estadoParaSedes(s, u);
+  const recortado = colaboradorExterno
+    ? estadoParaColaborador(s, u)
+    : esGestorComercial(u)
+      ? estadoParaAmbitoComercial(s, u)
+      : estadoParaSedes(s, u);
   return {
     ...recortado,
     // La API conserva `read` para los clientes antiguos, pero nunca enseña

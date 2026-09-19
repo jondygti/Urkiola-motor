@@ -1,6 +1,6 @@
 # Contrato del backend
 
-Actualizado: **15/09/2026**.
+Actualizado: **19/09/2026**.
 
 El código actual está en `server/`. La especificación exacta de comandos vive en los tipos y reglas de `src/data/commands.ts`; este documento fija las garantías externas que deben mantenerse.
 
@@ -54,8 +54,16 @@ Transportistas:
 - ven solo traslados de su empresa/asignación;
 - no ven traslados con `carrierId=null`;
 - no ven datos internos ajenos a su trabajo;
-- no reciben ubicaciones de llaves;
+- no reciben ubicaciones de llaves ni metadatos del ámbito comercial;
 - no pueden convertir permisos configurables en acceso administrativo.
+
+Ámbito comercial:
+
+- el Responsable VO recibe y puede operar comercialmente solo sobre vehículos del stock VO;
+- el Director comercial recibe VN/KM0/demo de sus marcas y los VO asignados a comerciales que dependen de él;
+- ambos pueden crear solicitudes de traslado o preparación únicamente sobre vehículos dentro de ese ámbito;
+- `vehicle.setCommercial` permite a quien tenga `flota.editar` corregir categoría y responsable del stock;
+- la autorización se comprueba en backend, independientemente de los botones que muestre el cliente.
 
 ## Reglas funcionales especialmente protegidas
 
