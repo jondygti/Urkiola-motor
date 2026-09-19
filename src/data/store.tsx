@@ -69,7 +69,9 @@ const TOKEN_KEY = 'urkiola.token.v1';
 // 21: cancelaciones, llaves y zona opcional de recepción; conserva datos v20.
 // 22: el requisito Fotos pasa a ser un reportaje final obligatorio de cuatro
 // diagonales y la preparación conserva esas evidencias.
-const STATE_SCHEMA_VERSION = 22;
+// 23: entra el ámbito comercial (VN/VO), la relación comercial-responsable
+// y los roles de Director comercial y Responsable VO.
+const STATE_SCHEMA_VERSION = 23;
 
 interface StoredState {
   v: number;
