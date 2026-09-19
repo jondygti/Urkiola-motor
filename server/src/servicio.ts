@@ -397,6 +397,11 @@ export class Servicio {
     return { repetido: false };
   }
 
+  /** Render usa esto para no enviar tráfico a una instancia sin base de datos. */
+  async salud(): Promise<void> {
+    await this.almacen.salud();
+  }
+
   /* ------------------------------------------- restablecer contraseña */
 
   /**
