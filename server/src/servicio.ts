@@ -157,6 +157,9 @@ export class Servicio {
     const { config } = this;
 
     if (config.adminEmail && config.adminPassword) {
+      // El primer acceso también cumple la política; una contraseña débil en
+      // una variable de Render no debe crear una puerta trasera inicial.
+      comprobarFortaleza(config.adminPassword);
       const existente = this.estadoActual.users.find(
         (u) => u.email.toLowerCase() === config.adminEmail.toLowerCase()
       );
