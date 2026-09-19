@@ -323,6 +323,11 @@ export async function ejecutar(browser, BASE) {
     const texto = await page.evaluate(() => document.body.innerText);
     ok('13 · le aparece al preparador sin pasar por la oficina', texto.includes(matricula ?? '·'), matricula ?? '');
     ok('13 · marcada como sin empezar', texto.includes('Sin empezar') || texto.includes('Urgente'));
+    ok(
+      '13 · el preparador ve de qué comercial es el coche',
+      texto.includes('Comercial:'),
+      texto.match(/Comercial:[^\n]*/)?.[0] ?? 'sin dato comercial'
+    );
 
     // El botón de SU tarjeta: en la cola puede haber más preparaciones
     // pedidas, y pulsar la primera empezaría la de otro coche.
