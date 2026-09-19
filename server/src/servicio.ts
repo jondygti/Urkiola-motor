@@ -333,7 +333,9 @@ export class Servicio {
     const persona = this.estadoActual.users.find((u) => u.active &&
       !esColaboradorExterno(this.estadoActual, u));
     if (!persona) return;
-    await this.ejecutar({ type: 'alerts.sweep', id: `reloj-${at.slice(0, 16)}`, at, userId: persona.id }, persona);
+    // Un barrido por hora es suficiente para umbrales de 24/72 h y evita
+    // llenar el histórico con 60 comandos idénticos cada hora.
+    await this.ejecutar({ type: 'alerts.sweep', id: `reloj-${at.slice(0, 13)}`, at, userId: persona.id }, persona);
   }
 
   private async ejecutarEnSerie(cuerpo: unknown, user: User): Promise<{ repetido: boolean }> {
