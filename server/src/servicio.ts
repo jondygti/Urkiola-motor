@@ -357,6 +357,25 @@ export class Servicio {
         throw malaPeticion('Ya hay un usuario con ese correo.');
       }
       if (!this.estadoActual.config.roles.some((r) => r.id === cmd.user.role)) throw malaPeticion('Ese rol no existe.');
+      if (cmd.user.managerId) {
+        const responsable = this.estadoActual.users.find((u) => u.id === cmd.user.managerId && u.active);
+        if (!responsable || !['director_comercial', 'responsable_vo'].includes(responsable.role)) {
+          throw malaPeticion('El responsable comercial indicado no es válido.');
+        }
+        if (responsable.id === cmd.user.id) throw malaPeticion('Una persona no puede ser su propio responsable.');
+      }
+      if (cmd.user.managedBrands !== undefined) {
+        if (!Array.isArray(cmd.user.managedBrands) || cmd.user.managedBrands.some((x) => typeof x !== 'string' || !x.trim())) {
+          throw malaPeticion('Las marcas gestionadas tienen que ser una lista de nombres válidos.');
+        }
+      }
+    }
+
+    if (cmd.type === 'vehicle.setSalesRep' && cmd.salesRepUserId) {
+      const comercial = this.estadoActual.users.find((u) => u.id === cmd.salesRepUserId && u.active);
+      if (!comercial || comercial.role !== 'comercial') {
+        throw malaPeticion('El usuario indicado no es un comercial activo.');
+      }
     }
 
     if (cmd.type === 'request.update' && cmd.status !== 'terminada') {
