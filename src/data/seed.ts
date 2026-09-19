@@ -339,7 +339,7 @@ const REQUIREMENTS: Requirement[] = [
   { id: 'req-lavado', label: 'Lavado', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 1 },
   { id: 'req-pdi', label: 'PDI', vehicleTypes: ['VN'], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 2 },
   { id: 'req-combustible', label: 'Combustible', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 3 },
-  { id: 'req-fotos', label: 'Fotos', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 4 },
+  { id: 'req-fotos', label: 'Reportaje final (4 fotos)', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: false, optional: false, order: 4 },
   { id: 'req-alfombrillas', label: 'Alfombrillas', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 5 },
   { id: 'req-matriculas', label: 'Matrículas', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 6 },
   { id: 'req-baliza', label: 'Baliza', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 7 },
