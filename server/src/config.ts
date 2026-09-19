@@ -85,6 +85,24 @@ export function leerConfig(env: NodeJS.ProcessEnv = process.env): Config {
     );
   }
 
+  if (produccion) {
+    const faltan: string[] = [];
+    if (!env.DATABASE_URL) faltan.push('DATABASE_URL');
+    if (env.URKIOLA_SEMILLA !== 'vacia') faltan.push('URKIOLA_SEMILLA=vacia');
+    if (!env.SUPABASE_URL) faltan.push('SUPABASE_URL');
+    if (!env.SUPABASE_SERVICE_ROLE_KEY) faltan.push('SUPABASE_SERVICE_ROLE_KEY');
+    if (!env.PUBLIC_URL) faltan.push('PUBLIC_URL');
+    if (!env.URKIOLA_ADMIN_EMAIL) faltan.push('URKIOLA_ADMIN_EMAIL');
+    if (!env.URKIOLA_ADMIN_PASSWORD) faltan.push('URKIOLA_ADMIN_PASSWORD');
+    if (!env.EMAIL_API_KEY) faltan.push('EMAIL_API_KEY');
+    if (faltan.length) {
+      throw new Error(
+        'Configuración de producción incompleta. El servidor no arrancará en modo degradado: ' +
+          faltan.join(', ')
+      );
+    }
+  }
+
   return {
     puerto: entero(env.PORT ?? env.PUERTO, 8080),
     databaseUrl: env.DATABASE_URL ?? '',
