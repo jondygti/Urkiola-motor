@@ -190,6 +190,22 @@ export function validarComando(cuerpo: unknown, userId: string, ahora = Date.now
   }
   if (c.type === 'request.update' && !['solicitada','asignada','en_ruta','en_curso','terminada','bloqueada'].includes(String(c.status))) throw malaPeticion('Estado no válido. Para cancelar usa Cancelar solicitud.');
   if (c.type === 'request.create' && !['traslado','preparacion'].includes(String(c.requestType))) throw malaPeticion('Tipo de solicitud no válido.');
+  if (c.type === 'vehicle.setSalesRep' && c.salesRepUserId !== undefined && c.salesRepUserId !== null &&
+      (typeof c.salesRepUserId !== 'string' || !c.salesRepUserId.trim())) {
+    throw malaPeticion('El usuario comercial indicado no es válido.');
+  }
+  if (c.type === 'vehicle.create') {
+    if (c.commercialArea !== undefined && !['vn', 'vo'].includes(String(c.commercialArea))) {
+      throw malaPeticion('Área comercial no válida.');
+    }
+    if (c.commercialCategory !== undefined && !['VN', 'KM0', 'DEMO', 'VO'].includes(String(c.commercialCategory))) {
+      throw malaPeticion('Categoría comercial no válida.');
+    }
+    if (c.salesRepUserId !== undefined && c.salesRepUserId !== null &&
+        (typeof c.salesRepUserId !== 'string' || !c.salesRepUserId.trim())) {
+      throw malaPeticion('El usuario comercial indicado no es válido.');
+    }
+  }
   if (c.type === 'zone.upsert') {
     const zone = c.zone && typeof c.zone === 'object' && !Array.isArray(c.zone)
       ? c.zone as Record<string, unknown>
