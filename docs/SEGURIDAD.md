@@ -1,6 +1,6 @@
 # Seguridad de Urkiola Car Service
 
-Actualizado: **15/09/2026**.
+Actualizado: **20/09/2026**.
 
 Este documento separa los controles que ya existen en el código de los que faltan para un despliegue real.
 
@@ -41,8 +41,10 @@ Esto es el estado actual del código. El objetivo de producción es **Supabase A
 
 ### Fotos y documentos
 
-- no se confía en una URL pública predecible;
-- el acceso pasa por la API o, en el futuro, por URL firmada corta;
+- no se confía en una URL pública predecible ni en que el identificador sea difícil de adivinar;
+- una evidencia solo se descarga si su referencia aparece en el estado autorizado de ese usuario;
+- la subida exige un rol operativo con permiso para crear evidencia (incidencias, preparación o recepción);
+- una petición fuera de ámbito responde como no encontrada y no revela que el objeto existe;
 - SVG no se acepta;
 - `SUPABASE_SERVICE_ROLE_KEY` es solo backend.
 
@@ -62,11 +64,12 @@ Esto es el estado actual del código. El objetivo de producción es **Supabase A
 
 ## Pendiente antes de producción
 
-1. Crear staging Render + Supabase.
+0. Antes de cargar secretos/datos reales: revisar visibilidad privada del repositorio, proteger `main` con CI/ruleset y eliminar ramas temporales fusionadas.
+1. Crear staging Render + Supabase siguiendo `STAGING-CHECKLIST.md`.
 2. Verificar TLS real, CORS y cabeceras en el dominio final.
 3. Activar 2FA y mínimo privilegio en GitHub, Render y Supabase.
 4. Migrar identidad a Supabase Auth y probar sesión, renovación, recuperación, baja y offline.
-5. Validar políticas y acceso de Storage.
+5. Validar bucket privado, service-role solo en backend y repetir las pruebas negativas de evidencia entre ámbitos contra Storage real.
 6. Probar backup **y restauración** de PostgreSQL y objetos.
 7. Revisar secretos y red de QBI Premium; usuario de solo lectura.
 8. Auditoría externa/pentest contra staging/producción antes de introducir datos personales sensibles.
