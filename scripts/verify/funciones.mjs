@@ -16,12 +16,17 @@ export async function ejecutar(browser, BASE) {
     const { context, page, errores } = await entrarComo(browser, USUARIOS.preparador);
     await page.goto(`${BASE}/flota`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(700);
-    // Primera matrícula visible en la lista de flota.
-    const ref = await page.evaluate(() => {
-      const txt = [...document.querySelectorAll('div')].map((d) => d.textContent ?? '');
-      const m = txt.join('\n').match(/\b\d{4}\s?[A-Z]{3}\b/);
-      return m ? m[0] : null;
-    });
+    // Elegir un coche matriculado que esté ya en una sede con parkings.
+    // Así la prueba no depende de qué matrícula haya quedado primera en la
+    // tabla cuando cambian los datos de presentación.
+    const estadoInicial = await estadoGuardado(page);
+    const candidato = estadoInicial?.vehicles?.find(
+      (v) =>
+        v.logisticActive &&
+        v.plate &&
+        ['leioa', 'galdakao', 'anoeta', 'irun'].includes(v.location?.siteId ?? '')
+    );
+    const ref = candidato?.plate ?? null;
 
     await page.goto(`${BASE}/mover`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(600);
@@ -694,7 +699,7 @@ export async function ejecutar(browser, BASE) {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
     const page = await context.newPage();
     await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' });
-    await pulsar(page, 'Lucía Martín');
+    await pulsar(page, 'Juan Bilbao');
     await page.waitForTimeout(1000);
     const s = await estadoGuardado(page);
     const v = s.vehicles.find((v) => v.location?.siteId === 'leioa' && v.logisticActive && !v.deliveredAt && !s.requests.some(r => r.vehicleId === v.id && r.type === 'traslado' && !['terminada', 'cancelada'].includes(r.status)));
