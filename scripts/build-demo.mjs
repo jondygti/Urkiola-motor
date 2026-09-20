@@ -126,6 +126,47 @@ ${cssDeLaFuente()}
       animation-duration: 3s;
     }
   }
+
+  /* Capa exclusiva del HTML de presentación. No forma parte de la app real. */
+  .director-demo {
+    position: fixed;
+    z-index: 2147483647;
+    top: 14px;
+    right: 14px;
+    width: min(330px, calc(100vw - 28px));
+    border: 1px solid rgba(30,157,130,.28);
+    border-radius: 16px;
+    background: rgba(255,255,255,.96);
+    box-shadow: 0 18px 48px rgba(8,31,38,.18);
+    color: #17343c;
+    font-family: system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+  }
+  .director-demo__head {
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:12px 14px;
+    background:#0f6f62;
+    color:white;
+  }
+  .director-demo__head strong { font-size:13px; letter-spacing:.05em; }
+  .director-demo__close {
+    border:0; background:rgba(255,255,255,.16); color:white; border-radius:999px;
+    width:28px; height:28px; font-size:18px; cursor:pointer;
+  }
+  .director-demo__body { padding:13px 14px 14px; font-size:12px; line-height:1.42; }
+  .director-demo__body b { color:#0f6f62; }
+  .director-demo__body p { margin:0 0 9px; }
+  .director-demo__body ul { margin:6px 0 0; padding-left:18px; }
+  .director-demo__body li { margin:3px 0; }
+  .director-demo__tag {
+    display:inline-block; margin-bottom:9px; padding:4px 8px; border-radius:999px;
+    background:#e6f5f1; color:#0f6f62; font-weight:800; font-size:11px;
+  }
+  @media (max-width: 700px) {
+    .director-demo { top:auto; bottom:10px; right:10px; width:calc(100vw - 20px); }
+    .director-demo__body { max-height:32vh; overflow:auto; }
+  }
 </style>
 
 <div id="root">
@@ -135,6 +176,25 @@ ${cssDeLaFuente()}
     <span>Cargando la demostración…</span>
   </div>
 </div>
+
+<aside class="director-demo" id="directorDemo">
+  <div class="director-demo__head">
+    <strong>DEMO DIRECCIÓN · URKIOLA</strong>
+    <button class="director-demo__close" type="button" aria-label="Cerrar guía" onclick="document.getElementById('directorDemo').remove()">×</button>
+  </div>
+  <div class="director-demo__body">
+    <span class="director-demo__tag">VN Stellantis · VO multimarca</span>
+    <p><b>Esta es la demo preparada para Gerencia y Dirección Comercial.</b></p>
+    <p>Perfiles clave: <b>Dirección Peugeot · Citroën</b>, <b>Dirección Opel · Fiat · Jeep</b> y <b>Responsable VO</b>.</p>
+    <ul>
+      <li><b>6412 NPV</b> · Peugeot 3008 KM0</li>
+      <li><b>23456789</b> · Citroën C5 Aircross DEMO</li>
+      <li><b>7251 KRX</b> · Opel Astra VN</li>
+      <li><b>4821 LKM</b> · BMW X3 VO vendido por comercial VN</li>
+      <li><b>9032 MTR</b> · Volkswagen T-Roc VO</li>
+    </ul>
+  </div>
+</aside>
 
 <script>
   /* React Native Web decide el tema con \`prefers-color-scheme\`. Cuando la
