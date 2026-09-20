@@ -6,7 +6,8 @@ Antes de modificar el proyecto, leer:
 2. `docs/ARCHITECTURE.md`
 3. `docs/ROADMAP.md`
 4. `docs/SEGURIDAD.md`
-5. `CLAUDE.md` para las reglas de negocio históricas que siguen vigentes.
+5. `docs/STAGING-CHECKLIST.md` si el trabajo afecta al despliegue/piloto.
+6. `CLAUDE.md` para las reglas de negocio históricas que siguen vigentes.
 
 ## Fuente de verdad
 
@@ -25,6 +26,8 @@ Objetivo de producción: **Render + Supabase PostgreSQL/Auth/Storage + Expo/Andr
 - Distinguir siempre entre **código actual** y **arquitectura objetivo**.
 - No inventar APIs, tablas o campos de Quiter/QBI sin documentación real.
 - No subir secretos, `.env`, credenciales de QBI, Render o Supabase.
+- Una evidencia remota no se autoriza por su URL/ID: solo si está referenciada en el estado que ese usuario puede recibir.
+- No introducir un segundo método de despliegue: la ruta vigente es `server/Dockerfile` + Render + Supabase.
 
 ## Comprobaciones mínimas
 
