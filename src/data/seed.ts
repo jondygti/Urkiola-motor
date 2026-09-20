@@ -1356,7 +1356,7 @@ export function buildSeedState(): AppState {
       // 12345678 lo lleva Juan: el aviso de que su coche sale es suyo.
       userIds: ['u-juan'],
       title: 'Traslado en ruta',
-      body: 'BMW X1 · 12345678 ha salido de Sondika hacia Leioa.',
+      body: 'Peugeot 3008 KM0 · 6412 NPV ha salido de Sondika hacia Leioa.',
       at: iso(7 * HOUR),
       read: false,
       tone: 'info',
