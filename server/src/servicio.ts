@@ -24,7 +24,9 @@ import {
   cifrarPassword,
   comprobarPassword,
   emitirToken,
+  emitirTokenFoto,
   leerToken,
+  leerTokenFoto,
   limpiarFallos,
 } from './auth';
 import { comprobarPermiso, esColaboradorExterno } from './permisos';
@@ -570,6 +572,28 @@ export class Servicio {
     const foto = await this.fotos.leer(id);
     if (!foto) throw noEncontrado('Esa foto ya no está.');
     return foto;
+  }
+
+  /** Crea una capacidad breve para pintar una evidencia sin exponer el JWT general. */
+  async crearAccesoFoto(id: string, user: User): Promise<string> {
+    await this.leerFoto(id, user);
+    return emitirTokenFoto(user.id, id, this.config.secreto);
+  }
+
+  /** Resuelve la capacidad de una foto y vuelve a comprobar usuario/estado actual. */
+  usuarioDeTokenFoto(id: string, token: string | undefined): User {
+    if (!token) throw noAutenticado('Falta la autorización de la evidencia.');
+    const acceso = leerTokenFoto(token, id, this.config.secreto);
+    if (!acceso) throw noAutenticado('La autorización de la evidencia no vale o ha caducado.');
+
+    const user = this.estadoActual.users.find((u) => u.id === acceso.sub);
+    if (!user || !user.active) throw noAutenticado('Tu usuario ya no está activo.');
+
+    const cambiada = this.cambiadaEn.get(user.id);
+    if (cambiada !== undefined && acceso.iat < cambiada) {
+      throw noAutenticado('Se ha cambiado la contraseña de esta cuenta.');
+    }
+    return user;
   }
 
   async registrarTokenPush(user: User, token: unknown) {
