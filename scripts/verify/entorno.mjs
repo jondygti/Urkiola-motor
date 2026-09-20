@@ -57,15 +57,16 @@ function buscarChromium() {
 
 /** Perfiles de demostración, tal y como están en src/data/seed.ts. */
 export const USUARIOS = {
-  director: { id: 'u-dir-vn', name: 'Dirección VN', role: 'director_comercial', siteIds: [], managedBrands: ['BMW', 'MINI'], email: 'direccion.vn@urkiolacarservice.com', active: true },
-  responsableVo: { id: 'u-resp-vo', name: 'Responsable VO', role: 'responsable_vo', siteIds: [], email: 'responsable.vo@urkiolacarservice.com', active: true },
-  admin: { id: 'u-admin', name: 'Jon Aranburu', role: 'admin', siteIds: [], email: 'admin@urkiolacarservice.com', active: true },
+  director: { id: 'u-dir-vn', name: 'Dirección Peugeot · Citroën', role: 'director_comercial', siteIds: [], managedBrands: ['Peugeot', 'Citroën'], email: 'direccion.pc.demo@urkiolacarservice.com', active: true },
+  director2: { id: 'u-dir-vn-2', name: 'Dirección Opel · Fiat · Jeep', role: 'director_comercial', siteIds: [], managedBrands: ['Opel', 'Fiat', 'Jeep'], email: 'direccion.ofj.demo@urkiolacarservice.com', active: true },
+  responsableVo: { id: 'u-resp-vo', name: 'Responsable VO', role: 'responsable_vo', siteIds: [], email: 'responsable.vo.demo@urkiolacarservice.com', active: true },
+  admin: { id: 'u-admin', name: 'Gerencia Urkiola', role: 'admin', siteIds: [], email: 'gerencia.demo@urkiolacarservice.com', active: true },
   logistica: { id: 'u-log', name: 'Marta Ibarra', role: 'logistica', siteIds: [], email: 'logistica@urkiolacarservice.com', active: true },
   preparador: { id: 'u-pedro', name: 'Pedro Larrea', role: 'preparador', siteIds: ['leioa'], email: 'pedro@urkiolacarservice.com', active: true },
   transportista: { id: 'u-iker', name: 'Iker Solano', role: 'transportista', siteIds: [], email: 'transporte@urkiolacarservice.com', active: true, carrierId: 'gruas-francis' },
   transportista2: { id: 'u-aitor', name: 'Aitor Bengoa', role: 'transportista', siteIds: [], email: 'betigoiz@urkiolacarservice.com', active: true, carrierId: 'gruas-betigoiz' },
   recepcion: { id: 'u-nerea', name: 'Nerea Goiri', role: 'recepcion', siteIds: ['sondika'], email: 'recepcion@urkiolacarservice.com', active: true },
-  comercial: { id: 'u-juan', name: 'Juan Bilbao', role: 'comercial', siteIds: ['leioa'], email: 'juan@urkiolacarservice.com', active: true },
+  comercial: { id: 'u-juan', name: 'Lucía Martín', role: 'comercial', siteIds: ['leioa'], email: 'lucia.demo@urkiolacarservice.com', active: true, managerId: 'u-dir-vn' },
 };
 
 /** Abre una pestaña ya con la sesión iniciada, sin pasar por el login. */
