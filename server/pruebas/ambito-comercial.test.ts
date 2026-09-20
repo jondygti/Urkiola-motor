@@ -180,9 +180,9 @@ test('un coche asignado solo por ID no se puede arrebatar', () => {
 
 test('un nombre histórico ambiguo no amplía el ámbito de un director', () => {
   const { estado, director, juan, voEquipo } = escenario();
-  estado.users.push({ ...juan, id: 'otra-lucia', name: 'Lucía Pérez', managerId: null });
+  estado.users.push({ ...juan, id: 'otro-juan', name: 'Juan Pérez', managerId: null });
   voEquipo.salesRepId = null;
-  voEquipo.salesRep = 'Lucía';
+  voEquipo.salesRep = 'Juan';
   assert.equal(vehiculoEnAmbitoComercial(estado, director, voEquipo), false);
 });
 
