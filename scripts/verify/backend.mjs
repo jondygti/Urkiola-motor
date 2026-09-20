@@ -329,9 +329,9 @@ try {
 
 
   // Ámbito y clasificación a través de la API real, sin confiar en filtros UI.
-  const adminScope = await entrar('gerencia.demo@urkiolacarservice.com');
-  const directorScope = await entrar('direccion.pc.demo@urkiolacarservice.com');
-  const voScope = await entrar('responsable.vo.demo@urkiolacarservice.com');
+  const adminScope = await entrar('admin@urkiolacarservice.com');
+  const directorScope = await entrar('direccion.vn@urkiolacarservice.com');
+  const voScope = await entrar('responsable.vo@urkiolacarservice.com');
   let scopeN = 0;
   const enviarScope = (token, datos) => fetch(`${API}/commands`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -347,7 +347,7 @@ try {
     const estado = await estadoDe(adminScope.token);
     ok(`10 · API conserva clasificación ${category}`, r.status === 200 && estado.vehicles.find(v => v.id === scopeId)?.commercialCategory === category);
   }
-  const asignar = await enviarScope(adminScope.token, { type: 'vehicle.setSalesRep', vehicleId: 'v-SCOPEVO1', salesRep: 'Lucía Martín', salesRepUserId: 'u-juan' });
+  const asignar = await enviarScope(adminScope.token, { type: 'vehicle.setSalesRep', vehicleId: 'v-SCOPEVO1', salesRep: 'Juan Bilbao', salesRepUserId: 'u-juan' });
   ok('10 · VO vendido por equipo VN aparece a ambos responsables', asignar.status === 200 &&
     (await estadoDe(directorScope.token)).vehicles.some(v => v.id === 'v-SCOPEVO1') &&
     (await estadoDe(voScope.token)).vehicles.some(v => v.id === 'v-SCOPEVO1'));
