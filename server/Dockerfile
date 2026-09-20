@@ -8,8 +8,8 @@
 #     --build-arg EXPO_PUBLIC_API_URL=https://urkiolacarservice.com \
 #     -t urkiola-api .
 #
-# En Railway: Dockerfile `server/Dockerfile`, contexto la raíz, y
-# `EXPO_PUBLIC_API_URL` como variable de construcción.
+# En Render: Dockerfile `server/Dockerfile`, contexto la raíz, y
+# `EXPO_PUBLIC_API_URL` como build arg cuando se quiera servir también el panel web.
 
 # ---------------------------------------------------------------- el panel
 # Se compila aquí dentro porque `EXPO_PUBLIC_API_URL` se incrusta al
