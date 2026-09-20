@@ -225,7 +225,7 @@ async function enrutar(
   if (ruta === '/fotos' && metodo === 'POST') {
     const user = servicio.usuarioDeToken(req.headers.authorization);
     const cuerpo = await leerBinario(req, config.maxFotoBytes);
-    const id = await servicio.guardarFoto(cuerpo, req.headers['content-type'] ?? '');
+    const id = await servicio.guardarFoto(cuerpo, req.headers['content-type'] ?? '', user);
     console.log(`foto guardada por ${user.id} (${cuerpo.length} bytes)`);
     return { codigo: 200, cuerpo: { ok: true, id } };
   }
@@ -235,10 +235,12 @@ async function enrutar(
     // etiqueta <img>, en la dirección. Los identificadores son aleatorios y
     // largos, así que la dirección por sí sola tampoco se adivina.
     const enLaUrl = new URL(req.url ?? '/', 'http://interno').searchParams.get('t');
-    servicio.usuarioDeToken(req.headers.authorization ?? (enLaUrl ? `Bearer ${enLaUrl}` : undefined));
+    const user = servicio.usuarioDeToken(
+      req.headers.authorization ?? (enLaUrl ? `Bearer ${enLaUrl}` : undefined)
+    );
 
     const id = decodeURIComponent(ruta.slice('/fotos/'.length));
-    const foto = await servicio.leerFoto(id);
+    const foto = await servicio.leerFoto(id, user);
     res.writeHead(200, {
       'Content-Type': foto.tipo,
       'Content-Length': foto.cuerpo.length,
