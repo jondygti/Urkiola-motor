@@ -183,7 +183,7 @@ test('el reloj del servidor prepara el repaso del día sin abrir un cliente y no
   const preparador = servicio.estado.users.find((u) => u.role === 'preparador')!;
   const ids: string[] = [];
   for (let i = 0; i < 4; i++) {
-    ids.push(await servicio.guardarFoto(Buffer.from([137, 80, 78, 71, i]), 'image/png'));
+    ids.push(await servicio.guardarFoto(Buffer.from([137, 80, 78, 71, i]), 'image/png', preparador));
   }
   await servicio.ejecutar(cmd('prep.finish', {
     prepId: idCreadoPor('prep', abrir),
