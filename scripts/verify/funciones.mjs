@@ -786,5 +786,52 @@ export async function ejecutar(browser, BASE) {
     await rec.context.close();
   }
 
+  /* 25 · abrir una demo nueva encima de una antigua */
+  {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    const page = await context.newPage();
+    await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' });
+    await pulsar(page, 'Dirección Peugeot · Citroën');
+    await page.waitForTimeout(1400);
+
+    // Simula exactamente el caso real: el navegador conserva una demo
+    // anterior y una copia antigua del usuario Director Comercial.
+    await page.evaluate(() => {
+      const raw = JSON.parse(localStorage.getItem('urkiola.state.v1'));
+      raw.v = 24;
+      const director = raw.state.users.find((u) => u.id === 'u-dir-vn');
+      director.name = 'Dirección VN';
+      director.managedBrands = ['BMW', 'MINI'];
+      const protagonista = raw.state.vehicles.find((v) => v.id === 'v-12345678');
+      protagonista.brand = 'BMW';
+      protagonista.model = 'X1';
+      protagonista.plate = null;
+      protagonista.commercialCategory = 'VN';
+      localStorage.setItem('urkiola.state.v1', JSON.stringify(raw));
+      localStorage.setItem('urkiola.session.v1', JSON.stringify({
+        ...director,
+        email: 'direccion.vn@urkiolacarservice.com',
+        active: true,
+      }));
+    });
+
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForTimeout(1600);
+
+    const audit = await page.evaluate(() => {
+      const stored = JSON.parse(localStorage.getItem('urkiola.state.v1'));
+      const session = JSON.parse(localStorage.getItem('urkiola.session.v1'));
+      const director = stored.state.users.find((u) => u.id === 'u-dir-vn');
+      const protagonista = stored.state.vehicles.find((v) => v.id === 'v-12345678');
+      return { version: stored.v, session, director, protagonista, body: document.body.innerText };
+    });
+
+    ok('25 · descarta el estado de una demo anterior', audit.version === 25 && audit.protagonista?.brand === 'Peugeot' && audit.protagonista?.model === '3008', JSON.stringify({ version: audit.version, protagonista: audit.protagonista }));
+    ok('25 · recupera KM0 y matrícula de la demo actual', audit.protagonista?.commercialCategory === 'KM0' && audit.protagonista?.plate === '6412 NPV');
+    ok('25 · la sesión usa el Director Comercial vigente', audit.session?.name === 'Dirección Peugeot · Citroën' && audit.session?.managedBrands?.join('|') === 'Peugeot|Citroën', JSON.stringify(audit.session));
+    ok('25 · la interfaz deja de enseñar el perfil antiguo', audit.body.includes('Dirección Peugeot · Citroën') && !audit.body.includes('Dirección VN'));
+    await context.close();
+  }
+
   return resumen();
 }
