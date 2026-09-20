@@ -100,7 +100,7 @@ export async function ejecutar(browser, BASE) {
     // donde está», que solo tiene sentido si el coche ya está en la sede.
     await page.goto(`${BASE}/mover`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(600);
-    await page.getByPlaceholder('1234 ABC').fill('12345678');
+    await page.getByPlaceholder('1234 ABC').fill('6412 NPV');
     await page.waitForTimeout(400);
     await elegirEnLista(page, 'Sondika', 'Leioa');
     await elegirEnLista(page, /^(Tejavana|Parking) \d\d$/, 'Parking 03');
@@ -113,7 +113,7 @@ export async function ejecutar(browser, BASE) {
     const hayCola = await page.getByText('por preparar', { exact: false }).first().isVisible().catch(() => false);
     ok('5 · el preparador tiene cola de trabajo', hayCola);
 
-    await page.getByText('12345678', { exact: true }).first().click();
+    await page.getByText('6412 NPV', { exact: true }).first().click();
     await page.waitForTimeout(500);
     await page.getByText('✓ Terminar', { exact: false }).first().click();
     await page.waitForTimeout(500);
