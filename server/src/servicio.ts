@@ -12,6 +12,7 @@
  * la app ni las reglas.
  */
 import type { AppState, Id, User } from '../../src/data/types';
+import { can } from '../../src/data/selectors';
 import { conflictoSolicitud, applyAll, applyCommand, type Command } from '../../src/data/commands';
 import { buildSeedState } from '../../src/data/seed';
 import type { Almacen } from './almacen/tipos';
@@ -518,7 +519,15 @@ export class Servicio {
    * El identificador es aleatorio y largo a propósito: aunque la lectura
    * exige sesión, una dirección adivinable sería una puerta de más.
    */
-  async guardarFoto(cuerpo: Buffer, tipo: string): Promise<string> {
+  async guardarFoto(cuerpo: Buffer, tipo: string, user: User): Promise<string> {
+    const puedeSubir =
+      can(this.estadoActual, user, 'incidencias.crear') ||
+      can(this.estadoActual, user, 'preparacion.ejecutar') ||
+      can(this.estadoActual, user, 'recepcion.ejecutar');
+    if (!puedeSubir) {
+      throw sinPermiso('Tu rol no puede subir evidencias fotográficas.');
+    }
+
     const limpio = (tipo ?? '').split(';')[0].trim().toLowerCase();
     if (!TIPOS_FOTO[limpio]) {
       throw malaPeticion(`Ese tipo de fichero no se acepta (${limpio || 'sin tipo'}).`);
@@ -535,8 +544,29 @@ export class Servicio {
     return id;
   }
 
-  /** Lee una foto. Quien la pide ya ha demostrado tener sesión. */
-  async leerFoto(id: string): Promise<Foto> {
+  /**
+   * Lee una foto solo si aparece en el estado que este usuario tiene derecho
+   * a recibir. Un id aleatorio no sustituye a la autorización: si una
+   * referencia se filtrase por un log o una captura, no debe abrir datos de
+   * otro ámbito comercial, otra sede o un proveedor externo.
+   */
+  async leerFoto(id: string, user: User): Promise<Foto> {
+    const ref = `foto:${id}`;
+    const visible = this.estadoDe(user);
+    const referenciada =
+      visible.incidents.some((i) => i.photos.includes(ref)) ||
+      visible.preparations.some((p) => {
+        const f = p.finalPhotos;
+        return !!f && [f.frontLeft, f.frontRight, f.rearLeft, f.rearRight].includes(ref);
+      }) ||
+      visible.receptions.some(
+        (r) => r.albaranUri === ref || r.lines.some((l) => l.photos.includes(ref))
+      );
+
+    // 404 también cuando existe pero no le corresponde: no revelar siquiera
+    // que hay una evidencia con ese identificador.
+    if (!referenciada) throw noEncontrado('Esa foto ya no está.');
+
     const foto = await this.fotos.leer(id);
     if (!foto) throw noEncontrado('Esa foto ya no está.');
     return foto;
