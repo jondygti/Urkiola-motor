@@ -369,6 +369,8 @@ try {
     await pageScope.getByText('Entrar', { exact: true }).first().click();
     await pageScope.waitForURL(url => !url.pathname.includes('login'));
     await pageScope.goto(`${WEB}/vehiculo/${forbidden}`, { waitUntil: 'networkidle' });
+    // La hidratación y la restauración de sesión continúan tras networkidle.
+    await pageScope.getByText('Vehículo no encontrado', { exact: true }).waitFor({ state: 'visible', timeout: 10000 }).catch(async e => { console.error('Ficha ajena:', pageScope.url(), await pageScope.locator('body').innerText()); throw e; });
     ok('10 · URL directa no revela ficha ajena', await pageScope.getByText('Vehículo no encontrado', { exact: true }).isVisible());
     await ctxScope.close();
   }
