@@ -230,22 +230,31 @@ async function enrutar(
     return { codigo: 200, cuerpo: { ok: true, id } };
   }
 
-  if (ruta.startsWith('/fotos/') && (metodo === 'GET' || metodo === 'HEAD')) {
-    // La sesión puede venir en la cabecera o, para poder pintarlas con una
-    // etiqueta <img>, en la dirección. Los identificadores son aleatorios y
-    // largos, así que la dirección por sí sola tampoco se adivina.
-    const enLaUrl = new URL(req.url ?? '/', 'http://interno').searchParams.get('t');
-    const user = servicio.usuarioDeToken(
-      req.headers.authorization ?? (enLaUrl ? `Bearer ${enLaUrl}` : undefined)
-    );
+  const accesoFoto = ruta.match(/^\/fotos\/(.+)\/acceso$/);
+  if (accesoFoto && metodo === 'GET') {
+    const user = servicio.usuarioDeToken(req.headers.authorization);
+    const id = decodeURIComponent(accesoFoto[1]);
+    const token = await servicio.crearAccesoFoto(id, user);
+    return {
+      codigo: 200,
+      cuerpo: { url: `/fotos/${encodeURIComponent(id)}?a=${encodeURIComponent(token)}` },
+    };
+  }
 
+  if (ruta.startsWith('/fotos/') && (metodo === 'GET' || metodo === 'HEAD')) {
     const id = decodeURIComponent(ruta.slice('/fotos/'.length));
+    const capacidad = new URL(req.url ?? '/', 'http://interno').searchParams.get('a');
+    const user = req.headers.authorization
+      ? servicio.usuarioDeToken(req.headers.authorization)
+      : servicio.usuarioDeTokenFoto(id, capacidad ?? undefined);
+
     const foto = await servicio.leerFoto(id, user);
     res.writeHead(200, {
       'Content-Type': foto.tipo,
       'Content-Length': foto.cuerpo.length,
-      // El contenido de una foto no cambia nunca: su id es único.
-      'Cache-Control': 'private, max-age=31536000, immutable',
+      // La autorización puede revocarse; no persistir una copia que salte
+      // comprobaciones posteriores tras desactivar un usuario/cambiar ámbito.
+      'Cache-Control': 'private, no-store',
       'X-Content-Type-Options': 'nosniff',
     });
     res.end(metodo === 'HEAD' ? undefined : foto.cuerpo);
