@@ -1,6 +1,6 @@
 # Contrato del backend
 
-Actualizado: **19/09/2026**.
+Actualizado: **20/09/2026**.
 
 El código actual está en `server/`. La especificación exacta de comandos vive en los tipos y reglas de `src/data/commands.ts`; este documento fija las garantías externas que deben mantenerse.
 
@@ -15,8 +15,8 @@ El código actual está en `server/`. La especificación exacta de comandos vive
 | POST | `/auth/restablecer` | recuperación actual |
 | GET | `/state` | estado autorizado del usuario |
 | POST | `/commands` | aplicar un comando |
-| POST | `/fotos` | subir imagen/PDF |
-| GET | `/fotos/:id` | recuperar archivo autorizado |
+| POST | `/fotos` | subir imagen/PDF; exige rol operativo con evidencia |
+| GET | `/fotos/:id` | recuperar archivo solo si la referencia forma parte del estado autorizado |
 | POST | `/push/token` | asociar dispositivo |
 
 La migración futura a Supabase Auth puede cambiar las rutas de autenticación, pero **no debe romper** las garantías de `/state`, `/commands`, permisos, offline o autoría histórica.
@@ -83,11 +83,15 @@ Transportistas:
 
 El backend puede trabajar con fichero para desarrollo y PostgreSQL para entornos conectados. En producción el objetivo es Supabase PostgreSQL.
 
-El histórico de comandos y la reconstrucción de estado son parte de la trazabilidad. Las migraciones de esquema deben ser versionadas y recuperables.
+El histórico de comandos y la reconstrucción de estado son parte de la trazabilidad. El esquema actual se inicializa de forma idempotente con `server/src/almacen/esquema.sql`, pero todavía no hay un sistema formal de migraciones versionadas. Debe añadirse antes del primer cambio de esquema con datos persistentes.
+
+El backend mantiene un advisory lock de PostgreSQL durante toda la sesión del proceso; `DATABASE_URL` debe preservar sesión y no usar transaction pooling.
 
 ## Archivos
 
 Objetivo de producción: Supabase Storage privado. La service role solo vive en backend. Fotos/albaranes requieren autorización; no deben quedar como objetos públicos permanentes.
+
+La autorización no se basa en conocer o no el ID: al leer una evidencia el servidor comprueba que `foto:<id>` esté referenciada por una incidencia, preparación o recepción incluida en el estado que ese usuario tiene derecho a recibir. Un objeto existente pero ajeno responde 404. La subida se limita a roles que realmente generan evidencia.
 
 ## Identidad
 
