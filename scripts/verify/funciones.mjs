@@ -90,7 +90,7 @@ export async function ejecutar(browser, BASE) {
   {
     const { context, page, errores } = await entrarComo(browser, USUARIOS.preparador);
 
-    // El BMW X1 del mockup está en Sondika con la preparación abierta en
+    // El Peugeot 3008 KM0 protagonista está en Sondika con la preparación abierta en
     // Leioa. Se mueve primero a Leioa para comprobar el atajo «se queda
     // donde está», que solo tiene sentido si el coche ya está en la sede.
     await page.goto(`${BASE}/mover`, { waitUntil: 'networkidle' });
@@ -694,7 +694,7 @@ export async function ejecutar(browser, BASE) {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
     const page = await context.newPage();
     await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' });
-    await pulsar(page, 'Juan Bilbao');
+    await pulsar(page, 'Lucía Martín');
     await page.waitForTimeout(1000);
     const s = await estadoGuardado(page);
     const v = s.vehicles.find((v) => v.location?.siteId === 'leioa' && v.logisticActive && !v.deliveredAt && !s.requests.some(r => r.vehicleId === v.id && r.type === 'traslado' && !['terminada', 'cancelada'].includes(r.status)));
