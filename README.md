@@ -2,7 +2,7 @@
 
 Plataforma web + Android para controlar la logística, ubicación, traslado, preparación, recepción, incidencias y recuentos de vehículos de Urkiola Motor.
 
-## Estado actual · 15/09/2026
+## Estado actual · 20/09/2026
 
 `main` es la **única rama permanente y la fuente de verdad** del proyecto. La última versión funcional fue auditada a fondo, integrada en `main` y pasó en GitHub Actions las suites de servidor, TypeScript, sincronización/offline, API, roles, funciones, rutas y generación de la demo navegable.
 
@@ -29,6 +29,7 @@ Importante: el backend actual ya funciona con PostgreSQL y Storage, pero todaví
 6. [`docs/SEGURIDAD.md`](docs/SEGURIDAD.md) — controles actuales y pendientes antes de producción.
 7. [`docs/MOBILE_ANDROID.md`](docs/MOBILE_ANDROID.md) — Android y Google Play.
 8. [`docs/PRUEBAS-GITHUB.md`](docs/PRUEBAS-GITHUB.md) — CI y demo automática.
+9. [`docs/STAGING-CHECKLIST.md`](docs/STAGING-CHECKLIST.md) — pasos verificables para abrir staging sin saltarse seguridad/recuperación.
 
 Los documentos fechados como `REVISION-2026-09-13.md` se conservan como histórico. Si contradicen los documentos anteriores, prevalece el estado actual.
 
@@ -96,10 +97,11 @@ No se documentan aquí cantidades fijas de asserts porque cambian con las regres
 - La cancelación conserva histórico, autor, fecha y motivo; no mueve físicamente el vehículo.
 - La ubicación de llave principal y segunda llave es opcional, independiente y auditada; no se expone a transportistas externos.
 - El servidor valida permisos, recorta el estado por usuario y es idempotente por `command.id`.
+- Las evidencias (fotos/albaranes) solo se sirven si están referenciadas por datos que ese usuario está autorizado a recibir; la subida exige un rol operativo con trabajo fotográfico.
 - La app conserva trabajo offline y reintenta sin duplicar operaciones.
 
 ## Siguiente paso
 
 Si no se añaden más funciones, el orden recomendado es:
 
-**staging Render + Supabase → prueba con datos controlados → QBI Premium → piloto con pocos usuarios/coches → Android interno → producción → integración completa Quiter → multiempresa solo cuando Urkiola esté estable.**
+**gobierno GitHub + staging Render/Supabase → prueba conectada y restauración → QBI Premium → piloto con pocos usuarios/coches → Android interno → producción → integración completa Quiter → multiempresa solo cuando Urkiola esté estable.**
