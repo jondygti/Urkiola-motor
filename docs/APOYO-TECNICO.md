@@ -1,6 +1,6 @@
 # Apoyo técnico externo
 
-Actualizado: **15/09/2026**.
+Actualizado: **20/09/2026**.
 
 Urkiola Car Service puede seguir desarrollándose y manteniéndose desde el repositorio, pero antes de depender del sistema en producción conviene cubrir tres necesidades externas.
 
