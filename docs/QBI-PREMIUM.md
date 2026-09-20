@@ -2,7 +2,7 @@
 
 Estado: **QBI Premium ya contratado por la empresa; integración todavía no implementada**.
 
-Actualizado: 15/09/2026.
+Actualizado: 20/09/2026.
 
 ## Objetivo
 
