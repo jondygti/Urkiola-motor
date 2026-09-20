@@ -71,7 +71,10 @@ const TOKEN_KEY = 'urkiola.token.v1';
 // diagonales y la preparación conserva esas evidencias.
 // 23: entra el ámbito comercial (VN/VO), la relación comercial-responsable
 // y los roles de Director comercial y Responsable VO.
-const STATE_SCHEMA_VERSION = 23;
+// 24: la demo de dirección cambia la semilla comercial a VN Stellantis y VO
+// multimarca; se descarta la caché demo anterior para no seguir mostrando
+// BMW/MINI/Toyota de la presentación antigua.
+const STATE_SCHEMA_VERSION = 24;
 
 interface StoredState {
   v: number;
