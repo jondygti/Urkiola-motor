@@ -123,7 +123,7 @@ function buildZonesAndPositions(): { zones: Zone[]; positions: Position[] } {
 }
 
 export const USERS: User[] = [
-  { id: 'u-admin', name: 'Gerencia Urkiola', role: 'admin', siteIds: [], email: 'gerencia.demo@urkiolacarservice.com', active: true },
+  { id: 'u-admin', name: 'Gerencia Urkiola', role: 'admin', siteIds: [], email: 'admin@urkiolacarservice.com', active: true },
   { id: 'u-log', name: 'Marta Ibarra', role: 'logistica', siteIds: [], email: 'logistica@urkiolacarservice.com', active: true },
   { id: 'u-pedro', name: 'Pedro Larrea', role: 'preparador', siteIds: ['leioa'], email: 'pedro@urkiolacarservice.com', active: true },
   { id: 'u-ane', name: 'Ane Zubiaur', role: 'preparador', siteIds: ['leioa', 'galdakao'], email: 'ane@urkiolacarservice.com', active: true },
@@ -136,7 +136,7 @@ export const USERS: User[] = [
     name: 'Dirección Peugeot · Citroën',
     role: 'director_comercial',
     siteIds: [],
-    email: 'direccion.pc.demo@urkiolacarservice.com',
+    email: 'direccion.vn@urkiolacarservice.com',
     active: true,
     managedBrands: ['Peugeot', 'Citroën'],
   },
@@ -154,10 +154,10 @@ export const USERS: User[] = [
     name: 'Responsable VO',
     role: 'responsable_vo',
     siteIds: [],
-    email: 'responsable.vo.demo@urkiolacarservice.com',
+    email: 'responsable.vo@urkiolacarservice.com',
     active: true,
   },
-  { id: 'u-juan', name: 'Lucía Martín', role: 'comercial', siteIds: ['leioa'], email: 'lucia.demo@urkiolacarservice.com', active: true, managerId: 'u-dir-vn' },
+  { id: 'u-juan', name: 'Juan Bilbao', role: 'comercial', siteIds: ['leioa'], email: 'juan@urkiolacarservice.com', active: true, managerId: 'u-dir-vn' },
   { id: 'u-com-vn-2', name: 'Mikel Santos', role: 'comercial', siteIds: ['galdakao'], email: 'mikel.demo@urkiolacarservice.com', active: true, managerId: 'u-dir-vn-2' },
   { id: 'u-com-vo', name: 'Sara López', role: 'comercial', siteIds: ['leioa'], email: 'sara.vo.demo@urkiolacarservice.com', active: true, managerId: 'u-resp-vo' },
 ];
@@ -305,7 +305,7 @@ const FLEET_COLUMNS: ColumnPref[] = BASE_COLUMNS.map((col, i) => ({
   order: i + 1,
 }));
 
-const SALES_REPS = ['Lucía', 'Mikel', 'Sara'];
+const SALES_REPS = ['Juan', 'Mikel', 'Sara'];
 
 /* ---------------------------------------------- empresas de transporte */
 
@@ -539,7 +539,7 @@ function buildFleet(positions: Position[]): Build {
     commercialArea: 'vn',
     commercialCategory: 'KM0',
     situation: 'pedido',
-    salesRep: 'Lucía',
+    salesRep: 'Juan',
     salesRepId: 'u-juan',
     origin: 'Camión 9876 JKL · recepción',
     location: locate('sondika', 'sondika-tej-01-p04'),
@@ -562,7 +562,7 @@ function buildFleet(positions: Position[]): Build {
     commercialArea: 'vo',
     commercialCategory: 'VO',
     situation: 'pedido',
-    salesRep: 'Lucía',
+    salesRep: 'Juan',
     salesRepId: 'u-juan',
     location: locate('leioa', 'leioa-park-01-p02'),
     targetSiteId: 'leioa',
@@ -598,7 +598,7 @@ function buildFleet(positions: Position[]): Build {
     commercialArea: 'vn',
     commercialCategory: 'DEMO',
     situation: 'stock',
-    salesRep: 'Lucía',
+    salesRep: 'Juan',
     salesRepId: 'u-juan',
     location: locate('sondika', 'sondika-tej-01-p05'),
     status: 'aparcado',
