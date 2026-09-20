@@ -1,5 +1,5 @@
 /**
- * Almacén en Postgres (Supabase o Railway).
+ * Almacén en PostgreSQL (Supabase o cualquier PostgreSQL compatible).
  *
  * El histórico de comandos es lo que no se puede perder, así que cada
  * comando se guarda antes de contestar «ok». La foto del estado se guarda
@@ -29,7 +29,7 @@ export class AlmacenPostgres implements Almacen {
   constructor(private readonly url: string, private readonly esperaCerrojoMs = 60_000) {
     this.pool = new Pool({
       connectionString: url,
-      // Supabase y Railway exigen TLS pero con certificado propio.
+      // Los PostgreSQL gestionados remotos usan TLS; local no lo necesita.
       ssl: /localhost|127\.0\.0\.1/.test(url) ? undefined : { rejectUnauthorized: true },
       max: 5,
     });
