@@ -29,8 +29,8 @@ function escenario() {
     ...patch,
   });
 
-  const vnMarca = fabricar('v-scope-vn-bmw', {
-    brand: 'BMW',
+  const vnMarca = fabricar('v-scope-vn-peugeot', {
+    brand: 'Peugeot',
     type: 'VN',
     commercialArea: 'vn',
     commercialCategory: 'KM0',
@@ -38,7 +38,7 @@ function escenario() {
     salesRepId: null,
   });
   const vnAjeno = fabricar('v-scope-vn-ajeno', {
-    brand: 'Toyota',
+    brand: 'Opel',
     type: 'VN',
     commercialArea: 'vn',
     commercialCategory: 'VN',
@@ -46,7 +46,7 @@ function escenario() {
     salesRepId: null,
   });
   const voEquipo = fabricar('v-scope-vo-equipo', {
-    brand: 'Toyota',
+    brand: 'BMW',
     type: 'VO',
     commercialArea: 'vo',
     commercialCategory: 'VO',
@@ -180,9 +180,9 @@ test('un coche asignado solo por ID no se puede arrebatar', () => {
 
 test('un nombre histórico ambiguo no amplía el ámbito de un director', () => {
   const { estado, director, juan, voEquipo } = escenario();
-  estado.users.push({ ...juan, id: 'otro-juan', name: 'Juan Pérez', managerId: null });
+  estado.users.push({ ...juan, id: 'otra-lucia', name: 'Lucía Pérez', managerId: null });
   voEquipo.salesRepId = null;
-  voEquipo.salesRep = 'Juan';
+  voEquipo.salesRep = 'Lucía';
   assert.equal(vehiculoEnAmbitoComercial(estado, director, voEquipo), false);
 });
 
@@ -214,4 +214,27 @@ test('la semilla incluye VN KM0 DEMO y VO sin inferir área por matrícula', () 
   const demoMatriculado = { ...vnMarca, type: 'VO' as const, commercialCategory: 'DEMO' as const, commercialArea: 'vn' as const, plate: '1234 AAA' };
   assert.equal(vehiculoEnAmbitoComercial(estado, director, demoMatriculado), true);
   assert.equal(vehiculoEnAmbitoComercial(estado, responsableVo, demoMatriculado), false);
+});
+
+
+test('la demo de dirección usa VN Stellantis y contiene los casos que se van a presentar', () => {
+  const estado = buildSeedState();
+  const stellantis = new Set(['Peugeot', 'Citroën', 'Opel', 'Fiat', 'Jeep']);
+  const vn = estado.vehicles.filter((v) => v.commercialArea === 'vn' && v.logisticActive);
+
+  assert.ok(vn.length > 0);
+  assert.ok(vn.every((v) => stellantis.has(v.brand)), [...new Set(vn.map((v) => v.brand))].join(', '));
+  assert.ok(vn.some((v) => v.commercialCategory === 'KM0' && v.brand === 'Peugeot'));
+  assert.ok(vn.some((v) => v.commercialCategory === 'DEMO' && v.brand === 'Citroën'));
+
+  const directorPc = estado.users.find((u) => u.id === 'u-dir-vn')!;
+  const directorOfj = estado.users.find((u) => u.id === 'u-dir-vn-2')!;
+  const responsableVo = estado.users.find((u) => u.id === 'u-resp-vo')!;
+  const voVendidoPorVn = estado.vehicles.find((v) => v.id === 'v-4821LKM')!;
+
+  assert.equal(vehiculoEnAmbitoComercial(estado, directorPc, voVendidoPorVn), true);
+  assert.equal(vehiculoEnAmbitoComercial(estado, responsableVo, voVendidoPorVn), true);
+  assert.equal(vehiculoEnAmbitoComercial(estado, directorOfj, voVendidoPorVn), false);
+  assert.ok(estado.vehicles.some((v) => v.brand === 'Opel' && vehiculoEnAmbitoComercial(estado, directorOfj, v)));
+  assert.ok(estado.vehicles.some((v) => v.brand === 'Jeep' && vehiculoEnAmbitoComercial(estado, directorOfj, v)));
 });
