@@ -395,7 +395,7 @@ export async function ejecutar(browser, BASE) {
     const tras = await estadoGuardado(page);
     ok(
       'COMERCIAL · queda guardado a su nombre',
-      tras?.vehicles?.find((v) => v.id === libre?.id)?.salesRep === 'Juan Bilbao',
+      tras?.vehicles?.find((v) => v.id === libre?.id)?.salesRep === 'Lucía Martín',
       String(tras?.vehicles?.find((v) => v.id === libre?.id)?.salesRep)
     );
     // Y con su apunte en la trazabilidad: quién lo cogió y cuándo.
@@ -579,7 +579,7 @@ export async function ejecutar(browser, BASE) {
   }
 
 
-  for (const usuario of [USUARIOS.director, USUARIOS.responsableVo]) {
+  for (const usuario of [USUARIOS.director, USUARIOS.director2, USUARIOS.responsableVo]) {
     const { context, page, errores } = await entrarComo(browser, usuario, 1440);
     await page.goto(`${BASE}/flota`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(900);
