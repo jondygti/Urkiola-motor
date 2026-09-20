@@ -36,3 +36,15 @@ Los logs de Chromium se conservan como artefactos durante 14 días.
 ## Regla de aceptación
 
 No dar un cambio por bueno porque compile. Verificar que **todos** los trabajos del commit esperado tengan `success`. No eliminar, saltar ni relajar una regresión para conseguir verde.
+
+## Regresiones de cierre
+
+Además de los recorridos generales, el cierre previo a staging conserva pruebas específicas para:
+
+- abrir una demo nueva sobre estado/sesión persistidos de una versión antigua;
+- aislamiento del Director Comercial y Responsable VO;
+- privacidad del transportista;
+- lectura de evidencias únicamente dentro del estado autorizado;
+- rechazo de subida de evidencias por roles que no generan trabajo fotográfico.
+
+Estas pruebas existen porque los fallos de persistencia y autorización pueden pasar con un navegador limpio aunque fallen en un dispositivo usado de verdad.
