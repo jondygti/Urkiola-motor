@@ -17,12 +17,13 @@ El workflow `.github/workflows/comprobaciones.yml` es la comprobación automáti
 - **Chromium · funciones**: operaciones reales y persistencia.
 - **Chromium · api**: cliente compilado contra backend local real.
 - **Servidor, tipos y sincronización**: TypeScript, servidor, offline/sync y navegación demo.
+- **Imagen Docker de staging**: construye `server/Dockerfile` con un API URL de prueba, usando la misma ruta de empaquetado prevista para Render.
 
 No fijar números de asserts en documentación. El total válido es el que muestre el log del commit ejecutado.
 
 ## Demo automática
 
-En un `push` a `main`, el job **Generar demo navegable** espera a que navegador y servidor terminen correctamente. Si algo falla, no publica demo.
+En un `push` a `main`, el job **Generar demo navegable** espera a que navegador, servidor e imagen Docker terminen correctamente. Si algo falla, no publica demo.
 
 Si todo queda verde:
 
