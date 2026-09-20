@@ -1,6 +1,6 @@
 # Arquitectura de Urkiola Car Service
 
-Actualizado: **19/09/2026**.
+Actualizado: **20/09/2026**.
 
 ## Principio
 
@@ -29,7 +29,7 @@ La API conserva como contrato estable:
 - sesión/identidad;
 - push.
 
-El servidor procesa comandos en orden y actualmente está diseñado para **una instancia activa** con coordinación mediante PostgreSQL. No escalar horizontalmente sin rediseñar `servicio.ts` y las garantías de orden.
+El servidor procesa comandos en orden y actualmente está diseñado para **una instancia activa** con coordinación mediante PostgreSQL. Mantiene un advisory lock de sesión durante toda la vida del proceso: `DATABASE_URL` debe usar una conexión directa o un pooler compatible con sesiones, no transaction pooling. No escalar horizontalmente sin rediseñar `servicio.ts` y las garantías de orden.
 
 ## Offline e idempotencia
 
@@ -66,6 +66,8 @@ La clasificación comercial y la categoría se mantienen separadas deliberadamen
 
 El backend valida actor, permiso y ámbito. El transportista externo recibe estado recortado y no debe recibir datos internos como comerciales, configuración completa o ubicación de llaves.
 
+Las evidencias no se autorizan por ser difíciles de adivinar: una foto/albarán solo se descarga si su referencia aparece en el estado que el backend está autorizado a entregar a ese usuario. La subida exige un rol operativo que realmente pueda generar evidencia.
+
 En producción:
 
 - secretos solo en Render/Supabase;
@@ -75,6 +77,12 @@ En producción:
 - TLS validado;
 - 2FA en cuentas de proveedores;
 - restauración probada, no solo backups existentes.
+
+## Esquema y migraciones
+
+El backend actual inicializa PostgreSQL mediante `server/src/almacen/esquema.sql` con operaciones idempotentes (`CREATE TABLE IF NOT EXISTS`). **Todavía no existe un sistema formal de migraciones versionadas.**
+
+Esto es suficiente para crear el primer staging sobre una base vacía. Antes del primer cambio de esquema con datos persistentes hay que introducir migraciones versionadas, probarlas en staging y mantener recuperación mediante copia/restauración. No describir el estado actual como si ese mecanismo ya existiera.
 
 ## Supabase Auth
 
