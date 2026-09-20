@@ -92,10 +92,26 @@ jobs:
       - run: npm run test:sync
       - run: node --test scripts/verify/demo-navegacion.test.mjs
 
+  imagen:
+    name: Imagen Docker de staging
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Construir la misma imagen que usará Render
+        run: >
+          docker build
+          -f server/Dockerfile
+          --build-arg EXPO_PUBLIC_API_URL=https://staging.example.invalid
+          -t urkiola-staging-ci:${{ github.sha }}
+          .
+
   demo:
     name: Generar demo navegable
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [navegador, servidor]
+    needs: [navegador, servidor, imagen]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
