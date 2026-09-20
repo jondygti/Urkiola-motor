@@ -270,3 +270,16 @@ test('el reinicio sin red recupera la caché y la cola propias también en Stric
   assert.equal(d.store.state.vehicles.length, remoto.vehicles.length);
   assert.equal(d.enviados.length, 0);
 });
+
+test('al restaurar sesión sin caché espera al estado antes de habilitar las rutas', async (t) => {
+  const remoto = seed.buildSeedState();
+  const user = remoto.users.find((u) => u.role === 'director_comercial');
+  const db = new Map();
+  sesion(db, user);
+  const descarga = diferida();
+  const d = await dispositivo(t, { db, remoto, estadoApi: () => descarga.promise });
+  assert.equal(d.store.ready, false, 'no debe redirigir al login mientras restaura la cuenta');
+  await paso(() => descarga.resolve(remoto));
+  assert.equal(d.store.ready, true);
+  assert.equal(d.store.user?.id, user.id);
+});

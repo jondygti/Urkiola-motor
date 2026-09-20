@@ -126,3 +126,5 @@ Los totales de asserts no se fijan en documentación: deben consultarse en el lo
 - Preparación y traslados internos muestran el usuario comercial enlazado; el texto histórico sirve de respaldo.
 - La semilla incluye ejemplos KM0 y DEMO deterministas. Dirección VN gestiona BMW/MINI y Juan Bilbao pertenece a su equipo.
 - Chromium comprueba ambos responsables, URLs ajenas, edición persistente de clasificación y operaciones comerciales por API real.
+
+- La restauración de sesión sin caché espera a recuperar la cuenta antes de habilitar rutas, conservando los enlaces directos. Con caché se mantiene el arranque offline inmediato.
