@@ -117,14 +117,14 @@ test('entregas y fechas solo se permiten al comercial propietario o a la oficina
   const s = buildSeedState();
   const comercial = { ...s.users.find((u) => u.role === 'comercial')!, siteIds: [] };
   const admin = s.users.find((u) => u.role === 'admin')!;
-  const v = { ...s.vehicles[0], salesRep: 'Otra Persona' };
+  const v = { ...s.vehicles[0], salesRep: 'Otra Persona', salesRepId: null };
   s.vehicles = [v];
   for (const type of ['vehicle.deliver', 'vehicle.setDelivery'] as const) {
     const orden = cmd(type, { vehicleId: v.id, deliveryDate: null });
     assert.ok(comprobarPermiso(s, comercial, orden));
     assert.equal(puedeGestionarEntrega(s, comercial, v), false);
     assert.equal(comprobarPermiso(s, admin, orden), null);
-    const propio = { ...s, vehicles: [{ ...v, salesRep: comercial.name }] };
+    const propio = { ...s, vehicles: [{ ...v, salesRep: comercial.name, salesRepId: comercial.id }] };
     assert.equal(comprobarPermiso(propio, comercial, orden), null);
     assert.equal(puedeGestionarEntrega(propio, comercial, propio.vehicles[0]), true);
   }

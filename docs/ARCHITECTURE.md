@@ -1,6 +1,6 @@
 # Arquitectura de Urkiola Car Service
 
-Actualizado: **15/09/2026**.
+Actualizado: **19/09/2026**.
 
 ## Principio
 
@@ -47,6 +47,20 @@ La aplicación puede aplicar un comando localmente sin cobertura y enviarlo desp
 Sede → zona → plaza. La plaza es opcional. Una zona con cero plazas numeradas es válida y representa un parking donde se conoce la zona, no el hueco exacto.
 
 Sondika es almacén y no prepara. Leioa, Galdakao, Anoeta e Irun son sedes de preparación según configuración.
+
+## Ámbito comercial
+
+El ámbito comercial es una dimensión de autorización distinta de las sedes físicas:
+
+- `commercialArea`: responsabilidad del stock (VN o VO);
+- `commercialCategory`: VN, KM0, demo o VO;
+- `salesRepId`: relación estable con el usuario comercial;
+- `managerId`: responsable del comercial;
+- `managedBrands`: marcas dirigidas por un Director comercial.
+
+El recorte de estado del backend aplica este ámbito antes de entregar datos al cliente. Un usuario con todas las sedes no obtiene por ello todos los vehículos si su rol es Director comercial o Responsable VO.
+
+La clasificación comercial y la categoría se mantienen separadas deliberadamente: matrícula o kilómetros no determinan por sí solos quién responde del stock.
 
 ## Seguridad
 

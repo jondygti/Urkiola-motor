@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Text } from 'react-native';
 import { Btn, Column, DataTable, Grid, H1, Input, Muted, Notice, Panel, Screen, Select, Spacer, StatLine, Toolbar, space, tipografia, useTheme } from '@/ui';
 import { useAppState, useStore } from '@/data/store';
-import { customValue, esDelComercial, fleetColumns } from '@/data/selectors';
+import { customValue, esDelComercial, fleetColumns, vehiculosVisiblesPara } from '@/data/selectors';
 import { formatDateTime, locationLabel, matchesSearch, siteName, timeAgo, vehicleName } from '@/data/format';
 import { Cell, SituationPill, StatusPill, TypePill, useOpenVehicle } from '@/features/common/bits';
 import { ScreenGuard, usePerms } from '@/features/common/Guard';
@@ -20,6 +20,7 @@ export default function FleetScreen() {
   const openVehicle = useOpenVehicle();
   const { c } = useTheme();
   const { can } = usePerms();
+  const vehicles = useMemo(() => vehiculosVisiblesPara(state, user), [state, user]);
 
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<'activos' | 'quiter'>('activos');
@@ -33,9 +34,9 @@ export default function FleetScreen() {
   const [toast, setToast] = useState<string | null>(null);
 
   const reps = useMemo(() => {
-    const set = new Set(state.vehicles.map((v) => v.salesRep).filter((r): r is string => !!r));
+    const set = new Set(vehicles.map((v) => v.salesRep).filter((r): r is string => !!r));
     return Array.from(set).sort();
-  }, [state.vehicles]);
+  }, [vehicles]);
 
   /**
    * «Se está preparando» para un comercial no es solo que el preparador
@@ -52,7 +53,7 @@ export default function FleetScreen() {
   );
 
   const rows = useMemo(() => {
-    return state.vehicles.filter((v) => {
+    return vehicles.filter((v) => {
       if (scope === 'activos' && !v.logisticActive) return false;
       if (type !== ALL && v.type !== type) return false;
       if (rep !== ALL) {
@@ -66,23 +67,23 @@ export default function FleetScreen() {
       if (misPreparaciones && !(esDelComercial(v, user) && preparandose(v))) return false;
       return matchesSearch(v, query);
     });
-  }, [state.vehicles, scope, type, rep, situation, site, status, query, user, misPreparaciones, preparandose]);
+  }, [vehicles, scope, type, rep, situation, site, status, query, user, misPreparaciones, preparandose]);
 
   // El comercial se ve a sí mismo en la lista de comerciales: entonces
   // tiene sentido ofrecerle el atajo a lo suyo.
   const esComercial = useMemo(
-    () => !!user && state.vehicles.some((v) => esDelComercial(v, user)),
-    [state.vehicles, user]
+    () => !!user && vehicles.some((v) => esDelComercial(v, user)),
+    [vehicles, user]
   );
   const enPreparacion = useMemo(
     () =>
-      esComercial ? state.vehicles.filter((v) => esDelComercial(v, user) && preparandose(v)).length : 0,
-    [state.vehicles, esComercial, user, preparandose]
+      esComercial ? vehicles.filter((v) => esDelComercial(v, user) && preparandose(v)).length : 0,
+    [vehicles, esComercial, user, preparandose]
   );
 
   // En qué punto está cada uno, que es la pregunta de verdad.
   const resumenMio = useMemo(() => {
-    const mios = state.vehicles.filter((v) => esDelComercial(v, user));
+    const mios = vehicles.filter((v) => esDelComercial(v, user));
     const abierta = (v: Vehicle) =>
       state.preparations.find((p) => p.vehicleId === v.id && (p.runState !== 'terminado' && p.runState !== 'cancelado'));
     return {
@@ -90,7 +91,7 @@ export default function FleetScreen() {
       enCurso: mios.filter((v) => !!abierta(v)).length,
       listas: mios.filter((v) => v.status === 'apto_entrega').length,
     };
-  }, [state.vehicles, state.preparations, user, preparandose]);
+  }, [vehicles, state.preparations, user, preparandose]);
 
   const configured = fleetColumns(state);
 
@@ -368,8 +369,8 @@ export default function FleetScreen() {
         <Panel title="🧠 Activación logística">
           <Muted>
             Se puede importar todo el parque de Quiter, incluidos coches de clientes. Solo aparecen por defecto
-            en la operativa los que tienen actividad logística: {state.vehicles.filter((v) => v.logisticActive).length}{' '}
-            de {state.vehicles.length}.
+            en la operativa los que tienen actividad logística: {vehicles.filter((v) => v.logisticActive).length}{' '}
+            de {vehicles.length}.
           </Muted>
           <StatLine
             items={[

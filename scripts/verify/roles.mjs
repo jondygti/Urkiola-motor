@@ -578,5 +578,40 @@ export async function ejecutar(browser, BASE) {
     await context.close();
   }
 
+
+  for (const usuario of [USUARIOS.director, USUARIOS.responsableVo]) {
+    const { context, page, errores } = await entrarComo(browser, usuario, 1440);
+    await page.goto(`${BASE}/flota`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(900);
+    const s = await estadoGuardado(page);
+    const ajeno = s.vehicles.find(v => usuario.role === 'responsable_vo'
+      ? v.commercialArea === 'vn' : v.commercialArea === 'vn' && !usuario.managedBrands.includes(v.brand));
+    const propio = s.vehicles.find(v => usuario.role === 'responsable_vo'
+      ? v.commercialArea === 'vo' : v.commercialArea === 'vn' && usuario.managedBrands.includes(v.brand));
+    await page.goto(`${BASE}/vehiculo/${ajeno.id}`, { waitUntil: 'networkidle' });
+    ok(`${usuario.role} · URL ajena bloqueada`, await page.getByText('Vehículo no encontrado', { exact: true }).isVisible());
+    await page.goto(`${BASE}/vehiculo/${propio.id}`, { waitUntil: 'networkidle' });
+    ok(`${usuario.role} · ficha propia disponible`, !(await page.getByText('Vehículo no encontrado', { exact: true }).isVisible()));
+    ok(`${usuario.role} · sin errores JavaScript`, errores.length === 0, errores[0] ?? '');
+    await context.close();
+  }
+  {
+    const { context, page } = await entrarComo(browser, USUARIOS.logistica, 1440);
+    await page.goto(`${BASE}/flota`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(900);
+    const s = await estadoGuardado(page);
+    const coche = s.vehicles.find(v => v.commercialCategory === 'VN');
+    await page.goto(`${BASE}/vehiculo/${coche.id}`, { waitUntil: 'networkidle' });
+    await pulsar(page, 'Cambiar clasificación', { exact: true });
+    const campo = page.getByText('CATEGORÍA', { exact: true }).locator('xpath=..');
+    await campo.locator('[tabindex="0"]').first().click();
+    await page.getByText('Demo', { exact: true }).last().click();
+    await pulsar(page, 'Guardar clasificación', { exact: true });
+    await page.waitForTimeout(700);
+    ok('LOGÍSTICA · clasificación se guarda en ficha', (await estadoGuardado(page)).vehicles.find(v => v.id === coche.id).commercialCategory === 'DEMO');
+    await page.reload({ waitUntil: 'networkidle' });
+    ok('LOGÍSTICA · clasificación persiste al recargar', await page.getByText('DEMO · Stock VN', { exact: true }).isVisible());
+    await context.close();
+  }
   return resumen();
 }

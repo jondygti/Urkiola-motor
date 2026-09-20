@@ -38,6 +38,8 @@ import type {
   DelayReason,
   VehicleType,
   Situation,
+  CommercialArea,
+  CommercialCategory,
 } from './types';
 import { REQUEST_STATUS_LABEL } from './types';
 import { CONFIG } from './seed';
@@ -236,6 +238,17 @@ export type Command =
       vehicleId: Id;
       /** Nombre del comercial, o null para dejarlo sin asignar. */
       salesRep: string | null;
+      /** Usuario relacionado cuando existe en Urkiola. */
+      salesRepUserId?: Id | null;
+    }
+  | {
+      type: 'vehicle.setCommercial';
+      id: Id;
+      at: string;
+      userId: Id;
+      vehicleId: Id;
+      commercialArea: CommercialArea;
+      commercialCategory: CommercialCategory;
     }
   | {
       type: 'vehicle.create';
@@ -250,7 +263,10 @@ export type Command =
       model?: string;
       vehicleType?: VehicleType;
       situation?: Situation;
+      commercialArea?: CommercialArea;
+      commercialCategory?: CommercialCategory;
       salesRep?: string | null;
+      salesRepUserId?: Id | null;
       origin?: string;
       /** Dónde está, si ya se sabe. */
       location?: LocationRef | null;
@@ -2018,9 +2034,24 @@ function aplicar(state: AppState, cmd: Command): AppState {
     case 'vehicle.setSalesRep': {
       if (!vehicle) return state;
       const nombre = cmd.salesRep?.trim() || null;
-      if (nombre === (vehicle.salesRep ?? null)) return state;
+      const candidatos = nombre
+        ? state.users.filter(
+            (u) =>
+              u.active &&
+              u.role === 'comercial' &&
+              (u.name.trim().toLowerCase() === nombre.toLowerCase() ||
+                u.name.trim().toLowerCase().startsWith(`${nombre.toLowerCase()} `))
+          )
+        : [];
+      const salesRepId =
+        cmd.salesRepUserId !== undefined
+          ? cmd.salesRepUserId
+          : candidatos.length === 1
+            ? candidatos[0].id
+            : null;
+      if (nombre === (vehicle.salesRep ?? null) && salesRepId === (vehicle.salesRepId ?? null)) return state;
 
-      const next: AppState = apuntarEnVehiculo(state, cmd.vehicleId, { salesRep: nombre });
+      const next: AppState = apuntarEnVehiculo(state, cmd.vehicleId, { salesRep: nombre, salesRepId });
 
       return addEvent(next, {
         vehicleId: cmd.vehicleId,
@@ -2029,6 +2060,28 @@ function aplicar(state: AppState, cmd: Command): AppState {
         detail: `${nombre ?? '—'}${
           vehicle.salesRep ? ` · antes ${vehicle.salesRep}` : ''
         } · ${userName(state, cmd.userId)}`,
+        at: cmd.at,
+        userId: cmd.userId,
+      });
+    }
+
+    /* ----------------------------------------- clasificación comercial */
+    case 'vehicle.setCommercial': {
+      if (!vehicle) return state;
+      if (
+        (vehicle.commercialArea ?? (vehicle.type === 'VO' ? 'vo' : 'vn')) === cmd.commercialArea &&
+        (vehicle.commercialCategory ?? (vehicle.type === 'VO' ? 'VO' : 'VN')) === cmd.commercialCategory
+      ) return state;
+
+      const next = apuntarEnVehiculo(state, cmd.vehicleId, {
+        commercialArea: cmd.commercialArea,
+        commercialCategory: cmd.commercialCategory,
+      });
+      return addEvent(next, {
+        vehicleId: cmd.vehicleId,
+        kind: 'estado',
+        title: 'Clasificación comercial actualizada',
+        detail: `${cmd.commercialCategory} · stock ${cmd.commercialArea === 'vo' ? 'VO' : 'VN'} · ${userName(state, cmd.userId)}`,
         at: cmd.at,
         userId: cmd.userId,
       });
@@ -2062,6 +2115,9 @@ function aplicar(state: AppState, cmd: Command): AppState {
         if (!existente.plate && matricula) relleno.plate = matricula;
         if (!existente.vin && cmd.vin) relleno.vin = cmd.vin;
         if (!existente.salesRep && cmd.salesRep) relleno.salesRep = cmd.salesRep;
+        if (!existente.salesRepId && cmd.salesRepUserId) relleno.salesRepId = cmd.salesRepUserId;
+        if (!existente.commercialArea && cmd.commercialArea) relleno.commercialArea = cmd.commercialArea;
+        if (!existente.commercialCategory && cmd.commercialCategory) relleno.commercialCategory = cmd.commercialCategory;
         return { ...state, vehicles: replace(state.vehicles, existente.id, relleno) };
       }
 
@@ -2078,7 +2134,10 @@ function aplicar(state: AppState, cmd: Command): AppState {
         model: cmd.model?.trim() || '—',
         type: cmd.vehicleType ?? 'VN',
         situation: cmd.situation ?? 'stock',
+        commercialArea: cmd.commercialArea ?? (cmd.vehicleType === 'VO' ? 'vo' : 'vn'),
+        commercialCategory: cmd.commercialCategory ?? (cmd.vehicleType === 'VO' ? 'VO' : 'VN'),
         salesRep: cmd.salesRep?.trim() || null,
+        salesRepId: cmd.salesRepUserId ?? null,
         origin: cmd.origin?.trim() || 'Alta manual',
         logisticActive: true,
         location: donde,

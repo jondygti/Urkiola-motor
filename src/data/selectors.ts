@@ -846,11 +846,63 @@ export function suggestCarrier(s: AppState, fromSiteId?: Id, toSiteId?: Id): Car
  * formato real, este es el único sitio que hay que tocar.
  */
 export function esDelComercial(v: Vehicle, user: User | null): boolean {
-  if (!user || !v.salesRep) return false;
+  if (!user) return false;
+  if (v.salesRepId) return v.salesRepId === user.id;
+  if (!v.salesRep) return false;
   const rep = v.salesRep.trim().toLowerCase();
   const nombre = user.name.trim().toLowerCase();
   if (!rep) return false;
   return rep === nombre || nombre.startsWith(`${rep} `) || rep.startsWith(`${nombre} `);
+}
+
+/** Un texto histórico solo autoriza si identifica a un único comercial. */
+export function comercialDelVehiculo(s: AppState, v: Vehicle): User | undefined {
+  if (v.salesRepId) return s.users.find(u => u.id === v.salesRepId && u.role === 'comercial');
+  const candidatos = s.users.filter(u => u.active && u.role === 'comercial' && esDelComercial(v, u));
+  return candidatos.length === 1 ? candidatos[0] : undefined;
+}
+
+/** Área comercial efectiva; los datos antiguos siguen funcionando por VN/VO. */
+export function areaComercialDe(v: Vehicle): 'vn' | 'vo' {
+  return v.commercialArea ?? (v.type === 'VO' ? 'vo' : 'vn');
+}
+
+/** Roles con ámbito comercial propio y recortado. */
+export function esGestorComercial(user: User | null): boolean {
+  return !!user && (user.role === 'director_comercial' || user.role === 'responsable_vo');
+}
+
+/** Comerciales que dependen directamente de un responsable/director. */
+export function equipoComercial(s: AppState, responsableId: Id): User[] {
+  return s.users.filter((u) => u.active && u.managerId === responsableId);
+}
+
+/**
+ * Ámbito comercial real:
+ * - responsable VO: todo el stock VO, lo venda quien lo venda;
+ * - director VN: VN/KM0/demo de sus marcas, más cualquier VO asignado a
+ *   uno de sus comerciales.
+ */
+export function vehiculoEnAmbitoComercial(s: AppState, user: User | null, v: Vehicle): boolean {
+  if (!user) return false;
+  const area = areaComercialDe(v);
+
+  if (user.role === 'responsable_vo') return area === 'vo';
+  if (user.role !== 'director_comercial') return true;
+
+  const marcas = new Set((user.managedBrands ?? []).map((x) => x.trim().toLowerCase()).filter(Boolean));
+  const esStockDeMarca = area === 'vn' && marcas.has(v.brand.trim().toLowerCase());
+  if (esStockDeMarca) return true;
+
+  if (area !== 'vo') return false;
+  const comercial = comercialDelVehiculo(s, v);
+  return !!comercial?.active && comercial.managerId === user.id;
+}
+
+/** Lista visible en cliente/demo; el backend aplica el mismo ámbito al estado. */
+export function vehiculosVisiblesPara(s: AppState, user: User | null): Vehicle[] {
+  if (!esGestorComercial(user)) return s.vehicles;
+  return s.vehicles.filter((v) => vehiculoEnAmbitoComercial(s, user, v));
 }
 
 export function sedeDeEntrega(v: Vehicle): Id | null {
@@ -859,8 +911,10 @@ export function sedeDeEntrega(v: Vehicle): Id | null {
 
 /** La oficina gestiona la red; el comercial gestiona sus propias entregas. */
 export function puedeGestionarEntrega(s: AppState, user: User | null, v: Vehicle): boolean {
-  return can(s, user, 'entregas.gestionar') &&
-    (can(s, user, 'flota.editar') || esDelComercial(v, user));
+  if (!can(s, user, 'entregas.gestionar')) return false;
+  if (esGestorComercial(user)) return vehiculoEnAmbitoComercial(s, user, v);
+  if (can(s, user, 'flota.editar')) return true;
+  return esDelComercial(v, user);
 }
 
 export function upcomingDeliveries(s: AppState, days = 14): Vehicle[] {

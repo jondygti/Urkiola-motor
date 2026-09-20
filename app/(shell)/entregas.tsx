@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { Btn, Grid, H1, Kpi, Muted, Notice, Panel, Pill, Screen, Segmented, Select, Spacer, radius, space, tipografia, useTheme } from '@/ui';
-import { useAppState, useTicker } from '@/data/store';
-import { deliveryStatus, sedeDeEntrega, upcomingDeliveries } from '@/data/selectors';
+import { useAppState, useStore, useTicker } from '@/data/store';
+import { deliveryStatus, sedeDeEntrega, upcomingDeliveries, vehiculosVisiblesPara } from '@/data/selectors';
 import { formatDate, siteName, vehicleName, vehicleRef } from '@/data/format';
 import type { Vehicle } from '@/data/types';
 import { ScreenGuard } from '@/features/common/Guard';
@@ -20,27 +20,33 @@ const TODAS = 'todas';
  */
 export default function DeliveriesScreen() {
   const state = useAppState();
+  const { user } = useStore();
   const now = useTicker(30_000);
   const { c } = useTheme();
   const openVehicle = useOpenVehicle();
   const [rango, setRango] = useState<'7' | '14' | '30'>('7');
   const [sede, setSede] = useState<string>(TODAS);
 
+  const visibles = useMemo(() => new Set(vehiculosVisiblesPara(state, user).map((v) => v.id)), [state, user]);
+  const entregasVisibles = useMemo(
+    () => upcomingDeliveries(state, Number(rango)).filter((v) => visibles.has(v.id)),
+    [state, rango, visibles]
+  );
+
   const vehiculos = useMemo(() => {
-    const lista = upcomingDeliveries(state, Number(rango));
-    return sede === TODAS ? lista : lista.filter((v) => sedeDeEntrega(v) === sede);
-  }, [state, rango, sede]);
+    return sede === TODAS ? entregasVisibles : entregasVisibles.filter((v) => sedeDeEntrega(v) === sede);
+  }, [entregasVisibles, sede]);
 
   // Cuántas entregas tiene cada sede en este plazo, para verlo sin cambiar
   // el filtro una por una.
   const porSede = useMemo(() => {
     const cuenta = new Map<string, number>();
-    for (const v of upcomingDeliveries(state, Number(rango))) {
+    for (const v of entregasVisibles) {
       const id = sedeDeEntrega(v);
       if (id) cuenta.set(id, (cuenta.get(id) ?? 0) + 1);
     }
     return cuenta;
-  }, [state, rango]);
+  }, [entregasVisibles]);
 
   const estados = useMemo(
     () => vehiculos.map((v) => deliveryStatus(state, v, now)),
@@ -102,7 +108,7 @@ export default function DeliveriesScreen() {
             onChange={setSede}
             title="Sede que entrega"
             options={[
-              { value: TODAS, label: `Todas las sedes · ${upcomingDeliveries(state, Number(rango)).length}` },
+              { value: TODAS, label: `Todas las sedes · ${entregasVisibles.length}` },
               ...state.sites.map((s) => ({
                 value: s.id,
                 label: `${s.name} · ${porSede.get(s.id) ?? 0}`,

@@ -327,6 +327,56 @@ try {
   const graves = errores.filter((e) => !HIDRATACION.test(e) && !ESPERADOS.test(e));
   ok('9 · sin errores de JavaScript', graves.length === 0, graves[0] ?? 'ninguno');
 
+
+  // Ámbito y clasificación a través de la API real, sin confiar en filtros UI.
+  const adminScope = await entrar('admin@urkiolacarservice.com');
+  const directorScope = await entrar('direccion.vn@urkiolacarservice.com');
+  const voScope = await entrar('responsable.vo@urkiolacarservice.com');
+  let scopeN = 0;
+  const enviarScope = (token, datos) => fetch(`${API}/commands`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ id: `scope-api-${++scopeN}`, at: new Date().toISOString(), userId: 'u-admin', ...datos }),
+  });
+  for (const [vin8, brand, area] of [['SCOPEN01', 'BMW', 'vn'], ['SCOPEN02', 'Toyota', 'vn'], ['SCOPEVO1', 'Toyota', 'vo']]) {
+    const r = await enviarScope(adminScope.token, { type: 'vehicle.create', vin8, brand, commercialArea: area, commercialCategory: area === 'vo' ? 'VO' : 'VN', location: { siteId: 'leioa' } });
+    ok(`10 · alta comercial ${vin8}`, r.status === 200);
+  }
+  const scopeId = 'v-SCOPEN01';
+  for (const category of ['KM0', 'DEMO', 'VO', 'VN']) {
+    const r = await enviarScope(adminScope.token, { type: 'vehicle.setCommercial', vehicleId: scopeId, commercialArea: 'vn', commercialCategory: category });
+    const estado = await estadoDe(adminScope.token);
+    ok(`10 · API conserva clasificación ${category}`, r.status === 200 && estado.vehicles.find(v => v.id === scopeId)?.commercialCategory === category);
+  }
+  const asignar = await enviarScope(adminScope.token, { type: 'vehicle.setSalesRep', vehicleId: 'v-SCOPEVO1', salesRep: 'Juan Bilbao', salesRepUserId: 'u-juan' });
+  ok('10 · VO vendido por equipo VN aparece a ambos responsables', asignar.status === 200 &&
+    (await estadoDe(directorScope.token)).vehicles.some(v => v.id === 'v-SCOPEVO1') &&
+    (await estadoDe(voScope.token)).vehicles.some(v => v.id === 'v-SCOPEVO1'));
+  for (const [session, forbidden] of [[directorScope, 'v-SCOPEN02'], [voScope, scopeId]]) {
+    ok('10 · /state excluye coches ajenos', !(await estadoDe(session.token)).vehicles.some(v => v.id === forbidden));
+    for (const type of ['traslado', 'preparacion']) {
+      const denied = await enviarScope(session.token, { type: 'request.create', requestType: type, vehicleId: forbidden, siteId: 'leioa', to: type === 'traslado' ? { siteId: 'leioa' } : null });
+      ok(`10 · API rechaza ${type} ajeno`, denied.status === 403);
+    }
+    for (const datos of [{ type: 'vehicle.setDelivery', deliveryDate: '2026-12-30' }, { type: 'vehicle.deliver' }]) {
+      const denied = await enviarScope(session.token, { ...datos, vehicleId: forbidden });
+      ok(`10 · API rechaza ${datos.type} ajeno`, denied.status === 403);
+    }
+    const ctxScope = await browser.newContext();
+    const pageScope = await ctxScope.newPage();
+    await pageScope.goto(`${WEB}/login`, { waitUntil: 'networkidle' });
+    await pageScope.getByPlaceholder('nombre@urkiolacarservice.com').fill(session.user.email);
+    await pageScope.getByPlaceholder('••••••••').fill(CLAVE);
+    await pageScope.getByText('Entrar', { exact: true }).first().click();
+    // Esperar el destino final del login: / es una redirección intermedia.
+    await pageScope.waitForURL(url => url.pathname === '/flota');
+    await pageScope.getByText('SCOPEVO1', { exact: true }).first().waitFor({ state: 'visible' });
+    await pageScope.goto(`${WEB}/vehiculo/${forbidden}`, { waitUntil: 'networkidle' });
+    // La hidratación y la restauración de sesión continúan tras networkidle.
+    await pageScope.getByText('Vehículo no encontrado', { exact: true }).waitFor({ state: 'visible', timeout: 10000 }).catch(async e => { console.error('Ficha ajena:', pageScope.url(), await pageScope.locator('body').innerText()); throw e; });
+    ok('10 · URL directa no revela ficha ajena', await pageScope.getByText('Vehículo no encontrado', { exact: true }).isVisible());
+    await ctxScope.close();
+  }
+
   const bien = resumen();
   console.log(bien ? '\n✔ La app funciona contra el servidor.' : '\n✖ Hay comprobaciones que fallan.');
   process.exitCode = bien ? 0 : 1;

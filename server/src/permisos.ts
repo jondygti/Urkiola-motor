@@ -10,7 +10,7 @@
  */
 import type { AppState, Id, Permission, User } from '../../src/data/types';
 import { motivoCancelacion, type Command } from '../../src/data/commands';
-import { can, esDelComercial, isSimpleRole, puedeGestionarEntrega } from '../../src/data/selectors';
+import { can, comercialDelVehiculo, esDelComercial, esGestorComercial, isSimpleRole, puedeGestionarEntrega, vehiculoEnAmbitoComercial } from '../../src/data/selectors';
 
 /** Dos formas de escribir el mismo nombre: «Juan» y «Juan Bilbao». */
 function mismoNombre(a: string, b: string): boolean {
@@ -76,20 +76,7 @@ function necesitaLlavesPreparadas(s: AppState, requestId: Id): boolean {
  */
 function cochePropioDeComercial(s: AppState, u: User, vehicleId: Id): boolean {
   const v = s.vehicles.find((x) => x.id === vehicleId);
-  if (!v?.salesRep) return false;
-  const rep = v.salesRep.trim().toLowerCase();
-  const nombre = u.name.trim().toLowerCase();
-  if (rep === nombre) return true;
-
-  // Compatibilidad con datos históricos/Quiter que guardaban solo el nombre
-  // de pila. Solo se acepta si identifica de forma unívoca a un comercial
-  // activo; dos «Juan» nunca deben compartir coches por accidente.
-  const primero = nombre.split(/\s+/)[0];
-  if (rep !== primero) return false;
-  const coincidentes = s.users.filter(
-    (x) => x.active && x.role === 'comercial' && x.name.trim().toLowerCase().split(/\s+/)[0] === primero
-  );
-  return coincidentes.length === 1 && coincidentes[0].id === u.id;
+  return !!v && comercialDelVehiculo(s, v)?.id === u.id;
 }
 
 function puedePedirTraslado(s: AppState, u: User, cmd: Extract<Command, { type: 'request.create' }>): boolean {
@@ -235,6 +222,19 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
   // Los colaboradores externos van por su cuenta, antes que nada.
   if (isSimpleRole(s, u)) return permisoColaborador(s, u, cmd);
 
+  // El ámbito es una barrera anterior al permiso concreto, también si se
+  // amplían permisos del rol o el vehículo se identifica por una solicitud.
+  if (esGestorComercial(u)) {
+    const vehicleId = 'vehicleId' in cmd ? cmd.vehicleId
+      : 'requestId' in cmd ? s.requests.find(r => r.id === cmd.requestId)?.vehicleId
+      : 'prepId' in cmd ? s.preparations.find(p => p.id === cmd.prepId)?.vehicleId
+      : 'incidentId' in cmd ? s.incidents.find(i => i.id === cmd.incidentId)?.vehicleId : undefined;
+    if (vehicleId) {
+      const v = s.vehicles.find(v => v.id === vehicleId);
+      if (!v || !vehiculoEnAmbitoComercial(s, u, v)) return 'Ese vehículo está fuera de tu ámbito comercial.';
+    }
+  }
+
   // Reparto por sedes: quien tiene sedes asignadas no toca las demás.
   const sede = sedeAfectada(s, cmd);
   if (sedeVetada(u, sede)) return 'Ese vehículo no está en una de tus sedes.';
@@ -260,12 +260,17 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
       }
       return puedeEditarLlaves(s, u, cmd.vehicleId) ? null : 'Ese vehículo no está dentro de tu ámbito para editar llaves.';
 
-    case 'request.create':
+    case 'request.create': {
       if (!tiene(s, u, 'solicitudes.crear')) return 'No puedes crear solicitudes.';
+      const vehiculo = s.vehicles.find((v) => v.id === cmd.vehicleId);
+      if (esGestorComercial(u) && (!vehiculo || !vehiculoEnAmbitoComercial(s, u, vehiculo))) {
+        return 'Ese vehículo está fuera de tu ámbito comercial.';
+      }
       if (cmd.requestType === 'traslado' && !puedePedirTraslado(s, u, cmd)) {
         return 'No puedes solicitar ese traslado: el vehículo o el destino están fuera de tu ámbito.';
       }
       return null;
+    }
 
     case 'request.update': {
       const r = s.requests.find((x) => x.id === cmd.requestId);
@@ -350,6 +355,7 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
       return tiene(s, u, 'notificaciones.gestionar') ? null : 'No puedes configurar avisos.';
 
     case 'vehicle.setCustom':
+    case 'vehicle.setCommercial':
       return tiene(s, u, 'flota.editar') ? null : 'No puedes editar campos del vehículo.';
 
     case 'vehicle.setSalesRep': {
@@ -363,10 +369,11 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
 
       const vehiculo = s.vehicles.find((v) => v.id === cmd.vehicleId);
       const actual = vehiculo?.salesRep?.trim() ?? '';
-      const suyo = esDelComercial(vehiculo ?? ({} as never), u);
+      const suyo = !!vehiculo && comercialDelVehiculo(s, vehiculo)?.id === u.id;
       const nuevo = cmd.salesRep?.trim() ?? '';
 
-      if (actual && !suyo) return 'Ese vehículo ya lo lleva otro comercial. Pídeselo a la oficina.';
+      if ((actual || vehiculo?.salesRepId) && !suyo) return 'Ese vehículo ya lo lleva otro comercial. Pídeselo a la oficina.';
+      if (cmd.salesRepUserId && cmd.salesRepUserId !== u.id) return 'Solo puedes asignarte a ti mismo.';
       if (nuevo && !mismoNombre(nuevo, u.name)) return 'Solo puedes asignarte a ti mismo.';
       return null;
     }

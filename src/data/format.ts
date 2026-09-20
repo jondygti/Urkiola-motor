@@ -108,3 +108,10 @@ export function matchesSearch(v: Vehicle, query: string): boolean {
     .replace(/\s+/g, '');
   return haystack.includes(q);
 }
+
+/** El ID manda; el texto de Quiter sigue sirviendo si no hay usuario enlazado. */
+export function comercialLabel(state: AppState, vehicle: Vehicle | undefined): string {
+  if (!vehicle) return 'Sin asignar';
+  return (vehicle.salesRepId ? state.users.find(u => u.id === vehicle.salesRepId)?.name : null)
+    ?? vehicle.salesRep ?? 'Sin asignar';
+}

@@ -57,6 +57,8 @@ function buscarChromium() {
 
 /** Perfiles de demostración, tal y como están en src/data/seed.ts. */
 export const USUARIOS = {
+  director: { id: 'u-dir-vn', name: 'Dirección VN', role: 'director_comercial', siteIds: [], managedBrands: ['BMW', 'MINI'], email: 'direccion.vn@urkiolacarservice.com', active: true },
+  responsableVo: { id: 'u-resp-vo', name: 'Responsable VO', role: 'responsable_vo', siteIds: [], email: 'responsable.vo@urkiolacarservice.com', active: true },
   admin: { id: 'u-admin', name: 'Jon Aranburu', role: 'admin', siteIds: [], email: 'admin@urkiolacarservice.com', active: true },
   logistica: { id: 'u-log', name: 'Marta Ibarra', role: 'logistica', siteIds: [], email: 'logistica@urkiolacarservice.com', active: true },
   preparador: { id: 'u-pedro', name: 'Pedro Larrea', role: 'preparador', siteIds: ['leioa'], email: 'pedro@urkiolacarservice.com', active: true },

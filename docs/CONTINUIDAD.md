@@ -1,6 +1,6 @@
 # Continuidad del proyecto
 
-Actualizado: **15/09/2026**.
+Actualizado: **20/09/2026**.
 
 Este documento ya no describe una rama pendiente. La versión auditada está integrada en `main`.
 
@@ -35,3 +35,5 @@ Las pruebas de regresión permanecen en `server/pruebas/` y no deben relajarse.
 No usar ramas antiguas para saber cómo está el proyecto. Leer `README.md`, `docs/ESTADO-ACTUAL.md` y `docs/ARCHITECTURE.md`, y después el código de `main`.
 
 Los PR y commits históricos se conservan en GitHub aunque se borren sus ramas.
+
+La revisión comercial y sus casos de prueba se describen en `ESTADO-ACTUAL.md`. La demo válida es la generada por la CI del SHA final de `main`, no un archivo de una sesión anterior.

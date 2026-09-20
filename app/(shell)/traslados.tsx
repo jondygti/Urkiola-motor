@@ -1,3 +1,4 @@
+import { comercialLabel } from '@/data/format';
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { Grid, H1, Input, Kpi, Muted, Panel, Pill, Screen, Segmented, Select, Spacer, radius, space, tipografia, useTheme } from '@/ui';
@@ -224,6 +225,9 @@ export default function TransfersDoneScreen() {
                 </View>
                 <Text style={{ fontSize: tipografia.small, color: c.text }}>
                   {locationLabel(state, request.from, true)} → {locationLabel(state, request.to, true)}
+                </Text>
+                <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>
+                  Comercial: {comercialLabel(state, vehicle)}
                 </Text>
                 <Text style={{ fontSize: tipografia.micro, color: c.textFaint }}>
                   🔑 {request.pickedUpAt ? formatDateTime(request.pickedUpAt) : 'Sin recogida apuntada'} · 🏁{' '}

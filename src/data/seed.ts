@@ -131,7 +131,24 @@ export const USERS: User[] = [
   { id: 'u-iker', name: 'Iker Solano', role: 'transportista', siteIds: [], email: 'transporte@urkiolacarservice.com', active: true, carrierId: 'gruas-francis' },
   { id: 'u-aitor', name: 'Aitor Bengoa', role: 'transportista', siteIds: [], email: 'betigoiz@urkiolacarservice.com', active: true, carrierId: 'gruas-betigoiz' },
   { id: 'u-nerea', name: 'Nerea Goiri', role: 'recepcion', siteIds: ['sondika'], email: 'recepcion@urkiolacarservice.com', active: true },
-  { id: 'u-juan', name: 'Juan Bilbao', role: 'comercial', siteIds: ['leioa'], email: 'juan@urkiolacarservice.com', active: true },
+  {
+    id: 'u-dir-vn',
+    name: 'Dirección VN',
+    role: 'director_comercial',
+    siteIds: [],
+    email: 'direccion.vn@urkiolacarservice.com',
+    active: true,
+    managedBrands: ['BMW', 'MINI'],
+  },
+  {
+    id: 'u-resp-vo',
+    name: 'Responsable VO',
+    role: 'responsable_vo',
+    siteIds: [],
+    email: 'responsable.vo@urkiolacarservice.com',
+    active: true,
+  },
+  { id: 'u-juan', name: 'Juan Bilbao', role: 'comercial', siteIds: ['leioa'], email: 'juan@urkiolacarservice.com', active: true, managerId: 'u-dir-vn' },
 ];
 
 /* ------------------------------------------------------- roles y permisos */
@@ -211,6 +228,20 @@ export const ROLES: RoleConfig[] = [
     ],
     // En el móvil entra directo a la descarga del camión.
     mobileSections: ['/mi-recepcion', '/mover', '/recuentos', '/flota'],
+    builtin: true,
+  },
+  {
+    id: 'director_comercial',
+    label: 'Director comercial',
+    permissions: ['flota.ver', 'solicitudes.crear', 'entregas.gestionar'],
+    mobileSections: ['/flota', '/entregas'],
+    builtin: true,
+  },
+  {
+    id: 'responsable_vo',
+    label: 'Responsable VO',
+    permissions: ['flota.ver', 'solicitudes.crear', 'entregas.gestionar'],
+    mobileSections: ['/flota', '/entregas'],
     builtin: true,
   },
   {
@@ -384,25 +415,57 @@ function makeVehicle(partial: Partial<Vehicle>): Vehicle {
   const entry = pick(CATALOG);
   const type = partial.type ?? entry.type;
   const vin8 = partial.vin8 ?? randomVin8();
+
+  // Mantener exactamente el orden de consumo del PRNG de la demo: varios
+  // tests dependen de que el mismo seed produzca el mismo parque.
+  const vin = partial.vin ?? `WBA${randomVin8()}${vin8}`;
+  const plate = partial.plate !== undefined
+    ? partial.plate
+    : type === 'VO' || chance(0.45)
+      ? randomPlate()
+      : null;
+  const brand = partial.brand ?? entry.brand;
+  const model = partial.model ?? pick(entry.models);
+  const situation = partial.situation ?? (chance(0.45) ? 'pedido' : 'stock');
+  const salesRep = partial.salesRep !== undefined ? partial.salesRep : chance(0.6) ? pick(SALES_REPS) : null;
+
+  const coincidentes = salesRep
+    ? USERS.filter((u) => u.active && u.role === 'comercial' && (
+        u.name.trim().toLowerCase() === salesRep.trim().toLowerCase() ||
+        u.name.trim().toLowerCase().startsWith(`${salesRep.trim().toLowerCase()} `)
+      ))
+    : [];
+  const salesRepId = partial.salesRepId !== undefined
+    ? partial.salesRepId
+    : coincidentes.length === 1 ? coincidentes[0].id : null;
+
+  const lastCheckAt = partial.lastCheckAt ?? iso(Math.floor(rnd() * 30) * HOUR);
+  const lastCheckBy = partial.lastCheckBy ?? pick(['Pedro Larrea', 'Ane Zubiaur', 'Nerea Goiri']);
+  const lastMovementAt = partial.lastMovementAt ?? iso(Math.floor(rnd() * 6) * DAY);
+  const receivedAt = partial.receivedAt ?? iso(Math.floor(rnd() * 40) * DAY);
+
   return {
     id: partial.id ?? `v-${vin8}`,
     vin8,
-    vin: partial.vin ?? `WBA${randomVin8()}${vin8}`,
-    plate: partial.plate !== undefined ? partial.plate : type === 'VO' || chance(0.45) ? randomPlate() : null,
-    brand: partial.brand ?? entry.brand,
-    model: partial.model ?? pick(entry.models),
+    vin,
+    plate,
+    brand,
+    model,
     type,
-    situation: partial.situation ?? (chance(0.45) ? 'pedido' : 'stock'),
-    salesRep: partial.salesRep !== undefined ? partial.salesRep : chance(0.6) ? pick(SALES_REPS) : null,
+    situation,
+    commercialArea: partial.commercialArea ?? (type === 'VO' ? 'vo' : 'vn'),
+    commercialCategory: partial.commercialCategory ?? (type === 'VO' ? 'VO' : 'VN'),
+    salesRep,
+    salesRepId,
     origin: partial.origin ?? 'Camión · recepción',
     logisticActive: partial.logisticActive ?? true,
     location: partial.location ?? null,
     targetSiteId: partial.targetSiteId ?? null,
     status: partial.status ?? 'aparcado',
-    lastCheckAt: partial.lastCheckAt ?? iso(Math.floor(rnd() * 30) * HOUR),
-    lastCheckBy: partial.lastCheckBy ?? pick(['Pedro Larrea', 'Ane Zubiaur', 'Nerea Goiri']),
-    lastMovementAt: partial.lastMovementAt ?? iso(Math.floor(rnd() * 6) * DAY),
-    receivedAt: partial.receivedAt ?? iso(Math.floor(rnd() * 40) * DAY),
+    lastCheckAt,
+    lastCheckBy,
+    lastMovementAt,
+    receivedAt,
   };
 }
 
@@ -1377,6 +1440,12 @@ export function buildSeedState(): AppState {
       userId: 'u-ane',
     },
   ];
+
+  // Ejemplos comerciales estables, sin consumir números aleatorios ni mover
+  // vehículos: así la demo permite probar KM0 y DEMO sin alterar la operativa.
+  const ejemplosMarca = vehicles.filter(v => v.type === 'VN' && v.brand === 'BMW' && v.logisticActive);
+  if (ejemplosMarca[0]) ejemplosMarca[0].commercialCategory = 'KM0';
+  if (ejemplosMarca[1]) ejemplosMarca[1].commercialCategory = 'DEMO';
 
   return {
     users: USERS,

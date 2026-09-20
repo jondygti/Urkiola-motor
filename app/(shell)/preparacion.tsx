@@ -1,3 +1,4 @@
+import { comercialLabel } from '@/data/format';
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { Btn, Column, DataTable, Grid, H1, Kpi, Modal, Muted, Notice, Panel, Screen, Select, Spacer, StateFlow, StatLine, Toolbar, space, tipografia, useTheme } from '@/ui';
@@ -63,6 +64,13 @@ export default function PreparationScreen() {
           </View>
         );
       },
+    },
+    {
+      key: 'salesRep',
+      header: 'Comercial',
+      width: 160,
+      value: (p) => comercialLabel(state, state.vehicles.find(v => v.id === p.vehicleId)),
+      render: (p) => <Cell>{comercialLabel(state, state.vehicles.find(v => v.id === p.vehicleId))}</Cell>,
     },
     {
       key: 'site',

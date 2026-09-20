@@ -50,6 +50,8 @@ export interface LocationRef {
 /* ------------------------------------------------------------- vehículo */
 
 export type VehicleType = 'VN' | 'VO';
+export type CommercialArea = 'vn' | 'vo';
+export type CommercialCategory = 'VN' | 'KM0' | 'DEMO' | 'VO';
 export type Situation = 'stock' | 'pedido';
 
 export type VehicleStatus =
@@ -110,8 +112,14 @@ export interface Vehicle {
   model: string;
   type: VehicleType;
   situation: Situation;
-  /** Comercial asignado; null = sin asignar. */
+  /** Área que mantiene la responsabilidad comercial del stock. */
+  commercialArea?: CommercialArea;
+  /** Clasificación comercial, independiente de que el coche esté matriculado. */
+  commercialCategory?: CommercialCategory;
+  /** Comercial asignado; se conserva el texto de Quiter para compatibilidad. */
   salesRep: string | null;
+  /** Usuario comercial relacionado cuando se ha podido resolver de forma fiable. */
+  salesRepId?: Id | null;
   origin: string;
   /** false = está en el parque de Quiter pero sin actividad logística. */
   logisticActive: boolean;
@@ -551,7 +559,7 @@ export interface Carrier {
 
 /**
  * Los roles son configurables desde Administración, así que `Role` es un
- * identificador libre. Los seis de abajo vienen de serie y no se pueden
+ * identificador libre. Los ocho de abajo vienen de serie y no se pueden
  * borrar, pero sí renombrar y cambiarles los permisos.
  */
 export type Role = string;
@@ -563,6 +571,8 @@ export const BUILTIN_ROLES = [
   'transportista',
   'recepcion',
   'comercial',
+  'director_comercial',
+  'responsable_vo',
 ] as const;
 
 /** Todo lo que se puede permitir o denegar a un rol. */
@@ -637,6 +647,10 @@ export interface User {
   active: boolean;
   /** Solo para transportistas: la empresa a la que pertenecen. */
   carrierId?: Id | null;
+  /** Responsable comercial del que depende esta persona. */
+  managerId?: Id | null;
+  /** Marcas de VN/KM0/demo que dirige. Vacío = ninguna, no todas. */
+  managedBrands?: string[];
 }
 
 /* ------------------------------------------------- configuración (admin) */

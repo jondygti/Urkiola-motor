@@ -30,7 +30,7 @@ export function ComercialVehiculo({ vehicle, onDone }: { vehicle: Vehicle; onDon
   const puedeSuyos = can(state, user, 'flota.asignarse');
 
   const esMio = esDelComercial(vehicle, user);
-  const libre = !vehicle.salesRep;
+  const libre = !vehicle.salesRep && !vehicle.salesRepId;
 
   // Los nombres que ya usa Quiter en el parque, más los comerciales de la
   // aplicación: así la oficina puede seguir escribiéndolo como Quiter.
@@ -43,7 +43,16 @@ export function ComercialVehiculo({ vehicle, onDone }: { vehicle: Vehicle; onDon
   }, [state.vehicles, state.users, state.config.roles]);
 
   const asignar = (nombre: string | null) => {
-    run({ type: 'vehicle.setSalesRep', vehicleId: vehicle.id, salesRep: nombre });
+    const candidatos = nombre
+      ? state.users.filter((u) => u.active && u.role === 'comercial' && u.name.trim().toLowerCase() === nombre.trim().toLowerCase())
+      : [];
+    const salesRepUserId =
+      nombre && user?.name.trim().toLowerCase() === nombre.trim().toLowerCase()
+        ? user.id
+        : candidatos.length === 1
+          ? candidatos[0].id
+          : null;
+    run({ type: 'vehicle.setSalesRep', vehicleId: vehicle.id, salesRep: nombre, salesRepUserId });
     onDone?.(nombre ? `Asignado a ${nombre}.` : 'Vehículo sin comercial asignado.');
     setAbierto(false);
   };

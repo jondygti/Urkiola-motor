@@ -1,3 +1,4 @@
+import { comercialLabel } from '@/data/format';
 import React, { useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { campo, Btn, Field, H1, Modal, Muted, Notice, Panel, Pill, ProgressBar, Screen, Select, Spacer, radius, space, useTheme } from '@/ui';
@@ -177,6 +178,9 @@ function PedidaCard({
       <Text style={{ fontSize: campo.body, color: c.textMuted, marginTop: 2 }}>
         {vehicle ? vehicleName(vehicle) : ''} · {siteName(state, request.siteId)}
       </Text>
+      <Text style={{ fontSize: campo.small, color: c.text, marginTop: 3, fontWeight: '700' }}>
+        Comercial: {comercialLabel(state, vehicle)}
+      </Text>
       <UbicacionVehiculo vehicle={vehicle} esperadoEn={request.siteId} />
       <Text style={{ fontSize: campo.small, color: c.textMuted, marginTop: 4 }}>
         {esRepaso
@@ -231,6 +235,9 @@ function PrepCard({ prep, onOpen }: { prep: Preparation; onOpen: () => void }) {
 
       <Text style={{ fontSize: campo.body, color: c.textMuted, marginTop: 2 }}>
         {vehicle ? vehicleName(vehicle) : ''} · {siteName(state, prep.siteId)}
+      </Text>
+      <Text style={{ fontSize: campo.small, color: c.text, marginTop: 3, fontWeight: '700' }}>
+        Comercial: {comercialLabel(state, vehicle)}
       </Text>
       <UbicacionVehiculo vehicle={vehicle} esperadoEn={prep.siteId} />
 
@@ -314,6 +321,9 @@ function WorkModal({
         )
       }
     >
+      <Field label="Comercial">
+        <Text style={{ fontSize: campo.body, color: c.text }}>{comercialLabel(state, vehicle)}</Text>
+      </Field>
       {/* Dónde está el coche: mientras no se ha empezado hace falta para ir
           a por él, y después para saber de dónde salió. */}
       <UbicacionVehiculo vehicle={vehicle} esperadoEn={prep.siteId} />

@@ -13,6 +13,8 @@ import {
   vehicleById,
   vehicleByRef,
   vehicleTimeline,
+  esGestorComercial,
+  vehiculoEnAmbitoComercial,
 } from '@/data/selectors';
 import {
   formatDate,
@@ -33,6 +35,7 @@ import { UbicacionLlaves } from '@/features/actions/UbicacionLlaves';
 import { DateField } from '@/features/common/DateField';
 import { IfCan, ScreenGuard, usePerms } from '@/features/common/Guard';
 import { ComercialVehiculo } from '@/features/actions/ComercialVehiculo';
+import { ClasificacionComercial } from '@/features/actions/ClasificacionComercial';
 import { EntregarVehiculo } from '@/features/actions/EntregarVehiculo';
 import { IncidentStatusPill, SituationPill, TypePill, RequestStatusPill } from '@/features/common/bits';
 
@@ -48,7 +51,11 @@ export default function VehicleScreen() {
   // Por id interno o por lo que la gente tiene a mano: la matrícula o los
   // ocho últimos del bastidor. Así un enlace pegado en un mensaje
   // (/vehiculo/1234ABC) abre la ficha en vez de decir que no existe.
-  const vehicle = vehicleById(state, id) ?? vehicleByRef(state, id ?? '');
+  const encontrado = vehicleById(state, id) ?? vehicleByRef(state, id ?? '');
+  const vehicle =
+    encontrado && (!esGestorComercial(user) || vehiculoEnAmbitoComercial(state, user, encontrado))
+      ? encontrado
+      : undefined;
 
   if (!vehicle) {
     return (
@@ -110,6 +117,7 @@ export default function VehicleScreen() {
         <Panel title="🚗 Identificación">
           <Detail label="Tipo" value={<TypePill type={vehicle.type} />} />
           <Detail label="Situación" value={<SituationPill situation={vehicle.situation} />} />
+          <ClasificacionComercial vehicle={vehicle} onDone={setToast} />
           <ComercialVehiculo vehicle={vehicle} onDone={setToast} />
           <UbicacionLlaves vehicle={vehicle} />
           <Detail label="Estado logístico" value={vehicle.logisticActive ? 'Activo' : 'Solo parque Quiter'} />
