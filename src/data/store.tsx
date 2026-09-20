@@ -72,9 +72,11 @@ const TOKEN_KEY = 'urkiola.token.v1';
 // 23: entra el ámbito comercial (VN/VO), la relación comercial-responsable
 // y los roles de Director comercial y Responsable VO.
 // 24: la demo de dirección cambia la semilla comercial a VN Stellantis y VO
-// multimarca; se descarta la caché demo anterior para no seguir mostrando
-// BMW/MINI/Toyota de la presentación antigua.
-const STATE_SCHEMA_VERSION = 24;
+// multimarca.
+// 25: la demo deja de aceptar estados de versiones anteriores y vuelve a
+// enlazar la sesión guardada con el usuario de la semilla vigente. Antes
+// una demo v23/v24 podía seguir sustituyendo por completo a la nueva.
+const STATE_SCHEMA_VERSION = 25;
 
 interface StoredState {
   v: number;
@@ -373,11 +375,36 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       try {
         if (!apiEnabled) {
-          const [savedState, savedSession] = await Promise.all([AsyncStorage.getItem(STATE_KEY), AsyncStorage.getItem(SESSION_KEY)]);
+          const [savedState, savedSession] = await Promise.all([
+            AsyncStorage.getItem(STATE_KEY),
+            AsyncStorage.getItem(SESSION_KEY),
+          ]);
           const saved: StoredState | null = savedState ? JSON.parse(savedState) : null;
-          if ((saved && saved.v >= 20 && saved.v <= STATE_SCHEMA_VERSION) && Array.isArray(saved.state?.vehicles)) setState(saved.state);
-          else dirty.current = true;
-          if (savedSession) { const p = JSON.parse(savedSession); userRef.current = p; setUser(p); }
+
+          // En demo la semilla ES el producto que estamos enseñando. No se
+          // migran estados viejos: si la versión no coincide exactamente se
+          // descartan para que una demo anterior no sustituya a la nueva.
+          const estadoDemo =
+            saved?.v === STATE_SCHEMA_VERSION && Array.isArray(saved.state?.vehicles)
+              ? saved.state
+              : estadoInicial();
+          setState(estadoDemo);
+          if (!saved || saved.v !== STATE_SCHEMA_VERSION) dirty.current = true;
+
+          if (savedSession) {
+            const anterior: User = JSON.parse(savedSession);
+            // La sesión guarda una copia del usuario. Tras cambiar marcas,
+            // nombre, rol o jerarquía esa copia puede quedar obsoleta; usar
+            // siempre el usuario canónico del estado que acabamos de cargar.
+            const actual = estadoDemo.users.find((u) => u.id === anterior.id && u.active) ?? null;
+            userRef.current = actual;
+            setUser(actual);
+            if (actual) {
+              void guardar(() => AsyncStorage.setItem(SESSION_KEY, JSON.stringify(actual)));
+            } else {
+              void guardar(() => AsyncStorage.removeItem(SESSION_KEY));
+            }
+          }
           return;
         }
 
