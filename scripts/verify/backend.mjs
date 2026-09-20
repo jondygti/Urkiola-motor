@@ -329,15 +329,15 @@ try {
 
 
   // Ámbito y clasificación a través de la API real, sin confiar en filtros UI.
-  const adminScope = await entrar('admin@urkiolacarservice.com');
-  const directorScope = await entrar('direccion.vn@urkiolacarservice.com');
-  const voScope = await entrar('responsable.vo@urkiolacarservice.com');
+  const adminScope = await entrar('gerencia.demo@urkiolacarservice.com');
+  const directorScope = await entrar('direccion.pc.demo@urkiolacarservice.com');
+  const voScope = await entrar('responsable.vo.demo@urkiolacarservice.com');
   let scopeN = 0;
   const enviarScope = (token, datos) => fetch(`${API}/commands`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ id: `scope-api-${++scopeN}`, at: new Date().toISOString(), userId: 'u-admin', ...datos }),
   });
-  for (const [vin8, brand, area] of [['SCOPEN01', 'BMW', 'vn'], ['SCOPEN02', 'Toyota', 'vn'], ['SCOPEVO1', 'Toyota', 'vo']]) {
+  for (const [vin8, brand, area] of [['SCOPEN01', 'Peugeot', 'vn'], ['SCOPEN02', 'Opel', 'vn'], ['SCOPEVO1', 'BMW', 'vo']]) {
     const r = await enviarScope(adminScope.token, { type: 'vehicle.create', vin8, brand, commercialArea: area, commercialCategory: area === 'vo' ? 'VO' : 'VN', location: { siteId: 'leioa' } });
     ok(`10 · alta comercial ${vin8}`, r.status === 200);
   }
@@ -347,7 +347,7 @@ try {
     const estado = await estadoDe(adminScope.token);
     ok(`10 · API conserva clasificación ${category}`, r.status === 200 && estado.vehicles.find(v => v.id === scopeId)?.commercialCategory === category);
   }
-  const asignar = await enviarScope(adminScope.token, { type: 'vehicle.setSalesRep', vehicleId: 'v-SCOPEVO1', salesRep: 'Juan Bilbao', salesRepUserId: 'u-juan' });
+  const asignar = await enviarScope(adminScope.token, { type: 'vehicle.setSalesRep', vehicleId: 'v-SCOPEVO1', salesRep: 'Lucía Martín', salesRepUserId: 'u-juan' });
   ok('10 · VO vendido por equipo VN aparece a ambos responsables', asignar.status === 200 &&
     (await estadoDe(directorScope.token)).vehicles.some(v => v.id === 'v-SCOPEVO1') &&
     (await estadoDe(voScope.token)).vehicles.some(v => v.id === 'v-SCOPEVO1'));
