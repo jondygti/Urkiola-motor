@@ -367,7 +367,9 @@ try {
     await pageScope.getByPlaceholder('nombre@urkiolacarservice.com').fill(session.user.email);
     await pageScope.getByPlaceholder('••••••••').fill(CLAVE);
     await pageScope.getByText('Entrar', { exact: true }).first().click();
-    await pageScope.waitForURL(url => !url.pathname.includes('login'));
+    // Esperar el destino final del login: / es una redirección intermedia.
+    await pageScope.waitForURL(url => url.pathname === '/flota');
+    await pageScope.getByText('SCOPEVO1', { exact: true }).first().waitFor({ state: 'visible' });
     await pageScope.goto(`${WEB}/vehiculo/${forbidden}`, { waitUntil: 'networkidle' });
     // La hidratación y la restauración de sesión continúan tras networkidle.
     await pageScope.getByText('Vehículo no encontrado', { exact: true }).waitFor({ state: 'visible', timeout: 10000 }).catch(async e => { console.error('Ficha ajena:', pageScope.url(), await pageScope.locator('body').innerText()); throw e; });
