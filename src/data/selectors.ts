@@ -855,6 +855,13 @@ export function esDelComercial(v: Vehicle, user: User | null): boolean {
   return rep === nombre || nombre.startsWith(`${rep} `) || rep.startsWith(`${nombre} `);
 }
 
+/** Un texto histórico solo autoriza si identifica a un único comercial. */
+export function comercialDelVehiculo(s: AppState, v: Vehicle): User | undefined {
+  if (v.salesRepId) return s.users.find(u => u.id === v.salesRepId && u.role === 'comercial');
+  const candidatos = s.users.filter(u => u.active && u.role === 'comercial' && esDelComercial(v, u));
+  return candidatos.length === 1 ? candidatos[0] : undefined;
+}
+
 /** Área comercial efectiva; los datos antiguos siguen funcionando por VN/VO. */
 export function areaComercialDe(v: Vehicle): 'vn' | 'vo' {
   return v.commercialArea ?? (v.type === 'VO' ? 'vo' : 'vn');
@@ -888,7 +895,8 @@ export function vehiculoEnAmbitoComercial(s: AppState, user: User | null, v: Veh
   if (esStockDeMarca) return true;
 
   if (area !== 'vo') return false;
-  return equipoComercial(s, user.id).some((comercial) => esDelComercial(v, comercial));
+  const comercial = comercialDelVehiculo(s, v);
+  return !!comercial?.active && comercial.managerId === user.id;
 }
 
 /** Lista visible en cliente/demo; el backend aplica el mismo ámbito al estado. */
@@ -904,8 +912,8 @@ export function sedeDeEntrega(v: Vehicle): Id | null {
 /** La oficina gestiona la red; el comercial gestiona sus propias entregas. */
 export function puedeGestionarEntrega(s: AppState, user: User | null, v: Vehicle): boolean {
   if (!can(s, user, 'entregas.gestionar')) return false;
-  if (can(s, user, 'flota.editar')) return true;
   if (esGestorComercial(user)) return vehiculoEnAmbitoComercial(s, user, v);
+  if (can(s, user, 'flota.editar')) return true;
   return esDelComercial(v, user);
 }
 

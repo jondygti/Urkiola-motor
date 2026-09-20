@@ -1,3 +1,4 @@
+import { comercialLabel } from '@/data/format';
 import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Btn, Field, Modal, Muted, Notice, Panel, Pill, ProgressBar, Select, Spacer, StateFlow, Toolbar, radius, space, tipografia, useTheme } from '@/ui';
@@ -67,7 +68,7 @@ export function PrepPanel({
     <Panel title={prep.tipo === 'repaso' ? '🧽 Repaso de entrega' : '⏱️ Preparación y checklist'}>
       {vehicle ? (
         <Muted style={{ marginTop: -6, marginBottom: space.sm }}>
-          {vehicleTitle(vehicle)} · {siteName(state, prep.siteId)} · preparador {userName(state, prep.preparerId)}
+          {vehicleTitle(vehicle)} · {siteName(state, prep.siteId)} · preparador {userName(state, prep.preparerId)} · Comercial: {comercialLabel(state, vehicle)}
         </Muted>
       ) : null}
       <View

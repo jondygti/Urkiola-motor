@@ -118,7 +118,7 @@ export function estadoParaColaborador(s: AppState, u: User): AppState {
   const zones = s.zones.filter((z) => zonasUsadas.has(z.id));
 
   return {
-    users: s.users.filter((x) => x.id === u.id),
+    users: s.users.filter((x) => x.id === u.id).map(({ managerId, managedBrands, ...usuario }) => usuario),
     carriers: s.carriers.filter((c) => c.id === u.carrierId),
     sites: s.sites,
     zones,

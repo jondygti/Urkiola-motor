@@ -163,3 +163,55 @@ test('el transportista sigue sin recibir datos comerciales', () => {
   assert.equal(recibido.commercialArea, undefined);
   assert.equal(recibido.commercialCategory, undefined);
 });
+
+test('un comercial no asigna a otro usuario mediante salesRepUserId', () => {
+  const { estado, juan, vnMarca } = escenario();
+  estado.users.push({ ...juan, id: 'otro-vendedor', name: 'Otro vendedor' });
+  const c = { ...pedir(juan.id, vnMarca.id, 'traslado'), type: 'vehicle.setSalesRep', salesRep: juan.name, salesRepUserId: 'otro-vendedor' } as Command;
+  assert.notEqual(comprobarPermiso(estado, juan, c), null);
+});
+
+test('un coche asignado solo por ID no se puede arrebatar', () => {
+  const { estado, juan, vnMarca } = escenario();
+  vnMarca.salesRepId = 'otro-vendedor';
+  const c = { ...pedir(juan.id, vnMarca.id, 'traslado'), type: 'vehicle.setSalesRep', salesRep: juan.name, salesRepUserId: juan.id } as Command;
+  assert.notEqual(comprobarPermiso(estado, juan, c), null);
+});
+
+test('un nombre histórico ambiguo no amplía el ámbito de un director', () => {
+  const { estado, director, juan, voEquipo } = escenario();
+  estado.users.push({ ...juan, id: 'otro-juan', name: 'Juan Pérez', managerId: null });
+  voEquipo.salesRepId = null;
+  voEquipo.salesRep = 'Juan';
+  assert.equal(vehiculoEnAmbitoComercial(estado, director, voEquipo), false);
+});
+
+test('los permisos ampliados no eliminan el ámbito comercial', () => {
+  const { estado, director, vnAjeno } = escenario();
+  estado.config.roles.find(r => r.id === director.role)!.permissions.push('flota.editar', 'movimientos.registrar');
+  for (const c of [
+    { type: 'vehicle.setDelivery', vehicleId: vnAjeno.id, date: null },
+    { type: 'movement.register', vehicleId: vnAjeno.id, to: { siteId: 'leioa' } },
+    { type: 'vehicle.setCommercial', vehicleId: vnAjeno.id, commercialArea: 'vn', commercialCategory: 'VN' },
+  ]) assert.notEqual(comprobarPermiso(estado, director, { ...c, id: 'ambito', at: new Date().toISOString(), userId: director.id } as Command), null);
+});
+
+test('el estado externo no incluye jerarquía ni marcas del usuario', () => {
+  const { estado } = escenario();
+  const iker = estado.users.find(u => u.id === 'u-iker')!;
+  iker.managerId = 'u-dir-vn';
+  iker.managedBrands = ['Marca interna'];
+  const externo = estadoPara(estado, iker, true);
+  assert.equal(externo.users[0].managerId, undefined);
+  assert.equal(externo.users[0].managedBrands, undefined);
+});
+
+test('la semilla incluye VN KM0 DEMO y VO sin inferir área por matrícula', () => {
+  const { estado, director, responsableVo, vnMarca } = escenario();
+  for (const category of ['VN', 'KM0', 'DEMO']) {
+    assert.ok(estado.vehicles.some(v => v.commercialCategory === category && vehiculoEnAmbitoComercial(estado, director, v)));
+  }
+  const demoMatriculado = { ...vnMarca, type: 'VO' as const, commercialCategory: 'DEMO' as const, commercialArea: 'vn' as const, plate: '1234 AAA' };
+  assert.equal(vehiculoEnAmbitoComercial(estado, director, demoMatriculado), true);
+  assert.equal(vehiculoEnAmbitoComercial(estado, responsableVo, demoMatriculado), false);
+});

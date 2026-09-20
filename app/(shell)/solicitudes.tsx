@@ -1,3 +1,4 @@
+import { comercialLabel } from '@/data/format';
 import { CancelarSolicitud } from '@/features/actions/CancelarSolicitud';
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
@@ -95,10 +96,10 @@ export default function RequestsScreen() {
       key: 'salesRep',
       header: 'Comercial',
       width: 145,
-      value: (r) => state.vehicles.find((x) => x.id === r.vehicleId)?.salesRep ?? 'Sin asignar',
+      value: (r) => comercialLabel(state, state.vehicles.find((x) => x.id === r.vehicleId)),
       render: (r) => {
         const v = state.vehicles.find((x) => x.id === r.vehicleId);
-        return <Cell muted={!v?.salesRep}>{v?.salesRep ?? 'Sin asignar'}</Cell>;
+        return <Cell muted={!v?.salesRep}>{comercialLabel(state, v)}</Cell>;
       },
     },
     {
@@ -242,7 +243,7 @@ export default function RequestsScreen() {
                           Sondika → {locationLabel(state, r.to, true)}
                         </Text>
                         <Text style={{ fontSize: tipografia.micro, color: c.textFaint }}>
-                          Comercial: {v?.salesRep ?? 'sin asignar'} · Llaves: {v?.primaryKeyLocation || 'Leioa · Logística'} ·{' '}
+                          Comercial: {comercialLabel(state, v)} · Llaves: {v?.primaryKeyLocation || 'Leioa · Logística'} ·{' '}
                           {r.carrierId ? carrierName(state, r.carrierId) : 'transportista sin asignar'}
                         </Text>
                       </View>
@@ -439,7 +440,7 @@ function ManageModal({
         <Muted>{vehicle ? `${vehicleName(vehicle)} · ${vehicleRef(vehicle)}` : request.vehicleId}</Muted>
       </Field>
       <Field label="Comercial">
-        <Muted>{vehicle?.salesRep ?? 'Sin asignar'}</Muted>
+        <Muted>{comercialLabel(state, vehicle)}</Muted>
       </Field>
       <Field label="Ruta">
         <Muted>

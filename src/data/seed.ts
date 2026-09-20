@@ -1441,6 +1441,12 @@ export function buildSeedState(): AppState {
     },
   ];
 
+  // Ejemplos comerciales estables, sin consumir números aleatorios ni mover
+  // vehículos: así la demo permite probar KM0 y DEMO sin alterar la operativa.
+  const ejemplosMarca = vehicles.filter(v => v.type === 'VN' && v.brand === 'BMW' && v.logisticActive);
+  if (ejemplosMarca[0]) ejemplosMarca[0].commercialCategory = 'KM0';
+  if (ejemplosMarca[1]) ejemplosMarca[1].commercialCategory = 'DEMO';
+
   return {
     users: USERS,
     carriers: CARRIERS,

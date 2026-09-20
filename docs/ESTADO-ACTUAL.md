@@ -1,6 +1,6 @@
 # Estado actual de Urkiola Car Service
 
-Actualizado: **19 de septiembre de 2026**.
+Actualizado: **20 de septiembre de 2026**.
 
 Este documento responde a una pregunta: **¿qué está realmente hecho hoy?** No mezcla planes futuros con implementación actual.
 
@@ -116,3 +116,13 @@ Los totales de asserts no se fijan en documentación: deben consultarse en el lo
 - Quiter: **QBI Premium ya contratado**; integración de solo lectura al principio.
 - Multiempresa: preparar la arquitectura, pero no activar un segundo cliente hasta tener aislamiento probado.
 - No añadir funciones nuevas por defecto: priorizar despliegue, datos reales y piloto.
+
+## Revisión del ámbito comercial (20/09/2026)
+
+- El ámbito se exige antes de los permisos particulares, también si se amplía un rol.
+- Una asignación por ID no puede usarse para asignar a otra persona ni arrebatar un vehículo.
+- Los nombres históricos ambiguos no amplían el ámbito del director; se resuelven mediante ID o coincidencia única.
+- Los usuarios externos tampoco reciben jerarquía ni marcas gestionadas.
+- Preparación y traslados internos muestran el usuario comercial enlazado; el texto histórico sirve de respaldo.
+- La semilla incluye ejemplos KM0 y DEMO deterministas. Dirección VN gestiona BMW/MINI y Juan Bilbao pertenece a su equipo.
+- Chromium comprueba ambos responsables, URLs ajenas, edición persistente de clasificación y operaciones comerciales por API real.

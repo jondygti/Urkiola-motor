@@ -30,7 +30,7 @@ export function ComercialVehiculo({ vehicle, onDone }: { vehicle: Vehicle; onDon
   const puedeSuyos = can(state, user, 'flota.asignarse');
 
   const esMio = esDelComercial(vehicle, user);
-  const libre = !vehicle.salesRep;
+  const libre = !vehicle.salesRep && !vehicle.salesRepId;
 
   // Los nombres que ya usa Quiter en el parque, más los comerciales de la
   // aplicación: así la oficina puede seguir escribiéndolo como Quiter.
