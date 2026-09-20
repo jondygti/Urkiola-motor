@@ -395,7 +395,7 @@ export async function ejecutar(browser, BASE) {
     const tras = await estadoGuardado(page);
     ok(
       'COMERCIAL · queda guardado a su nombre',
-      tras?.vehicles?.find((v) => v.id === libre?.id)?.salesRep === 'Lucía Martín',
+      tras?.vehicles?.find((v) => v.id === libre?.id)?.salesRep === 'Juan Bilbao',
       String(tras?.vehicles?.find((v) => v.id === libre?.id)?.salesRep)
     );
     // Y con su apunte en la trazabilidad: quién lo cogió y cuándo.
