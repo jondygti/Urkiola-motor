@@ -123,7 +123,7 @@ function buildZonesAndPositions(): { zones: Zone[]; positions: Position[] } {
 }
 
 export const USERS: User[] = [
-  { id: 'u-admin', name: 'Jon Aranburu', role: 'admin', siteIds: [], email: 'admin@urkiolacarservice.com', active: true },
+  { id: 'u-admin', name: 'Gerencia Urkiola', role: 'admin', siteIds: [], email: 'admin@urkiolacarservice.com', active: true },
   { id: 'u-log', name: 'Marta Ibarra', role: 'logistica', siteIds: [], email: 'logistica@urkiolacarservice.com', active: true },
   { id: 'u-pedro', name: 'Pedro Larrea', role: 'preparador', siteIds: ['leioa'], email: 'pedro@urkiolacarservice.com', active: true },
   { id: 'u-ane', name: 'Ane Zubiaur', role: 'preparador', siteIds: ['leioa', 'galdakao'], email: 'ane@urkiolacarservice.com', active: true },
@@ -133,12 +133,21 @@ export const USERS: User[] = [
   { id: 'u-nerea', name: 'Nerea Goiri', role: 'recepcion', siteIds: ['sondika'], email: 'recepcion@urkiolacarservice.com', active: true },
   {
     id: 'u-dir-vn',
-    name: 'Dirección VN',
+    name: 'Dirección Peugeot · Citroën',
     role: 'director_comercial',
     siteIds: [],
     email: 'direccion.vn@urkiolacarservice.com',
     active: true,
-    managedBrands: ['BMW', 'MINI'],
+    managedBrands: ['Peugeot', 'Citroën'],
+  },
+  {
+    id: 'u-dir-vn-2',
+    name: 'Dirección Opel · Fiat · Jeep',
+    role: 'director_comercial',
+    siteIds: [],
+    email: 'direccion.ofj.demo@urkiolacarservice.com',
+    active: true,
+    managedBrands: ['Opel', 'Fiat', 'Jeep'],
   },
   {
     id: 'u-resp-vo',
@@ -149,6 +158,8 @@ export const USERS: User[] = [
     active: true,
   },
   { id: 'u-juan', name: 'Juan Bilbao', role: 'comercial', siteIds: ['leioa'], email: 'juan@urkiolacarservice.com', active: true, managerId: 'u-dir-vn' },
+  { id: 'u-com-vn-2', name: 'Mikel Santos', role: 'comercial', siteIds: ['galdakao'], email: 'mikel.demo@urkiolacarservice.com', active: true, managerId: 'u-dir-vn-2' },
+  { id: 'u-com-vo', name: 'Sara López', role: 'comercial', siteIds: ['leioa'], email: 'sara.vo.demo@urkiolacarservice.com', active: true, managerId: 'u-resp-vo' },
 ];
 
 /* ------------------------------------------------------- roles y permisos */
@@ -294,7 +305,7 @@ const FLEET_COLUMNS: ColumnPref[] = BASE_COLUMNS.map((col, i) => ({
   order: i + 1,
 }));
 
-const SALES_REPS = ['Juan', 'Ane', 'Pedro'];
+const SALES_REPS = ['Juan', 'Mikel', 'Sara'];
 
 /* ---------------------------------------------- empresas de transporte */
 
@@ -336,11 +347,15 @@ export function carrierForRoute(
 }
 
 const CATALOG: { brand: string; models: string[]; type: 'VN' | 'VO' }[] = [
-  { brand: 'BMW', models: ['X1', 'X2', 'X3', 'Serie 1', 'Serie 3', 'iX1'], type: 'VN' },
-  { brand: 'MINI', models: ['Cooper', 'Countryman', 'Clubman'], type: 'VN' },
-  { brand: 'Toyota', models: ['Corolla', 'C-HR', 'Yaris Cross', 'RAV4'], type: 'VN' },
-  { brand: 'BMW', models: ['X3', 'Serie 5', 'Serie 2'], type: 'VO' },
-  { brand: 'Volkswagen', models: ['Golf', 'T-Roc', 'Polo'], type: 'VO' },
+  { brand: 'Peugeot', models: ['208', '2008', '3008', '5008', 'Rifter'], type: 'VN' },
+  { brand: 'Citroën', models: ['C3', 'C3 Aircross', 'C4', 'C5 Aircross', 'Berlingo'], type: 'VN' },
+  { brand: 'Opel', models: ['Corsa', 'Mokka', 'Astra', 'Grandland', 'Combo'], type: 'VN' },
+  { brand: 'Fiat', models: ['500', '600', 'Panda', 'Doblò'], type: 'VN' },
+  { brand: 'Jeep', models: ['Avenger', 'Renegade', 'Compass'], type: 'VN' },
+  { brand: 'BMW', models: ['X1', 'X3', 'Serie 1', 'Serie 3'], type: 'VO' },
+  { brand: 'Volkswagen', models: ['Golf', 'T-Roc', 'Polo', 'Tiguan'], type: 'VO' },
+  { brand: 'Toyota', models: ['Corolla', 'C-HR', 'Yaris Cross', 'RAV4'], type: 'VO' },
+  { brand: 'Mercedes-Benz', models: ['Clase A', 'GLA', 'CLA'], type: 'VO' },
   { brand: 'Seat', models: ['León', 'Ateca', 'Ibiza'], type: 'VO' },
 ];
 
@@ -516,13 +531,16 @@ function buildFleet(positions: Position[]): Build {
   const bmwX1 = makeVehicle({
     id: 'v-12345678',
     vin8: '12345678',
-    vin: 'WBA0X1PL12345678',
-    plate: null,
-    brand: 'BMW',
-    model: 'X1',
+    vin: 'VF30DEMO12345678',
+    plate: '6412 NPV',
+    brand: 'Peugeot',
+    model: '3008',
     type: 'VN',
+    commercialArea: 'vn',
+    commercialCategory: 'KM0',
     situation: 'pedido',
     salesRep: 'Juan',
+    salesRepId: 'u-juan',
     origin: 'Camión 9876 JKL · recepción',
     location: locate('sondika', 'sondika-tej-01-p04'),
     targetSiteId: 'leioa',
@@ -541,8 +559,11 @@ function buildFleet(positions: Position[]): Build {
     brand: 'BMW',
     model: 'X3',
     type: 'VO',
+    commercialArea: 'vo',
+    commercialCategory: 'VO',
     situation: 'pedido',
-    salesRep: 'Ane',
+    salesRep: 'Juan',
+    salesRepId: 'u-juan',
     location: locate('leioa', 'leioa-park-01-p02'),
     targetSiteId: 'leioa',
     status: 'en_preparacion',
@@ -554,11 +575,14 @@ function buildFleet(positions: Position[]): Build {
     id: 'v-7251KRX',
     vin8: 'JTNK4RBE',
     plate: '7251 KRX',
-    brand: 'Toyota',
-    model: 'Corolla',
+    brand: 'Opel',
+    model: 'Astra',
     type: 'VN',
+    commercialArea: 'vn',
+    commercialCategory: 'VN',
     situation: 'stock',
-    salesRep: null,
+    salesRep: 'Mikel',
+    salesRepId: 'u-com-vn-2',
     location: locate('galdakao', 'galdakao-park-01-p01'),
     status: 'aparcado',
     lastCheckAt: iso(4 * HOUR),
@@ -568,10 +592,14 @@ function buildFleet(positions: Position[]): Build {
   const dmg = makeVehicle({
     id: 'v-23456789',
     vin8: '23456789',
-    brand: 'BMW',
-    model: 'Serie 1',
+    brand: 'Citroën',
+    model: 'C5 Aircross',
     type: 'VN',
+    commercialArea: 'vn',
+    commercialCategory: 'DEMO',
     situation: 'stock',
+    salesRep: 'Juan',
+    salesRepId: 'u-juan',
     location: locate('sondika', 'sondika-tej-01-p05'),
     status: 'aparcado',
     lastCheckAt: iso(2 * HOUR + 10 * MIN),
@@ -581,11 +609,14 @@ function buildFleet(positions: Position[]): Build {
   const pending = makeVehicle({
     id: 'v-34567890',
     vin8: '34567890',
-    brand: 'MINI',
-    model: 'Countryman',
+    brand: 'Jeep',
+    model: 'Avenger',
     type: 'VN',
+    commercialArea: 'vn',
+    commercialCategory: 'VN',
     situation: 'pedido',
-    salesRep: 'Pedro',
+    salesRep: 'Mikel',
+    salesRepId: 'u-com-vn-2',
     location: locate('sondika', 'sondika-tej-01-p06'),
     status: 'recepcionado',
     lastCheckAt: iso(2 * HOUR + 15 * MIN),
@@ -599,8 +630,11 @@ function buildFleet(positions: Position[]): Build {
     brand: 'Volkswagen',
     model: 'T-Roc',
     type: 'VO',
+    commercialArea: 'vo',
+    commercialCategory: 'VO',
     situation: 'pedido',
-    salesRep: 'Ane',
+    salesRep: 'Sara',
+    salesRepId: 'u-com-vo',
     location: locate('anoeta', 'anoeta-park-01-p01'),
     targetSiteId: 'anoeta',
     status: 'en_preparacion',
@@ -622,8 +656,8 @@ function buildFleet(positions: Position[]): Build {
   const stale2 = makeVehicle({
     id: 'v-98765432',
     vin8: '98765432',
-    brand: 'Toyota',
-    model: 'RAV4',
+    brand: 'Fiat',
+    model: '600',
     type: 'VN',
     location: locate('sondika'),
     status: 'aparcado',
@@ -765,7 +799,7 @@ function buildFleet(positions: Position[]): Build {
   // Una atrasada, para que se vea el caso rojo.
   if (conEntrega[14]) conEntrega[14].deliveryDate = iso(1 * DIA);
 
-  // El BMW X1 del mockup entrega pasado mañana.
+  // El Peugeot 3008 KM0 protagonista entrega pasado mañana.
   const x1 = vehicles.find((v) => v.id === 'v-12345678');
   if (x1) x1.deliveryDate = new Date(NOW + 2 * DIA + 9 * HOUR).toISOString();
 
@@ -1441,11 +1475,9 @@ export function buildSeedState(): AppState {
     },
   ];
 
-  // Ejemplos comerciales estables, sin consumir números aleatorios ni mover
-  // vehículos: así la demo permite probar KM0 y DEMO sin alterar la operativa.
-  const ejemplosMarca = vehicles.filter(v => v.type === 'VN' && v.brand === 'BMW' && v.logisticActive);
-  if (ejemplosMarca[0]) ejemplosMarca[0].commercialCategory = 'KM0';
-  if (ejemplosMarca[1]) ejemplosMarca[1].commercialCategory = 'DEMO';
+  // Los protagonistas comerciales ya incluyen de forma determinista un
+  // Peugeot 3008 KM0 y un Citroën C5 Aircross DEMO. No hace falta retocar
+  // coches aleatorios al final: la historia de la demo es siempre la misma.
 
   return {
     users: USERS,

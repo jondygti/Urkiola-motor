@@ -16,12 +16,17 @@ export async function ejecutar(browser, BASE) {
     const { context, page, errores } = await entrarComo(browser, USUARIOS.preparador);
     await page.goto(`${BASE}/flota`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(700);
-    // Primera matrícula visible en la lista de flota.
-    const ref = await page.evaluate(() => {
-      const txt = [...document.querySelectorAll('div')].map((d) => d.textContent ?? '');
-      const m = txt.join('\n').match(/\b\d{4}\s?[A-Z]{3}\b/);
-      return m ? m[0] : null;
-    });
+    // Elegir un coche matriculado que esté ya en una sede con parkings.
+    // Así la prueba no depende de qué matrícula haya quedado primera en la
+    // tabla cuando cambian los datos de presentación.
+    const estadoInicial = await estadoGuardado(page);
+    const candidato = estadoInicial?.vehicles?.find(
+      (v) =>
+        v.logisticActive &&
+        v.plate &&
+        ['leioa', 'galdakao', 'anoeta', 'irun'].includes(v.location?.siteId ?? '')
+    );
+    const ref = candidato?.plate ?? null;
 
     await page.goto(`${BASE}/mover`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(600);
@@ -90,12 +95,12 @@ export async function ejecutar(browser, BASE) {
   {
     const { context, page, errores } = await entrarComo(browser, USUARIOS.preparador);
 
-    // El BMW X1 del mockup está en Sondika con la preparación abierta en
+    // El Peugeot 3008 KM0 protagonista está en Sondika con la preparación abierta en
     // Leioa. Se mueve primero a Leioa para comprobar el atajo «se queda
     // donde está», que solo tiene sentido si el coche ya está en la sede.
     await page.goto(`${BASE}/mover`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(600);
-    await page.getByPlaceholder('1234 ABC').fill('12345678');
+    await page.getByPlaceholder('1234 ABC').fill('6412 NPV');
     await page.waitForTimeout(400);
     await elegirEnLista(page, 'Sondika', 'Leioa');
     await elegirEnLista(page, /^(Tejavana|Parking) \d\d$/, 'Parking 03');
@@ -108,7 +113,7 @@ export async function ejecutar(browser, BASE) {
     const hayCola = await page.getByText('por preparar', { exact: false }).first().isVisible().catch(() => false);
     ok('5 · el preparador tiene cola de trabajo', hayCola);
 
-    await page.getByText('12345678', { exact: true }).first().click();
+    await page.getByText('6412 NPV', { exact: true }).first().click();
     await page.waitForTimeout(500);
     await page.getByText('✓ Terminar', { exact: false }).first().click();
     await page.waitForTimeout(500);

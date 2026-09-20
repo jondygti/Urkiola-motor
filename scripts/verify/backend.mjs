@@ -337,7 +337,7 @@ try {
     method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ id: `scope-api-${++scopeN}`, at: new Date().toISOString(), userId: 'u-admin', ...datos }),
   });
-  for (const [vin8, brand, area] of [['SCOPEN01', 'BMW', 'vn'], ['SCOPEN02', 'Toyota', 'vn'], ['SCOPEVO1', 'Toyota', 'vo']]) {
+  for (const [vin8, brand, area] of [['SCOPEN01', 'Peugeot', 'vn'], ['SCOPEN02', 'Opel', 'vn'], ['SCOPEVO1', 'BMW', 'vo']]) {
     const r = await enviarScope(adminScope.token, { type: 'vehicle.create', vin8, brand, commercialArea: area, commercialCategory: area === 'vo' ? 'VO' : 'VN', location: { siteId: 'leioa' } });
     ok(`10 · alta comercial ${vin8}`, r.status === 200);
   }

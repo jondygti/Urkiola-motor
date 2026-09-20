@@ -579,7 +579,7 @@ export async function ejecutar(browser, BASE) {
   }
 
 
-  for (const usuario of [USUARIOS.director, USUARIOS.responsableVo]) {
+  for (const usuario of [USUARIOS.director, USUARIOS.director2, USUARIOS.responsableVo]) {
     const { context, page, errores } = await entrarComo(browser, usuario, 1440);
     await page.goto(`${BASE}/flota`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(900);
