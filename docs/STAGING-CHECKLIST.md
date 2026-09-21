@@ -28,9 +28,10 @@ Estas operaciones son ajustes de GitHub y no se sustituyen con cambios de códig
 
 ## 2. Render staging
 
+- [ ] validar/revisar `render.yaml` en Render antes de crear recursos;
 - [ ] servicio Docker desde `server/Dockerfile`, contexto raíz;
 - [ ] una única instancia;
-- [ ] variables según `deploy/render.env.example`;
+- [ ] variables según `deploy/render.env.example`; `EXPO_PUBLIC_API_URL`, `PUBLIC_URL` y `CORS_ORIGEN` deben apuntar al staging real;
 - [ ] `URKIOLA_SEMILLA=vacia`;
 - [ ] health check `/health`;
 - [ ] dominio/URL de staging;
