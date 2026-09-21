@@ -97,7 +97,7 @@ test('sin sesión no se ven las fotos, ni se suben', async (t) => {
   );
 });
 
-test('la sesión vale también en la dirección, para poder pintar una evidencia autorizada', async (t) => {
+test('la URL de imagen usa una capacidad breve y no el JWT general', async (t) => {
   const { base, token, p } = await levantar(t);
   const subida = await fetch(`${base}/fotos`, {
     method: 'POST',
@@ -117,9 +117,21 @@ test('la sesión vale también en la dirección, para poder pintar una evidencia
     photos: [`foto:${id}`],
   }, recepcion);
 
-  // Una etiqueta <img> no puede mandar cabeceras: la sesión va en la url.
-  const r = await fetch(`${base}/fotos/${encodeURIComponent(id)}?t=${encodeURIComponent(token)}`);
+  const acceso = await fetch(`${base}/fotos/${encodeURIComponent(id)}/acceso`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  assert.equal(acceso.status, 200);
+  const { url } = (await acceso.json()) as { url: string };
+  assert.match(url, /\?a=/);
+  assert.equal(url.includes(token), false, 'la URL no contiene el JWT general');
+
+  const r = await fetch(`${base}${url}`);
   assert.equal(r.status, 200);
+
+  // El mecanismo antiguo no se conserva por compatibilidad: no queremos
+  // volver a filtrar una sesión completa en logs o proxies.
+  const jwtEnUrl = await fetch(`${base}/fotos/${encodeURIComponent(id)}?t=${encodeURIComponent(token)}`);
+  assert.equal(jwtEnUrl.status, 401);
 });
 
 test('una sesión no puede leer evidencias de un vehículo fuera de su ámbito', async (t) => {
