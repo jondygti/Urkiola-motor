@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 import { Btn, Field, Notice, radius, space, useTheme, tipografia } from '@/ui';
-import { urlDeFoto } from '@/data/api';
+import { api } from '@/data/api';
 import { capturarYSubir, type FotoTomada } from './photos';
 import { descartarFotoPendiente } from '@/data/photoQueue';
 
@@ -98,12 +98,37 @@ export function CampoFotos({
 /** Fotos ya guardadas, para verlas. Se pulsan para abrirlas a tamaño real. */
 export function Fotos({ refs, onAbrir }: { refs: string[]; onAbrir?: (url: string) => void }) {
   const { c } = useTheme();
+  const [urls, setUrls] = useState<Record<string, string>>({});
+  const clave = refs.join('\u0000');
+
+  useEffect(() => {
+    let activa = true;
+    void Promise.all(
+      refs.map(async (ref) => {
+        try {
+          return [ref, await api.urlFoto(ref)] as const;
+        } catch {
+          return [ref, ''] as const;
+        }
+      })
+    ).then((entradas) => {
+      if (activa) setUrls(Object.fromEntries(entradas));
+    });
+    return () => {
+      activa = false;
+    };
+  }, [clave]);
+
   if (refs.length === 0) return null;
+
+  const abrir = (ref: string) => {
+    if (!onAbrir) return;
+    void api.urlFoto(ref).then(onAbrir).catch(() => undefined);
+  };
 
   return (
     <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: space.md }}>
       {refs.map((ref) => {
-        const url = urlDeFoto(ref);
         // Las del parque de ejemplo no existen: se pinta el hueco.
         if (ref.startsWith('demo://')) {
           return (
@@ -122,12 +147,29 @@ export function Fotos({ refs, onAbrir }: { refs: string[]; onAbrir?: (url: strin
             </View>
           );
         }
+
+        const url = urls[ref];
         return (
-          <Pressable key={ref} onPress={() => onAbrir?.(url)}>
-            <Image
-              source={{ uri: url }}
-              style={{ width: 72, height: 72, borderRadius: radius.sm, backgroundColor: c.surfaceSunken }}
-            />
+          <Pressable key={ref} onPress={() => abrir(ref)} disabled={!url}>
+            {url ? (
+              <Image
+                source={{ uri: url }}
+                style={{ width: 72, height: 72, borderRadius: radius.sm, backgroundColor: c.surfaceSunken }}
+              />
+            ) : (
+              <View
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: radius.sm,
+                  backgroundColor: c.surfaceSunken,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ fontSize: tipografia.label, color: c.textFaint }}>Cargando…</Text>
+              </View>
+            )}
           </Pressable>
         );
       })}

@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: urkiola-car-service-staging
+    runtime: docker
+    region: frankfurt
+    plan: free
+    branch: main
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    numInstances: 1
+    maxShutdownDelaySeconds: 30
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: URKIOLA_SEMILLA
+        value: vacia
+      - key: EXPO_PUSH
+        value: "0"
+      - key: SUPABASE_BUCKET
+        value: urkiola-fotos
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: PUBLIC_URL
+        sync: false
+      - key: CORS_ORIGEN
+        sync: false
+      - key: EXPO_PUBLIC_API_URL
+        sync: false
+      - key: URKIOLA_ADMIN_EMAIL
+        sync: false
+      - key: URKIOLA_ADMIN_PASSWORD
+        sync: false
+      - key: EMAIL_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false

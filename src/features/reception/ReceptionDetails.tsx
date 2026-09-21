@@ -6,7 +6,7 @@ import { locationLabel, vehicleName } from '@/data/format';
 import type { Reception, ReceptionLine } from '@/data/types';
 import { CampoFotos } from '@/features/actions/CampoFotos';
 import { capturarYSubir } from '@/features/actions/photos';
-import { urlDeFoto } from '@/data/api';
+import { api } from '@/data/api';
 import { Cell, useOpenVehicle } from '@/features/common/bits';
 import { NuevoVehiculoModal } from '@/features/actions/NuevoVehiculo';
 
@@ -112,7 +112,15 @@ export function ReceptionDetails({ reception, onDone }: { reception: Reception; 
                 📷 Adjuntar albarán
               </Btn>
               {reception.albaranUri ? (
-                <Btn onPress={() => setAlbaran(urlDeFoto(reception.albaranUri!))}>Ver albarán</Btn>
+                <Btn
+                  onPress={() => {
+                    void api.urlFoto(reception.albaranUri!).then(setAlbaran).catch(() => {
+                      setToast('No se ha podido abrir el albarán.');
+                    });
+                  }}
+                >
+                  Ver albarán
+                </Btn>
               ) : (
                 <Btn onPress={() => setToast('Todavía no hay albarán adjunto.')}>Ver albarán</Btn>
               )}

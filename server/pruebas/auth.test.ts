@@ -10,7 +10,9 @@ import {
   cifrarPassword,
   comprobarPassword,
   emitirToken,
+  emitirTokenFoto,
   leerToken,
+  leerTokenFoto,
   limpiarFallos,
 } from '../src/auth';
 
@@ -43,6 +45,15 @@ test('el token identifica al usuario y caduca', () => {
 test('un token firmado con otro secreto no vale', () => {
   const token = emitirToken('u-pedro', 'secreto', 30);
   assert.equal(leerToken(token, 'otro-secreto'), null);
+});
+
+test('el token de evidencia solo vale para una foto y no sirve como sesión general', () => {
+  const capacidad = emitirTokenFoto('u-pedro', 'abc.png', 'secreto', 5);
+  const acceso = leerTokenFoto(capacidad, 'abc.png', 'secreto');
+  assert.equal(acceso?.sub, 'u-pedro');
+  assert.equal(acceso?.foto, 'abc.png');
+  assert.equal(leerTokenFoto(capacidad, 'otra.png', 'secreto'), null);
+  assert.equal(leerToken(capacidad, 'secreto'), null, 'una capacidad de foto no abre una sesión general');
 });
 
 test('un token manipulado no vale', () => {

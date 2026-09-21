@@ -1,8 +1,10 @@
 # Despliegue definitivo: Render + Supabase
 
-Actualizado: **19/09/2026**. Sustituye las recomendaciones antiguas de Railway o VPS como destino principal.
+Actualizado: **20/09/2026**. Sustituye las recomendaciones antiguas de Railway o VPS como destino principal.
 
 ## Objetivo
+
+La guía operativa de staging está en [`../deploy/README.md`](../deploy/README.md), la plantilla de variables en [`../deploy/render.env.example`](../deploy/render.env.example) y la configuración reproducible de Render en [`../render.yaml`](../render.yaml). El antiguo stack Docker/MinIO/Caddy se retiró para evitar dos caminos de despliegue incompatibles.
 
 - **Render**: API/backend.
 - **Supabase**: PostgreSQL, Auth y Storage.
@@ -35,7 +37,9 @@ Nunca usar la base de producción para pruebas.
 
 ## Render
 
-El backend se construye desde `server/` según la configuración del repositorio. Mientras el servidor mantenga el modelo de estado actual, usar **una sola instancia activa**.
+El backend se construye con `server/Dockerfile` usando la **raíz del repositorio como contexto**. Configurar **una sola instancia**. Render puede solapar temporalmente la vieja y la nueva durante un despliegue; el backend soporta ese relevo mediante PostgreSQL `LISTEN/NOTIFY` + advisory lock: la vieja drena escrituras, entrega el liderazgo y deja de estar saludable antes de que la nueva lo asuma.
+
+`DATABASE_URL` debe ser una conexión PostgreSQL que preserve sesión (conexión directa o pooler en modo sesión). El proceso sostiene un `pg_advisory_lock` durante toda su vida; un pooler en transaction mode no es compatible con esa garantía.
 
 ### Despliegue sin solapamiento
 
@@ -70,7 +74,8 @@ Cuando se migre a Supabase Auth, retirar las variables y endpoints propios solo 
 
 ### PostgreSQL
 
-- esquema versionado;
+- el primer staging se inicializa con `server/src/almacen/esquema.sql`;
+- **todavía no hay migraciones versionadas formales**: añadirlas antes del primer cambio de esquema con datos persistentes;
 - conexiones TLS verificadas;
 - backups automáticos + copia externa;
 - restauración periódica en staging;
@@ -96,8 +101,11 @@ Primero `preview`/prueba interna; después AAB production. Ver `MOBILE_ANDROID.m
 
 ## Copias y restauración
 
+En staging hay que provocar al menos un redeploy con una escritura/cola pendiente y comprobar que no se pierde ni duplica el comando y que `/health` termina respondiendo desde la nueva instancia.
+
 Antes de datos reales:
 
+- ejecutar el checklist completo de [`STAGING-CHECKLIST.md`](STAGING-CHECKLIST.md);
 - copia SQL fuera de Supabase;
 - copia de Storage fuera del mismo proveedor;
 - restauración completa probada en staging;

@@ -65,16 +65,19 @@ Por ejemplo, con la configuración de serie:
 
 | Rol | Menú del móvil | Abre en |
 |---|---|---|
-| Preparador | Mi preparación · Mover coche · Flota | Su cola de trabajo |
-| Recepción | Descargar camión · Mover coche · Flota | La descarga en curso |
+| Preparador | Mi preparación · Mover coche · Recuentos · Flota | Su cola de trabajo |
+| Recepción | Descargar camión · Mover coche · Recuentos · Flota | La descarga en curso |
 | Transportista (externo) | Solo «Mis traslados», sin menú | Sus traslados |
 | Comercial | Mis coches · Entregas · Mover coche · Flota | Sus coches |
+| Director comercial | Flota · Entregas | Flota de su ámbito |
+| Responsable VO | Flota · Entregas | Flota VO |
 | Logística | Solicitudes · Entregas · Mover coche · Flota | Los encargos del día |
-| Administrador | Flota · Solicitudes · Mover coche · Recuentos · Incidencias | El panel de control |
+| Administrador | Flota · Solicitudes · Mover coche · Recuentos · Incidencias | Flota |
 
-**Cada uno entra por su pantalla, también en la web.** Quien tiene el panel
-de dirección entra por el panel; el resto, por la primera sección que su rol
-tenga marcada en Administración. Antes todos entraban por la primera del
+**Cada uno entra por su pantalla.** En web de escritorio, quien tiene `panel.ver`
+entra por el panel; el resto, por la primera sección que su rol tenga marcada.
+En móvil manda siempre la primera sección móvil configurada; por eso el
+Administrador abre Flota aunque también tenga acceso al panel. Antes todos entraban por la primera del
 menú —Flota para casi todos—, así que al comercial la app le abría el parque
 entero en vez de sus coches.
 

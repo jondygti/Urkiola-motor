@@ -96,6 +96,25 @@ Cada cambio funcional se valida en GitHub Actions con:
 
 Los totales de asserts no se fijan en documentación: deben consultarse en el log del commit correspondiente.
 
+## Cierre de etapa antes de staging (20/09/2026)
+
+La auditoría de cierre deja como siguiente trabajo real **infraestructura y piloto**, no más funciones de negocio.
+
+Hallazgos ya corregidos en código/documentación:
+
+- persistencia de demos entre versiones;
+- autorización de lectura/subida de evidencias;
+- retirada del despliegue Docker/MinIO legado;
+- guía única para Render + Supabase y checklist de staging.
+
+Pendientes que requieren configuración externa y no se resuelven con un commit:
+
+- el repositorio GitHub está actualmente público;
+- `main` no tiene ruleset/protección;
+- no está activo el borrado automático de ramas fusionadas y quedan ramas temporales históricas.
+
+Antes de introducir secretos o datos reales, revisar estos tres puntos en GitHub.
+
 ## Lo que NO está hecho todavía
 
 - despliegue real en Render;
@@ -124,7 +143,9 @@ Los totales de asserts no se fijan en documentación: deben consultarse en el lo
 - Los nombres históricos ambiguos no amplían el ámbito del director; se resuelven mediante ID o coincidencia única.
 - Los usuarios externos tampoco reciben jerarquía ni marcas gestionadas.
 - Preparación y traslados internos muestran el usuario comercial enlazado; el texto histórico sirve de respaldo.
-- La semilla incluye ejemplos KM0 y DEMO deterministas. Dirección VN gestiona BMW/MINI y Juan Bilbao pertenece a su equipo.
+- La semilla de presentación usa VN Stellantis: Dirección Peugeot/Citroën y Dirección Opel/Fiat/Jeep, con ejemplos KM0 y DEMO deterministas; VO sigue siendo multimarca.
 - Chromium comprueba ambos responsables, URLs ajenas, edición persistente de clasificación y operaciones comerciales por API real.
 
 - La restauración de sesión sin caché espera a recuperar la cuenta antes de habilitar rutas, conservando los enlaces directos. Con caché se mantiene el arranque offline inmediato.
+- La demo solo acepta un estado persistido de su versión exacta (v25 actualmente) y re-vincula la sesión con el usuario canónico actual; una demo antigua ya no puede ocultar una semilla nueva.
+- Las evidencias fotográficas/albaranes se sirven únicamente si la referencia aparece en el estado autorizado del usuario; conocer un ID no da acceso fuera de su ámbito.

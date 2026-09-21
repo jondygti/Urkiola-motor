@@ -4,8 +4,8 @@
  *   npm run copia                 deja la copia en ./copias
  *   npm run copia -- /ruta        la deja donde le digas
  *
- * Existe porque con todo en Railway las fotos viven en un disco del propio
- * servidor y **el volcado de la base de datos no se las lleva**. Y las fotos
+ * Existe porque las fotos/evidencias viven fuera de PostgreSQL y **el volcado
+ * de la base de datos no se las lleva**. Y las fotos
  * de daños son la prueba para reclamarle a un transportista: perderlas
  * cuesta dinero de verdad.
  *

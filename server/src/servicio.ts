@@ -12,6 +12,7 @@
  * la app ni las reglas.
  */
 import type { AppState, Id, User } from '../../src/data/types';
+import { can } from '../../src/data/selectors';
 import { conflictoSolicitud, applyAll, applyCommand, type Command } from '../../src/data/commands';
 import { buildSeedState } from '../../src/data/seed';
 import type { Almacen } from './almacen/tipos';
@@ -23,7 +24,9 @@ import {
   cifrarPassword,
   comprobarPassword,
   emitirToken,
+  emitirTokenFoto,
   leerToken,
+  leerTokenFoto,
   limpiarFallos,
 } from './auth';
 import { comprobarPermiso, esColaboradorExterno } from './permisos';
@@ -40,6 +43,7 @@ import {
   noAutenticado,
   noEncontrado,
   sinPermiso,
+  temporalmenteNoDisponible,
 } from './errores';
 
 /**
@@ -103,6 +107,15 @@ export class Servicio {
    */
   private cambiadaEn = new Map<Id, number>();
 
+  /**
+   * Render solapa unos segundos la instancia vieja y la nueva durante un
+   * redeploy. La vieja deja de aceptar escrituras antes de soltar el lock de
+   * PostgreSQL; las peticiones nuevas reciben 503 y la app las reintenta.
+   */
+  private drenando = false;
+  private escriturasActivas = 0;
+  private resolverDrenaje: (() => void) | null = null;
+
   private constructor(
     private readonly almacen: Almacen,
     private readonly config: Config,
@@ -140,7 +153,38 @@ export class Servicio {
     const servicio = new Servicio(almacen, config, alDia, comandosDesdeFoto.length, fotos, correo);
     await servicio.prepararAcceso();
     await servicio.cargarCambiosDeContrasena();
+    almacen.alPedirRelevo?.(() => servicio.prepararRelevo());
     return servicio;
+  }
+
+  /** Reserva una escritura mientras esta instancia siga siendo la líder. */
+  private comenzarEscritura(): () => void {
+    if (this.drenando) {
+      throw temporalmenteNoDisponible(
+        'El servidor se está actualizando. El cambio se reintentará automáticamente.'
+      );
+    }
+    this.escriturasActivas += 1;
+    let terminada = false;
+    return () => {
+      if (terminada) return;
+      terminada = true;
+      this.escriturasActivas = Math.max(0, this.escriturasActivas - 1);
+      if (this.escriturasActivas === 0 && this.resolverDrenaje) {
+        const resolver = this.resolverDrenaje;
+        this.resolverDrenaje = null;
+        resolver();
+      }
+    };
+  }
+
+  /** Deja de aceptar escrituras y espera a que terminen las que ya entraron. */
+  private async prepararRelevo(): Promise<void> {
+    this.drenando = true;
+    if (this.escriturasActivas === 0) return;
+    await new Promise<void>((resolver) => {
+      this.resolverDrenaje = resolver;
+    });
   }
 
   /* ------------------------------------------------------------- acceso */
@@ -273,27 +317,32 @@ export class Servicio {
   }
 
   async cambiarPassword(quien: User, objetivo: Id, actual: unknown, nueva: unknown) {
-    comprobarFortaleza(nueva);
-    const esOtro = objetivo !== quien.id;
-    if (esOtro) {
-      const permiso = comprobarPermiso(this.estadoActual, quien, {
-        type: 'user.upsert',
-        id: 'comprobacion',
-        at: new Date().toISOString(),
-        userId: quien.id,
-        user: quien,
-      });
-      if (permiso) throw sinPermiso('Solo un administrador cambia la contraseña de otra persona.');
-    } else {
-      const mia = await this.almacen.credencialPorUsuario(quien.id);
-      if (!mia || typeof actual !== 'string' || !comprobarPassword(actual, mia.hash)) {
-        throw noAutenticado('La contraseña actual no es correcta.');
+    const terminarEscritura = this.comenzarEscritura();
+    try {
+      comprobarFortaleza(nueva);
+      const esOtro = objetivo !== quien.id;
+      if (esOtro) {
+        const permiso = comprobarPermiso(this.estadoActual, quien, {
+          type: 'user.upsert',
+          id: 'comprobacion',
+          at: new Date().toISOString(),
+          userId: quien.id,
+          user: quien,
+        });
+        if (permiso) throw sinPermiso('Solo un administrador cambia la contraseña de otra persona.');
+      } else {
+        const mia = await this.almacen.credencialPorUsuario(quien.id);
+        if (!mia || typeof actual !== 'string' || !comprobarPassword(actual, mia.hash)) {
+          throw noAutenticado('La contraseña actual no es correcta.');
+        }
       }
-    }
 
-    const user = this.estadoActual.users.find((u) => u.id === objetivo);
-    if (!user) throw noEncontrado('Ese usuario no existe.');
-    await this.guardarCredencial(user.id, user.email, nueva);
+      const user = this.estadoActual.users.find((u) => u.id === objetivo);
+      if (!user) throw noEncontrado('Ese usuario no existe.');
+      await this.guardarCredencial(user.id, user.email, nueva);
+    } finally {
+      terminarEscritura();
+    }
   }
 
   /* ------------------------------------------------------------- estado */
@@ -318,6 +367,7 @@ export class Servicio {
    * requisito. Procesar dos a la vez sobre el mismo estado perdería uno.
    */
   async ejecutar(cuerpo: unknown, user: User): Promise<{ repetido: boolean }> {
+    const terminarEscritura = this.comenzarEscritura();
     const anterior = this.cola;
     let liberar: () => void = () => {};
     this.cola = new Promise<void>((r) => {
@@ -328,6 +378,7 @@ export class Servicio {
       return await this.ejecutarEnSerie(cuerpo, user);
     } finally {
       liberar();
+      terminarEscritura();
     }
   }
 
@@ -450,35 +501,47 @@ export class Servicio {
    * a probar contraseñas.
    */
   async pedirEnlace(email: unknown): Promise<void> {
-    if (typeof email !== 'string' || !email.includes('@')) return;
-    const clave = email.trim().toLowerCase();
-
-    // El mismo freno que en el acceso: que nadie use esto para tantear
-    // correos ni para llenar de mensajes el buzón de alguien.
-    if (bloqueado(`enlace:${clave}`)) return;
-    anotarFallo(`enlace:${clave}`);
-
-    // También sirve para el primer acceso: el alta del usuario no guarda
-    // contraseñas en el histórico de comandos ni exige una ya existente.
-    const user = this.estadoActual.users.find((u) => u.email.trim().toLowerCase() === clave);
-    if (!user || !user.active) return;
-
-    const codigo = randomBytes(32).toString('base64url');
-    await this.almacen.guardarEnlace({
-      hash: hashDeCodigo(codigo),
-      userId: user.id,
-      caduca: new Date(Date.now() + this.config.minutosEnlace * 60_000).toISOString(),
-    });
-
-    const enlace = `${this.config.urlPublica}/restablecer?codigo=${encodeURIComponent(codigo)}`;
+    let destinatario: User | null = null;
+    let enlacePublico = '';
     const minutos = this.config.minutosEnlace;
+
+    // Solo la escritura del código pertenece al liderazgo de PostgreSQL. El
+    // envío HTTP puede terminar desde la instancia vieja sin retener el lock.
+    const terminarEscritura = this.comenzarEscritura();
+    try {
+      if (typeof email !== 'string' || !email.includes('@')) return;
+      const clave = email.trim().toLowerCase();
+
+      // El mismo freno que en el acceso: que nadie use esto para tantear
+      // correos ni para llenar de mensajes el buzón de alguien.
+      if (bloqueado(`enlace:${clave}`)) return;
+      anotarFallo(`enlace:${clave}`);
+
+      // También sirve para el primer acceso: el alta del usuario no guarda
+      // contraseñas en el histórico de comandos ni exige una ya existente.
+      const user = this.estadoActual.users.find((u) => u.email.trim().toLowerCase() === clave);
+      if (!user || !user.active) return;
+
+      const codigo = randomBytes(32).toString('base64url');
+      await this.almacen.guardarEnlace({
+        hash: hashDeCodigo(codigo),
+        userId: user.id,
+        caduca: new Date(Date.now() + minutos * 60_000).toISOString(),
+      });
+      destinatario = user;
+      enlacePublico = `${this.config.urlPublica}/restablecer?codigo=${encodeURIComponent(codigo)}`;
+    } finally {
+      terminarEscritura();
+    }
+
+    if (!destinatario) return;
     await this.correo
       .enviar(
-        user.email,
+        destinatario.email,
         'Cambiar tu contraseña de Urkiola Car Service',
-        `Hola ${user.name.split(' ')[0]}:\n\n` +
+        `Hola ${destinatario.name.split(' ')[0]}:\n\n` +
           `Alguien ha pedido cambiar la contraseña de tu cuenta. Si has sido tú, abre este enlace:\n\n` +
-          `${enlace}\n\n` +
+          `${enlacePublico}\n\n` +
           `Vale durante ${minutos} minutos y una sola vez.\n\n` +
           `Si no has sido tú, no hace falta que hagas nada: tu contraseña sigue como estaba.\n`
       )
@@ -491,23 +554,28 @@ export class Servicio {
 
   /** Cambia la contraseña con el código del correo. */
   async restablecer(codigo: unknown, nueva: unknown): Promise<void> {
-    if (typeof codigo !== 'string' || codigo.length < 20) {
-      throw malaPeticion('Ese enlace no vale.');
-    }
-    comprobarFortaleza(nueva);
+    const terminarEscritura = this.comenzarEscritura();
+    try {
+      if (typeof codigo !== 'string' || codigo.length < 20) {
+        throw malaPeticion('Ese enlace no vale.');
+      }
+      comprobarFortaleza(nueva);
 
-    const enlace = await this.almacen.gastarEnlace(hashDeCodigo(codigo));
-    if (!enlace) {
-      throw new ErrorHttp(410, 'Ese enlace ya se ha usado o ha caducado. Pide otro.');
-    }
-    const user = this.estadoActual.users.find((u) => u.id === enlace.userId);
-    if (!user || !user.active) throw new ErrorHttp(410, 'Ese enlace ya no vale.');
+      const enlace = await this.almacen.gastarEnlace(hashDeCodigo(codigo));
+      if (!enlace) {
+        throw new ErrorHttp(410, 'Ese enlace ya se ha usado o ha caducado. Pide otro.');
+      }
+      const user = this.estadoActual.users.find((u) => u.id === enlace.userId);
+      if (!user || !user.active) throw new ErrorHttp(410, 'Ese enlace ya no vale.');
 
-    await this.guardarCredencial(user.id, user.email, nueva as string);
-    // Y se tira cualquier otro enlace pendiente de esa cuenta.
-    await this.almacen.borrarEnlacesDe(user.id);
-    limpiarFallos(user.email.toLowerCase());
-    console.log(`Contraseña restablecida por enlace: ${user.id}`);
+      await this.guardarCredencial(user.id, user.email, nueva as string);
+      // Y se tira cualquier otro enlace pendiente de esa cuenta.
+      await this.almacen.borrarEnlacesDe(user.id);
+      limpiarFallos(user.email.toLowerCase());
+      console.log(`Contraseña restablecida por enlace: ${user.id}`);
+    } finally {
+      terminarEscritura();
+    }
   }
 
   /* -------------------------------------------------------------- fotos */
@@ -518,39 +586,102 @@ export class Servicio {
    * El identificador es aleatorio y largo a propósito: aunque la lectura
    * exige sesión, una dirección adivinable sería una puerta de más.
    */
-  async guardarFoto(cuerpo: Buffer, tipo: string): Promise<string> {
-    const limpio = (tipo ?? '').split(';')[0].trim().toLowerCase();
-    if (!TIPOS_FOTO[limpio]) {
-      throw malaPeticion(`Ese tipo de fichero no se acepta (${limpio || 'sin tipo'}).`);
-    }
-    if (cuerpo.length === 0) throw malaPeticion('La foto está vacía.');
-    if (cuerpo.length > this.config.maxFotoBytes) {
-      throw malaPeticion(
-        `La foto pesa demasiado (máximo ${Math.round(this.config.maxFotoBytes / 1024 / 1024)} MB).`
-      );
-    }
+  async guardarFoto(cuerpo: Buffer, tipo: string, user: User): Promise<string> {
+    const terminarEscritura = this.comenzarEscritura();
+    try {
+      const puedeSubir =
+        can(this.estadoActual, user, 'incidencias.crear') ||
+        can(this.estadoActual, user, 'preparacion.ejecutar') ||
+        can(this.estadoActual, user, 'recepcion.ejecutar');
+      if (!puedeSubir) {
+        throw sinPermiso('Tu rol no puede subir evidencias fotográficas.');
+      }
 
-    const id = `${randomBytes(24).toString('base64url')}.${TIPOS_FOTO[limpio]}`;
-    await this.fotos.guardar(id, { cuerpo, tipo: limpio });
-    return id;
+      const limpio = (tipo ?? '').split(';')[0].trim().toLowerCase();
+      if (!TIPOS_FOTO[limpio]) {
+        throw malaPeticion(`Ese tipo de fichero no se acepta (${limpio || 'sin tipo'}).`);
+      }
+      if (cuerpo.length === 0) throw malaPeticion('La foto está vacía.');
+      if (cuerpo.length > this.config.maxFotoBytes) {
+        throw malaPeticion(
+          `La foto pesa demasiado (máximo ${Math.round(this.config.maxFotoBytes / 1024 / 1024)} MB).`
+        );
+      }
+
+      const id = `${randomBytes(24).toString('base64url')}.${TIPOS_FOTO[limpio]}`;
+      await this.fotos.guardar(id, { cuerpo, tipo: limpio });
+      return id;
+    } finally {
+      terminarEscritura();
+    }
   }
 
-  /** Lee una foto. Quien la pide ya ha demostrado tener sesión. */
-  async leerFoto(id: string): Promise<Foto> {
+  /** ¿La referencia de esta evidencia forma parte del estado autorizado? */
+  private fotoReferenciadaPara(id: string, user: User): boolean {
+    const ref = `foto:${id}`;
+    const visible = this.estadoDe(user);
+    return (
+      visible.incidents.some((i) => i.photos.includes(ref)) ||
+      visible.preparations.some((p) => {
+        const f = p.finalPhotos;
+        return !!f && [f.frontLeft, f.frontRight, f.rearLeft, f.rearRight].includes(ref);
+      }) ||
+      visible.receptions.some(
+        (r) => r.albaranUri === ref || r.lines.some((l) => l.photos.includes(ref))
+      )
+    );
+  }
+
+  /**
+   * Lee una foto solo si aparece en el estado que este usuario tiene derecho
+   * a recibir. Un id aleatorio no sustituye a la autorización.
+   */
+  async leerFoto(id: string, user: User): Promise<Foto> {
+    // 404 también cuando existe pero no le corresponde: no revelar siquiera
+    // que hay una evidencia con ese identificador.
+    if (!this.fotoReferenciadaPara(id, user)) throw noEncontrado('Esa foto ya no está.');
+
     const foto = await this.fotos.leer(id);
     if (!foto) throw noEncontrado('Esa foto ya no está.');
     return foto;
   }
 
-  async registrarTokenPush(user: User, token: unknown) {
-    if (typeof token !== 'string' || !token.startsWith('ExponentPushToken')) {
-      throw malaPeticion('Token de avisos no válido.');
+  /** Crea una capacidad breve sin descargar antes el objeto desde Storage. */
+  crearAccesoFoto(id: string, user: User): string {
+    if (!this.fotoReferenciadaPara(id, user)) throw noEncontrado('Esa foto ya no está.');
+    return emitirTokenFoto(user.id, id, this.config.secreto);
+  }
+
+  /** Resuelve la capacidad de una foto y vuelve a comprobar usuario/estado actual. */
+  usuarioDeTokenFoto(id: string, token: string | undefined): User {
+    if (!token) throw noAutenticado('Falta la autorización de la evidencia.');
+    const acceso = leerTokenFoto(token, id, this.config.secreto);
+    if (!acceso) throw noAutenticado('La autorización de la evidencia no vale o ha caducado.');
+
+    const user = this.estadoActual.users.find((u) => u.id === acceso.sub);
+    if (!user || !user.active) throw noAutenticado('Tu usuario ya no está activo.');
+
+    const cambiada = this.cambiadaEn.get(user.id);
+    if (cambiada !== undefined && acceso.iat < cambiada) {
+      throw noAutenticado('Se ha cambiado la contraseña de esta cuenta.');
     }
-    await this.almacen.guardarTokenPush({ userId: user.id, token, at: new Date().toISOString() });
+    return user;
+  }
+
+  async registrarTokenPush(user: User, token: unknown) {
+    const terminarEscritura = this.comenzarEscritura();
+    try {
+      if (typeof token !== 'string' || !token.startsWith('ExponentPushToken')) {
+        throw malaPeticion('Token de avisos no válido.');
+      }
+      await this.almacen.guardarTokenPush({ userId: user.id, token, at: new Date().toISOString() });
+    } finally {
+      terminarEscritura();
+    }
   }
 
   async cerrar() {
-    await this.cola.catch(() => {});
+    await this.prepararRelevo();
     await this.almacen.cerrar();
   }
 }

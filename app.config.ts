@@ -8,8 +8,8 @@ import type { ExpoConfig, ConfigContext } from 'expo/config';
  *   - iOS  (App Store)                   -> eas build -p ios
  *   - Android (Google Play)              -> eas build -p android
  *
- * Antes de la primera subida a las tiendas revisa `docs/PUBLICACION-TIENDAS.md`
- * y sustituye `extra.eas.projectId` por el que devuelva `eas init`.
+ * Antes de la primera subida revisa `docs/DISTRIBUCION.md` y configura el
+ * proyecto/entornos EAS reales. No dejar destinos de API de ejemplo.
  */
 
 // Identificador definitivo, confirmado con Urkiola. Una vez publicada la
@@ -18,6 +18,14 @@ import type { ExpoConfig, ConfigContext } from 'expo/config';
 // instalaciones. No tocar.
 const BUNDLE_ID = 'com.urkiolamotor.carservice';
 const BRAND_DARK = '#10262d';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
+const EAS_PROFILE = process.env.EAS_BUILD_PROFILE;
+if ((EAS_PROFILE === 'preview' || EAS_PROFILE === 'production') && !API_URL) {
+  throw new Error(
+    `La build EAS ${EAS_PROFILE} necesita EXPO_PUBLIC_API_URL en su entorno EAS correspondiente.`
+  );
+}
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -142,7 +150,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       // Sustituir por el projectId real que genera `eas init`.
       projectId: process.env.EAS_PROJECT_ID ?? '00000000-0000-0000-0000-000000000000',
     },
-    apiUrl: process.env.EXPO_PUBLIC_API_URL ?? '',
+    apiUrl: API_URL,
   },
 
   owner: process.env.EAS_OWNER ?? undefined,

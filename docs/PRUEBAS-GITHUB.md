@@ -17,12 +17,14 @@ El workflow `.github/workflows/comprobaciones.yml` es la comprobación automáti
 - **Chromium · funciones**: operaciones reales y persistencia.
 - **Chromium · api**: cliente compilado contra backend local real.
 - **Servidor, tipos y sincronización**: TypeScript, servidor, offline/sync y navegación demo.
+- **PostgreSQL · relevo de instancia**: levanta PostgreSQL real y comprueba advisory lock + `LISTEN/NOTIFY` entre dos instancias.
+- **Imagen Docker de staging**: construye `server/Dockerfile` con un API URL de prueba, usando la misma ruta de empaquetado prevista para Render.
 
 No fijar números de asserts en documentación. El total válido es el que muestre el log del commit ejecutado.
 
 ## Demo automática
 
-En un `push` a `main`, el job **Generar demo navegable** espera a que navegador y servidor terminen correctamente. Si algo falla, no publica demo.
+En un `push` a `main`, el job **Generar demo navegable** espera a que navegador, servidor e imagen Docker terminen correctamente. Si algo falla, no publica demo.
 
 Si todo queda verde:
 
@@ -36,3 +38,15 @@ Los logs de Chromium se conservan como artefactos durante 14 días.
 ## Regla de aceptación
 
 No dar un cambio por bueno porque compile. Verificar que **todos** los trabajos del commit esperado tengan `success`. No eliminar, saltar ni relajar una regresión para conseguir verde.
+
+## Regresiones de cierre
+
+Además de los recorridos generales, el cierre previo a staging conserva pruebas específicas para:
+
+- abrir una demo nueva sobre estado/sesión persistidos de una versión antigua;
+- aislamiento del Director Comercial y Responsable VO;
+- privacidad del transportista;
+- lectura de evidencias únicamente dentro del estado autorizado;
+- rechazo de subida de evidencias por roles que no generan trabajo fotográfico.
+
+Estas pruebas existen porque los fallos de persistencia y autorización pueden pasar con un navegador limpio aunque fallen en un dispositivo usado de verdad.

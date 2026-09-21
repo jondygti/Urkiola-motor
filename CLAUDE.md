@@ -1,10 +1,9 @@
 # Urkiola Car Service · guía para Claude
 
-> Actualización v2 de Jon (13/09/2026): `docs/ARCHITECTURE.md` establece
-> Render + Supabase PostgreSQL/Auth/Storage como objetivo y diseño multiempresa.
-> `docs/MOBILE_ANDROID.md` y `docs/ROADMAP.md` completan la decisión.
-> Prevalecen sobre los proveedores y siguientes pasos antiguos de esta guía.
-> Conservar las reglas operativas; no migrar automáticamente.
+> Actualización de cierre (20/09/2026): `docs/ESTADO-ACTUAL.md`, `docs/ARCHITECTURE.md`,
+> `docs/ROADMAP.md`, `docs/SEGURIDAD.md` y `docs/STAGING-CHECKLIST.md` describen el estado vigente.
+> Objetivo: Render + Supabase PostgreSQL/Storage, autenticación propia temporal y migración posterior a Supabase Auth.
+> Cualquier proveedor, precio, rama o siguiente paso histórico de esta guía queda subordinado a esos documentos.
 
 Plataforma de gestión logística de flota de un grupo de concesionarios
 (Sondika, Leioa, Galdakao, Anoeta, Irun). Un solo código en Expo / React
@@ -76,7 +75,7 @@ Cada una viene de un fallo real de este proyecto:
     apuntes del histórico también.
 15. **Las fotos se suben al hacerlas, no al mandar el comando.** Si falla,
     el operario se entera con el coche todavía delante y puede repetirla, en
-    vez de descubrirlo cuando alguien va a reclamar al transportista.
+    vez de descubrirlo cuando alguien va a reclamar al transportista. Una evidencia remota solo se lee si está referenciada por el estado autorizado del usuario; conocer su ID no concede acceso.
 16. **Nunca `{ ...activate(state, id), vehicles: replace(state.vehicles, …) }`.**
     El `replace` parte del estado de antes y pisa la activación, que se
     pierde en silencio. Para eso está `tocarVehiculo(state, id, patch)`.
@@ -167,13 +166,15 @@ npm run verify:api           # la app real contra el backend real
 
 | Suite | Qué comprueba |
 |---|---|
-| `scripts/verify/estilo.mjs` | 3 comprobaciones del sistema de diseño, leyendo el código: que nadie escriba un tamaño de letra a mano, que el mínimo no baje de 11 y que las pantallas de campo usen su escala |
-| `scripts/verify/rutas.mjs` | 7 perfiles × 2 anchos × 19 pantallas = 266 cargas: que ninguna se rompe para ningún rol |
-| `scripts/verify/funciones.mjs` | 104 comprobaciones de la operativa real, mirando los datos guardados y no la pantalla |
-| `scripts/verify/roles.mjs` | 79 comprobaciones: la jornada entera de cada uno de los 6 roles, y que lo que no le toca no lo ve ni lo puede tocar |
-| `server/pruebas/` | 141 comprobaciones: permisos, idempotencia, comandos que llegan tarde, estado recortado, reinicios, seguridad y las **invariantes** de los datos |
-| `server/pruebas/aleatorio.test.ts` | 10.000 comandos al azar con semilla: dispara lo que a nadie se le ocurre y comprueba las 12 invariantes después de **cada uno**. Si falla, la semilla que sale por pantalla repite la secuencia exacta |
-| `scripts/verify/backend.mjs` | 25 comprobaciones de la app compilada contra el servidor: entrar con contraseña, mover un coche y que **otro dispositivo lo vea**, subir una foto y recuperar la contraseña por correo |
+| `scripts/verify/estilo.mjs` | reglas del sistema de diseño |
+| `scripts/verify/rutas.mjs` | carga de rutas en perfiles y anchos distintos |
+| `scripts/verify/funciones.mjs` | operativa real, persistencia y regresiones de demo usada |
+| `scripts/verify/roles.mjs` | permisos, visibilidad y aislamiento por rol |
+| `server/pruebas/` | permisos, idempotencia, persistencia, seguridad e invariantes |
+| `server/pruebas/aleatorio.test.ts` | secuencias aleatorias reproducibles e invariantes |
+| `scripts/verify/backend.mjs` | cliente compilado contra backend real local |
+
+No fijar cifras de asserts/cargas en esta guía: cambian con cada regresión. La cifra válida es la del log del commit que se está auditando.
 
 `verify:api` va aparte de `verify` porque compila la web una segunda vez:
 `EXPO_PUBLIC_API_URL` se incrusta al compilar, así que la versión de
@@ -183,10 +184,7 @@ Necesita Playwright disponible (global vale) y usa el Chromium ya instalado
 en la imagen. Si se añade una función nueva, **se añade su comprobación
 aquí**, no se prueba a mano y se olvida.
 
-La demostración navegable se genera con `npm run build:demo` (un único
-fichero HTML) y se publica como artefacto en
-`https://claude.ai/code/artifact/5440986e-ca76-42a4-8723-60b62a6f202a`.
-Republicar siempre en esa misma dirección.
+La demostración navegable se genera con `npm run build:demo` (un único fichero HTML). En cada `push` verde a `main`, GitHub Actions publica un artefacto `urkiola-demo-<sha>`. No reutilizar enlaces/artifacts de commits anteriores.
 
 ## Dónde está cada cosa
 
@@ -203,8 +201,8 @@ docs/               Documentación, toda en castellano
 Documentación de referencia: `docs/PANTALLAS.md` (qué hace cada pantalla y
 por qué), `server/README.md` (cómo arrancar y probar el servidor),
 `docs/BACKEND-API.md` (contrato del servidor), `docs/SEGURIDAD.md` (repaso
-de seguridad propio), `docs/DESPLIEGUE.md`
-(Railway solo, o Railway + Supabase; incluye copias de seguridad), `docs/MANTENIMIENTO.md` (cómo se sigue cambiando esto
+de seguridad propio), `docs/DESPLIEGUE.md` y `deploy/README.md`
+(Render + Supabase; incluye recuperación y staging), `docs/MANTENIMIENTO.md` (cómo se sigue cambiando esto
 en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
 `docs/DISTRIBUCION.md` (Google Play).
 
@@ -275,9 +273,7 @@ en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
   Flota o en la propia descarga del camión. El identificador sale del
   VIN-8 (`v-<vin8>`), así que darlo de alta dos veces no duplica nada y el
   importador de Quiter lo reconoce y lo completa después.
-- **El comercial de un vehículo viene de Quiter como texto** («Juan»), no
-  como usuario («Juan Bilbao»). El emparejamiento está en
-  `esDelComercial` (`src/data/selectors.ts`), en un solo sitio.
+- **El comercial relacionado se guarda por `salesRepId` cuando existe.** `salesRep` conserva el texto de Quiter/datos históricos y solo actúa como fallback compatible. No volver a hacer del nombre textual la identidad autoritativa.
 - **Cada rol tiene una pantalla suya y entra por ella**, en el móvil y en
   la web: la primera sección que tenga marcada en Administración (quien
   lleva el panel de dirección entra por el panel). El comercial tiene
@@ -348,43 +344,19 @@ en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
 
 ## Estado y siguientes pasos
 
-**Hecho:** las 19 pantallas, configuración completa desde Administración
-(sedes, plazas, roles, permisos, columnas, campos propios, checklist),
-funcionamiento sin cobertura con cola de subida, app de Android lista para
-compilar, **el backend** (`server/`, con la app entrando con contraseña de
-verdad contra él), **las fotos** (se suben y las ve todo el mundo),
-**recuperar la contraseña por correo** y toda la documentación.
+**Hecho:** base funcional, permisos/ámbitos comerciales, offline/idempotencia, backend, evidencias con autorización por ámbito, recuperación de contraseña, demo determinista y CI oficial.
 
-**Pendiente, por orden:**
+**Siguiente, por orden:**
 
-1. **Alta de cuenta de Railway** en región europea, con PostgreSQL y un
-   disco para las fotos, y primer despliegue. Con una cuenta basta:
-   `docs/DESPLIEGUE.md` explica cuándo compensa separar las fotos en
-   Supabase. Si se quiere el correo de restablecer, hace falta además una
-   cuenta de proveedor de correo (`EMAIL_API_KEY`). Y **programar la copia
-   semanal desde el primer día** (`npm run copia`).
-2. **Integración con Quiter.** Jon tiene que conseguir un export real; sin
-   verlo no se escribe el importador.
-3. **Revisión de seguridad externa** antes de meter datos de clientes. El
-   repaso propio ya está hecho: `docs/SEGURIDAD.md` dice qué se ha resuelto
-   y qué queda justamente para quien venga de fuera.
-4. **Publicación en Google Play** (`docs/DISTRIBUCION.md`).
+1. **Gobierno GitHub y staging Render + Supabase**, siguiendo `docs/STAGING-CHECKLIST.md` y `deploy/README.md`.
+2. **Copia/restauración real de staging** y pruebas conectadas con dos dispositivos/redeploy.
+3. **QBI Premium**, solo con documentación y acceso real de Quiter; empezar en solo lectura y dry-run.
+4. **Piloto operativo** con pocos usuarios/coches.
+5. **Android interno / Google Play**, después de que el flujo conectado esté estable.
 
-Menor, apuntado para no olvidarlo: la pantalla de acceso da un aviso de
-hidratación de React en la web compilada (React descarta el HTML
-prerenderizado de esa pantalla y la vuelve a pintar). Se recupera solo y no
-afecta al uso, pero está ahí; `scripts/verify/backend.mjs` lo tiene
-filtrado a propósito y con el motivo escrito.
-
+El esquema PostgreSQL actual se inicializa de forma idempotente, pero aún no tiene migraciones formales versionadas. Añadirlas antes del primer cambio de esquema sobre datos persistentes.
 ## Ramas
 
-**`main` es el proyecto.** Lo que vale es lo que hay ahí: es la rama estable
-y la que hay que mirar para saber cómo está la aplicación hoy.
+**`main` es el proyecto y la única rama permanente prevista.** Una rama de trabajo es temporal: PR, CI verde, squash/merge y eliminación.
 
-El trabajo de cada sesión va en su propia rama `claude/…` y se junta en
-`main` al terminar. La de la sesión en curso es
-`claude/proyecto-claude-md-045aht`.
-
-Antes no había rama principal y el proyecto entero vivía en una rama de
-trabajo, con otra vieja al lado parada: ver dos ramas y no saber cuál vale
-cuesta media hora dentro de tres meses.
+No escribir aquí el nombre de la rama de la sesión actual. El estado real se consulta en GitHub. Antes de staging, limpiar ramas temporales fusionadas y proteger `main` mediante la CI oficial.

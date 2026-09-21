@@ -39,8 +39,8 @@ async function levantar(t: { after: (f: () => unknown) => void }) {
   return { base, token, p };
 }
 
-test('una foto sube y se puede volver a ver igual que se subió', async (t) => {
-  const { base, token } = await levantar(t);
+test('una foto asociada a una incidencia se puede volver a ver igual que se subió', async (t) => {
+  const { base, token, p } = await levantar(t);
 
   const subida = await fetch(`${base}/fotos`, {
     method: 'POST',
@@ -50,6 +50,20 @@ test('una foto sube y se puede volver a ver igual que se subió', async (t) => {
   assert.equal(subida.status, 200);
   const { id } = (await subida.json()) as { id: string };
   assert.match(id, /\.png$/);
+
+  // Una subida sola todavía es un huérfano: se vuelve visible cuando el
+  // trabajo confirmado la referencia.
+  const { user: recepcion } = await p.servicio.login('recepcion@urkiolacarservice.com', CLAVE);
+  const vehiculo = p.servicio.estado.vehicles.find((v) => v.id === 'v-98765432')!;
+  await p.servicio.ejecutar({
+    type: 'incident.create',
+    id: 'foto-inc-visible',
+    at: new Date().toISOString(),
+    vehicleId: vehiculo.id,
+    incidentType: 'recepcion',
+    description: 'Evidencia de prueba',
+    photos: [`foto:${id}`],
+  }, recepcion);
 
   const vuelta = await fetch(`${base}/fotos/${encodeURIComponent(id)}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -83,8 +97,8 @@ test('sin sesión no se ven las fotos, ni se suben', async (t) => {
   );
 });
 
-test('la sesión vale también en la dirección, para poder pintarlas', async (t) => {
-  const { base, token } = await levantar(t);
+test('la URL de imagen usa una capacidad breve y no el JWT general', async (t) => {
+  const { base, token, p } = await levantar(t);
   const subida = await fetch(`${base}/fotos`, {
     method: 'POST',
     headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${token}` },
@@ -92,9 +106,76 @@ test('la sesión vale también en la dirección, para poder pintarlas', async (t
   });
   const { id } = (await subida.json()) as { id: string };
 
-  // Una etiqueta <img> no puede mandar cabeceras: la sesión va en la url.
-  const r = await fetch(`${base}/fotos/${encodeURIComponent(id)}?t=${encodeURIComponent(token)}`);
+  const { user: recepcion } = await p.servicio.login('recepcion@urkiolacarservice.com', CLAVE);
+  await p.servicio.ejecutar({
+    type: 'incident.create',
+    id: 'foto-url-visible',
+    at: new Date().toISOString(),
+    vehicleId: 'v-98765432',
+    incidentType: 'recepcion',
+    description: 'Evidencia por URL',
+    photos: [`foto:${id}`],
+  }, recepcion);
+
+  const acceso = await fetch(`${base}/fotos/${encodeURIComponent(id)}/acceso`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  assert.equal(acceso.status, 200);
+  const { url } = (await acceso.json()) as { url: string };
+  assert.match(url, /\?a=/);
+  assert.equal(url.includes(token), false, 'la URL no contiene el JWT general');
+
+  const r = await fetch(`${base}${url}`);
   assert.equal(r.status, 200);
+
+  // El mecanismo antiguo no se conserva por compatibilidad: no queremos
+  // volver a filtrar una sesión completa en logs o proxies.
+  const jwtEnUrl = await fetch(`${base}/fotos/${encodeURIComponent(id)}?t=${encodeURIComponent(token)}`);
+  assert.equal(jwtEnUrl.status, 401);
+});
+
+test('una sesión no puede leer evidencias de un vehículo fuera de su ámbito', async (t) => {
+  const { base, token, p } = await levantar(t);
+  const subida = await fetch(`${base}/fotos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${token}` },
+    body: PNG,
+  });
+  const { id } = (await subida.json()) as { id: string };
+
+  const { user: recepcion } = await p.servicio.login('recepcion@urkiolacarservice.com', CLAVE);
+  await p.servicio.ejecutar({
+    type: 'incident.create',
+    id: 'foto-ambito',
+    at: new Date().toISOString(),
+    vehicleId: 'v-98765432', // Fiat VN: fuera de Peugeot/Citroën.
+    incidentType: 'recepcion',
+    description: 'No debe cruzar ámbitos',
+    photos: [`foto:${id}`],
+  }, recepcion);
+
+  const { token: director } = await p.servicio.login('direccion.vn@urkiolacarservice.com', CLAVE);
+  const ajena = await fetch(`${base}/fotos/${encodeURIComponent(id)}`, {
+    headers: { Authorization: `Bearer ${director}` },
+  });
+  assert.equal(ajena.status, 404, 'no revela ni la existencia de una foto ajena');
+
+  const { token: admin } = await p.servicio.login('admin@urkiolacarservice.com', CLAVE);
+  const global = await fetch(`${base}/fotos/${encodeURIComponent(id)}`, {
+    headers: { Authorization: `Bearer ${admin}` },
+  });
+  assert.equal(global.status, 200, 'administración sí ve la evidencia del estado global');
+});
+
+test('un rol sin trabajo fotográfico no puede llenar Storage con huérfanos', async (t) => {
+  const { base, p } = await levantar(t);
+  const { token: director } = await p.servicio.login('direccion.vn@urkiolacarservice.com', CLAVE);
+  const r = await fetch(`${base}/fotos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${director}` },
+    body: PNG,
+  });
+  assert.equal(r.status, 403);
 });
 
 test('los identificadores no se adivinan', async (t) => {

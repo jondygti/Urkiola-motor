@@ -99,6 +99,66 @@ export function leerToken(token: string, secreto: string): Sesion | null {
   }
 }
 
+export interface AccesoFoto extends Sesion {
+  /** Identificador exacto de la evidencia que puede leerse. */
+  foto: string;
+}
+
+function secretoFotos(secreto: string): string {
+  return createHmac('sha256', secreto).update('urkiola:fotos:v1').digest('base64url');
+}
+
+/**
+ * Capacidad de corta duración para que <Image>/<img> pueda pedir una única
+ * evidencia sin meter el JWT general de la cuenta en la URL.
+ */
+export function emitirTokenFoto(userId: string, foto: string, secreto: string, minutos = 5): string {
+  const ahora = Math.floor(Date.now() / 1000);
+  const cabecera = b64url(Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));
+  const cuerpo = b64url(
+    Buffer.from(JSON.stringify({
+      sub: userId,
+      foto,
+      iat: ahora,
+      exp: ahora + minutos * 60,
+    } satisfies AccesoFoto))
+  );
+  const datos = `${cabecera}.${cuerpo}`;
+  return `${datos}.${firma(datos, secretoFotos(secreto))}`;
+}
+
+export function leerTokenFoto(token: string, foto: string, secreto: string): AccesoFoto | null {
+  const partes = token.split('.');
+  if (partes.length !== 3) return null;
+  const [cabecera, cuerpo, sello] = partes;
+
+  try {
+    const head = JSON.parse(Buffer.from(cabecera, 'base64url').toString()) as { alg?: unknown };
+    if (head.alg !== 'HS256') return null;
+  } catch {
+    return null;
+  }
+
+  const esperado = Buffer.from(firma(`${cabecera}.${cuerpo}`, secretoFotos(secreto)));
+  const recibido = Buffer.from(sello);
+  if (esperado.length !== recibido.length || !timingSafeEqual(esperado, recibido)) return null;
+
+  try {
+    const acceso = JSON.parse(Buffer.from(cuerpo, 'base64url').toString()) as AccesoFoto;
+    if (
+      typeof acceso.sub !== 'string' ||
+      typeof acceso.foto !== 'string' ||
+      typeof acceso.iat !== 'number' ||
+      typeof acceso.exp !== 'number' ||
+      acceso.foto !== foto ||
+      acceso.exp * 1000 < Date.now()
+    ) return null;
+    return acceso;
+  } catch {
+    return null;
+  }
+}
+
 /* -------------------------------------------- intentos fallidos de acceso */
 
 /**

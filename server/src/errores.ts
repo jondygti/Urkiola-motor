@@ -18,3 +18,4 @@ export const noAutenticado = (m = 'Sesión no válida.') => new ErrorHttp(401, m
 export const sinPermiso = (m: string) => new ErrorHttp(403, m);
 export const noEncontrado = (m = 'No existe.') => new ErrorHttp(404, m);
 export const demasiadosIntentos = (m: string) => new ErrorHttp(429, m);
+export const temporalmenteNoDisponible = (m: string) => new ErrorHttp(503, m);

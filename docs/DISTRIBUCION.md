@@ -1,188 +1,97 @@
 # Distribuir la app de Android
 
-**Decisión tomada:** la app se publica en **Google Play** (25 US$, pago
-único) y solo para **Android**.
+Actualizado: **20/09/2026**.
 
-Se descarta iOS: Apple exige el programa de desarrollador (99 US$/año) para
-instalar en un iPhone y no hay alternativa legítima. Quien use iPhone entra
-al panel web desde el navegador. La configuración de iOS está escrita en
-`app.config.ts` por si algún día cambia el criterio.
+Decisión de producto: Urkiola Car Service tendrá aplicación **Android** distribuida mediante Google Play. La demo HTML y el panel web no acreditan por sí solos que la versión nativa esté lista para tienda.
 
-## Qué cuesta
+Los precios, plazos, límites de testers, requisitos de cuenta y políticas de Google Play/EAS cambian. **No se congelan aquí.** Cuando llegue esta fase hay que comprobar la documentación oficial vigente antes de pagar, configurar o publicar.
 
-| Concepto | Coste |
-|---|---|
-| Cuenta de Google Play Console | **25 US$, una sola vez** |
-| Compilar con EAS Build | 0 € (el plan gratuito basta para este ritmo) |
-| Actualizaciones de JavaScript (EAS Update) | 0 € |
-| **Total** | **≈ 23 €, una vez** |
+## Base ya preparada
 
-## 0 · Preparación, una sola vez
+- Expo / React Native.
+- `android.package = com.urkiolamotor.carservice` en `app.config.ts`.
+- perfiles EAS en `eas.json`;
+- `preview` para instalación de prueba y `production` para AAB;
+- almacenamiento seguro del token nativo;
+- cola offline de comandos y fotos pendientes;
+- `android.allowBackup=false`.
 
-```bash
-npm install -g eas-cli
-eas login
-eas init                 # crea el proyecto y devuelve un projectId
-eas update:configure     # activa las actualizaciones por aire (OTA)
-```
+No cambiar el package después de que exista la aplicación publicada con ese identificador.
 
-Copia el `projectId` a la variable `EAS_PROJECT_ID` o a `app.config.ts`
-(`extra.eas.projectId`).
+## Orden correcto
 
-En paralelo, dar de alta la cuenta de **Google Play Console**
-(play.google.com/console). La verificación de identidad tarda entre uno y
-varios días, así que conviene empezar por ahí. Si se registra como empresa
-hará falta documentación de la sociedad.
+1. Estabilizar primero **staging Render + Supabase**.
+2. Probar el flujo conectado en Android real: login, cámara, fotos, notificaciones, offline, reinicio, actualización y dos cuentas/dispositivos.
+3. Configurar la cuenta/proyecto EAS y custodiar credenciales fuera del repositorio.
+4. Crear la aplicación en Play Console siguiendo los requisitos vigentes.
+5. Generar AAB firmado.
+6. Empezar por el canal de pruebas interno/limitado que esté vigente en Google Play.
+7. Ampliar distribución solo después del piloto.
 
-### Antes de la primera subida
+## Configuración EAS
 
-- **`android.package`**: `com.urkiolamotor.carservice`, **confirmado**. Al
-  publicar en Play queda fijado para siempre, así que no se toca. Si
-  alguien lo cambia en `app.config.ts` después de la primera subida, Play
-  lo tratará como otra aplicación distinta.
-- **`EXPO_PUBLIC_API_URL`** en `eas.json` debe apuntar al servidor real.
+Antes de compilar:
 
-> **Cuidado con la caché.** Las variables `EXPO_PUBLIC_*` se incrustan al
-> compilar y Metro las cachea. Si cambias la dirección del servidor,
-> compila con `--clear` o el paquete seguirá llevando la anterior dentro.
+- definir `EAS_PROJECT_ID` y propietario reales;
+- fijar `EXPO_PUBLIC_API_URL` al staging o producción que corresponda;
+- comprobar que ninguna compilación reutiliza una URL de demo/staging por caché;
+- custodiar claves de firma y cualquier credencial de submit fuera de GitHub.
 
-## 1 · Elegir el canal de publicación
-
-Play tiene varios canales y esto conviene decidirlo antes, porque cambia
-mucho la fricción:
-
-| Canal | Quién la ve | Revisión | Recomendado para |
-|---|---|---|---|
-| **Prueba interna** | Hasta 100 correos que tú añades | Casi inmediata | **Empezar aquí** |
-| Prueba cerrada | Lista de correos o grupo de Google | Ligera | Ampliar al equipo |
-| Producción | Cualquiera, aparece en las búsquedas | Completa | Solo si la queréis pública |
-
-Para una herramienta interna, **prueba interna es lo natural**: las
-actualizaciones están disponibles en minutos, no hay revisión completa, y
-la app no aparece en las búsquedas de Play. El equipo la instala desde un
-enlace y a partir de ahí se actualiza sola como cualquier otra app.
-
-Si en algún momento queréis que sea pública, se promociona a producción sin
-volver a compilar.
-
-`eas.json` ya viene configurado con `track: internal`.
-
-## 2 · Compilar
+Comandos orientativos:
 
 ```bash
-# Versión de pruebas: APK que se instala por enlace, sin pasar por Play
 eas build --profile preview --platform android
-
-# Versión para Play: genera el .aab que exige la tienda
 eas build --profile production --platform android
 ```
 
-El perfil `preview` sigue existiendo a propósito: sirve para que una o dos
-personas prueben un cambio en su móvil antes de subirlo a Play.
+Para el envío a Play, usar el mecanismo vigente de EAS/Play Console y verificar la documentación oficial en ese momento. No almacenar una cuenta de servicio o clave de publicación en el repositorio.
 
-`autoIncrement` sube solo el `versionCode` en cada compilación de
-producción, que es lo que Play exige para aceptar una versión nueva.
+## Antes de cualquier publicación
 
-## 3 · Subir a Play
+Comprobar en Android real:
 
-```bash
-eas submit --profile production --platform android
-```
+- acceso, cierre y recuperación de contraseña;
+- expiración/cambio de cuenta;
+- cámara y selector;
+- cuatro fotos finales y evidencias de incidencia;
+- permisos denegados/revocados;
+- funcionamiento offline y reintento;
+- actualización con trabajo pendiente;
+- notificaciones;
+- navegación desde avisos;
+- compatibilidad API/app;
+- que las evidencias ajenas no sean accesibles.
 
-Necesita una **cuenta de servicio de Google Cloud** con permiso sobre la
-app. Se crea una vez desde Play Console (Configuración → Acceso a la API),
-se descarga el JSON y se guarda en
-`secrets/google-play-service-account.json`.
+## Ficha, privacidad y datos
 
-> Esa carpeta está en `.gitignore`. **No subas nunca ese fichero al
-> repositorio**: da acceso de publicación a vuestra cuenta de Play.
+Preparar según los formularios vigentes de Google Play:
 
-**La primerísima versión hay que subirla a mano** desde Play Console: Google
-no permite crear la app por API. A partir de la segunda, el comando de
-arriba lo hace todo.
+- nombre, textos e imágenes;
+- política de privacidad pública;
+- declaración de datos tratados;
+- permisos realmente usados;
+- acceso de revisión si Google lo exige;
+- clasificación/contenido y público objetivo aplicables.
 
-## 4 · Lo que pide Play para la ficha
+No declarar GPS si la app no lo usa. Las fotos de vehículos y los datos de empleados/operativa deben describirse conforme al tratamiento real del piloto/producción.
 
-Aunque sea prueba interna, hay que rellenar la ficha:
+## Actualizaciones
 
-- **Nombre, descripción corta (80 caracteres) y descripción larga**, en
-  castellano. Se puede añadir euskera después.
-- **Icono de 512×512** y **gráfico destacado de 1024×500**. El icono ya está
-  generado en `assets/` (`npm run icons`); el gráfico destacado hay que
-  hacerlo.
-- **Capturas**: mínimo 2 de teléfono. Se sacan del emulador o de un móvil
-  real.
-- **Política de privacidad accesible por URL pública.** Es obligatoria
-  porque la app pide cámara. Basta una página en la web corporativa.
-- **Formulario de seguridad de los datos**: hay que declarar qué se recoge.
-  En esta app: nombre y correo del empleado, fotos de vehículos y ubicación
-  *dentro de las instalaciones*. No se pide GPS: el permiso de localización
-  está bloqueado a propósito en `app.config.ts`.
-- **Clasificación de contenido**: un cuestionario corto. Sale «para todos
-  los públicos».
+Distinguir:
 
-## 5 · Actualizar
+- cambios que puedan distribuirse por el mecanismo OTA compatible con la versión nativa instalada;
+- cambios nativos/permisos/SDK, que exigen nueva compilación y distribución.
 
-Dos vías, según qué cambie:
+Antes de usar OTA en producción, definir una política de compatibilidad entre versión de app, API y estado persistido. Una actualización no puede borrar trabajo offline pendiente.
 
-**Cambios de JavaScript** (pantallas, filtros, correcciones):
+## Firma y recuperación
 
-```bash
-eas update --branch production --message "Nuevo filtro en Solicitudes"
-```
+Usar el mecanismo de firma recomendado por Google/Expo en el momento de publicación y documentar:
 
-Llega a los móviles la próxima vez que abren la app, **sin pasar por Play**
-ni esperar revisión. Es la vía habitual.
+- quién controla la cuenta;
+- quién puede publicar;
+- cómo se recupera acceso;
+- dónde están las credenciales;
+- procedimiento si se pierde un dispositivo/usuario con privilegios.
 
-**Cambios nativos** (módulos, versión del SDK, permisos, icono):
-
-```bash
-eas build --profile production --platform android
-eas submit --profile production --platform android
-```
-
-En prueba interna está disponible en minutos; en producción, horas. Ocurre
-pocas veces al año.
-
-## 6 · La clave de firma
-
-Al publicar en Play conviene activar **Play App Signing** (viene activado
-por defecto en las apps nuevas): Google guarda la clave de firma final y tú
-solo manejas una clave de subida.
-
-Esto reduce bastante el riesgo: si se pierde la clave de subida, Google
-puede reiniciarla. Sin Play App Signing, perder la clave significa no poder
-volver a actualizar nunca esa app.
-
-Aun así, descarga y guarda las credenciales fuera del equipo de quien
-compila:
-
-```bash
-eas credentials
-```
-
-## 7 · Plazos
-
-| Paso | Tiempo |
-|---|---|
-| Verificación de la cuenta de Play | 1-5 días |
-| Primera compilación con EAS | 15-30 min |
-| Primera subida y revisión (prueba interna) | Minutos a unas horas |
-| Publicación en producción, si la hacéis pública | 1-7 días la primera vez |
-| Actualizaciones siguientes | Minutos (OTA) u horas (nativas) |
-
-Desde cero hasta tener la app instalándose desde Play: **una semana**,
-casi toda esperando la verificación de la cuenta.
-
-## 8 · Hoja de instrucciones para el equipo
-
-1. Acepta la invitación que te llega por correo (prueba interna de Play).
-2. Ábrela desde el móvil y pulsa en el enlace de descarga.
-3. Instala la app desde Google Play como cualquier otra.
-4. Entra con tu correo de Urkiola y tu contraseña.
-5. **La app funciona sin cobertura.** En sótanos o zonas sin señal puedes
-   seguir trabajando: lo que registres se guarda en el móvil y se sube solo
-   en cuanto vuelva la conexión. Arriba verás cuántos cambios quedan
-   pendientes.
-
-Las actualizaciones llegan solas: no hay que reinstalar nada.
+Ver también `MOBILE_ANDROID.md`.

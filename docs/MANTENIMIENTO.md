@@ -1,12 +1,12 @@
 # Mantenimiento y evolución
 
-Actualizado: **15/09/2026**.
+Actualizado: **20/09/2026**.
 
 ## Regla principal
 
 `main` es la única rama permanente. No se guardan ramas por herramienta o sesión.
 
-Para un cambio pequeño y seguro puede trabajarse directamente sobre `main` tras comprobar el estado. Para un cambio de riesgo alto se admite una rama temporal + PR, que debe eliminarse tras el merge.
+Todo cambio de código usa una rama temporal + PR, incluso si es pequeño. `main` debe quedar protegido por CI y recibir cambios mediante merge/squash; la rama temporal se elimina al terminar.
 
 ## Flujo recomendado de un cambio
 
@@ -80,7 +80,7 @@ Los cambios de mapeo QBI se prueban con una muestra antes del stock completo.
 
 ## Calendario operativo recomendado
 
-- **semanal**: revisar errores, salud de Render y sincronizaciones QBI;
+- **semanal**: revisar errores y salud de Render/Supabase; cuando QBI esté implementado, añadir su sincronización/errores;
 - **mensual**: restaurar una copia en staging;
 - **trimestral**: dependencias, costes, tamaño de base/Storage y accesos;
 - **semestral**: revisar Expo/Android y publicar build nativa si corresponde;

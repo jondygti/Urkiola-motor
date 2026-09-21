@@ -81,25 +81,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-/**
- * Dirección para pintar una foto.
- *
- * Lo que se guarda en el comando es `foto:<id>`, una referencia estable que
- * no caduca. La dirección con la que se pinta se arma aquí, con la sesión
- * de quien mira: una foto de un daño no debería poder verla cualquiera que
- * dé con el enlace.
- *
- * Las fotos de antes del backend (y las del modo demostración) son rutas
- * del propio móvil y se devuelven tal cual.
- */
-export function urlDeFoto(ref: string): string {
-  if (!ref.startsWith('foto:')) return ref;
-  const id = ref.slice('foto:'.length);
-  if (!apiEnabled) return ref;
-  const sesion = authToken ? `?t=${encodeURIComponent(authToken)}` : '';
-  return `${API_URL}/fotos/${encodeURIComponent(id)}${sesion}`;
-}
-
 export const api = {
   health: () => request<{ ok: boolean }>('/health'),
   login: (email: string, password: string) =>
@@ -120,6 +101,18 @@ export const api = {
       body: JSON.stringify({ codigo, nueva }),
     }),
   state: () => request<AppState>('/state'),
+  /**
+   * URL temporal para una evidencia concreta.
+   *
+   * El JWT general nunca entra en la URL. El servidor devuelve una
+   * capacidad breve, ligada a ese archivo y al ámbito actual del usuario.
+   */
+  urlFoto: async (ref: string): Promise<string> => {
+    if (!ref.startsWith('foto:') || !apiEnabled) return ref;
+    const id = ref.slice('foto:'.length);
+    const { url } = await request<{ url: string }>(`/fotos/${encodeURIComponent(id)}/acceso`);
+    return url.startsWith('http') ? url : `${API_URL}${url}`;
+  },
   /**
    * Envía un comando. El servidor debe ser idempotente por `command.id`:
    * un reintento tras un corte de red no puede duplicar el movimiento.

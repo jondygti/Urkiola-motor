@@ -1,5 +1,7 @@
 # Android y Google Play
 
+Actualizado: **20/09/2026**.
+
 Requisito obligatorio del PDF v2 de Jon: aplicación Android publicable en
 Google Play. Conservar Expo / React Native y el backend compartido con web.
 La demo HTML no acredita funcionamiento nativo ni preparación para la tienda.
@@ -11,8 +13,7 @@ La demo HTML no acredita funcionamiento nativo ni preparación para la tienda.
 - `eas.json`: perfiles development, preview (APK) y production (AAB).
 - Proyecto EAS aún con identificador de ejemplo si no se configura la variable
   real. Las direcciones de API de los perfiles requieren comprobación.
-- Cola offline para comandos y envío inmediato de fotografías. No prometer
-  una cola offline de fotos que no existe.
+- Cola offline para comandos y **cola persistente de fotos pendientes**: la app conserva una copia privada, la sube cuando vuelve la red y no la elimina hasta que el comando queda confirmado.
 
 ## Criterios antes de distribuir
 
@@ -40,6 +41,4 @@ Uso operativo: localización, movimientos, traslados, preparación, repaso,
 incidencias, fotos, albaranes, inventarios, estados, consultas y notificaciones.
 Los permisos del servidor se aplican igualmente a la app móvil.
 
-`DISTRIBUCION.md` contiene el procedimiento anterior. Sus precios y condiciones
-no se han revalidado en esta revisión documental. No se ha generado un AAB,
-registrado una cuenta de Play ni publicado una versión con este cambio.
+`DISTRIBUCION.md` contiene el procedimiento vigente sin congelar precios/plazos de tienda. No se ha generado un AAB, registrado una cuenta de Play ni publicado una versión con este cambio.

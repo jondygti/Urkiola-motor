@@ -8,14 +8,14 @@
 #     --build-arg EXPO_PUBLIC_API_URL=https://urkiolacarservice.com \
 #     -t urkiola-api .
 #
-# En Railway: Dockerfile `server/Dockerfile`, contexto la raíz, y
-# `EXPO_PUBLIC_API_URL` como variable de construcción.
+# En Render: Dockerfile `server/Dockerfile`, contexto la raíz, y
+# `EXPO_PUBLIC_API_URL` como build arg cuando se quiera servir también el panel web.
 
 # ---------------------------------------------------------------- el panel
 # Se compila aquí dentro porque `EXPO_PUBLIC_API_URL` se incrusta al
 # compilar: la web tiene que saber a qué dirección hablar. Sin esa variable
 # no se compila nada y la imagen queda como API a secas.
-FROM node:22-alpine AS web
+FROM node:24-alpine AS web
 WORKDIR /app
 ARG EXPO_PUBLIC_API_URL=""
 ENV EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL
@@ -29,7 +29,7 @@ RUN if [ -n "$EXPO_PUBLIC_API_URL" ]; then \
     fi
 
 # ------------------------------------------------------------- el servidor
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 COPY server/package.json server/package-lock.json* ./server/
 RUN cd server && npm ci --no-audit --no-fund
@@ -38,7 +38,7 @@ COPY server ./server
 RUN cd server && npm run build
 
 # ---------------------------------------------------------------- imagen
-FROM node:22-alpine
+FROM node:24-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 ENV URKIOLA_WEB=/app/dist

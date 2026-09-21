@@ -123,7 +123,7 @@ test('el backend rechaza referencias foto: que no existen y acepta cuatro fotos 
 
   const ids: string[] = [];
   for (let i = 0; i < 4; i++) {
-    ids.push(await p.servicio.guardarFoto(Buffer.from([137, 80, 78, 71, i]), 'image/png'));
+    ids.push(await p.servicio.guardarFoto(Buffer.from([137, 80, 78, 71, i]), 'image/png', preparador));
   }
   const reales = {
     frontLeft: `foto:${ids[0]}`,

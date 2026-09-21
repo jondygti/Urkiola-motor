@@ -8,32 +8,32 @@
       "developmentClient": true,
       "distribution": "internal",
       "channel": "development",
-      "platforms": ["android"],
-      "env": {
-        "EXPO_PUBLIC_API_URL": ""
-      }
+      "platforms": [
+        "android"
+      ],
+      "environment": "development"
     },
     "preview": {
       "distribution": "internal",
       "channel": "preview",
-      "platforms": ["android"],
+      "platforms": [
+        "android"
+      ],
       "android": {
         "buildType": "apk"
       },
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://api-pre.urkiolacarservice.com"
-      }
+      "environment": "preview"
     },
     "production": {
       "channel": "production",
       "autoIncrement": true,
-      "platforms": ["android"],
+      "platforms": [
+        "android"
+      ],
       "android": {
         "buildType": "app-bundle"
       },
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.urkiolacarservice.com"
-      }
+      "environment": "production"
     }
   },
   "submit": {
