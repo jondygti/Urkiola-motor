@@ -43,7 +43,7 @@ Estas operaciones son ajustes de GitHub y no se sustituyen con cambios de códig
 - [ ] login/cambio/recuperación de contraseña;
 - [ ] alta de usuarios de prueba;
 - [ ] lectura y escritura desde dos dispositivos;
-- [ ] reinicio/redeploy sin perder estado;
+- [ ] redeploy solapado de Render: una escritura ya iniciada termina, las nuevas reciben 503/reintento y la nueva instancia toma liderazgo sin pérdida ni duplicado;
 - [ ] comandos offline pendientes durante caída/redeploy;
 - [ ] subida y lectura de evidencias dentro del ámbito;
 - [ ] intento negativo de leer evidencia de otro ámbito;
