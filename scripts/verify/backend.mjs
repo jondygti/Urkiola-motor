@@ -211,6 +211,10 @@ try {
       'base64'
     );
     const { token: tokenNerea } = await entrar('recepcion@urkiolacarservice.com');
+    const estadoNerea = await estadoDe(tokenNerea);
+    const cocheRecepcion = estadoNerea.vehicles.find((v) => v.logisticActive);
+    ok('5 · recepción tiene un coche dentro de su ámbito', !!cocheRecepcion, cocheRecepcion?.vin8 ?? 'ninguno');
+
     const subida = await fetch(`${API}/fotos`, {
       method: 'POST',
       headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${tokenNerea}` },
@@ -219,7 +223,8 @@ try {
     const { id: idFoto } = await subida.json();
     ok('5 · recepción sube la foto de un daño', subida.status === 200 && !!idFoto, idFoto ?? 'no subió');
 
-    // La subida no concede acceso por sí sola: queda asociada al trabajo.
+    // La subida no concede acceso por sí sola: queda asociada a un vehículo
+    // que Recepción sí tiene dentro de su ámbito operativo.
     const incidencia = await fetch(`${API}/commands`, {
       method: 'POST',
       headers: {
@@ -230,7 +235,7 @@ try {
         type: 'incident.create',
         id: 'verify-foto-incidencia',
         at: new Date().toISOString(),
-        vehicleId: coche.id,
+        vehicleId: cocheRecepcion.id,
         incidentType: 'recepcion',
         description: 'Comprobación de evidencia compartida',
         photos: [`foto:${idFoto}`],
@@ -238,14 +243,17 @@ try {
     });
     ok('5 · la foto queda asociada a una incidencia', incidencia.status === 200, String(incidencia.status));
 
-    // Y la ve otra persona autorizada, desde otro dispositivo y otra sesión.
+    // Y la ve otra cuenta autorizada, desde otra sesión. Administración ve
+    // el estado global, así que esta comprobación no depende de que dos roles
+    // operativos compartan casualmente la misma sede.
+    const { token: tokenAdmin } = await entrar('admin@urkiolacarservice.com');
     const acceso = await fetch(`${API}/fotos/${encodeURIComponent(idFoto)}/acceso`, {
-      headers: { Authorization: `Bearer ${tokenPedro}` },
+      headers: { Authorization: `Bearer ${tokenAdmin}` },
     });
     const { url: urlFoto } = await acceso.json();
     ok(
       '5 · obtiene una URL breve sin meter su sesión completa',
-      acceso.status === 200 && typeof urlFoto === 'string' && !urlFoto.includes(tokenPedro),
+      acceso.status === 200 && typeof urlFoto === 'string' && !urlFoto.includes(tokenAdmin),
       urlFoto ?? 'sin URL'
     );
     const vista = await fetch(`${API}${urlFoto}`);
