@@ -33,12 +33,13 @@ export class CorreoHttp implements Correo {
     private readonly url: string,
     private readonly clave: string,
     private readonly remitente: string,
-    private readonly fetchImpl: typeof fetch = fetch
+    private readonly fetchImpl: typeof fetch = fetch,
+    private readonly timeoutMs = 10_000
   ) {}
 
   async enviar(a: string, asunto: string, texto: string) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 10_000);
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
       const res = await this.fetchImpl(this.url, {
         method: 'POST',
@@ -51,7 +52,7 @@ export class CorreoHttp implements Correo {
       }
     } catch (e) {
       if (controller.signal.aborted) {
-        throw new Error('El proveedor de correo no ha respondido en 10 segundos.');
+        throw new Error('El proveedor de correo no ha respondido a tiempo.');
       }
       throw e;
     } finally {
