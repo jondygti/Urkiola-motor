@@ -43,6 +43,7 @@ import {
   noAutenticado,
   noEncontrado,
   sinPermiso,
+  temporalmenteNoDisponible,
 } from './errores';
 
 /**
@@ -106,6 +107,15 @@ export class Servicio {
    */
   private cambiadaEn = new Map<Id, number>();
 
+  /**
+   * Render solapa unos segundos la instancia vieja y la nueva durante un
+   * redeploy. La vieja deja de aceptar escrituras antes de soltar el lock de
+   * PostgreSQL; las peticiones nuevas reciben 503 y la app las reintenta.
+   */
+  private drenando = false;
+  private escriturasActivas = 0;
+  private resolverDrenaje: (() => void) | null = null;
+
   private constructor(
     private readonly almacen: Almacen,
     private readonly config: Config,
@@ -143,7 +153,38 @@ export class Servicio {
     const servicio = new Servicio(almacen, config, alDia, comandosDesdeFoto.length, fotos, correo);
     await servicio.prepararAcceso();
     await servicio.cargarCambiosDeContrasena();
+    almacen.alPedirRelevo?.(() => servicio.prepararRelevo());
     return servicio;
+  }
+
+  /** Reserva una escritura mientras esta instancia siga siendo la líder. */
+  private comenzarEscritura(): () => void {
+    if (this.drenando) {
+      throw temporalmenteNoDisponible(
+        'El servidor se está actualizando. El cambio se reintentará automáticamente.'
+      );
+    }
+    this.escriturasActivas += 1;
+    let terminada = false;
+    return () => {
+      if (terminada) return;
+      terminada = true;
+      this.escriturasActivas = Math.max(0, this.escriturasActivas - 1);
+      if (this.escriturasActivas === 0 && this.resolverDrenaje) {
+        const resolver = this.resolverDrenaje;
+        this.resolverDrenaje = null;
+        resolver();
+      }
+    };
+  }
+
+  /** Deja de aceptar escrituras y espera a que terminen las que ya entraron. */
+  private async prepararRelevo(): Promise<void> {
+    this.drenando = true;
+    if (this.escriturasActivas === 0) return;
+    await new Promise<void>((resolver) => {
+      this.resolverDrenaje = resolver;
+    });
   }
 
   /* ------------------------------------------------------------- acceso */
@@ -321,6 +362,7 @@ export class Servicio {
    * requisito. Procesar dos a la vez sobre el mismo estado perdería uno.
    */
   async ejecutar(cuerpo: unknown, user: User): Promise<{ repetido: boolean }> {
+    const terminarEscritura = this.comenzarEscritura();
     const anterior = this.cola;
     let liberar: () => void = () => {};
     this.cola = new Promise<void>((r) => {
@@ -331,6 +373,7 @@ export class Servicio {
       return await this.ejecutarEnSerie(cuerpo, user);
     } finally {
       liberar();
+      terminarEscritura();
     }
   }
 
