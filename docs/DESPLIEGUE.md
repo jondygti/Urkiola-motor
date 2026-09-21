@@ -37,7 +37,7 @@ Nunca usar la base de producción para pruebas.
 
 ## Render
 
-El backend se construye con `server/Dockerfile` usando la **raíz del repositorio como contexto**. Mientras el servidor mantenga el modelo de estado actual, usar **una sola instancia activa**.
+El backend se construye con `server/Dockerfile` usando la **raíz del repositorio como contexto**. Configurar **una sola instancia**. Render puede solapar temporalmente la vieja y la nueva durante un despliegue; el backend soporta ese relevo mediante PostgreSQL `LISTEN/NOTIFY` + advisory lock: la vieja drena escrituras, entrega el liderazgo y deja de estar saludable antes de que la nueva lo asuma.
 
 `DATABASE_URL` debe ser una conexión PostgreSQL que preserve sesión (conexión directa o pooler en modo sesión). El proceso sostiene un `pg_advisory_lock` durante toda su vida; un pooler en transaction mode no es compatible con esa garantía.
 
@@ -100,6 +100,8 @@ Es objetivo de producción, no estado actual. La migración debe probar login, r
 Primero `preview`/prueba interna; después AAB production. Ver `MOBILE_ANDROID.md`.
 
 ## Copias y restauración
+
+En staging hay que provocar al menos un redeploy con una escritura/cola pendiente y comprobar que no se pierde ni duplica el comando y que `/health` termina respondiendo desde la nueva instancia.
 
 Antes de datos reales:
 
