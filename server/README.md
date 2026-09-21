@@ -69,7 +69,7 @@ pruebas/
 
 ## Instancias
 
-El diseño actual mantiene estado en memoria y coordina escritura. Usar **una instancia activa** en Render hasta que se rediseñe explícitamente para paralelismo. El proceso sostiene un `pg_advisory_lock` durante toda su sesión PostgreSQL, por lo que `DATABASE_URL` debe usar conexión directa o pooler en modo sesión; transaction pooling no es compatible.
+El diseño actual mantiene estado en memoria y un único líder escritor. Configurar **una instancia** en Render. El proceso sostiene un `pg_advisory_lock` durante su sesión PostgreSQL, por lo que `DATABASE_URL` debe usar conexión directa o pooler en modo sesión; transaction pooling no es compatible. En un redeploy, la nueva instancia pide el relevo mediante `LISTEN/NOTIFY`; la vieja drena escrituras, suelta el lock y deja de pasar `/health`, evitando dos escritores simultáneos sin bloquear el despliegue solapado de Render.
 
 ## Variables principales
 
