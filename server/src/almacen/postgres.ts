@@ -5,11 +5,12 @@
  * comando se guarda antes de contestar «ok». La foto del estado se guarda
  * cada tantos comandos: si se pierde, se rehace aplicando el histórico.
  *
- * **Una sola instancia a la vez.** El estado vive en memoria y se aplica un
- * comando detrás de otro; dos procesos escribiendo a la vez se pisarían. En
- * vez de confiar en que nadie suba las réplicas a dos, se coge un cerrojo
- * en la propia base de datos: el segundo proceso espera a que el primero
- * termine (así un despliegue nuevo releva al viejo sin cortar nada).
+ * **Una sola instancia escritora a la vez.** El estado vive en memoria y se
+ * aplica un comando detrás de otro; dos procesos escribiendo a la vez se
+ * pisarían. Render arranca la instancia nueva antes de apagar la vieja, así
+ * que el relevo se coordina con LISTEN/NOTIFY: la nueva pide el relevo, la
+ * vieja drena escrituras, suelta el advisory lock y solo entonces la nueva
+ * reconstruye el estado y queda lista.
  */
 import { Client, Pool } from 'pg';
 import fs from 'node:fs';
@@ -23,8 +24,12 @@ const CERROJO = 8_140_2025;
 
 export class AlmacenPostgres implements Almacen {
   private pool: Pool;
-  /** Conexión aparte que sostiene el cerrojo mientras el servidor viva. */
+  /** Conexión aparte que sostiene el cerrojo mientras esta instancia lidere. */
   private cerrojo: Client | null = null;
+  private lider = false;
+  private gestorRelevo: (() => Promise<void>) | null = null;
+  private relevoPendiente = false;
+  private atendiendoRelevo = false;
 
   constructor(private readonly url: string, private readonly esperaCerrojoMs = 60_000) {
     this.pool = new Pool({
@@ -57,30 +62,81 @@ export class AlmacenPostgres implements Almacen {
     };
   }
 
+  /**
+   * Registra cómo debe drenar la instancia actual antes de entregar el
+   * liderazgo. Si la petición llegó durante el arranque, se atiende en cuanto
+   * el Servicio termina de inicializarse.
+   */
+  alPedirRelevo(gestor: () => Promise<void>) {
+    this.gestorRelevo = gestor;
+    if (this.relevoPendiente && this.lider) void this.atenderRelevo();
+  }
+
+  private async atenderRelevo() {
+    if (!this.lider || this.atendiendoRelevo) return;
+    if (!this.gestorRelevo) {
+      this.relevoPendiente = true;
+      return;
+    }
+
+    this.atendiendoRelevo = true;
+    this.relevoPendiente = false;
+    try {
+      console.warn('Otra instancia pide el relevo: drenando escrituras…');
+      await this.gestorRelevo();
+      if (this.lider && this.cerrojo) {
+        await this.cerrojo.query('select pg_advisory_unlock($1)', [CERROJO]);
+        this.lider = false;
+        console.warn('Liderazgo entregado a la nueva instancia.');
+      }
+    } catch (e) {
+      console.error('No se ha podido entregar el liderazgo:', e);
+    } finally {
+      this.atendiendoRelevo = false;
+    }
+  }
+
   private async cogerCerrojo() {
     this.cerrojo = new Client({
       connectionString: this.url,
       ssl: /localhost|127\.0\.0\.1/.test(this.url) ? undefined : { rejectUnauthorized: true },
     });
     await this.cerrojo.connect();
+    await this.cerrojo.query('listen urkiola_relevo');
+    this.cerrojo.on('notification', (m) => {
+      if (m.channel === 'urkiola_relevo' && this.lider) void this.atenderRelevo();
+    });
+
     const limite = Date.now() + this.esperaCerrojoMs;
+    let relevoPedido = false;
     for (;;) {
       const r = await this.cerrojo.query<{ ok: boolean }>('select pg_try_advisory_lock($1) as ok', [
         CERROJO,
       ]);
-      if (r.rows[0]?.ok) return;
+      if (r.rows[0]?.ok) {
+        this.lider = true;
+        return;
+      }
+
+      if (!relevoPedido) {
+        // NOTIFY no necesita el lock. La instancia que lo posee está
+        // escuchando por su conexión dedicada y lo soltará tras drenar.
+        await this.pool.query("select pg_notify('urkiola_relevo', 'relevo')");
+        relevoPedido = true;
+        console.warn('Esperando el relevo de la instancia anterior…');
+      }
+
       if (Date.now() > limite) {
         throw new Error(
-          'Hay otra instancia del servidor usando esta base de datos. ' +
-            'Este backend funciona con una sola: baja las réplicas a 1.'
+          'La instancia anterior no ha entregado el liderazgo de la base de datos a tiempo.'
         );
       }
-      console.warn('Esperando a que la instancia anterior suelte la base de datos…');
-      await new Promise((r) => setTimeout(r, 2000));
+      await new Promise((r) => setTimeout(r, 500));
     }
   }
 
   async salud() {
+    if (!this.lider) throw new Error('Esta instancia está entregando el liderazgo.');
     await this.pool.query('select 1');
   }
 
