@@ -501,6 +501,12 @@ export class Servicio {
    * a probar contraseñas.
    */
   async pedirEnlace(email: unknown): Promise<void> {
+    let destinatario: User | null = null;
+    let enlacePublico = '';
+    const minutos = this.config.minutosEnlace;
+
+    // Solo la escritura del código pertenece al liderazgo de PostgreSQL. El
+    // envío HTTP puede terminar desde la instancia vieja sin retener el lock.
     const terminarEscritura = this.comenzarEscritura();
     try {
       if (typeof email !== 'string' || !email.includes('@')) return;
@@ -520,29 +526,30 @@ export class Servicio {
       await this.almacen.guardarEnlace({
         hash: hashDeCodigo(codigo),
         userId: user.id,
-        caduca: new Date(Date.now() + this.config.minutosEnlace * 60_000).toISOString(),
+        caduca: new Date(Date.now() + minutos * 60_000).toISOString(),
       });
-
-      const enlace = `${this.config.urlPublica}/restablecer?codigo=${encodeURIComponent(codigo)}`;
-      const minutos = this.config.minutosEnlace;
-      await this.correo
-        .enviar(
-          user.email,
-          'Cambiar tu contraseña de Urkiola Car Service',
-          `Hola ${user.name.split(' ')[0]}:\n\n` +
-            `Alguien ha pedido cambiar la contraseña de tu cuenta. Si has sido tú, abre este enlace:\n\n` +
-            `${enlace}\n\n` +
-            `Vale durante ${minutos} minutos y una sola vez.\n\n` +
-            `Si no has sido tú, no hace falta que hagas nada: tu contraseña sigue como estaba.\n`
-        )
-        .catch((e) => {
-          // Que falle el correo no puede tumbar la petición ni contar nada a
-          // quien la hizo; queda en el registro para mirarlo.
-          console.error('No se ha podido mandar el correo de restablecer:', e);
-        });
+      destinatario = user;
+      enlacePublico = `${this.config.urlPublica}/restablecer?codigo=${encodeURIComponent(codigo)}`;
     } finally {
       terminarEscritura();
     }
+
+    if (!destinatario) return;
+    await this.correo
+      .enviar(
+        destinatario.email,
+        'Cambiar tu contraseña de Urkiola Car Service',
+        `Hola ${destinatario.name.split(' ')[0]}:\n\n` +
+          `Alguien ha pedido cambiar la contraseña de tu cuenta. Si has sido tú, abre este enlace:\n\n` +
+          `${enlacePublico}\n\n` +
+          `Vale durante ${minutos} minutos y una sola vez.\n\n` +
+          `Si no has sido tú, no hace falta que hagas nada: tu contraseña sigue como estaba.\n`
+      )
+      .catch((e) => {
+        // Que falle el correo no puede tumbar la petición ni contar nada a
+        // quien la hizo; queda en el registro para mirarlo.
+        console.error('No se ha podido mandar el correo de restablecer:', e);
+      });
   }
 
   /** Cambia la contraseña con el código del correo. */
