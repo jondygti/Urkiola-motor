@@ -17,6 +17,7 @@ El workflow `.github/workflows/comprobaciones.yml` es la comprobación automáti
 - **Chromium · funciones**: operaciones reales y persistencia.
 - **Chromium · api**: cliente compilado contra backend local real.
 - **Servidor, tipos y sincronización**: TypeScript, servidor, offline/sync y navegación demo.
+- **PostgreSQL · relevo de instancia**: levanta PostgreSQL real y comprueba advisory lock + `LISTEN/NOTIFY` entre dos instancias.
 - **Imagen Docker de staging**: construye `server/Dockerfile` con un API URL de prueba, usando la misma ruta de empaquetado prevista para Render.
 
 No fijar números de asserts en documentación. El total válido es el que muestre el log del commit ejecutado.
