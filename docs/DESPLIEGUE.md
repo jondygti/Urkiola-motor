@@ -4,7 +4,7 @@ Actualizado: **20/09/2026**. Sustituye las recomendaciones antiguas de Railway o
 
 ## Objetivo
 
-La guía operativa de staging está en [`../deploy/README.md`](../deploy/README.md) y la plantilla de variables en [`../deploy/render.env.example`](../deploy/render.env.example). El antiguo stack Docker/MinIO/Caddy se retiró para evitar dos caminos de despliegue incompatibles.
+La guía operativa de staging está en [`../deploy/README.md`](../deploy/README.md), la plantilla de variables en [`../deploy/render.env.example`](../deploy/render.env.example) y la configuración reproducible de Render en [`../render.yaml`](../render.yaml). El antiguo stack Docker/MinIO/Caddy se retiró para evitar dos caminos de despliegue incompatibles.
 
 - **Render**: API/backend.
 - **Supabase**: PostgreSQL, Auth y Storage.
