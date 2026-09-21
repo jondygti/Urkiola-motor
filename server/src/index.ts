@@ -75,7 +75,9 @@ async function main() {
   const apagar = async (senal: string) => {
     console.log(`${senal}: cerrando…`);
     clearInterval(reloj);
-    servidor.close();
+    // Primero no entran peticiones nuevas; las que ya estaban dentro terminan
+    // antes de cerrar la base de datos y Storage.
+    await new Promise<void>((resolver) => servidor.close(() => resolver()));
     await servicio.cerrar();
     process.exit(0);
   };
