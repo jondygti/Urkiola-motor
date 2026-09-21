@@ -17,8 +17,11 @@ No usar un pooler en **transaction mode** para `DATABASE_URL`: podría cambiar d
 
 ## Render
 
+La raíz del repositorio incluye `render.yaml`, un Blueprint de staging en Frankfurt con una sola instancia, Docker real y `/health`. Render permite validar Blueprints antes de desplegarlos; aun así, revisar en el panel los valores y el plan antes de crear recursos.
+
 Configuración mínima:
 
+- Blueprint: `render.yaml` (o configuración equivalente en el panel).
 - Runtime: Docker.
 - Dockerfile: `server/Dockerfile`.
 - Build context: raíz del repositorio.
