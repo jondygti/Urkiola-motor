@@ -37,13 +37,25 @@ export class CorreoHttp implements Correo {
   ) {}
 
   async enviar(a: string, asunto: string, texto: string) {
-    const res = await this.fetchImpl(this.url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.clave}` },
-      body: JSON.stringify({ from: this.remitente, to: [a], subject: asunto, text: texto }),
-    });
-    if (!res.ok) {
-      throw new Error(`El proveedor de correo devolvió ${res.status}: ${await res.text()}`);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10_000);
+    try {
+      const res = await this.fetchImpl(this.url, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.clave}` },
+        body: JSON.stringify({ from: this.remitente, to: [a], subject: asunto, text: texto }),
+      });
+      if (!res.ok) {
+        throw new Error(`El proveedor de correo devolvió ${res.status}: ${await res.text()}`);
+      }
+    } catch (e) {
+      if (controller.signal.aborted) {
+        throw new Error('El proveedor de correo no ha respondido en 10 segundos.');
+      }
+      throw e;
+    } finally {
+      clearTimeout(timer);
     }
   }
 }
