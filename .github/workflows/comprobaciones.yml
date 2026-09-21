@@ -27,10 +27,10 @@ jobs:
       EXPO_NO_TELEMETRY: '1'
       EXPO_PUBLIC_API_URL: ''
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: npm
@@ -61,7 +61,7 @@ jobs:
           fi
       - name: Conservar resultados
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: chromium-${{ matrix.suite }}-${{ github.run_attempt }}
           path: resultados/
@@ -75,10 +75,10 @@ jobs:
     env:
       CI: 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
       - run: npm ci --no-audit --no-fund
@@ -97,7 +97,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Construir la misma imagen que usará Render
@@ -119,10 +119,10 @@ jobs:
       EXPO_NO_TELEMETRY: '1'
       EXPO_PUBLIC_API_URL: ''
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: npm
@@ -131,7 +131,7 @@ jobs:
       - name: Generar demo actualizada
         run: npm run build:demo
       - name: Publicar demo descargable
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: urkiola-demo-${{ github.sha }}
           path: demo/urkiola-car-service-demo.html
