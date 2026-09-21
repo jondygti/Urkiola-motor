@@ -7,7 +7,7 @@ Este directorio describe el despliegue **vigente**. El antiguo stack Docker + Mi
 - **Render Web Service**: `server/Dockerfile`, con contexto de build en la raíz del repositorio.
 - **Supabase staging**: PostgreSQL y Storage privados.
 - **Autenticación**: temporalmente scrypt + JWT propios. Supabase Auth se migra después de validar staging.
-- **Una sola instancia de backend**: el servidor mantiene el estado en memoria y sostiene un advisory lock de PostgreSQL.
+- **Una sola instancia configurada de backend**: el servidor mantiene el estado en memoria y sostiene un advisory lock de PostgreSQL. El solape temporal que hace Render durante un redeploy se resuelve con un relevo explícito `LISTEN/NOTIFY`: la vieja drena escrituras y entrega el liderazgo a la nueva.
 
 ## Conexión PostgreSQL
 
@@ -42,7 +42,8 @@ No guardar valores reales en GitHub.
 6. Arrancar y comprobar `/health`.
 7. Entrar con el administrador y crear únicamente usuarios/datos de prueba controlados.
 8. Probar fotos, reinicio, dos dispositivos y trabajo offline.
-9. Ejecutar una copia y una restauración completa en un entorno de staging vacío.
+9. Provocar un redeploy con un comando pendiente/en curso: la vieja debe devolver `503` a escrituras nuevas, terminar la escritura ya iniciada y la nueva debe adquirir liderazgo sin pérdida ni duplicado.
+10. Ejecutar una copia y una restauración completa en un entorno de staging vacío.
 
 ## Base de datos y cambios de esquema
 
