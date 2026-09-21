@@ -43,7 +43,8 @@ Reglas obligatorias:
 4. `cmd.at` conserva cuándo ocurrió una acción offline;
 5. un comando antiguo no puede reabrir/deshacer un estado posterior;
 6. `4xx` solo para comandos definitivamente inválidos; fallos recuperables deben permitir reintento;
-7. `/state` puede pedirse en cualquier momento y el cliente reaplica encima su cola pendiente.
+7. `/state` puede pedirse en cualquier momento y el cliente reaplica encima su cola pendiente;
+8. durante un relevo de instancia, una escritura que llegue al proceso antiguo puede responder `503`; es temporal y debe conservarse/reintentarse, nunca convertirse en rechazo definitivo.
 
 ## Autorización
 
