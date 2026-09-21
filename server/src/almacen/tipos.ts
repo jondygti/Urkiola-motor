@@ -60,6 +60,13 @@ export interface Almacen {
   /** Comprueba que el almacenamiento esencial responde. */
   salud(): Promise<void>;
 
+  /**
+   * En producción PostgreSQL puede pedir a la instancia actual que drene
+   * escrituras y entregue el liderazgo a una nueva durante un redeploy.
+   * Los almacenes locales no necesitan este mecanismo.
+   */
+  alPedirRelevo?(gestor: () => Promise<void>): void;
+
   /** ¿Se aplicó ya este comando? Es lo que hace la API idempotente. */
   yaAplicado(id: Id): Promise<boolean>;
 
