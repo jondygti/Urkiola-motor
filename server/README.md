@@ -59,6 +59,8 @@ pruebas/
 - aplicación ordenada de comandos;
 - `cmd.at` para acciones offline;
 - estado recortado por usuario/transportista;
+- evidencias solo legibles si están referenciadas dentro del estado autorizado del usuario;
+- las URLs de imagen usan capacidades breves por archivo, nunca el JWT general de la cuenta;
 - una empresa de transporte no ve a otra;
 - ubicaciones de llaves no salen a transportistas;
 - cancelaciones no se reabren por reintentos;
@@ -67,7 +69,7 @@ pruebas/
 
 ## Instancias
 
-El diseño actual mantiene estado en memoria y coordina escritura. Usar **una instancia activa** en Render hasta que se rediseñe explícitamente para paralelismo.
+El diseño actual mantiene estado en memoria y coordina escritura. Usar **una instancia activa** en Render hasta que se rediseñe explícitamente para paralelismo. El proceso sostiene un `pg_advisory_lock` durante toda su sesión PostgreSQL, por lo que `DATABASE_URL` debe usar conexión directa o pooler en modo sesión; transaction pooling no es compatible.
 
 ## Variables principales
 
