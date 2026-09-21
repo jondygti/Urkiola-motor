@@ -501,64 +501,74 @@ export class Servicio {
    * a probar contraseñas.
    */
   async pedirEnlace(email: unknown): Promise<void> {
-    if (typeof email !== 'string' || !email.includes('@')) return;
-    const clave = email.trim().toLowerCase();
+    const terminarEscritura = this.comenzarEscritura();
+    try {
+      if (typeof email !== 'string' || !email.includes('@')) return;
+      const clave = email.trim().toLowerCase();
 
-    // El mismo freno que en el acceso: que nadie use esto para tantear
-    // correos ni para llenar de mensajes el buzón de alguien.
-    if (bloqueado(`enlace:${clave}`)) return;
-    anotarFallo(`enlace:${clave}`);
+      // El mismo freno que en el acceso: que nadie use esto para tantear
+      // correos ni para llenar de mensajes el buzón de alguien.
+      if (bloqueado(`enlace:${clave}`)) return;
+      anotarFallo(`enlace:${clave}`);
 
-    // También sirve para el primer acceso: el alta del usuario no guarda
-    // contraseñas en el histórico de comandos ni exige una ya existente.
-    const user = this.estadoActual.users.find((u) => u.email.trim().toLowerCase() === clave);
-    if (!user || !user.active) return;
+      // También sirve para el primer acceso: el alta del usuario no guarda
+      // contraseñas en el histórico de comandos ni exige una ya existente.
+      const user = this.estadoActual.users.find((u) => u.email.trim().toLowerCase() === clave);
+      if (!user || !user.active) return;
 
-    const codigo = randomBytes(32).toString('base64url');
-    await this.almacen.guardarEnlace({
-      hash: hashDeCodigo(codigo),
-      userId: user.id,
-      caduca: new Date(Date.now() + this.config.minutosEnlace * 60_000).toISOString(),
-    });
-
-    const enlace = `${this.config.urlPublica}/restablecer?codigo=${encodeURIComponent(codigo)}`;
-    const minutos = this.config.minutosEnlace;
-    await this.correo
-      .enviar(
-        user.email,
-        'Cambiar tu contraseña de Urkiola Car Service',
-        `Hola ${user.name.split(' ')[0]}:\n\n` +
-          `Alguien ha pedido cambiar la contraseña de tu cuenta. Si has sido tú, abre este enlace:\n\n` +
-          `${enlace}\n\n` +
-          `Vale durante ${minutos} minutos y una sola vez.\n\n` +
-          `Si no has sido tú, no hace falta que hagas nada: tu contraseña sigue como estaba.\n`
-      )
-      .catch((e) => {
-        // Que falle el correo no puede tumbar la petición ni contar nada a
-        // quien la hizo; queda en el registro para mirarlo.
-        console.error('No se ha podido mandar el correo de restablecer:', e);
+      const codigo = randomBytes(32).toString('base64url');
+      await this.almacen.guardarEnlace({
+        hash: hashDeCodigo(codigo),
+        userId: user.id,
+        caduca: new Date(Date.now() + this.config.minutosEnlace * 60_000).toISOString(),
       });
+
+      const enlace = `${this.config.urlPublica}/restablecer?codigo=${encodeURIComponent(codigo)}`;
+      const minutos = this.config.minutosEnlace;
+      await this.correo
+        .enviar(
+          user.email,
+          'Cambiar tu contraseña de Urkiola Car Service',
+          `Hola ${user.name.split(' ')[0]}:\n\n` +
+            `Alguien ha pedido cambiar la contraseña de tu cuenta. Si has sido tú, abre este enlace:\n\n` +
+            `${enlace}\n\n` +
+            `Vale durante ${minutos} minutos y una sola vez.\n\n` +
+            `Si no has sido tú, no hace falta que hagas nada: tu contraseña sigue como estaba.\n`
+        )
+        .catch((e) => {
+          // Que falle el correo no puede tumbar la petición ni contar nada a
+          // quien la hizo; queda en el registro para mirarlo.
+          console.error('No se ha podido mandar el correo de restablecer:', e);
+        });
+    } finally {
+      terminarEscritura();
+    }
   }
 
   /** Cambia la contraseña con el código del correo. */
   async restablecer(codigo: unknown, nueva: unknown): Promise<void> {
-    if (typeof codigo !== 'string' || codigo.length < 20) {
-      throw malaPeticion('Ese enlace no vale.');
-    }
-    comprobarFortaleza(nueva);
+    const terminarEscritura = this.comenzarEscritura();
+    try {
+      if (typeof codigo !== 'string' || codigo.length < 20) {
+        throw malaPeticion('Ese enlace no vale.');
+      }
+      comprobarFortaleza(nueva);
 
-    const enlace = await this.almacen.gastarEnlace(hashDeCodigo(codigo));
-    if (!enlace) {
-      throw new ErrorHttp(410, 'Ese enlace ya se ha usado o ha caducado. Pide otro.');
-    }
-    const user = this.estadoActual.users.find((u) => u.id === enlace.userId);
-    if (!user || !user.active) throw new ErrorHttp(410, 'Ese enlace ya no vale.');
+      const enlace = await this.almacen.gastarEnlace(hashDeCodigo(codigo));
+      if (!enlace) {
+        throw new ErrorHttp(410, 'Ese enlace ya se ha usado o ha caducado. Pide otro.');
+      }
+      const user = this.estadoActual.users.find((u) => u.id === enlace.userId);
+      if (!user || !user.active) throw new ErrorHttp(410, 'Ese enlace ya no vale.');
 
-    await this.guardarCredencial(user.id, user.email, nueva as string);
-    // Y se tira cualquier otro enlace pendiente de esa cuenta.
-    await this.almacen.borrarEnlacesDe(user.id);
-    limpiarFallos(user.email.toLowerCase());
-    console.log(`Contraseña restablecida por enlace: ${user.id}`);
+      await this.guardarCredencial(user.id, user.email, nueva as string);
+      // Y se tira cualquier otro enlace pendiente de esa cuenta.
+      await this.almacen.borrarEnlacesDe(user.id);
+      limpiarFallos(user.email.toLowerCase());
+      console.log(`Contraseña restablecida por enlace: ${user.id}`);
+    } finally {
+      terminarEscritura();
+    }
   }
 
   /* -------------------------------------------------------------- fotos */
@@ -570,28 +580,33 @@ export class Servicio {
    * exige sesión, una dirección adivinable sería una puerta de más.
    */
   async guardarFoto(cuerpo: Buffer, tipo: string, user: User): Promise<string> {
-    const puedeSubir =
-      can(this.estadoActual, user, 'incidencias.crear') ||
-      can(this.estadoActual, user, 'preparacion.ejecutar') ||
-      can(this.estadoActual, user, 'recepcion.ejecutar');
-    if (!puedeSubir) {
-      throw sinPermiso('Tu rol no puede subir evidencias fotográficas.');
-    }
+    const terminarEscritura = this.comenzarEscritura();
+    try {
+      const puedeSubir =
+        can(this.estadoActual, user, 'incidencias.crear') ||
+        can(this.estadoActual, user, 'preparacion.ejecutar') ||
+        can(this.estadoActual, user, 'recepcion.ejecutar');
+      if (!puedeSubir) {
+        throw sinPermiso('Tu rol no puede subir evidencias fotográficas.');
+      }
 
-    const limpio = (tipo ?? '').split(';')[0].trim().toLowerCase();
-    if (!TIPOS_FOTO[limpio]) {
-      throw malaPeticion(`Ese tipo de fichero no se acepta (${limpio || 'sin tipo'}).`);
-    }
-    if (cuerpo.length === 0) throw malaPeticion('La foto está vacía.');
-    if (cuerpo.length > this.config.maxFotoBytes) {
-      throw malaPeticion(
-        `La foto pesa demasiado (máximo ${Math.round(this.config.maxFotoBytes / 1024 / 1024)} MB).`
-      );
-    }
+      const limpio = (tipo ?? '').split(';')[0].trim().toLowerCase();
+      if (!TIPOS_FOTO[limpio]) {
+        throw malaPeticion(`Ese tipo de fichero no se acepta (${limpio || 'sin tipo'}).`);
+      }
+      if (cuerpo.length === 0) throw malaPeticion('La foto está vacía.');
+      if (cuerpo.length > this.config.maxFotoBytes) {
+        throw malaPeticion(
+          `La foto pesa demasiado (máximo ${Math.round(this.config.maxFotoBytes / 1024 / 1024)} MB).`
+        );
+      }
 
-    const id = `${randomBytes(24).toString('base64url')}.${TIPOS_FOTO[limpio]}`;
-    await this.fotos.guardar(id, { cuerpo, tipo: limpio });
-    return id;
+      const id = `${randomBytes(24).toString('base64url')}.${TIPOS_FOTO[limpio]}`;
+      await this.fotos.guardar(id, { cuerpo, tipo: limpio });
+      return id;
+    } finally {
+      terminarEscritura();
+    }
   }
 
   /** ¿La referencia de esta evidencia forma parte del estado autorizado? */
@@ -647,14 +662,19 @@ export class Servicio {
   }
 
   async registrarTokenPush(user: User, token: unknown) {
-    if (typeof token !== 'string' || !token.startsWith('ExponentPushToken')) {
-      throw malaPeticion('Token de avisos no válido.');
+    const terminarEscritura = this.comenzarEscritura();
+    try {
+      if (typeof token !== 'string' || !token.startsWith('ExponentPushToken')) {
+        throw malaPeticion('Token de avisos no válido.');
+      }
+      await this.almacen.guardarTokenPush({ userId: user.id, token, at: new Date().toISOString() });
+    } finally {
+      terminarEscritura();
     }
-    await this.almacen.guardarTokenPush({ userId: user.id, token, at: new Date().toISOString() });
   }
 
   async cerrar() {
-    await this.cola.catch(() => {});
+    await this.prepararRelevo();
     await this.almacen.cerrar();
   }
 }
