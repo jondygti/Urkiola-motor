@@ -317,27 +317,32 @@ export class Servicio {
   }
 
   async cambiarPassword(quien: User, objetivo: Id, actual: unknown, nueva: unknown) {
-    comprobarFortaleza(nueva);
-    const esOtro = objetivo !== quien.id;
-    if (esOtro) {
-      const permiso = comprobarPermiso(this.estadoActual, quien, {
-        type: 'user.upsert',
-        id: 'comprobacion',
-        at: new Date().toISOString(),
-        userId: quien.id,
-        user: quien,
-      });
-      if (permiso) throw sinPermiso('Solo un administrador cambia la contraseña de otra persona.');
-    } else {
-      const mia = await this.almacen.credencialPorUsuario(quien.id);
-      if (!mia || typeof actual !== 'string' || !comprobarPassword(actual, mia.hash)) {
-        throw noAutenticado('La contraseña actual no es correcta.');
+    const terminarEscritura = this.comenzarEscritura();
+    try {
+      comprobarFortaleza(nueva);
+      const esOtro = objetivo !== quien.id;
+      if (esOtro) {
+        const permiso = comprobarPermiso(this.estadoActual, quien, {
+          type: 'user.upsert',
+          id: 'comprobacion',
+          at: new Date().toISOString(),
+          userId: quien.id,
+          user: quien,
+        });
+        if (permiso) throw sinPermiso('Solo un administrador cambia la contraseña de otra persona.');
+      } else {
+        const mia = await this.almacen.credencialPorUsuario(quien.id);
+        if (!mia || typeof actual !== 'string' || !comprobarPassword(actual, mia.hash)) {
+          throw noAutenticado('La contraseña actual no es correcta.');
+        }
       }
-    }
 
-    const user = this.estadoActual.users.find((u) => u.id === objetivo);
-    if (!user) throw noEncontrado('Ese usuario no existe.');
-    await this.guardarCredencial(user.id, user.email, nueva);
+      const user = this.estadoActual.users.find((u) => u.id === objetivo);
+      if (!user) throw noEncontrado('Ese usuario no existe.');
+      await this.guardarCredencial(user.id, user.email, nueva);
+    } finally {
+      terminarEscritura();
+    }
   }
 
   /* ------------------------------------------------------------- estado */
