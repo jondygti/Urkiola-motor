@@ -546,16 +546,11 @@ export class Servicio {
     return id;
   }
 
-  /**
-   * Lee una foto solo si aparece en el estado que este usuario tiene derecho
-   * a recibir. Un id aleatorio no sustituye a la autorización: si una
-   * referencia se filtrase por un log o una captura, no debe abrir datos de
-   * otro ámbito comercial, otra sede o un proveedor externo.
-   */
-  async leerFoto(id: string, user: User): Promise<Foto> {
+  /** ¿La referencia de esta evidencia forma parte del estado autorizado? */
+  private fotoReferenciadaPara(id: string, user: User): boolean {
     const ref = `foto:${id}`;
     const visible = this.estadoDe(user);
-    const referenciada =
+    return (
       visible.incidents.some((i) => i.photos.includes(ref)) ||
       visible.preparations.some((p) => {
         const f = p.finalPhotos;
@@ -563,20 +558,27 @@ export class Servicio {
       }) ||
       visible.receptions.some(
         (r) => r.albaranUri === ref || r.lines.some((l) => l.photos.includes(ref))
-      );
+      )
+    );
+  }
 
+  /**
+   * Lee una foto solo si aparece en el estado que este usuario tiene derecho
+   * a recibir. Un id aleatorio no sustituye a la autorización.
+   */
+  async leerFoto(id: string, user: User): Promise<Foto> {
     // 404 también cuando existe pero no le corresponde: no revelar siquiera
     // que hay una evidencia con ese identificador.
-    if (!referenciada) throw noEncontrado('Esa foto ya no está.');
+    if (!this.fotoReferenciadaPara(id, user)) throw noEncontrado('Esa foto ya no está.');
 
     const foto = await this.fotos.leer(id);
     if (!foto) throw noEncontrado('Esa foto ya no está.');
     return foto;
   }
 
-  /** Crea una capacidad breve para pintar una evidencia sin exponer el JWT general. */
-  async crearAccesoFoto(id: string, user: User): Promise<string> {
-    await this.leerFoto(id, user);
+  /** Crea una capacidad breve sin descargar antes el objeto desde Storage. */
+  crearAccesoFoto(id: string, user: User): string {
+    if (!this.fotoReferenciadaPara(id, user)) throw noEncontrado('Esa foto ya no está.');
     return emitirTokenFoto(user.id, id, this.config.secreto);
   }
 
