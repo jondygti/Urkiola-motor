@@ -219,14 +219,40 @@ try {
     const { id: idFoto } = await subida.json();
     ok('5 · recepción sube la foto de un daño', subida.status === 200 && !!idFoto, idFoto ?? 'no subió');
 
-    // Y la ve otra persona, desde otro dispositivo y con otra sesión.
-    const vista = await fetch(`${API}/fotos/${encodeURIComponent(idFoto)}`, {
+    // La subida no concede acceso por sí sola: queda asociada al trabajo.
+    const incidencia = await fetch(`${API}/commands`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenNerea}`,
+      },
+      body: JSON.stringify({
+        type: 'incident.create',
+        id: 'verify-foto-incidencia',
+        at: new Date().toISOString(),
+        vehicleId: coche.id,
+        incidentType: 'recepcion',
+        description: 'Comprobación de evidencia compartida',
+        photos: [`foto:${idFoto}`],
+      }),
+    });
+    ok('5 · la foto queda asociada a una incidencia', incidencia.status === 200, String(incidencia.status));
+
+    // Y la ve otra persona autorizada, desde otro dispositivo y otra sesión.
+    const acceso = await fetch(`${API}/fotos/${encodeURIComponent(idFoto)}/acceso`, {
       headers: { Authorization: `Bearer ${tokenPedro}` },
     });
+    const { url: urlFoto } = await acceso.json();
+    ok(
+      '5 · obtiene una URL breve sin meter su sesión completa',
+      acceso.status === 200 && typeof urlFoto === 'string' && !urlFoto.includes(tokenPedro),
+      urlFoto ?? 'sin URL'
+    );
+    const vista = await fetch(`${API}${urlFoto}`);
     const bytes = Buffer.from(await vista.arrayBuffer());
     ok('5 · y otra persona la ve, no se queda en el móvil', vista.status === 200 && bytes.equals(png));
 
-    // Pero no cualquiera que dé con la dirección.
+    // Pero no cualquiera que dé con la dirección estable.
     const sinSesion = await fetch(`${API}/fotos/${encodeURIComponent(idFoto)}`);
     ok('5 · sin sesión no se ve', sinSesion.status === 401, String(sinSesion.status));
   }
