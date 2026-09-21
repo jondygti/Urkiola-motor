@@ -29,7 +29,7 @@ La API conserva como contrato estable:
 - sesión/identidad;
 - push.
 
-El servidor procesa comandos en orden y actualmente está diseñado para **una instancia activa** con coordinación mediante PostgreSQL. Mantiene un advisory lock de sesión durante toda la vida del proceso: `DATABASE_URL` debe usar una conexión directa o un pooler compatible con sesiones, no transaction pooling. No escalar horizontalmente sin rediseñar `servicio.ts` y las garantías de orden.
+El servidor procesa comandos en orden y está diseñado para **un único líder escritor**. PostgreSQL mantiene un advisory lock de sesión; `DATABASE_URL` debe usar conexión directa o pooler en modo sesión, no transaction pooling. Durante un redeploy de Render puede haber dos procesos temporalmente: la instancia nueva pide el relevo por PostgreSQL `LISTEN/NOTIFY`, la antigua deja de aceptar escrituras, drena las que ya estaban en curso, suelta el lock y deja de anunciarse saludable; solo entonces la nueva reconstruye el estado y toma el liderazgo. Las escrituras que lleguen a la antigua durante el drenaje reciben `503`, que el cliente trata como reintentable. No escalar horizontalmente a varios escritores sin rediseñar `servicio.ts` y las garantías de orden.
 
 ## Offline e idempotencia
 
