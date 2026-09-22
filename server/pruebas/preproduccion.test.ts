@@ -1,3 +1,4 @@
+import { crearIdSubida } from '../src/auth';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
@@ -118,7 +119,8 @@ test('el backend rechaza referencias foto: que no existen y acepta cuatro fotos 
   )!;
   assert.ok(prep, 'la semilla necesita una preparación abierta');
 
-  const falso = orden(preparador.id, { type: 'prep.finish', prepId: prep.id, finalPhotos: FINAL });
+  const noSubidas = Object.fromEntries(Object.keys(FINAL).map(k => [k, `foto:${crearIdSubida(preparador.id, 'jpg', p.config.secreto)}`]));
+  const falso = orden(preparador.id, { type: 'prep.finish', prepId: prep.id, finalPhotos: noSubidas });
   await assert.rejects(() => p.servicio.ejecutar(falso, preparador), /Falta una foto/i);
 
   const ids: string[] = [];

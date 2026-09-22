@@ -111,7 +111,7 @@ Pendientes que requieren configuración externa y no se resuelven con un commit:
 
 - el repositorio GitHub está actualmente público;
 - `main` no tiene ruleset/protección;
-- no está activo el borrado automático de ramas fusionadas y quedan ramas temporales históricas.
+- no está activo el borrado automático de ramas fusionadas Las ramas temporales históricas se comprobaron eliminadas el 22/09/2026.
 
 Antes de introducir secretos o datos reales, revisar estos tres puntos en GitHub.
 
@@ -149,3 +149,12 @@ Antes de introducir secretos o datos reales, revisar estos tres puntos en GitHub
 - La restauración de sesión sin caché espera a recuperar la cuenta antes de habilitar rutas, conservando los enlaces directos. Con caché se mantiene el arranque offline inmediato.
 - La demo solo acepta un estado persistido de su versión exacta (v25 actualmente) y re-vincula la sesión con el usuario canónico actual; una demo antigua ya no puede ocultar una semilla nueva.
 - Las evidencias fotográficas/albaranes se sirven únicamente si la referencia aparece en el estado autorizado del usuario; conocer un ID no da acceso fuera de su ámbito.
+
+
+## Evidencias y reintentos (22/09/2026)
+
+- Adjuntar una evidencia exige que sea una subida del propio usuario o una referencia ya incluida en su estado autorizado. Conocer un identificador ajeno no permite incorporarlo a una incidencia propia.
+- Las nuevas subidas llevan autoría autenticada en su identificador opaco; no depende de memoria del proceso ni cambia el contrato `foto:<id>`. Las fotos históricas ya referenciadas siguen funcionando dentro de su ámbito.
+- Las subidas pendientes anteriores a esta corrección, sin autoría verificable ni referencia autorizada, deben subirse de nuevo. Una rotación de `JWT_SECRET` invalida también la autorización de subidas todavía pendientes; las evidencias confirmadas conservan acceso por ámbito.
+- Solo un 404 de Storage representa ausencia. Otros errores de lectura producen un fallo reintentable; no apartan el comando offline como inválido. Los errores de disco distintos de archivo ausente tampoco se ocultan.
+- Se prueban acceso cruzado, autoría, reinicio, compatibilidad histórica, error temporal HTTP y reintento sin duplicación.

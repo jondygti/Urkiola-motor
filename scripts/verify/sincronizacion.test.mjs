@@ -283,3 +283,21 @@ test('al restaurar sesión sin caché espera al estado antes de habilitar las ru
   assert.equal(d.store.ready, true);
   assert.equal(d.store.user?.id, user.id);
 });
+
+
+test('un 503 al confirmar una evidencia conserva su comando offline hasta recuperarse', async (t) => {
+  const d = await dispositivo(t, { enviar: () => { throw new ApiError(503); } });
+  const user = d.remoto.users.find(u => u.id === 'u-pedro');
+  await d.entrar(user);
+  let orden;
+  await paso(() => { orden = d.store.run({ type: 'incident.create', vehicleId: d.remoto.vehicles[0].id, incidentType: 'recepcion', description: 'Evidencia pendiente', photos: ['foto:subida-propia.png'] }); });
+  assert.equal(pendientes(d.db, user.id).queue[0].id, orden.id);
+  assert.equal(pendientes(d.db, user.id).rejected.length, 0);
+  assert.equal(d.remoto.incidents.some(i => i.id === `inc-${orden.id}`), false);
+  d.enviar = undefined;
+  await d.reloj();
+  assert.equal(pendientes(d.db, user.id).queue.length, 0);
+  assert.equal(pendientes(d.db, user.id).rejected.length, 0);
+  assert.equal(d.remoto.incidents.filter(i => i.id === `inc-${orden.id}`).length, 1);
+  assert.ok(d.enviados.every(e => e.command.id === orden.id));
+});
