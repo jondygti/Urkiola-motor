@@ -11,7 +11,7 @@ Antes de cargar secretos o datos reales:
 - [ ] decidir y aplicar repositorio privado para el proyecto interno;
 - [ ] proteger `main` o crear un ruleset que exija la CI oficial antes de merge;
 - [ ] activar borrado automático de ramas después de merge;
-- [ ] eliminar ramas temporales `codex/*` ya fusionadas;
+- [x] ramas temporales históricas eliminadas (comprobado el 22/09/2026); eliminar también las que se creen en futuras revisiones;
 - [ ] revisar los PR de Dependabot uno a uno mediante CI, sin agrupar actualizaciones nativas a ciegas.
 
 Estas operaciones son ajustes de GitHub y no se sustituyen con cambios de código.

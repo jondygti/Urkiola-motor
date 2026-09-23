@@ -43,6 +43,7 @@ Esto es el estado actual del código. El objetivo de producción es **Supabase A
 
 - no se confía en una URL pública predecible ni en que el identificador sea difícil de adivinar;
 - una evidencia solo se descarga si su referencia aparece en el estado autorizado de ese usuario;
+- adjuntar una referencia exige autoría autenticada de la subida o acceso previo a esa evidencia;
 - la subida exige un rol operativo con permiso para crear evidencia (incidencias, preparación o recepción);
 - una petición fuera de ámbito responde como no encontrada y no revela que el objeto existe;
 - SVG no se acepta;

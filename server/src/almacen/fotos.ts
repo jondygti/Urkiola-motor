@@ -18,6 +18,7 @@
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { temporalmenteNoDisponible } from '../errores';
 
 export interface Foto {
   cuerpo: Buffer;
@@ -61,8 +62,9 @@ export class FotosEnFichero implements AlmacenFotos {
       const cuerpo = await fs.readFile(this.ruta(id));
       const tipo = await fs.readFile(`${this.ruta(id)}.tipo`, 'utf8').catch(() => 'image/jpeg');
       return { cuerpo, tipo };
-    } catch {
-      return null;
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null;
+      throw e;
     }
   }
 
@@ -105,7 +107,10 @@ export class FotosEnSupabase implements AlmacenFotos {
 
   async leer(id: string) {
     const res = await this.fetchImpl(this.endpoint(id), { headers: this.cabeceras });
-    if (!res.ok) return null;
+    if (res.status === 404) return null;
+    // Una caída, limitación o mala configuración de Storage no es un fallo
+    // definitivo del comando: el cliente debe conservarlo para reintentar.
+    if (!res.ok) throw temporalmenteNoDisponible('No se puede consultar la evidencia ahora. Se reintentará automáticamente.');
     return {
       cuerpo: Buffer.from(await res.arrayBuffer()),
       tipo: res.headers.get('content-type') ?? 'image/jpeg',

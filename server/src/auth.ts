@@ -201,3 +201,23 @@ export function anotarFallo(clave: string, ahora = Date.now()): void {
 export function limpiarFallos(clave: string): void {
   fallos.delete(clave);
 }
+
+
+/** Una subida pendiente se vincula al autor sin guardar metadatos volátiles.
+ * La firma no caduca: el comando puede llegar tras días offline o un reinicio.
+ * No concede lectura; esa autorización sigue dependiendo del estado visible.
+ */
+export function crearIdSubida(userId: string, extension: string, secreto: string): string {
+  const nonce = randomBytes(24).toString('base64url');
+  const sello = firma(JSON.stringify(['urkiola-subida-v1', userId, nonce, extension]), secreto);
+  return `v1_${nonce}_${sello}.${extension}`;
+}
+
+export function subidaDelUsuario(id: string, userId: string, secreto: string): boolean {
+  const partes = /^v1_([A-Za-z0-9_-]{32})_([A-Za-z0-9_-]{43})\.(jpg|png|webp|heic|pdf)$/.exec(id);
+  if (!partes) return false;
+  const [, nonce, sello, extension] = partes;
+  const esperado = Buffer.from(firma(JSON.stringify(['urkiola-subida-v1', userId, nonce, extension]), secreto));
+  const recibido = Buffer.from(sello);
+  return recibido.length === esperado.length && timingSafeEqual(recibido, esperado);
+}

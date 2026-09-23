@@ -22,6 +22,8 @@ import {
   anotarFallo,
   bloqueado,
   cifrarPassword,
+  crearIdSubida,
+  subidaDelUsuario,
   comprobarPassword,
   emitirToken,
   emitirTokenFoto,
@@ -447,6 +449,11 @@ export class Servicio {
           throw malaPeticion('La evidencia fotográfica tiene que estar subida al servidor.');
         }
         const id = ref.slice('foto:'.length);
+        // Conocer un ID no permite convertir una evidencia ajena en propia.
+        // Las referencias históricas siguen valiendo dentro del ámbito visible.
+        if (!subidaDelUsuario(id, user.id, this.config.secreto) && !this.fotoReferenciadaPara(id, user)) {
+          throw sinPermiso('No puedes utilizar esa evidencia. Sube una foto propia o elige una autorizada.');
+        }
         if (!id || !(await this.fotos.leer(id))) {
           throw malaPeticion('Falta una foto en el almacenamiento. Vuelve a subirla antes de continuar.');
         }
@@ -608,7 +615,7 @@ export class Servicio {
         );
       }
 
-      const id = `${randomBytes(24).toString('base64url')}.${TIPOS_FOTO[limpio]}`;
+      const id = crearIdSubida(user.id, TIPOS_FOTO[limpio], this.config.secreto);
       await this.fotos.guardar(id, { cuerpo, tipo: limpio });
       return id;
     } finally {
