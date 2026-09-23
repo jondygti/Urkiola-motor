@@ -976,3 +976,7 @@ export function agruparTrasladosPorTrayecto(solicitudes: ServiceRequest[]) {
   }
   return [...grupos.values()];
 }
+
+/** Las reglas inactivas también conservan su destinatario al reactivarlas. */
+export const rolUsadoEnReglas = (s: AppState, roleId: Id): boolean =>
+  s.rules.some(r => r.audience?.kind === 'rol' && r.audience.roleId === roleId);

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { Btn, Checkbox, ConfirmDialog, Field, Grid, Input, Modal, Muted, Notice, Panel, Pill, Segmented, Select, Toolbar, radius, useTheme, tipografia } from '@/ui';
 import { useStore } from '@/data/store';
-import { roleLabel } from '@/data/selectors';
+import { roleLabel, rolUsadoEnReglas } from '@/data/selectors';
 import { NAV } from '@/features/shell/nav';
 import {
   ALL_PERMISSIONS,
@@ -354,6 +354,7 @@ function RoleModal({ role, onClose, onDone }: { role: RoleConfig; onClose: () =>
   // por eso no se puede borrar. Si aquí se contaran solo los activos, el
   // botón diría «Borrar rol» y luego no pasaría nada.
   const inUse = state.users.filter((u) => u.role === role.id).length;
+  const usadoEnReglas = rolUsadoEnReglas(state, role.id);
   const deBaja = state.users.filter((u) => u.role === role.id && !u.active).length;
   const allSections = NAV.flatMap((g) => g.items);
 
@@ -387,10 +388,10 @@ function RoleModal({ role, onClose, onDone }: { role: RoleConfig; onClose: () =>
               {isNew ? 'Crear rol' : 'Guardar cambios'}
             </Btn>
             {!isNew && !role.builtin ? (
-              <Btn variant="danger" full onPress={() => setConfirm(true)} disabled={inUse > 0}>
+              <Btn variant="danger" full onPress={() => setConfirm(true)} disabled={inUse > 0 || usadoEnReglas}>
                 {inUse > 0
                   ? `No se puede borrar: ${inUse} lo tienen${deBaja ? ` (${deBaja} de baja)` : ''}`
-                  : 'Borrar rol'}
+                  : usadoEnReglas ? 'Cambia primero las reglas de avisos de este rol' : 'Borrar rol'}
               </Btn>
             ) : null}
           </>
@@ -446,6 +447,11 @@ function RoleModal({ role, onClose, onDone }: { role: RoleConfig; onClose: () =>
         destructive
         onCancel={() => setConfirm(false)}
         onConfirm={() => {
+          if (rolUsadoEnReglas(state, role.id)) {
+            setConfirm(false);
+            setError('Cambia o elimina primero las reglas de avisos destinadas a este rol.');
+            return;
+          }
           run({ type: 'role.delete', roleId: role.id });
           onDone(`Rol «${role.label}» borrado.`);
           setConfirm(false);

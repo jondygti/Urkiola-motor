@@ -43,7 +43,7 @@ import type {
 } from './types';
 import { REQUEST_STATUS_LABEL } from './types';
 import { CONFIG } from './seed';
-import { avisoPara } from './selectors';
+import { avisoPara, rolUsadoEnReglas } from './selectors';
 import { locationLabel, siteName, userName, vehicleTitle } from './format';
 
 /* ------------------------------------------------------------- comandos */
@@ -1863,6 +1863,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       // baja» en Administración.
       if (!role || role.builtin) return state;
       if (state.users.some((u) => u.role === cmd.roleId)) return state;
+      if (rolUsadoEnReglas(state, cmd.roleId)) return state;
       return {
         ...state,
         config: { ...state.config, roles: state.config.roles.filter((r) => r.id !== cmd.roleId) },
