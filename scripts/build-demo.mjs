@@ -46,7 +46,7 @@ if (bundle.includes('</script')) {
 
 const html = `<!DOCTYPE html><html lang="es"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Urkiola Car Service · Demo</title>
+<title>Easo Logistics · Demo</title>
 <style>
 /* La fuente va dentro del propio fichero: la demostración se abre con doble
    clic y tiene que verse igual sin conexión. */
@@ -172,14 +172,14 @@ ${cssDeLaFuente()}
 <div id="root">
   <div class="booting">
     <i></i>
-    <b>URKIOLA CAR SERVICE</b>
+    <b>EASO LOGISTICS</b>
     <span>Cargando la demostración…</span>
   </div>
 </div>
 
 <aside class="director-demo" id="directorDemo">
   <div class="director-demo__head">
-    <strong>DEMO DIRECCIÓN · URKIOLA</strong>
+    <strong>DEMO DIRECCIÓN · EASO</strong>
     <button class="director-demo__close" type="button" aria-label="Cerrar guía" onclick="document.getElementById('directorDemo').remove()">×</button>
   </div>
   <div class="director-demo__body">

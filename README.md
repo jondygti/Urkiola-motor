@@ -1,6 +1,6 @@
-# Urkiola Car Service
+# Easo Logistics
 
-Plataforma web + Android para controlar la logística, ubicación, traslado, preparación, recepción, incidencias y recuentos de vehículos de Urkiola Motor.
+Plataforma web + Android para controlar la logística, ubicación, traslado, preparación, recepción, incidencias y recuentos de vehículos del Grupo Easo.
 
 ## Estado actual · 20/09/2026
 

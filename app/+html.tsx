@@ -14,9 +14,9 @@ export default function Root({ children }: { children: React.ReactNode }) {
         <meta name="theme-color" content="#10262d" />
         <meta
           name="description"
-          content="Urkiola Car Service · gestión logística de flota: campa, traslados, preparación, recuentos e incidencias."
+          content="Easo Logistics · gestión logística de flota: campa, traslados, preparación, recuentos e incidencias."
         />
-        <title>Urkiola Car Service</title>
+        <title>Easo Logistics</title>
         <ScrollViewStyleReset />
         {/* La fuente va incrustada en su propio fichero, generado al
             compilar: así se cachea aparte del programa y no hay que

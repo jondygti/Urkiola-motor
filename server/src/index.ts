@@ -66,7 +66,7 @@ async function main() {
   reloj.unref();
 
   servidor.listen(config.puerto, () => {
-    console.log(`Urkiola Car Service · API escuchando en el puerto ${config.puerto}`);
+    console.log(`Easo Logistics · API escuchando en el puerto ${config.puerto}`);
   });
 
   // Al desplegar, la plataforma manda SIGTERM: hay que terminar lo que se

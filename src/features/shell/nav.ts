@@ -182,7 +182,7 @@ export function mobileTabs(state: AppState, user: User | null): NavItem[] {
 export function titleForPath(path: string): string {
   if (path === '/' || path === '/index') return 'Centro de control';
   if (path.startsWith('/vehiculo')) return 'Ficha de vehículo';
-  return ALL_ITEMS.find((i) => i.href === path)?.label ?? 'Urkiola Car Service';
+  return ALL_ITEMS.find((i) => i.href === path)?.label ?? 'Easo Logistics';
 }
 
 /** Primera sección del rol en el móvil: es donde debe abrirse la app. */

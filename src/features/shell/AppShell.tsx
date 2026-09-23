@@ -84,7 +84,7 @@ function SimpleShell({ children }: { children: React.ReactNode }) {
         }}
       >
         <View style={{ flex: 1 }}>
-          <Text style={{ color: '#fff', fontSize: tipografia.strong, fontWeight: '900' }}>URKIOLA CAR SERVICE</Text>
+          <Text style={{ color: '#fff', fontSize: tipografia.strong, fontWeight: '900' }}>EASO LOGISTICS</Text>
           <Text style={{ color: c.navBrandSub, fontSize: tipografia.micro, marginTop: 2 }}>
             {user?.name} · {roleLabel(state, user?.role)}
           </Text>
@@ -134,7 +134,7 @@ function SideMenu({
     <View style={{ flex: 1, backgroundColor: c.navBg, paddingTop: insets.top + 14 }}>
       <View style={{ paddingHorizontal: 12, paddingBottom: 18 }}>
         <Text style={{ color: '#fff', fontSize: tipografia.title, fontWeight: '900', lineHeight: 22 }}>
-          URKIOLA{'\n'}CAR SERVICE
+          EASO{'\n'}LOGISTICS
         </Text>
         <Text style={{ color: c.navBrandSub, fontSize: tipografia.label, marginTop: 5 }}>
           {compact ? roleLabel(state, user?.role) : 'Gestión logística de flota'}
@@ -282,7 +282,7 @@ function MobileBar({
         <Text numberOfLines={1} style={{ color: '#fff', fontSize: tipografia.body, fontWeight: '900' }}>
           {title}
         </Text>
-        <Text style={{ color: c.navBrandSub, fontSize: tipografia.label }}>URKIOLA CAR SERVICE</Text>
+        <Text style={{ color: c.navBrandSub, fontSize: tipografia.label }}>EASO LOGISTICS</Text>
       </View>
       <Pressable
         onPress={() => router.push('/notificaciones')}

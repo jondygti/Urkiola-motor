@@ -33,7 +33,7 @@ export async function ejecutar(browser, BASE) {
         const donde = `${usuario.role} · ${width}px · ${ruta}`;
         if (txt.includes('Unmatched Route')) problemas.push(`${donde}: ruta sin pantalla`);
         else if (txt.trim().length < 40) problemas.push(`${donde}: pantalla vacía`);
-        else if (!/URKIOLA/.test(txt) && !page.url().includes('login'))
+        else if (!/EASO/.test(txt) && !page.url().includes('login'))
           problemas.push(`${donde}: sin armazón`);
       }
       await context.close();

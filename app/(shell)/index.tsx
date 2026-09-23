@@ -145,7 +145,7 @@ export default function DashboardScreen() {
       <TopNote>
         <Text style={{ fontSize: tipografia.small, color: c.text, lineHeight: 18 }}>
           <Text style={{ fontWeight: '800' }}>Modelo de datos: </Text>
-          Quiter aporta el parque maestro ({state.vehicles.length} vehículos). Urkiola controla la actividad
+          Quiter aporta el parque maestro ({state.vehicles.length} vehículos). Easo Logistics controla la actividad
           logística. Un vehículo se activa automáticamente al registrar ubicación, movimiento, solicitud,
           preparación, incidencia o recuento.
         </Text>

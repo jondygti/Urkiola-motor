@@ -1,7 +1,7 @@
 import type { ExpoConfig, ConfigContext } from 'expo/config';
 
 /**
- * Configuración de la app Urkiola Car Service.
+ * Configuración de la app Easo Logistics.
  *
  * Un único proyecto genera los tres destinos:
  *   - Web  (panel de gestión)            -> npm run build:web
@@ -29,7 +29,7 @@ if ((EAS_PROFILE === 'preview' || EAS_PROFILE === 'production') && !API_URL) {
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: 'Urkiola Car Service',
+  name: 'Easo Logistics',
   slug: 'urkiola-car-service',
   version: '1.0.0',
   orientation: 'default',
@@ -50,11 +50,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // sin ellos App Store Connect rechaza la build.
     infoPlist: {
       NSCameraUsageDescription:
-        'Urkiola Car Service usa la cámara para escanear matrículas y VIN-8 en los recuentos y para adjuntar fotos de incidencias y preparaciones.',
+        'Easo Logistics usa la cámara para escanear matrículas y VIN-8 en los recuentos y para adjuntar fotos de incidencias y preparaciones.',
       NSPhotoLibraryUsageDescription:
-        'Urkiola Car Service accede a tus fotos para adjuntar imágenes a incidencias, albaranes y preparaciones.',
+        'Easo Logistics accede a tus fotos para adjuntar imágenes a incidencias, albaranes y preparaciones.',
       NSPhotoLibraryAddUsageDescription:
-        'Urkiola Car Service guarda en tu carrete las fotos tomadas desde la app.',
+        'Easo Logistics guarda en tu carrete las fotos tomadas desde la app.',
       ITSAppUsesNonExemptEncryption: false,
     },
   },
@@ -90,8 +90,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // empaquetar la demostración en un único fichero HTML.
     output: process.env.EXPO_WEB_OUTPUT === 'single' ? 'single' : 'static',
     favicon: './assets/favicon.png',
-    name: 'Urkiola Car Service',
-    shortName: 'Urkiola',
+    name: 'Easo Logistics',
+    shortName: 'Easo',
     lang: 'es',
     themeColor: BRAND_DARK,
     backgroundColor: '#f3f6f7',

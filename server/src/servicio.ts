@@ -545,7 +545,7 @@ export class Servicio {
     await this.correo
       .enviar(
         destinatario.email,
-        'Cambiar tu contraseña de Urkiola Car Service',
+        'Cambiar tu contraseña de Easo Logistics',
         `Hola ${destinatario.name.split(' ')[0]}:\n\n` +
           `Alguien ha pedido cambiar la contraseña de tu cuenta. Si has sido tú, abre este enlace:\n\n` +
           `${enlacePublico}\n\n` +

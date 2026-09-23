@@ -54,7 +54,7 @@ export default function LoginScreen() {
       >
         <View style={{ width: '100%', maxWidth: 460, alignSelf: 'center' }}>
           <Text style={{ color: '#fff', fontSize: tipografia.display, fontWeight: '900', lineHeight: 30 }}>
-            URKIOLA{'\n'}CAR SERVICE
+            EASO{'\n'}LOGISTICS
           </Text>
           <Text style={{ color: c.navBrandSub, fontSize: tipografia.small, marginTop: 6, marginBottom: space.xl }}>
             Gestión logística de flota · Sondika · Leioa · Galdakao · Anoeta · Irun
@@ -158,7 +158,7 @@ export default function LoginScreen() {
           <Text style={{ color: c.navBrandSub, fontSize: tipografia.label, textAlign: 'center', marginTop: space.lg }}>
             {mode === 'demo'
               ? 'Sin servidor configurado · los cambios se guardan en este dispositivo'
-              : 'Conectado al servidor de Urkiola Car Service'}
+              : 'Conectado al servidor de Easo Logistics'}
           </Text>
         </View>
       </ScrollView>

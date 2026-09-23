@@ -127,7 +127,7 @@ export function leerConfig(env: NodeJS.ProcessEnv = process.env): Config {
     maxFotoBytes: entero(env.URKIOLA_MAX_FOTO_MB, 8) * 1024 * 1024,
     correoUrl: env.EMAIL_API_URL ?? 'https://api.resend.com/emails',
     correoClave: env.EMAIL_API_KEY ?? '',
-    correoRemitente: env.EMAIL_FROM ?? 'Urkiola Car Service <no-responder@urkiolacarservice.com>',
+    correoRemitente: env.EMAIL_FROM ?? 'Easo Logistics <no-responder@urkiolacarservice.com>',
     // `*` vale como origen permitido pero no como dirección para un enlace.
     urlPublica: (env.PUBLIC_URL ?? (origenes[0] === '*' ? '' : origenes[0]) ?? '').replace(/\/+$/, ''),
     minutosEnlace: entero(env.URKIOLA_MINUTOS_ENLACE, 60),

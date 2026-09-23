@@ -240,12 +240,12 @@ export default function AdminScreen() {
 
       {tab === 'sistema' ? (
         <>
-          <Panel title="🔄 Regla de datos: Quiter → Urkiola">
+          <Panel title="🔄 Regla de datos: Quiter → Easo Logistics">
             <Notice>
               <Text style={{ fontSize: tipografia.small, color: c.text, lineHeight: 18 }}>
                 <Text style={{ fontWeight: '800' }}>Quiter </Text>
                 aporta los datos comerciales y de vehículo.{' '}
-                <Text style={{ fontWeight: '800' }}>Urkiola Car Service </Text>
+                <Text style={{ fontWeight: '800' }}>Easo Logistics </Text>
                 controla ubicación, movimientos, recuentos, incidencias y preparación.
               </Text>
             </Notice>

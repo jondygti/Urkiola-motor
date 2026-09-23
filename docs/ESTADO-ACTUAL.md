@@ -1,4 +1,4 @@
-# Estado actual de Urkiola Car Service
+# Estado actual de Easo Logistics
 
 Actualizado: **20 de septiembre de 2026**.
 
@@ -158,3 +158,7 @@ Antes de introducir secretos o datos reales, revisar estos tres puntos en GitHub
 - Las subidas pendientes anteriores a esta corrección, sin autoría verificable ni referencia autorizada, deben subirse de nuevo. Una rotación de `JWT_SECRET` invalida también la autorización de subidas todavía pendientes; las evidencias confirmadas conservan acceso por ámbito.
 - Solo un 404 de Storage representa ausencia. Otros errores de lectura producen un fallo reintentable; no apartan el comando offline como inválido. Los errores de disco distintos de archivo ausente tampoco se ocultan.
 - Se prueban acceso cruzado, autoría, reinicio, compatibilidad histórica, error temporal HTTP y reintento sin duplicación.
+
+## Nombre comercial (23/09/2026)
+
+La aplicación se llama **Easo Logistics**, para el Grupo Easo. Se actualizan el nombre visible web/Android, acceso, navegación, demo y comunicaciones. Los identificadores de aplicación, repositorio, enlaces, correos configurados y claves de almacenamiento se conservan para mantener compatibilidad con instalaciones y datos existentes.

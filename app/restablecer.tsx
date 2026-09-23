@@ -62,7 +62,7 @@ export default function RestablecerScreen() {
     >
       <View style={{ width: '100%', maxWidth: 460, alignSelf: 'center' }}>
         <Text style={{ color: '#fff', fontSize: tipografia.display, fontWeight: '900', lineHeight: 30 }}>
-          URKIOLA{'\n'}CAR SERVICE
+          EASO{'\n'}LOGISTICS
         </Text>
         <Text style={{ color: c.navBrandSub, fontSize: tipografia.small, marginTop: 6, marginBottom: space.xl }}>
           Poner una contraseña nueva
