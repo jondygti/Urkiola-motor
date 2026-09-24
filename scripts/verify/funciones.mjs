@@ -833,5 +833,40 @@ export async function ejecutar(browser, BASE) {
     await context.close();
   }
 
+  /* 26 · fecha y hora de entrega para ambos servicios, guardadas y visibles */
+  for (const tipo of ['entrada', 'repaso']) {
+    const { context, page, errores } = await entrarComo(browser, USUARIOS.logistica, 1440);
+    await page.goto(`${BASE}/flota`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(900);
+    const inicial = await estadoGuardado(page);
+    const v = inicial.vehicles.find(v => v.logisticActive && !v.deliveredAt && !v.deliveryDate
+      && !inicial.requests.some(r => r.vehicleId === v.id && r.type === 'preparacion'
+        && !['terminada', 'cancelada'].includes(r.status))
+      && !inicial.preparations.some(p => p.vehicleId === v.id && p.runState !== 'terminado'));
+    if (!v) throw new Error('Falta vehículo sin entrega/preparación para probar hora');
+    await page.goto(`${BASE}/vehiculo/${v.id}`, { waitUntil: 'networkidle' });
+    await page.getByText('Solicitar preparación', { exact: false }).first().click();
+    if (tipo === 'repaso') await elegirEnLista(page, 'Preparación completa', 'Repaso de entrega');
+    await page.getByText('En 1 semana', { exact: true }).last().click();
+    await page.getByText('09', { exact: true }).last().click();
+    await page.getByText('16', { exact: true }).last().click();
+    await page.getByText('00', { exact: true }).last().click();
+    await page.getByText('45', { exact: true }).last().click();
+    // El atajo cambia el día sin volver a imponer las 09:00.
+    await page.getByText('En 3 días', { exact: true }).last().click();
+    await page.getByText('Crear solicitud', { exact: true }).first().click();
+    await page.waitForTimeout(800);
+    const guardado = await estadoGuardado(page);
+    const entrega = guardado.vehicles.find(x => x.id === v.id).deliveryDate;
+    const req = guardado.requests.find(r => r.vehicleId === v.id && r.prepTipo === tipo);
+    const hora = await page.evaluate(iso => [new Date(iso).getHours(), new Date(iso).getMinutes()], entrega);
+    ok(`26 · ${tipo} guarda las 16:45 y conserva hora al cambiar día`, hora[0] === 16 && hora[1] === 45, entrega);
+    ok(`26 · ${tipo} usa la fecha/hora exacta como plazo`, req?.dueAt === entrega, req?.dueAt);
+    await page.reload({ waitUntil: 'networkidle' });
+    ok(`26 · ${tipo} conserva hora después de recargar`, (await estadoGuardado(page)).vehicles.find(x => x.id === v.id).deliveryDate === entrega);
+    ok(`26 · ${tipo} sin errores JavaScript`, errores.length === 0, errores[0] ?? '');
+    await context.close();
+  }
+
   return resumen();
 }

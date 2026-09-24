@@ -349,8 +349,8 @@ export function RequestModal({
 
       {type === 'preparacion' && puedeFijarEntrega ? (
         <Field
-          label="Fecha de entrega al cliente"
-          hint={`Si la sabes, ponla: el plazo pasa a ser esa fecha. Easo Logistics pide ${state.config.prepDeadlineHours} h de margen como mínimo.`}
+          label="Fecha y hora de entrega al cliente"
+          hint={`Si la sabes, ponla: el plazo pasa a ser esa fecha y hora. Easo Logistics pide ${state.config.prepDeadlineHours} h de margen como mínimo.`}
         >
           <DateField value={deliveryDate} onChange={setDeliveryDate} />
         </Field>

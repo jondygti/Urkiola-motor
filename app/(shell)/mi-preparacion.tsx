@@ -5,7 +5,7 @@ import { campo, Btn, Field, H1, Modal, Muted, Notice, Panel, Pill, ProgressBar, 
 import { useStore, useTicker } from '@/data/store';
 import { activePreparations, deadlineOf, prepRequestsSinAbrir } from '@/data/selectors';
 import { idCreadoPor, prepElapsedMs, prepIsOverSla, prepProgress } from '@/data/commands';
-import { formatDate, formatDuration, formatShortDuration, siteName, userName, vehicleName, vehicleRef } from '@/data/format';
+import { formatDateTime, formatDuration, formatShortDuration, siteName, userName, vehicleName, vehicleRef } from '@/data/format';
 import type { CheckState, Preparation, ServiceRequest } from '@/data/types';
 import { ScreenGuard, usePerms } from '@/features/common/Guard';
 import { DeadlineChip } from '@/features/common/DeadlineChip';
@@ -181,10 +181,13 @@ function PedidaCard({
       <Text style={{ fontSize: campo.small, color: c.text, marginTop: 3, fontWeight: '700' }}>
         Comercial: {comercialLabel(state, vehicle)}
       </Text>
+      {vehicle?.deliveryDate ? <Text style={{ fontSize: campo.small, color: c.text, marginTop: 4 }}>
+        Entrega: {formatDateTime(vehicle.deliveryDate)}
+      </Text> : null}
       <UbicacionVehiculo vehicle={vehicle} esperadoEn={request.siteId} />
       <Text style={{ fontSize: campo.small, color: c.textMuted, marginTop: 4 }}>
-        {esRepaso
-          ? `Se entrega hoy${vehicle?.deliveryDate ? ` · ${formatDate(vehicle.deliveryDate)}` : ''}`
+        {esRepaso && vehicle?.deliveryDate && new Date(vehicle.deliveryDate).toDateString() === new Date().toDateString()
+          ? 'Se entrega hoy'
           : `Pedida por ${userName(state, request.createdBy)}`}
         {request.note ? ` · ${request.note}` : ''}
       </Text>
@@ -239,6 +242,9 @@ function PrepCard({ prep, onOpen }: { prep: Preparation; onOpen: () => void }) {
       <Text style={{ fontSize: campo.small, color: c.text, marginTop: 3, fontWeight: '700' }}>
         Comercial: {comercialLabel(state, vehicle)}
       </Text>
+      {vehicle?.deliveryDate ? <Text style={{ fontSize: campo.small, color: c.text, marginTop: 4 }}>
+        Entrega: {formatDateTime(vehicle.deliveryDate)}
+      </Text> : null}
       <UbicacionVehiculo vehicle={vehicle} esperadoEn={prep.siteId} />
 
       <Spacer h={space.sm} />
@@ -326,6 +332,9 @@ function WorkModal({
       </Field>
       {/* Dónde está el coche: mientras no se ha empezado hace falta para ir
           a por él, y después para saber de dónde salió. */}
+      {vehicle?.deliveryDate ? <Text style={{ fontSize: campo.small, color: c.text, marginTop: 4 }}>
+        Entrega: {formatDateTime(vehicle.deliveryDate)}
+      </Text> : null}
       <UbicacionVehiculo vehicle={vehicle} esperadoEn={prep.siteId} />
       <Spacer h={space.sm} />
 

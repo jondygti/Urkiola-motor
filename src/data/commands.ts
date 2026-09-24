@@ -1950,7 +1950,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
         vehicleId: cmd.vehicleId,
         kind: 'estado',
         title: cmd.deliveryDate ? 'Fecha de entrega fijada' : 'Fecha de entrega retirada',
-        detail: `${cmd.deliveryDate ? new Date(cmd.deliveryDate).toLocaleDateString('es-ES') : '—'} · ${userName(state, cmd.userId)}`,
+        detail: `${cmd.deliveryDate ? new Date(cmd.deliveryDate).toLocaleString('es-ES') : '—'} · ${userName(state, cmd.userId)}`,
         at: cmd.at,
         userId: cmd.userId,
       });
