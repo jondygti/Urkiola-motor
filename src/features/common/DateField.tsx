@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
-import { radius, space, useTheme, tipografia } from '@/ui';
+import { radius, space, useTheme, tipografia, Select } from '@/ui';
+import { parseDeliveryDate, deliveryTime } from '@/data/delivery-date';
 
 /** "2026-08-25T00:00:00.000Z" → "25/08/2026" */
 function toText(iso: string | null): string {
@@ -9,17 +10,6 @@ function toText(iso: string | null): string {
   if (Number.isNaN(d.getTime())) return '';
   const p = (n: number) => String(n).padStart(2, '0');
   return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
-}
-
-/** "25/08/2026" → ISO a las 9:00, que es cuando se entrega. */
-function parse(text: string): string | null {
-  const m = text.trim().match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/);
-  if (!m) return null;
-  const [, dd, mm, yy] = m;
-  const year = yy.length === 2 ? 2000 + Number(yy) : Number(yy);
-  const d = new Date(year, Number(mm) - 1, Number(dd), 9, 0, 0, 0);
-  if (Number.isNaN(d.getTime()) || d.getMonth() !== Number(mm) - 1) return null;
-  return d.toISOString();
 }
 
 const ATAJOS: { label: string; days: number }[] = [
@@ -54,7 +44,7 @@ export function DateField({
       onChange(null);
       return;
     }
-    const iso = parse(raw);
+    const iso = parseDeliveryDate(raw, value);
     if (!iso) {
       setError(true);
       return;
@@ -66,7 +56,8 @@ export function DateField({
   const enDias = (days: number) => {
     const d = new Date();
     d.setDate(d.getDate() + days);
-    d.setHours(9, 0, 0, 0);
+    const previous = value ? new Date(value) : null;
+    d.setHours(previous?.getHours() ?? 9, previous?.getMinutes() ?? 0, 0, 0);
     onChange(d.toISOString());
   };
 
@@ -95,6 +86,21 @@ export function DateField({
         <Text style={{ fontSize: tipografia.micro, color: c.redFg, marginTop: 4 }}>
           Escríbela como 25/08/2026.
         </Text>
+      ) : null}
+
+      {value ? (
+        <View style={{ marginTop: space.sm }}>
+          <Text style={{ color: c.textMuted, marginBottom: 4 }}>Hora de entrega</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Select title="Hora de entrega" value={String(new Date(value).getHours())}
+              options={Array.from({ length: 24 }, (_, n) => ({ value: String(n), label: String(n).padStart(2, '0') }))}
+              onChange={(hour) => onChange(deliveryTime(value, Number(hour), new Date(value).getMinutes()))} />
+            <Text style={{ color: c.text }}>:</Text>
+            <Select title="Minutos de entrega" value={String(new Date(value).getMinutes())}
+              options={Array.from({ length: 60 }, (_, n) => ({ value: String(n), label: String(n).padStart(2, '0') }))}
+              onChange={(minute) => onChange(deliveryTime(value, new Date(value).getHours(), Number(minute)))} />
+          </View>
+        </View>
       ) : null}
 
       <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: space.sm }}>

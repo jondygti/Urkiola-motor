@@ -168,3 +168,7 @@ La aplicación se llama **Easo Logistics**, para el Grupo Easo. Se actualizan el
 Un movimiento recibido tarde solo completa una solicitud si ocurrió después de su creación y no antes de la recogida de llaves. La ubicación física observada se conserva, pero no se atribuye una llegada antigua a un encargo posterior. Se comprueba en la lógica compartida y el servicio backend, incluyendo reintento idempotente de la llegada válida.
 
 La prueba aleatoria ampliada detectó también roles eliminados con reglas de avisos todavía vinculadas. Ahora se impide su borrado en la lógica compartida, backend y administración hasta retirar o cambiar esas reglas, incluidas las inactivas.
+
+## Hora de entrega en solicitudes (24 de septiembre de 2026)
+
+Preparación completa y repaso permiten elegir fecha y hora de entrega (horas y minutos). La ficha permite corregirla y el preparador la ve en su cola y detalle. Se mantiene el campo ISO `deliveryDate`, los comandos y permisos existentes y la sincronización offline. Cambiar el día conserva la hora; una fecha nueva propone las 09:00, como hasta ahora. El plazo de la solicitud usa el instante completo.

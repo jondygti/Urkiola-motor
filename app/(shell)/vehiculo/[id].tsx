@@ -210,7 +210,7 @@ export default function VehicleScreen() {
             ) : (
               <Detail
                 label="Fecha comprometida"
-                value={vehicle.deliveryDate ? formatDate(vehicle.deliveryDate) : 'Sin fecha'}
+                value={vehicle.deliveryDate ? formatDateTime(vehicle.deliveryDate) : 'Sin fecha'}
               />
             )}
 
