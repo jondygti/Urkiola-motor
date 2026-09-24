@@ -43,7 +43,7 @@ import type {
 } from './types';
 import { REQUEST_STATUS_LABEL } from './types';
 import { CONFIG } from './seed';
-import { avisoPara } from './selectors';
+import { avisoPara, rolUsadoEnReglas } from './selectors';
 import { locationLabel, siteName, userName, vehicleTitle } from './format';
 
 /* ------------------------------------------------------------- comandos */
@@ -787,6 +787,9 @@ function aplicar(state: AppState, cmd: Command): AppState {
       if (changedSite) {
         const open = next.requests.find(
           (r) => r.vehicleId === cmd.vehicleId && r.type === 'traslado' && (r.status !== 'terminada' && r.status !== 'cancelada')
+            // Una llegada offline anterior al encargo o a la recogida no
+            // acredita la entrega de este traslado, aunque coincida el destino.
+            && cmd.at >= r.createdAt && (!r.pickedUpAt || cmd.at >= r.pickedUpAt)
             && (r.to?.siteId ?? r.siteId) === destino.siteId
             && (!r.to?.zoneId || r.to.zoneId === destino.zoneId)
             && (!r.to?.positionId || r.to.positionId === destino.positionId)
@@ -1860,6 +1863,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       // baja» en Administración.
       if (!role || role.builtin) return state;
       if (state.users.some((u) => u.role === cmd.roleId)) return state;
+      if (rolUsadoEnReglas(state, cmd.roleId)) return state;
       return {
         ...state,
         config: { ...state.config, roles: state.config.roles.filter((r) => r.id !== cmd.roleId) },

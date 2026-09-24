@@ -486,3 +486,11 @@ test('la misma semilla da siempre la misma tanda', () => {
   const b = tanda(7, 60);
   assert.deepEqual(a, b);
 });
+
+// Casos encontrados al ampliar a 120 semillas y 400 pasos: el borrado de
+// roles dejaba reglas de avisos con destinatarios inexistentes.
+for (const semilla of [43, 79, 101, 111]) {
+  test(`regresión de avisos y borrado de roles: semilla ${semilla}`, () => {
+    assert.equal(tanda(semilla, 400), null);
+  });
+}

@@ -12,7 +12,7 @@
  * la app ni las reglas.
  */
 import type { AppState, Id, User } from '../../src/data/types';
-import { can } from '../../src/data/selectors';
+import { can, rolUsadoEnReglas } from '../../src/data/selectors';
 import { conflictoSolicitud, applyAll, applyCommand, type Command } from '../../src/data/commands';
 import { buildSeedState } from '../../src/data/seed';
 import type { Almacen } from './almacen/tipos';
@@ -402,6 +402,10 @@ export class Servicio {
 
     const motivo = comprobarPermiso(this.estadoActual, user, cmd);
     if (motivo) throw sinPermiso(motivo);
+
+    if (cmd.type === 'role.delete' && rolUsadoEnReglas(this.estadoActual, cmd.roleId)) {
+      throw malaPeticion('Cambia o elimina primero las reglas de avisos destinadas a este rol.');
+    }
 
     if (cmd.type === 'user.upsert') {
       const correo = cmd.user.email?.trim().toLowerCase();

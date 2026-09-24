@@ -162,3 +162,9 @@ Antes de introducir secretos o datos reales, revisar estos tres puntos en GitHub
 ## Nombre comercial (23/09/2026)
 
 La aplicación se llama **Easo Logistics**, para el Grupo Easo. Se actualizan el nombre visible web/Android, acceso, navegación, demo y comunicaciones. Los identificadores de aplicación, repositorio, enlaces, correos configurados y claves de almacenamiento se conservan para mantener compatibilidad con instalaciones y datos existentes.
+
+## Pruebas de orden temporal de traslados
+
+Un movimiento recibido tarde solo completa una solicitud si ocurrió después de su creación y no antes de la recogida de llaves. La ubicación física observada se conserva, pero no se atribuye una llegada antigua a un encargo posterior. Se comprueba en la lógica compartida y el servicio backend, incluyendo reintento idempotente de la llegada válida.
+
+La prueba aleatoria ampliada detectó también roles eliminados con reglas de avisos todavía vinculadas. Ahora se impide su borrado en la lógica compartida, backend y administración hasta retirar o cambiar esas reglas, incluidas las inactivas.
