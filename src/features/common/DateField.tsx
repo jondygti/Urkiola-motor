@@ -92,11 +92,11 @@ export function DateField({
         <View style={{ marginTop: space.sm }}>
           <Text style={{ color: c.textMuted, marginBottom: 4 }}>Hora de entrega</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Select title="Hora de entrega" value={String(new Date(value).getHours())}
+            <Select small title="Hora de entrega" value={String(new Date(value).getHours())}
               options={Array.from({ length: 24 }, (_, n) => ({ value: String(n), label: String(n).padStart(2, '0') }))}
               onChange={(hour) => onChange(deliveryTime(value, Number(hour), new Date(value).getMinutes()))} />
             <Text style={{ color: c.text }}>:</Text>
-            <Select title="Minutos de entrega" value={String(new Date(value).getMinutes())}
+            <Select small title="Minutos de entrega" value={String(new Date(value).getMinutes())}
               options={Array.from({ length: 60 }, (_, n) => ({ value: String(n), label: String(n).padStart(2, '0') }))}
               onChange={(minute) => onChange(deliveryTime(value, new Date(value).getHours(), Number(minute)))} />
           </View>
