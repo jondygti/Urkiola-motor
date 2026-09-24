@@ -186,7 +186,9 @@ function PedidaCard({
       </Text> : null}
       <UbicacionVehiculo vehicle={vehicle} esperadoEn={request.siteId} />
       <Text style={{ fontSize: campo.small, color: c.textMuted, marginTop: 4 }}>
-        {`Pedida por ${userName(state, request.createdBy)}`}
+        {esRepaso && vehicle?.deliveryDate && new Date(vehicle.deliveryDate).toDateString() === new Date().toDateString()
+          ? 'Se entrega hoy'
+          : `Pedida por ${userName(state, request.createdBy)}`}
         {request.note ? ` · ${request.note}` : ''}
       </Text>
 
