@@ -836,6 +836,8 @@ export async function ejecutar(browser, BASE) {
   /* 26 · fecha y hora de entrega para ambos servicios, guardadas y visibles */
   for (const tipo of ['entrada', 'repaso']) {
     const { context, page, errores } = await entrarComo(browser, USUARIOS.logistica, 1440);
+    await page.goto(`${BASE}/flota`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(900);
     const inicial = await estadoGuardado(page);
     const v = inicial.vehicles.find(v => v.logisticActive && !v.deliveredAt && !v.deliveryDate
       && !inicial.requests.some(r => r.vehicleId === v.id && r.type === 'preparacion'
