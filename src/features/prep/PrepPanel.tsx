@@ -34,7 +34,7 @@ export function PrepPanel({
   vehicle: Vehicle | undefined;
   compact?: boolean;
 }) {
-  const { state, run } = useStore();
+  const { state, run, user } = useStore();
   const { c } = useTheme();
   const now = useTicker(1000);
   const { can } = usePerms();
@@ -44,6 +44,10 @@ export function PrepPanel({
   const [finishOpen, setFinishOpen] = useState(false);
   const [reason, setReason] = useState(state.config.waitReasons[0]);
   const [blocked, setBlocked] = useState(false);
+
+  if (can('preparacion.ejecutar') && !can('preparacion.gestionar') && prep.preparerId && prep.preparerId !== user?.id) {
+    return <Muted>Preparación asignada a otro preparador.</Muted>;
+  }
 
   const elapsed = prepElapsedMs(prep, now);
   const waiting = prepWaitingMs(prep, now);

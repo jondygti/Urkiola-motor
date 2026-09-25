@@ -43,7 +43,7 @@ import type {
 } from './types';
 import { REQUEST_STATUS_LABEL } from './types';
 import { CONFIG } from './seed';
-import { avisoPara, rolUsadoEnReglas } from './selectors';
+import { avisoPara, rolUsadoEnReglas, can } from './selectors';
 import { locationLabel, siteName, userName, vehicleTitle } from './format';
 
 /* ------------------------------------------------------------- comandos */
@@ -691,6 +691,28 @@ function checklistFor(
 
 /* ----------------------------------------------------------- aplicación */
 
+/** El primer preparador que acepta el trabajo conserva su asignación, también offline. */
+export function motivoAsignacionPreparacion(s: AppState, u: User | null | undefined, cmd: Command): string | null {
+  if (!u || !cmd.type.startsWith('prep.') || can(s, u, 'preparacion.gestionar')) return null;
+  const ajena = 'Esta preparación ya está asignada a otro preparador.';
+  if (cmd.type === 'prep.create') {
+    if (cmd.preparerId && cmd.preparerId !== u.id) return 'Solo puedes asignarte preparaciones a ti mismo.';
+    if (s.preparations.some(p => p.vehicleId === cmd.vehicleId && p.runState !== 'terminado' && p.runState !== 'cancelado'
+      && p.id !== idCreadoPor('prep', cmd))) return 'El vehículo ya tiene una preparación abierta.';
+    const r = s.requests.find(r => r.type === 'preparacion' && r.vehicleId === cmd.vehicleId && r.siteId === cmd.siteId
+      && r.status !== 'terminada' && r.status !== 'cancelada' && (!cmd.tipo || (r.prepTipo ?? 'entrada') === cmd.tipo));
+    if (r?.assignedTo && r.assignedTo !== u.id) return ajena;
+  } else if ('prepId' in cmd) {
+    const p = s.preparations.find(p => p.id === cmd.prepId);
+    if (!p) return 'Preparación inexistente.';
+    if (p.preparerId && p.preparerId !== u.id) return ajena;
+    const r = p.requestId ? s.requests.find(r => r.id === p.requestId) : null;
+    if (!p.preparerId && r?.assignedTo && r.assignedTo !== u.id) return ajena;
+    if (!p.preparerId && cmd.type !== 'prep.start' && cmd.type !== 'prep.resume') return 'Empieza la preparación para asignártela.';
+  }
+  return null;
+}
+
 export function applyCommand(state: AppState, cmd: Command): AppState {
   // El contexto se apila porque un comando puede aplicar otro por dentro
   // (`prep.finish` registra el movimiento). Al volver, el de fuera sigue
@@ -705,6 +727,7 @@ export function applyCommand(state: AppState, cmd: Command): AppState {
 }
 
 function aplicar(state: AppState, cmd: Command): AppState {
+  if (motivoAsignacionPreparacion(state, state.users.find(u => u.id === cmd.userId), cmd)) return state;
   const vehicle = 'vehicleId' in cmd ? state.vehicles.find((v) => v.id === cmd.vehicleId) ?? null : null;
 
   switch (cmd.type) {
@@ -1115,6 +1138,8 @@ function aplicar(state: AppState, cmd: Command): AppState {
           && r.siteId === cmd.siteId && (!cmd.tipo || (r.prepTipo ?? 'entrada') === cmd.tipo)
       );
       const tipo: TipoPreparacion = cmd.tipo ?? pedidoAbierto?.prepTipo ?? 'entrada';
+      const actor = state.users.find(u => u.id === cmd.userId);
+      const preparerId = actor && !can(state, actor, 'preparacion.gestionar') ? actor.id : (cmd.preparerId ?? null);
       const target =
         tipo === 'repaso'
           ? (state.config.repasoTargetMinutes ?? 30) * 60_000
@@ -1124,7 +1149,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
         requestId: pedidoAbierto?.id ?? null,
         vehicleId: cmd.vehicleId,
         siteId: cmd.siteId,
-        preparerId: cmd.preparerId ?? null,
+        preparerId,
         tipo,
         phase: 'pendiente',
         runState: 'pendiente',
@@ -1156,7 +1181,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
           ...next,
           requests: replace(next.requests, pedido.id, {
             status: 'en_curso',
-            assignedTo: cmd.preparerId ?? pedido.assignedTo,
+            assignedTo: preparerId ?? pedido.assignedTo,
           }),
         };
       }
@@ -1181,6 +1206,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       const next: AppState = {
         ...state,
         preparations: replace(state.preparations, cmd.prepId, {
+          preparerId: p.preparerId ?? cmd.userId,
           runState: 'en_curso',
           runningSince: cmd.at,
           waitingSince: null,
@@ -1189,6 +1215,8 @@ function aplicar(state: AppState, cmd: Command): AppState {
           startedAt: p.startedAt ?? cmd.at,
         }),
         vehicles: replace(state.vehicles, p.vehicleId, { status: 'en_preparacion' }),
+        requests: state.requests.map(r => r.id === p.requestId && r.status !== 'terminada' && r.status !== 'cancelada'
+          ? { ...r, status: 'en_curso', assignedTo: p.preparerId ?? cmd.userId } : r),
       };
       return addEvent(next, {
         vehicleId: p.vehicleId,

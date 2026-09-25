@@ -226,11 +226,21 @@ export function estadoParaSedes(s: AppState, u: User): AppState {
 
 /** El estado que le toca a cada uno. */
 export function estadoPara(s: AppState, u: User, colaboradorExterno: boolean): AppState {
-  const recortado = colaboradorExterno
+  let recortado = colaboradorExterno
     ? estadoParaColaborador(s, u)
     : esGestorComercial(u)
       ? estadoParaAmbitoComercial(s, u)
       : estadoParaSedes(s, u);
+  if (!colaboradorExterno && can(s, u, 'preparacion.ejecutar') && !can(s, u, 'preparacion.gestionar')) {
+    const ocupados = new Set(s.preparations.filter(p => p.preparerId && p.preparerId !== u.id
+      && p.runState !== 'terminado' && p.runState !== 'cancelado').map(p => p.vehicleId));
+    recortado = { ...recortado,
+      preparations: recortado.preparations.filter(p => p.preparerId === u.id || (!p.preparerId &&
+        !s.requests.some(r => r.id === p.requestId && r.assignedTo && r.assignedTo !== u.id))),
+      requests: recortado.requests.filter(r => r.type !== 'preparacion' ||
+        ((!r.assignedTo || r.assignedTo === u.id) && !ocupados.has(r.vehicleId))),
+    };
+  }
   return {
     ...recortado,
     // La API conserva `read` para los clientes antiguos, pero nunca enseña

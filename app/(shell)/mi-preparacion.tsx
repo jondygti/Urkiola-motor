@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { campo, Btn, Field, H1, Modal, Muted, Notice, Panel, Pill, ProgressBar, Screen, Select, Spacer, radius, space, useTheme } from '@/ui';
 import { useStore, useTicker } from '@/data/store';
-import { activePreparations, deadlineOf, prepRequestsSinAbrir } from '@/data/selectors';
+import { activePreparations, deadlineOf, prepRequestsSinAbrir, historialPreparador, resumenPreparador } from '@/data/selectors';
 import { idCreadoPor, prepElapsedMs, prepIsOverSla, prepProgress } from '@/data/commands';
 import { formatDateTime, formatDuration, formatShortDuration, siteName, userName, vehicleName, vehicleRef } from '@/data/format';
 import type { CheckState, Preparation, ServiceRequest } from '@/data/types';
@@ -12,6 +12,11 @@ import { DeadlineChip } from '@/features/common/DeadlineChip';
 import { FinishPrepModal } from '@/features/prep/FinishPrep';
 import { CampanaCheck } from '@/features/prep/CampanaCheck';
 import { UbicacionVehiculo } from '@/features/common/Ubicacion';
+
+const mesDeFecha = (iso: string) => {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
 
 /**
  * Pantalla de trabajo del preparador.
@@ -24,6 +29,8 @@ export default function MyPrepScreen() {
   const { state, user } = useStore();
   const { c } = useTheme();
   const now = useTicker(1000);
+  const [vista, setVista] = useState('pendientes');
+  const [mes, setMes] = useState('__all__');
   const [openId, setOpenId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -35,7 +42,7 @@ export default function MyPrepScreen() {
         && r.siteId === p.siteId && (r.prepTipo ?? 'entrada') === (p.tipo ?? 'entrada'));
 
     return activePreparations(state)
-      .filter((p) => (p.preparerId === user?.id || !p.preparerId) && inScope(p.siteId))
+      .filter((p) => (p.preparerId === user?.id || (!p.preparerId && (!requestOf(p)?.assignedTo || requestOf(p)?.assignedTo === user?.id))) && inScope(p.siteId))
       .sort((a, b) => {
         // Primero lo vencido, luego lo que se sale del objetivo, luego lo demás.
         const plazo = (p: Preparation) => {
@@ -54,6 +61,9 @@ export default function MyPrepScreen() {
     [state, user, now]
   );
 
+  const historial = historialPreparador(state, user?.id ?? '');
+  const meses = [...new Set(historial.map(p => mesDeFecha(p.finishedAt!)))].sort().reverse();
+  const hechos = historial.filter(p => mes === '__all__' || mesDeFecha(p.finishedAt!) === mes);
   const total = mias.length + pedidas.length;
   const abierta = openId ? state.preparations.find((p) => p.id === openId) ?? null : null;
 
@@ -63,7 +73,7 @@ export default function MyPrepScreen() {
         <View style={{ width: '100%', maxWidth: 720, alignSelf: 'center' }}>
           <H1>Mi preparación</H1>
           <Muted>
-            {total === 0
+            {vista === 'historial' ? 'Tus servicios finalizados, con fechas y tiempos.' : total === 0
               ? 'No tienes preparaciones pendientes.'
               : `${total} ${total === 1 ? 'vehículo' : 'vehículos'} por preparar, lo más urgente arriba.`}
           </Muted>
@@ -71,10 +81,33 @@ export default function MyPrepScreen() {
           {toast ? <Notice>{toast}</Notice> : null}
           <Spacer />
 
-          {total === 0 ? (
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: space.md }}>
+            <Btn variant={vista === 'pendientes' ? 'primary' : 'default'} onPress={() => setVista('pendientes')}>Pendientes</Btn>
+            <Btn variant={vista === 'historial' ? 'primary' : 'default'} onPress={() => setVista('historial')}>Mi historial</Btn>
+          </View>
+          {vista === 'historial' ? <>
+            <Select value={mes} onChange={setMes} title="Mes del historial" options={[
+              { value: '__all__', label: 'Todo el historial' }, ...meses.map(m => ({ value: m, label: m }))]} />
+            <Spacer h={space.sm} />
+            {(['entrada', 'repaso'] as const).map(tipo => {
+              const resumen = resumenPreparador(hechos.filter(p => (p.tipo ?? 'entrada') === tipo));
+              return <Panel key={tipo} title={tipo === 'entrada' ? 'Preparaciones completas realizadas' : 'Repasos realizados'}>
+                <Muted>{resumen.total} terminadas · {formatShortDuration(resumen.effectiveMs)} efectivos · media {formatShortDuration(resumen.avgMs)} · {formatShortDuration(resumen.waitingMs)} de espera</Muted>
+              </Panel>;
+            })}
+            {!hechos.length ? <Muted>No tienes preparaciones finalizadas en este período.</Muted> : null}
+            {hechos.map(p => {
+              const v = state.vehicles.find(v => v.id === p.vehicleId);
+              return <Panel key={p.id} title={v ? `${vehicleRef(v)} · ${vehicleName(v)}` : p.vehicleId}>
+                <Muted>{p.tipo === 'repaso' ? 'Repaso de entrega' : 'Preparación completa'} · {siteName(state, p.siteId)}</Muted>
+                <Muted>Finalizada: {formatDateTime(p.finishedAt)} · {formatShortDuration(p.effectiveMs)} efectivos · {formatShortDuration(p.waitingMs)} de espera</Muted>
+                <Btn onPress={() => setOpenId(p.id)}>Ver preparación finalizada</Btn>
+              </Panel>;
+            })}
+          </> : total === 0 ? (
             <Panel>
               <Muted>
-                Cuando te asignen una preparación aparecerá aquí. Mientras tanto puedes buscar un vehículo
+                Aquí aparecen los trabajos libres de tus sedes y los que tienes asignados. Mientras tanto puedes buscar un vehículo
                 por matrícula desde Flota.
               </Muted>
             </Panel>
@@ -288,7 +321,7 @@ function WorkModal({
   const { done, total, pct } = prepProgress(prep);
   const enCurso = prep.runState === 'en_curso';
   const fuera = prepIsOverSla(prep, now);
-  const puede = can('preparacion.ejecutar');
+  const puede = can('preparacion.ejecutar') && prep.runState !== 'terminado' && prep.runState !== 'cancelado';
   const pendientes = prep.items.filter((i) => i.state === 'pendiente').length;
 
   const toggle = (requirementId: string, current: CheckState) => {
@@ -323,7 +356,7 @@ function WorkModal({
             </Btn>
           </>
         ) : (
-          <Muted>Tu rol puede consultar esta preparación, pero no modificarla.</Muted>
+          <Muted>Esta preparación está disponible solo para consulta.</Muted>
         )
       }
     >

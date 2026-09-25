@@ -868,5 +868,52 @@ export async function ejecutar(browser, BASE) {
     await context.close();
   }
 
+  /* 27 · cola compartida, asignación personal e historial de solo lectura */
+  {
+    const { context, page, errores } = await entrarComo(browser, USUARIOS.preparador, 420);
+    await page.goto(`${BASE}/mi-preparacion`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(800);
+    const ids = await page.evaluate(() => {
+      const stored = JSON.parse(localStorage.getItem('urkiola.state.v1'));
+      const s = stored.state;
+      const vs = s.vehicles.filter(v => v.plate).slice(0, 3);
+      const base = s.preparations[0];
+      vs.forEach(v => { v.location = { siteId: 'leioa' }; v.targetSiteId = 'leioa'; });
+      s.requests = [];
+      s.preparations = vs.map((v, i) => ({ ...base, id: `test-propia-${i}`, requestId: null,
+        vehicleId: v.id, siteId: 'leioa', tipo: 'entrada', preparerId: i === 0 ? null : i === 1 ? 'u-ane' : 'u-pedro',
+        runState: i === 2 ? 'terminado' : 'pendiente', startedAt: i === 2 ? '2026-09-01T10:00:00Z' : null,
+        finishedAt: i === 2 ? '2026-09-01T11:00:00Z' : null, runningSince: null, waitingSince: null,
+        effectiveMs: i === 2 ? 3600000 : 0, waitingMs: 0 }));
+      localStorage.setItem('urkiola.state.v1', JSON.stringify(stored));
+      return vs.map(v => v.plate);
+    });
+    await page.reload({ waitUntil: 'networkidle' });
+    let body = await page.evaluate(() => document.body.innerText);
+    ok('27 · ve el trabajo libre de su sede', body.includes(ids[0]));
+    ok('27 · no ve en su cola el trabajo de su compañera', !body.includes(ids[1]));
+    await page.getByText('Empezar', { exact: true }).first().click();
+    await pulsar(page, '▶ Empezar', { exact: true });
+    await page.waitForTimeout(500);
+    ok('27 · empezar un trabajo libre lo asigna al preparador', (await estadoGuardado(page)).preparations.find(p => p.id === 'test-propia-0').preparerId === 'u-pedro');
+    const ane = (await estadoGuardado(page)).users.find(u => u.id === 'u-ane');
+    await cambiarDeUsuario(context, page, ane, `${BASE}/mi-preparacion`);
+    body = await page.evaluate(() => document.body.innerText);
+    ok('27 · al cogerlo Pedro desaparece de la cola de Ane', !body.includes(ids[0]));
+    await cambiarDeUsuario(context, page, USUARIOS.preparador, `${BASE}/mi-preparacion`);
+    await pulsar(page, 'Mi historial', { exact: true });
+    body = await page.evaluate(() => document.body.innerText);
+    ok('27 · historial muestra el trabajo terminado propio y sus tiempos', body.includes(ids[2]) && body.includes('1h 00m'));
+    ok('27 · historial excluye activos y ajenos', !body.includes(ids[0]) && !body.includes(ids[1]));
+    await pulsar(page, 'Ver preparación finalizada', { exact: true });
+    body = await page.evaluate(() => document.body.innerText);
+    ok('27 · detalle histórico no permite terminar ni reanudar', !body.includes('Reanudar') && !body.includes('✓ Terminar'));
+    await cambiarDeUsuario(context, page, USUARIOS.logistica, `${BASE}/preparacion`);
+    body = await page.evaluate(() => document.body.innerText);
+    ok('27 · oficina ve productividad por preparador', body.includes('Productividad por preparador') && body.includes('Pedro Larrea') && body.includes('1h 00m'));
+    ok('27 · cola e historial sin errores JavaScript', errores.length === 0, errores[0] ?? '');
+    await context.close();
+  }
+
   return resumen();
 }
