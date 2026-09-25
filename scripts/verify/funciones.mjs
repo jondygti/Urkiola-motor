@@ -894,7 +894,9 @@ export async function ejecutar(browser, BASE) {
     ok('27 · no ve en su cola el trabajo de su compañera', !body.includes(ids[1]));
     await page.getByText('Empezar', { exact: true }).first().click();
     await pulsar(page, '▶ Empezar', { exact: true });
-    await page.waitForTimeout(500);
+    // El estado demo se persiste con 600 ms de debounce; esperamos por encima
+    // para comprobar lo que realmente quedó guardado, no solo el estado React en memoria.
+    await page.waitForTimeout(800);
     ok('27 · empezar un trabajo libre lo asigna al preparador', (await estadoGuardado(page)).preparations.find(p => p.id === 'test-propia-0').preparerId === 'u-pedro');
     const ane = (await estadoGuardado(page)).users.find(u => u.id === 'u-ane');
     await cambiarDeUsuario(context, page, ane, `${BASE}/mi-preparacion`);
