@@ -309,7 +309,7 @@ function WorkModal({
   onClose: () => void;
   onDone: (m: string) => void;
 }) {
-  const { state, run } = useStore();
+  const { state, run, user } = useStore();
   const { c } = useTheme();
   const now = useTicker(1000);
   const { can } = usePerms();
@@ -321,7 +321,12 @@ function WorkModal({
   const { done, total, pct } = prepProgress(prep);
   const enCurso = prep.runState === 'en_curso';
   const fuera = prepIsOverSla(prep, now);
-  const puede = can('preparacion.ejecutar') && prep.runState !== 'terminado' && prep.runState !== 'cancelado';
+  const cerrada = prep.runState === 'terminado' || prep.runState === 'cancelado';
+  const puedeEjecutar = can('preparacion.ejecutar');
+  const puedeGestionar = can('preparacion.gestionar');
+  const libre = !prep.preparerId;
+  const puedeAceptar = puedeEjecutar && libre && !cerrada;
+  const puede = puedeEjecutar && !cerrada && (puedeGestionar || prep.preparerId === user?.id);
   const pendientes = prep.items.filter((i) => i.state === 'pendiente').length;
 
   const toggle = (requirementId: string, current: CheckState) => {
@@ -336,7 +341,14 @@ function WorkModal({
       onClose={onClose}
       title={vehicle ? `${vehicleName(vehicle)} · ${vehicleRef(vehicle)}` : 'Preparación'}
       footer={
-        puede ? (
+        puedeAceptar ? (
+          <>
+            <Muted>Empieza la preparación para asignártela antes de marcar el checklist o finalizar.</Muted>
+            <Btn variant="primary" full onPress={() => run({ type: 'prep.start', prepId: prep.id })}>
+              ▶ Empezar y asignármela
+            </Btn>
+          </>
+        ) : puede ? (
           <>
             {enCurso ? (
               <Btn full onPress={() => setPauseOpen(true)}>

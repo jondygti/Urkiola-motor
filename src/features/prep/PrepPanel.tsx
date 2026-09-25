@@ -40,6 +40,7 @@ export function PrepPanel({
   const { can } = usePerms();
   // Sin permiso para trabajar en preparaciones, el panel es de solo lectura.
   const puedeEjecutar = can('preparacion.ejecutar');
+  const puedeGestionar = can('preparacion.gestionar');
   const [pauseOpen, setPauseOpen] = useState(false);
   const [finishOpen, setFinishOpen] = useState(false);
   const [reason, setReason] = useState(state.config.waitReasons[0]);
@@ -56,7 +57,8 @@ export function PrepPanel({
   const terminada = prep.runState === 'terminado';
   const cancelada = prep.runState === 'cancelado';
   const cerrada = terminada || cancelada;
-  const bloqueado = cerrada || !puedeEjecutar;
+  const puedeTrabajar = puedeEjecutar && (puedeGestionar || prep.preparerId === user?.id);
+  const bloqueado = cerrada || !puedeTrabajar;
   const apt = !cancelada && (terminada || (pct === 100 && prep.phase === 'apto_entrega'));
 
   const cycle = (requirementId: string, current: CheckState) => {
@@ -102,6 +104,10 @@ export function PrepPanel({
         <PrepStatePill runState={prep.runState} overSla={overSla} />
         {apt ? <Pill tone="ok">APTO PARA ENTREGA</Pill> : <Pill tone="red">NO APTO PARA ENTREGA</Pill>}
       </View>
+
+      {!cerrada && puedeEjecutar && !puedeTrabajar ? (
+        <Notice tone="warn">Empieza la preparación para asignártela antes de marcar el checklist o finalizar.</Notice>
+      ) : null}
 
       {prep.runState === 'bloqueado' || prep.runState === 'en_espera' ? (
         <Notice tone={prep.runState === 'bloqueado' ? 'danger' : 'warn'}>
@@ -246,7 +252,7 @@ export function PrepPanel({
             ▶ {prep.startedAt ? 'Reanudar' : 'Iniciar'}
           </Btn>
         ) : null}
-        {!cerrada && puedeEjecutar ? (
+        {!cerrada && puedeTrabajar ? (
           <Btn variant="primary" small={compact} onPress={() => setFinishOpen(true)}>
             ✓ Finalizar preparación
           </Btn>

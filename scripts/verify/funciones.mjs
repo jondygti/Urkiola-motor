@@ -893,7 +893,9 @@ export async function ejecutar(browser, BASE) {
     ok('27 · ve el trabajo libre de su sede', body.includes(ids[0]));
     ok('27 · no ve en su cola el trabajo de su compañera', !body.includes(ids[1]));
     await page.getByText('Empezar', { exact: true }).first().click();
-    await pulsar(page, '▶ Empezar', { exact: true });
+    body = await page.evaluate(() => document.body.innerText);
+    ok('27 · un trabajo libre obliga a aceptarlo antes de tocarlo', body.includes('Empieza la preparación para asignártela') && !body.includes('✓ Terminar'));
+    await pulsar(page, '▶ Empezar y asignármela', { exact: true });
     // El estado demo se persiste con 600 ms de debounce; esperamos por encima
     // para comprobar lo que realmente quedó guardado, no solo el estado React en memoria.
     await page.waitForTimeout(800);
