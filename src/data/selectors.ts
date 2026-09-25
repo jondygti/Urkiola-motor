@@ -980,3 +980,16 @@ export function agruparTrasladosPorTrayecto(solicitudes: ServiceRequest[]) {
 /** Las reglas inactivas también conservan su destinatario al reactivarlas. */
 export const rolUsadoEnReglas = (s: AppState, roleId: Id): boolean =>
   s.rules.some(r => r.audience?.kind === 'rol' && r.audience.roleId === roleId);
+
+/** Histórico personal de servicios finalizados; no mezcla cancelaciones ni trabajo activo. */
+export function historialPreparador(s: AppState, userId: Id): Preparation[] {
+  return s.preparations.filter(p => p.preparerId === userId && p.runState === 'terminado' && p.finishedAt)
+    .sort((a, b) => b.finishedAt!.localeCompare(a.finishedAt!));
+}
+
+export function resumenPreparador(preparations: Preparation[]) {
+  const terminadas = preparations.filter(p => p.runState === 'terminado' && p.finishedAt);
+  const effectiveMs = terminadas.reduce((total, p) => total + p.effectiveMs, 0);
+  return { total: terminadas.length, effectiveMs, avgMs: terminadas.length ? effectiveMs / terminadas.length : 0,
+    waitingMs: terminadas.reduce((total, p) => total + p.waitingMs, 0) };
+}

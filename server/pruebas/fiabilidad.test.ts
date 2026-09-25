@@ -181,6 +181,9 @@ test('el reloj del servidor prepara el repaso del día sin abrir un cliente y no
   const abrir = cmd('prep.create', { vehicleId: id, siteId: 'leioa' });
   await servicio.ejecutar(abrir, admin);
   const preparador = servicio.estado.users.find((u) => u.role === 'preparador')!;
+  // El operario acepta el trabajo libre antes de darlo por terminado.
+  await servicio.ejecutar(cmd('prep.start', { prepId: idCreadoPor('prep', abrir) }), preparador);
+  assert.equal(servicio.estado.preparations.find(p => p.id === idCreadoPor('prep', abrir))?.preparerId, preparador.id);
   const ids: string[] = [];
   for (let i = 0; i < 4; i++) {
     ids.push(await servicio.guardarFoto(Buffer.from([137, 80, 78, 71, i]), 'image/png', preparador));

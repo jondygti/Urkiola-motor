@@ -9,7 +9,7 @@
  * La tabla de qué exige cada comando está en docs/BACKEND-API.md.
  */
 import type { AppState, Id, Permission, User } from '../../src/data/types';
-import { motivoCancelacion, type Command } from '../../src/data/commands';
+import { motivoAsignacionPreparacion, motivoCancelacion, type Command } from '../../src/data/commands';
 import { can, comercialDelVehiculo, esDelComercial, esGestorComercial, isSimpleRole, puedeGestionarEntrega, vehiculoEnAmbitoComercial } from '../../src/data/selectors';
 
 /** Dos formas de escribir el mismo nombre: «Juan» y «Juan Bilbao». */
@@ -234,6 +234,9 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
       if (!v || !vehiculoEnAmbitoComercial(s, u, v)) return 'Ese vehículo está fuera de tu ámbito comercial.';
     }
   }
+
+  const asignacion = motivoAsignacionPreparacion(s, u, cmd);
+  if (asignacion) return asignacion;
 
   // Reparto por sedes: quien tiene sedes asignadas no toca las demás.
   const sede = sedeAfectada(s, cmd);

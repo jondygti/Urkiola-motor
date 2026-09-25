@@ -4,7 +4,7 @@ import { Text, View } from 'react-native';
 import { Btn, Column, DataTable, Grid, H1, Kpi, Modal, Muted, Notice, Panel, Screen, Select, Spacer, StateFlow, StatLine, Toolbar, space, tipografia, useTheme } from '@/ui';
 import { useAppState, useTicker } from '@/data/store';
 import { prepElapsedMs, prepIsOverSla, prepProgress } from '@/data/commands';
-import { prepKpis } from '@/data/selectors';
+import { prepKpis, resumenPreparador } from '@/data/selectors';
 import { formatShortDuration, locationLabel, siteName, userName, vehicleName, vehicleRef } from '@/data/format';
 import { PREP_PHASES, PREP_PHASE_LABEL, PREP_RUN_STATE_LABEL, type Preparation } from '@/data/types';
 import { Cell, PrepStatePill, useOpenVehicle } from '@/features/common/bits';
@@ -23,6 +23,7 @@ export default function PreparationScreen() {
   const [servicio, setServicio] = useState('entrada');
   const [runState, setRunState] = useState(ALL);
   const [timing, setTiming] = useState(ALL);
+  const [mesProductividad, setMesProductividad] = useState(ALL);
   const [detail, setDetail] = useState<Preparation | null>(null);
 
   const kpis = prepKpis({ ...state,
@@ -183,6 +184,19 @@ export default function PreparationScreen() {
     },
   ];
 
+  const mesDeFecha = (iso: string) => {
+    const d = new Date(iso);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  };
+  const finalizadas = state.preparations.filter(p => p.runState === 'terminado' && p.finishedAt
+    && (p.tipo ?? 'entrada') === servicio && (site === ALL || p.siteId === site));
+  const mesesProductividad = [...new Set(finalizadas.map(p => mesDeFecha(p.finishedAt!)))].sort().reverse();
+  const delPeriodo = finalizadas.filter(p => mesProductividad === ALL || mesDeFecha(p.finishedAt!) === mesProductividad);
+  const productividad = [...new Set(delPeriodo.map(p => p.preparerId))].map(id => ({
+    id: id ?? '__sin_asignar__', nombre: id ? userName(state, id) : 'Sin preparador registrado',
+    ...resumenPreparador(delPeriodo.filter(p => p.preparerId === id)),
+  }));
+
   const live = detail ? state.preparations.find((p) => p.id === detail.id) ?? null : null;
 
   return (
@@ -244,6 +258,20 @@ export default function PreparationScreen() {
         <Kpi label="Checklist" value={`${kpis.checklistPct}%`} />
       </Grid>
 
+      <Spacer h={space.lg} />
+      <Panel title="Productividad por preparador">
+        <Muted>Servicios finalizados de la sede y servicio seleccionados. El tiempo efectivo excluye las esperas.</Muted>
+        <Select value={mesProductividad} onChange={setMesProductividad} title="Mes de productividad"
+          options={[{ value: ALL, label: 'Todo el historial' }, ...mesesProductividad.map(m => ({ value: m, label: m }))]} />
+        <DataTable rows={productividad} keyExtractor={r => r.id} emptyText="Sin servicios finalizados en este período."
+          columns={[
+            { key: 'nombre', header: 'Preparador', primary: true, value: r => r.nombre, render: r => <Cell>{r.nombre}</Cell> },
+            { key: 'total', header: 'Terminadas', value: r => String(r.total), render: r => <Cell>{r.total}</Cell> },
+            { key: 'efectivo', header: 'Tiempo efectivo', value: r => formatShortDuration(r.effectiveMs), render: r => <Cell>{formatShortDuration(r.effectiveMs)}</Cell> },
+            { key: 'media', header: 'Media por servicio', value: r => formatShortDuration(r.avgMs), render: r => <Cell>{formatShortDuration(r.avgMs)}</Cell> },
+            { key: 'espera', header: 'Esperas', value: r => formatShortDuration(r.waitingMs), render: r => <Cell>{formatShortDuration(r.waitingMs)}</Cell> },
+          ]} />
+      </Panel>
       <Spacer h={space.lg} />
 
       <Panel>

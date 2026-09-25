@@ -172,3 +172,9 @@ La prueba aleatoria ampliada detectó también roles eliminados con reglas de av
 ## Hora de entrega en solicitudes (24 de septiembre de 2026)
 
 Preparación completa y repaso permiten elegir fecha y hora de entrega (horas y minutos). La ficha permite corregirla y el preparador la ve en su cola y detalle. Se mantiene el campo ISO `deliveryDate`, los comandos y permisos existentes y la sincronización offline. Cambiar el día conserva la hora; una fecha nueva propone las 09:00, como hasta ahora. El plazo de la solicitud usa el instante completo.
+
+## Cola e historial del preparador (25/09/2026)
+
+Los preparadores comparten los trabajos libres de sus sedes. Al abrir una solicitud o empezar una preparación libre, se asigna al actor y desaparece de la cola de los compañeros. La reserva se valida en servidor: dos aceptaciones concurrentes no comparten ni duplican trabajo; el segundo recibe un rechazo y la cola offline conserva su tratamiento de conflictos. Sin conexión, la reserva es provisional hasta sincronizar. Logística conserva la visión de gestión y los permisos existentes.
+
+«Mi historial» reúne únicamente los servicios propios finalizados, con mes, fecha, sede, tiempos efectivos y esperas. Sus resúmenes separan preparación completa y repaso; los detalles son de solo lectura. La oficina dispone en Preparación de productividad por preparador (terminadas, tiempo efectivo, media y esperas), por sede, servicio y mes, además del detalle filtrable por persona y estado. No se calcula una tasa de ocupación laboral sin datos de jornada.
