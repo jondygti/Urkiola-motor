@@ -1096,6 +1096,13 @@ function aplicar(state: AppState, cmd: Command): AppState {
       }
 
       let next: AppState = { ...state, requests: replace(state.requests, cmd.requestId, patch) };
+      // La solicitud y su trabajo abierto comparten responsable. Mantener
+      // el anterior impediría trabajar a quien acaba de asignar Logística.
+      if (req.type === 'preparacion' && cmd.assignedTo !== undefined) {
+        next = { ...next, preparations: state.preparations.map(p =>
+          p.requestId === req.id && p.runState !== 'terminado' && p.runState !== 'cancelado'
+            ? { ...p, preparerId: cmd.assignedTo! } : p) };
+      }
       if (recoge) {
         next = { ...next, vehicles: replace(next.vehicles, req.vehicleId, { status: 'en_traslado' }) };
       }
@@ -1111,7 +1118,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
             : `Solicitud ${REQUEST_STATUS_LABEL[cmd.status].toLowerCase()}`,
         detail: preparaLlaves
           ? `Leioa · Logística · ${userName(state, cmd.userId)}`
-          : `${req.type === 'traslado' ? 'Traslado' : 'Preparación'} · ${userName(state, cmd.userId)}`,
+          : `${req.type === 'traslado' ? 'Traslado' : 'Preparación'} · ${userName(state, cmd.userId)}${req.type === 'preparacion' && cmd.assignedTo !== undefined && cmd.assignedTo !== req.assignedTo ? ` · Responsable: ${req.assignedTo ? userName(state, req.assignedTo) : 'Sin asignar'} → ${cmd.assignedTo ? userName(state, cmd.assignedTo) : 'Sin asignar'}` : ''}`,
         at: cmd.at,
         userId: cmd.userId,
       });
@@ -1200,7 +1207,19 @@ function aplicar(state: AppState, cmd: Command): AppState {
     case 'prep.resume': {
       const p = state.preparations.find((x) => x.id === cmd.prepId);
       if (!p || (p.runState === 'terminado' || p.runState === 'cancelado')) return state;
-      if (p.runState === 'en_curso') return state;
+      if (p.runState === 'en_curso') {
+        if (p.preparerId) return state;
+        // Los datos anteriores permitían arrancar sin dueño. Reclamar ese
+        // trabajo no debe reiniciar el reloj ni perder el tiempo acumulado.
+        const next: AppState = {
+          ...state,
+          preparations: replace(state.preparations, p.id, { preparerId: cmd.userId }),
+          requests: state.requests.map(r => r.id === p.requestId && r.status !== 'terminada' && r.status !== 'cancelada'
+            ? { ...r, status: 'en_curso', assignedTo: cmd.userId } : r),
+        };
+        return addEvent(next, { vehicleId: p.vehicleId, kind: 'preparacion', title: 'Preparación asignada',
+          detail: userName(state, cmd.userId), at: cmd.at, userId: cmd.userId });
+      }
       if (p.waitingSince && cmd.at < p.waitingSince) return state;
       const waitedMs = transcurrido(p.waitingSince, cmd);
       const next: AppState = {
