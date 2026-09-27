@@ -93,3 +93,41 @@ test('Backend: reclamar una preparación abierta sin dueño también es exclusiv
   assert.equal(s.estado.preparations[0].preparerId, pedro.id);
   assert.equal(s.estado.requests[0].assignedTo, pedro.id);
 });
+
+test('una preparación histórica en curso sin dueño se reclama sin reiniciar sus tiempos', () => {
+  const s = escenario(); const p = s.preparations[0];
+  Object.assign(p, { runState: 'en_curso', startedAt: '2026-09-01T08:00:00Z', runningSince: '2026-09-01T09:00:00Z', effectiveMs: 1234, waitingMs: 5678 });
+  const c = cmd('prep.start', { prepId: p.id }, { userId: 'u-pedro' });
+  const next = applyCommand(s, c);
+  assert.equal(next.preparations[0].preparerId, 'u-pedro');
+  assert.equal(next.requests[0].assignedTo, 'u-pedro');
+  for (const key of ['startedAt', 'runningSince', 'effectiveMs', 'waitingMs'] as const) assert.equal(next.preparations[0][key], p[key]);
+  assert.deepEqual(applyCommand(next, c), next);
+  assert.equal(comprobarPermiso(next, next.users.find(u => u.id === 'u-pedro')!, cmd('prep.pause', { prepId: p.id }, { userId: 'u-pedro' })), null);
+});
+
+test('Logística reasigna solicitud y preparación juntas sin alterar tiempos ni trabajos cerrados', async t => {
+  const backend = await servidorDePruebas(); t.after(() => backend.limpiar());
+  const svc = backend.servicio;
+  const s = escenario();
+  svc.estado.requests = s.requests; svc.estado.preparations = s.preparations;
+  const pedro = svc.estado.users.find(u => u.id === 'u-pedro')!;
+  const ane = svc.estado.users.find(u => u.id === 'u-ane')!;
+  const log = svc.estado.users.find(u => u.id === 'u-log')!;
+  const p = svc.estado.preparations[0];
+  await svc.ejecutar(cmd('prep.start', { prepId: p.id }), pedro);
+  const before = structuredClone(svc.estado.preparations[0]);
+  svc.estado.preparations.push({ ...before, id: 'historica', runState: 'terminado' });
+  const change = cmd('request.update', { requestId: s.requests[0].id, status: 'en_curso', assignedTo: ane.id });
+  await assert.rejects(svc.ejecutar(change, pedro));
+  await svc.ejecutar(change, log);
+  assert.equal(svc.estado.requests[0].assignedTo, ane.id);
+  assert.deepEqual(svc.estado.preparations[0], { ...before, preparerId: ane.id });
+  assert.equal(svc.estado.preparations[1].preparerId, pedro.id);
+  assert.ok(svc.estadoDe(ane).preparations.some(x => x.id === p.id));
+  assert.ok(!svc.estadoDe(pedro).preparations.some(x => x.id === p.id));
+  await assert.rejects(svc.ejecutar(cmd('prep.pause', { prepId: p.id, reason: 'Material' }), pedro));
+  await svc.ejecutar(change, log);
+  assert.equal(svc.estado.preparations[0].preparerId, ane.id);
+  await svc.ejecutar(cmd('prep.pause', { prepId: p.id, reason: 'Material' }), ane);
+});

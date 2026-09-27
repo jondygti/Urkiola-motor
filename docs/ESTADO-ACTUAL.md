@@ -178,3 +178,7 @@ Preparación completa y repaso permiten elegir fecha y hora de entrega (horas y 
 Los preparadores comparten los trabajos libres de sus sedes. Al abrir una solicitud o empezar una preparación libre, se asigna al actor y desaparece de la cola de los compañeros. La reserva se valida en servidor: dos aceptaciones concurrentes no comparten ni duplican trabajo; el segundo recibe un rechazo y la cola offline conserva su tratamiento de conflictos. Sin conexión, la reserva es provisional hasta sincronizar. Logística conserva la visión de gestión y los permisos existentes.
 
 «Mi historial» reúne únicamente los servicios propios finalizados, con mes, fecha, sede, tiempos efectivos y esperas. Sus resúmenes separan preparación completa y repaso; los detalles son de solo lectura. La oficina dispone en Preparación de productividad por preparador (terminadas, tiempo efectivo, media y esperas), por sede, servicio y mes, además del detalle filtrable por persona y estado. No se calcula una tasa de ocupación laboral sin datos de jornada.
+
+### Correcciones de asignación (27/09/2026)
+
+Reasignar desde Logística actualiza conjuntamente la solicitud y su preparación abierta, conserva tiempos y trabajos cerrados y deja constancia de ambos responsables. Las preparaciones históricas que ya estaban en curso sin responsable se pueden reclamar sin reiniciar el cronómetro. Los permisos exclusivos se mantienen en backend y en la lógica compartida.
