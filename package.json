@@ -40,7 +40,7 @@
     "expo-system-ui": "~57.0.4",
     "expo-updates": "~57.0.23",
     "react": "19.2.3",
-    "react-dom": "19.2.3",
+    "react-dom": "19.3.0",
     "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
