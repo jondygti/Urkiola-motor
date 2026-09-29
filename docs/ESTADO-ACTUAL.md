@@ -147,7 +147,7 @@ Antes de introducir secretos o datos reales, revisar estos tres puntos en GitHub
 - Chromium comprueba ambos responsables, URLs ajenas, edición persistente de clasificación y operaciones comerciales por API real.
 
 - La restauración de sesión sin caché espera a recuperar la cuenta antes de habilitar rutas, conservando los enlaces directos. Con caché se mantiene el arranque offline inmediato.
-- La demo solo acepta un estado persistido de su versión exacta (v25 actualmente) y re-vincula la sesión con el usuario canónico actual; una demo antigua ya no puede ocultar una semilla nueva.
+- La demo solo acepta un estado persistido de su versión exacta (v26 actualmente) y re-vincula la sesión con el usuario canónico actual; una demo antigua ya no puede ocultar una semilla nueva.
 - Las evidencias fotográficas/albaranes se sirven únicamente si la referencia aparece en el estado autorizado del usuario; conocer un ID no da acceso fuera de su ámbito.
 
 
@@ -182,3 +182,12 @@ Los preparadores comparten los trabajos libres de sus sedes. Al abrir una solici
 ### Correcciones de asignación (27/09/2026)
 
 Reasignar desde Logística actualiza conjuntamente la solicitud y su preparación abierta, conserva tiempos y trabajos cerrados y deja constancia de ambos responsables. Las preparaciones históricas que ya estaban en curso sin responsable se pueden reclamar sin reiniciar el cronómetro. Los permisos exclusivos se mantienen en backend y en la lógica compartida.
+
+## Revisión del 29/09/2026
+
+- **Productividad al reasignar.** Cuando una preparación cambia de manos a medias —la reasigna Logística o alguien reclama una sin dueño—, lo trabajado y esperado hasta ese momento queda a nombre de quien la tenía (`tiempoAnterior`). La terminada cuenta para quien la cierra; el tiempo, para cada uno según lo que hizo. Antes todo el tiempo iba al último: una hora de Pedro reasignada a Ane salía como una hora de Ane y cero de Pedro.
+- **Historial por coche.** El límite pasa de 4.000 apuntes para toda la red a 400 por coche (1.000 para lo que no es de ningún coche): el trasiego de unos ya no borra la historia de otros. `/state` manda los 4.000 más recientes y la ficha pide el historial completo con `GET /historial/:vehicleId`, con el mismo recorte de ámbito que la sincronización. Los avisos se guardan 60 días (hasta 5.000) y a cada persona le llegan sus 300 más recientes.
+- **Día en hora de España.** El barrido de avisos y los repasos de entrega cuentan «hoy» en hora peninsular, con el cambio de hora europeo. Antes, entre las 00:00 y las 02:00 «hoy» era todavía ayer.
+- **Fotos en el navegador.** Si una foto no sube desde la web, se dice al momento para repetirla: el navegador no puede guardarla para después como hace el móvil.
+- La comprobación con navegador vuelve a terminar una preparación con las cuatro fotos y a comprobar que el coche queda en la plaza elegida y apto para entrega.
+- Versión de datos del dispositivo: **v26**.

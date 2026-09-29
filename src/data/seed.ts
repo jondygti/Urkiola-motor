@@ -1,4 +1,5 @@
 import { ALL_PERMISSIONS, BASE_COLUMNS } from './types';
+import { diaEnEspana } from './delivery-date';
 import type {
   AdminConfig,
   AppState,
@@ -777,9 +778,11 @@ function buildFleet(positions: Position[]): Build {
     // Los tres primeros se entregan hoy; el resto, en las próximas semanas.
     const dias = i < 3 ? 0 : 3 + Math.floor(rnd() * 40);
     // Partir del inicio del día: sumar diez horas a la hora actual hacía
-    // desaparecer los repasos de «hoy» al abrir la demo por la tarde.
-    const inicioDia = Math.floor(NOW / DAY) * DAY;
-    coche.deliveryDate = new Date(inicioDia + dias * DAY + 10 * HOUR).toISOString();
+    // desaparecer los repasos de «hoy» al abrir la demo por la tarde. Y del
+    // día de España, no del de Greenwich: abierta a las 00:30 en Bilbao,
+    // «hoy» ya es el día siguiente, y es el que cuenta el barrido.
+    const inicioDia = Date.parse(`${diaEnEspana(new Date(NOW).toISOString())}T00:00:00.000Z`);
+    coche.deliveryDate = new Date(inicioDia + dias * DAY + 8 * HOUR).toISOString();
     vehicles.push(coche);
   }
 

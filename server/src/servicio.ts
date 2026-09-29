@@ -11,7 +11,7 @@
  * que funciona. Si algún día no cupiera, lo que hay que cambiar es esto, no
  * la app ni las reglas.
  */
-import type { AppState, Id, User } from '../../src/data/types';
+import type { AppState, Id, TraceEvent, User } from '../../src/data/types';
 import { can, rolUsadoEnReglas } from '../../src/data/selectors';
 import { conflictoSolicitud, applyAll, applyCommand, type Command } from '../../src/data/commands';
 import { buildSeedState } from '../../src/data/seed';
@@ -32,7 +32,7 @@ import {
   limpiarFallos,
 } from './auth';
 import { comprobarPermiso, esColaboradorExterno } from './permisos';
-import { estadoPara } from './recorte';
+import { estadoPara, historialDeVehiculo } from './recorte';
 import { avisosNuevos, enviarAvisos } from './push';
 import { validarComando } from './validar';
 import { TIPOS_FOTO, type AlmacenFotos, type Foto } from './almacen/fotos';
@@ -357,6 +357,20 @@ export class Servicio {
   /** El estado que le corresponde ver a este usuario. */
   estadoDe(user: User): AppState {
     return estadoPara(this.estadoActual, user, esColaboradorExterno(this.estadoActual, user));
+  }
+
+  /** Historial completo de un coche que este usuario puede ver; 404 si no. */
+  historialDe(user: User, vehicleId: string): TraceEvent[] {
+    const eventos = historialDeVehiculo(
+      this.estadoActual,
+      user,
+      esColaboradorExterno(this.estadoActual, user),
+      vehicleId
+    );
+    // El mismo «no existe» para lo que no hay y para lo que no le toca: si
+    // no, preguntar por ids diría qué coches hay fuera de su ámbito.
+    if (!eventos) throw noEncontrado('Ese vehículo no está en tu ámbito.');
+    return eventos;
   }
 
   /* ----------------------------------------------------------- comandos */

@@ -28,6 +28,10 @@ Objetivo de producción: **Render + Supabase PostgreSQL/Auth/Storage + Expo/Andr
 - No subir secretos, `.env`, credenciales de QBI, Render o Supabase.
 - Una evidencia remota no se autoriza por su URL/ID: solo si está referenciada en el estado que ese usuario puede recibir.
 - No introducir un segundo método de despliegue: la ruta vigente es `server/Dockerfile` + Render + Supabase.
+- No modificar el código con workflows de GitHub que escriben en el repositorio: todo cambio va por rama temporal + PR con la CI en verde.
+- Reasignar una preparación usa `cambiarDePreparador`; la productividad sale de `tiempoDePreparador` (ver regla 28 de `CLAUDE.md`).
+- «Hoy» se cuenta con `diaEnEspana`, no cortando la fecha ISO (regla 29 de `CLAUDE.md`).
+- Al subir `STATE_SCHEMA_VERSION`, no escribir el número exacto en las pruebas.
 
 ## Comprobaciones mínimas
 

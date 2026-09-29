@@ -27,13 +27,21 @@ export function CampoFotos({
   const { c } = useTheme();
   const [tomadas, setTomadas] = useState<FotoTomada[]>([]);
   const [subiendo, setSubiendo] = useState(false);
+  const [fallo, setFallo] = useState<string | null>(null);
 
   const pendientes = tomadas.filter((f) => !f.subida).length;
 
   const anadir = async (origen: 'camera' | 'library') => {
     setSubiendo(true);
-    const foto = await capturarYSubir(origen);
-    setSubiendo(false);
+    setFallo(null);
+    let foto: FotoTomada | null = null;
+    try {
+      foto = await capturarYSubir(origen);
+    } catch (e) {
+      setFallo(e instanceof Error ? e.message : 'La foto no ha subido. Repítela.');
+    } finally {
+      setSubiendo(false);
+    }
     if (!foto) return;
     const siguiente = [...tomadas, foto];
     setTomadas(siguiente);
@@ -82,6 +90,12 @@ export function CampoFotos({
         </Btn>
       </View>
 
+      {fallo ? (
+        <>
+          <View style={{ height: space.sm }} />
+          <Notice tone="warn">{fallo}</Notice>
+        </>
+      ) : null}
       {pendientes > 0 ? (
         <>
           <View style={{ height: space.sm }} />

@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { campo, Btn, Field, H1, Modal, Muted, Notice, Panel, Pill, ProgressBar, Screen, Select, Spacer, radius, space, useTheme } from '@/ui';
 import { useStore, useTicker } from '@/data/store';
-import { activePreparations, deadlineOf, prepRequestsSinAbrir, historialPreparador, resumenPreparador } from '@/data/selectors';
+import { activePreparations, deadlineOf, prepRequestsSinAbrir, historialPreparador, mesDeFecha, resumenPreparador, tiempoDePreparador } from '@/data/selectors';
 import { idCreadoPor, prepElapsedMs, prepIsOverSla, prepProgress } from '@/data/commands';
 import { formatDateTime, formatDuration, formatShortDuration, siteName, userName, vehicleName, vehicleRef } from '@/data/format';
 import type { CheckState, Preparation, ServiceRequest } from '@/data/types';
@@ -12,11 +12,6 @@ import { DeadlineChip } from '@/features/common/DeadlineChip';
 import { FinishPrepModal } from '@/features/prep/FinishPrep';
 import { CampanaCheck } from '@/features/prep/CampanaCheck';
 import { UbicacionVehiculo } from '@/features/common/Ubicacion';
-
-const mesDeFecha = (iso: string) => {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-};
 
 /**
  * Pantalla de trabajo del preparador.
@@ -90,7 +85,7 @@ export default function MyPrepScreen() {
               { value: '__all__', label: 'Todo el historial' }, ...meses.map(m => ({ value: m, label: m }))]} />
             <Spacer h={space.sm} />
             {(['entrada', 'repaso'] as const).map(tipo => {
-              const resumen = resumenPreparador(hechos.filter(p => (p.tipo ?? 'entrada') === tipo));
+              const resumen = resumenPreparador(hechos.filter(p => (p.tipo ?? 'entrada') === tipo), user?.id ?? '');
               return <Panel key={tipo} title={tipo === 'entrada' ? 'Preparaciones completas realizadas' : 'Repasos realizados'}>
                 <Muted>{resumen.total} terminadas · {formatShortDuration(resumen.effectiveMs)} efectivos · media {formatShortDuration(resumen.avgMs)} · {formatShortDuration(resumen.waitingMs)} de espera</Muted>
               </Panel>;
@@ -98,9 +93,12 @@ export default function MyPrepScreen() {
             {!hechos.length ? <Muted>No tienes preparaciones finalizadas en este período.</Muted> : null}
             {hechos.map(p => {
               const v = state.vehicles.find(v => v.id === p.vehicleId);
+              const mio = tiempoDePreparador(p, user?.id ?? '');
+              const compartida = mio.efectivoMs < p.effectiveMs;
               return <Panel key={p.id} title={v ? `${vehicleRef(v)} · ${vehicleName(v)}` : p.vehicleId}>
                 <Muted>{p.tipo === 'repaso' ? 'Repaso de entrega' : 'Preparación completa'} · {siteName(state, p.siteId)}</Muted>
-                <Muted>Finalizada: {formatDateTime(p.finishedAt)} · {formatShortDuration(p.effectiveMs)} efectivos · {formatShortDuration(p.waitingMs)} de espera</Muted>
+                <Muted>Finalizada: {formatDateTime(p.finishedAt)} · {formatShortDuration(mio.efectivoMs)} efectivos · {formatShortDuration(mio.esperaMs)} de espera</Muted>
+                {compartida ? <Muted>La empezó otra persona: en total lleva {formatShortDuration(p.effectiveMs)}.</Muted> : null}
                 <Btn onPress={() => setOpenId(p.id)}>Ver preparación finalizada</Btn>
               </Panel>;
             })}

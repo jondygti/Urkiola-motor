@@ -143,6 +143,16 @@ Cada una viene de un fallo real de este proyecto:
     las preparaciones de verdad, y pedirle catorce requisitos a quien va a
     pasar un trapo acaba con los catorce marcados sin mirar.
 
+28. **El tiempo de una preparación es de quien lo trabajó, no de quien la
+    tiene al final.** Al cambiarla de manos se usa `cambiarDePreparador`,
+    que apunta lo hecho hasta ese momento en `tiempoAnterior`; la
+    productividad se calcula con `tiempoDePreparador`, nunca con
+    `effectiveMs` a secas. Reasignar a medias le daba a Ane la hora de
+    Pedro, y a Pedro cero.
+29. **Los días se cuentan en hora de España** (`diaEnEspana`), nunca
+    cortando el texto ISO, que da el día de Greenwich: de 00:00 a 02:00
+    «hoy» era ayer y los repasos de ese día no salían.
+
 22. **Los tamaños de letra salen de `tipografia` o de `campo`**
     (`src/ui/theme.tsx`), nunca escritos a mano. Había 222 sueltos, nueve
     valores distintos y el más usado un 11: letra pequeña para leer un móvil

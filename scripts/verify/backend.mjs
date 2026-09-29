@@ -169,6 +169,28 @@ try {
   );
   ok('4 · nada pendiente de subir', !(await page.getByText('sin subir', { exact: false }).first().isVisible().catch(() => false)));
 
+  // La sincronización solo trae lo reciente; la ficha pide el historial
+  // entero de su coche. Se le añade al servidor, al vuelo, un apunte viejo
+  // que no está en el móvil: si la ficha lo enseña, lo ha pedido y lo junta.
+  const directo = await fetch(`${API}/historial/${encodeURIComponent(coche.id)}`, {
+    headers: { Authorization: `Bearer ${tokenPedro}` },
+  });
+  const historial = directo.ok ? (await directo.json()).events : [];
+  ok('4 · el servidor da el historial completo del coche',
+    directo.status === 200 && historial.some((e) => e.kind === 'movimiento'), String(directo.status));
+  await page.route('**/historial/**', async (route) => {
+    const r = await route.fetch();
+    const cuerpo = await r.json();
+    cuerpo.events.push({ id: 'ev-antiguo-verify', vehicleId: coche.id, kind: 'movimiento',
+      title: 'Apunte antiguo del servidor', detail: 'solo en el servidor', at: '2025-01-15T09:00:00.000Z', userId: null });
+    await route.fulfill({ response: r, json: cuerpo });
+  });
+  await page.goto(`${WEB}/vehiculo/${encodeURIComponent(coche.id)}`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(1200);
+  ok('4 · la ficha enseña el historial que solo tiene el servidor',
+    await page.getByText('Apunte antiguo del servidor', { exact: false }).first().isVisible().catch(() => false));
+  await page.unroute('**/historial/**');
+
   /* ------------------------------------- 3 · otro dispositivo lo ve */
   const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page2 = await ctx2.newPage();

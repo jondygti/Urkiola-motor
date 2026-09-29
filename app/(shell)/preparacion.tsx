@@ -4,7 +4,7 @@ import { Text, View } from 'react-native';
 import { Btn, Column, DataTable, Grid, H1, Kpi, Modal, Muted, Notice, Panel, Screen, Select, Spacer, StateFlow, StatLine, Toolbar, space, tipografia, useTheme } from '@/ui';
 import { useAppState, useTicker } from '@/data/store';
 import { prepElapsedMs, prepIsOverSla, prepProgress } from '@/data/commands';
-import { prepKpis, resumenPreparador } from '@/data/selectors';
+import { mesDeFecha, prepKpis, productividadPorPreparador } from '@/data/selectors';
 import { formatShortDuration, locationLabel, siteName, userName, vehicleName, vehicleRef } from '@/data/format';
 import { PREP_PHASES, PREP_PHASE_LABEL, PREP_RUN_STATE_LABEL, type Preparation } from '@/data/types';
 import { Cell, PrepStatePill, useOpenVehicle } from '@/features/common/bits';
@@ -184,17 +184,12 @@ export default function PreparationScreen() {
     },
   ];
 
-  const mesDeFecha = (iso: string) => {
-    const d = new Date(iso);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  };
   const finalizadas = state.preparations.filter(p => p.runState === 'terminado' && p.finishedAt
     && (p.tipo ?? 'entrada') === servicio && (site === ALL || p.siteId === site));
   const mesesProductividad = [...new Set(finalizadas.map(p => mesDeFecha(p.finishedAt!)))].sort().reverse();
   const delPeriodo = finalizadas.filter(p => mesProductividad === ALL || mesDeFecha(p.finishedAt!) === mesProductividad);
-  const productividad = [...new Set(delPeriodo.map(p => p.preparerId))].map(id => ({
-    id: id ?? '__sin_asignar__', nombre: id ? userName(state, id) : 'Sin preparador registrado',
-    ...resumenPreparador(delPeriodo.filter(p => p.preparerId === id)),
+  const productividad = productividadPorPreparador(delPeriodo).map(f => ({
+    ...f, nombre: f.preparerId ? userName(state, f.preparerId) : 'Sin preparador registrado',
   }));
 
   const live = detail ? state.preparations.find((p) => p.id === detail.id) ?? null : null;
@@ -260,7 +255,7 @@ export default function PreparationScreen() {
 
       <Spacer h={space.lg} />
       <Panel title="Productividad por preparador">
-        <Muted>Servicios finalizados de la sede y servicio seleccionados. El tiempo efectivo excluye las esperas.</Muted>
+        <Muted>Servicios finalizados de la sede y servicio seleccionados. El tiempo efectivo excluye las esperas. Si un trabajo se reasignó a medias, cada uno suma lo que hizo y la terminada cuenta para quien la cerró.</Muted>
         <Select value={mesProductividad} onChange={setMesProductividad} title="Mes de productividad"
           options={[{ value: ALL, label: 'Todo el historial' }, ...mesesProductividad.map(m => ({ value: m, label: m }))]} />
         <DataTable rows={productividad} keyExtractor={r => r.id} emptyText="Sin servicios finalizados en este período."

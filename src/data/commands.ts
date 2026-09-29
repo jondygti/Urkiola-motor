@@ -45,6 +45,7 @@ import { REQUEST_STATUS_LABEL } from './types';
 import { CONFIG } from './seed';
 import { avisoPara, rolUsadoEnReglas, can } from './selectors';
 import { locationLabel, siteName, userName, vehicleTitle } from './format';
+import { diaEnEspana } from './delivery-date';
 
 /* ------------------------------------------------------------- comandos */
 
@@ -362,7 +363,39 @@ function addEvent(state: AppState, ev: Omit<TraceEvent, 'id'>): AppState {
   // Si ya está, este comando se está aplicando por segunda vez: el
   // historial del vehículo no debe contar dos veces lo que pasó una.
   if (yaCreado(state.events, event.id)) return state;
-  return { ...state, events: [event, ...state.events].slice(0, 4000) };
+  return { ...state, events: recortarHistorial([event, ...state.events], event.vehicleId) };
+}
+
+/** Apuntes que se guardan de cada coche; los más antiguos salen primero. */
+export const HISTORIAL_POR_VEHICULO = 400;
+/** Apuntes que no son de ningún coche (configuración, usuarios…). */
+const HISTORIAL_SIN_VEHICULO = 1000;
+
+/**
+ * Límite del historial por coche, no para toda la red.
+ *
+ * Antes eran los 4.000 últimos apuntes de todos los coches juntos: con la
+ * flota real, la ficha de un coche perdía su historia en unas semanas por
+ * el trasiego de los demás, aunque «el historial se queda entero en la
+ * ficha» es justo lo que se promete al entregarlo. Un coche no llega en su
+ * vida a cientos de apuntes; si llegara, pierde los suyos más viejos y no
+ * los de otro. Al móvil no le llega todo: el servidor manda lo reciente y
+ * la ficha pide el historial completo de ese coche.
+ */
+function recortarHistorial(events: TraceEvent[], vehicleId: Id | null | undefined): TraceEvent[] {
+  const limite = vehicleId ? HISTORIAL_POR_VEHICULO : HISTORIAL_SIN_VEHICULO;
+  let vistos = 0;
+  let sobra = false;
+  for (const e of events) {
+    if ((e.vehicleId ?? null) === (vehicleId ?? null) && ++vistos > limite) {
+      sobra = true;
+      break;
+    }
+  }
+  if (!sobra) return events;
+  vistos = 0;
+  // La lista va de más nuevo a más viejo: se queda con los primeros.
+  return events.filter((e) => (e.vehicleId ?? null) !== (vehicleId ?? null) || ++vistos <= limite);
 }
 
 /**
@@ -380,8 +413,18 @@ function addInbox(
 ): AppState {
   const item: NotificationEvent = { id: sufijo ?? derivado('nev'), read: false, readBy: [], ...ev };
   if (yaCreado(state.inbox, item.id)) return state;
-  return { ...state, inbox: [item, ...state.inbox].slice(0, 500) };
+  // Los avisos ya tienen destinatario: un tope de 500 para toda la red
+  // dejaba que los de un rol ruidoso echaran de la bandeja los de otro. Se
+  // guardan los de los dos últimos meses (contados con la fecha del aviso,
+  // no con el reloj, para que rehacer el estado dé lo mismo) y cada uno
+  // recibe solo los suyos.
+  const desde = new Date(new Date(item.at).getTime() - AVISOS_DIAS * 86_400_000).toISOString();
+  const inbox = [item, ...state.inbox.filter((n) => n.at >= desde)].slice(0, AVISOS_MAX);
+  return { ...state, inbox };
 }
+
+const AVISOS_DIAS = 60;
+const AVISOS_MAX = 5000;
 
 /** Milisegundos transcurridos entre `desde` y la fecha del comando. */
 function transcurrido(desde: string | null, cmd: Command): number {
@@ -390,6 +433,47 @@ function transcurrido(desde: string | null, cmd: Command): number {
   // sótano puede aplicarse dos horas después, y esas dos horas no las
   // trabajó ni las esperó nadie.
   return Math.max(0, new Date(cmd.at).getTime() - new Date(desde).getTime());
+}
+
+/**
+ * Pasa una preparación a otra persona sin llevarse el tiempo del anterior.
+ *
+ * El cronómetro no se toca —ni se para ni se reinicia: el coche sigue en
+ * manos de alguien y el total tiene que salir igual—, pero lo trabajado y
+ * esperado hasta `cmd.at` se apunta a quien la tenía. Si no, la
+ * productividad le daba al nuevo las horas del anterior: una hora de Pedro
+ * reasignada a Ane salía como una hora de Ane y cero de Pedro. Lo del
+ * nuevo sale al final como el total menos lo apuntado a los anteriores.
+ */
+function cambiarDePreparador(p: Preparation, nuevo: Id | null, cmd: Command): Preparation {
+  if (p.preparerId === nuevo) return p;
+  const efectivoMs = p.effectiveMs + transcurrido(p.runningSince, cmd);
+  const esperaMs = p.waitingMs + transcurrido(p.waitingSince, cmd);
+  const anterior = { ...(p.tiempoAnterior ?? {}) };
+  const cedido = Object.values(anterior).reduce(
+    (t, x) => ({ efectivoMs: t.efectivoMs + x.efectivoMs, esperaMs: t.esperaMs + x.esperaMs }),
+    { efectivoMs: 0, esperaMs: 0 }
+  );
+  // Nunca negativo: un cambio que llega tarde no le quita a nadie lo suyo.
+  const hecho = {
+    efectivoMs: Math.max(0, efectivoMs - cedido.efectivoMs),
+    esperaMs: Math.max(0, esperaMs - cedido.esperaMs),
+  };
+  // Quien no llegó a trabajarla no aparece: pasar una preparación sin
+  // empezar no es haber hecho nada en ella.
+  if (hecho.efectivoMs > 0 || hecho.esperaMs > 0) {
+    const clave = p.preparerId ?? '';
+    const suyo = anterior[clave] ?? { efectivoMs: 0, esperaMs: 0 };
+    anterior[clave] = {
+      efectivoMs: suyo.efectivoMs + hecho.efectivoMs,
+      esperaMs: suyo.esperaMs + hecho.esperaMs,
+    };
+  }
+  return {
+    ...p,
+    preparerId: nuevo,
+    ...(Object.keys(anterior).length ? { tiempoAnterior: anterior } : {}),
+  };
 }
 
 /** Evalúa las reglas activas y genera avisos en la bandeja. */
@@ -1101,7 +1185,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
       if (req.type === 'preparacion' && cmd.assignedTo !== undefined) {
         next = { ...next, preparations: state.preparations.map(p =>
           p.requestId === req.id && p.runState !== 'terminado' && p.runState !== 'cancelado'
-            ? { ...p, preparerId: cmd.assignedTo! } : p) };
+            ? cambiarDePreparador(p, cmd.assignedTo!, cmd) : p) };
       }
       if (recoge) {
         next = { ...next, vehicles: replace(next.vehicles, req.vehicleId, { status: 'en_traslado' }) };
@@ -1205,27 +1289,32 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
     case 'prep.start':
     case 'prep.resume': {
-      const p = state.preparations.find((x) => x.id === cmd.prepId);
-      if (!p || (p.runState === 'terminado' || p.runState === 'cancelado')) return state;
-      if (p.runState === 'en_curso') {
+      const original = state.preparations.find((x) => x.id === cmd.prepId);
+      if (!original || (original.runState === 'terminado' || original.runState === 'cancelado')) return state;
+      if (original.runState === 'en_curso') {
+        const p = original;
         if (p.preparerId) return state;
         // Los datos anteriores permitían arrancar sin dueño. Reclamar ese
-        // trabajo no debe reiniciar el reloj ni perder el tiempo acumulado.
+        // trabajo no debe reiniciar el reloj ni perder el tiempo acumulado,
+        // pero lo hecho antes tampoco es de quien lo reclama.
         const next: AppState = {
           ...state,
-          preparations: replace(state.preparations, p.id, { preparerId: cmd.userId }),
+          preparations: replace(state.preparations, p.id, cambiarDePreparador(p, cmd.userId, cmd)),
           requests: state.requests.map(r => r.id === p.requestId && r.status !== 'terminada' && r.status !== 'cancelada'
             ? { ...r, status: 'en_curso', assignedTo: cmd.userId } : r),
         };
         return addEvent(next, { vehicleId: p.vehicleId, kind: 'preparacion', title: 'Preparación asignada',
           detail: userName(state, cmd.userId), at: cmd.at, userId: cmd.userId });
       }
-      if (p.waitingSince && cmd.at < p.waitingSince) return state;
+      if (original.waitingSince && cmd.at < original.waitingSince) return state;
+      // Una pausada sin dueño (datos anteriores) conserva a nombre de nadie
+      // lo que ya llevaba: quien la retoma empieza su parte ahora.
+      const p = original.preparerId ? original : cambiarDePreparador(original, cmd.userId, cmd);
       const waitedMs = transcurrido(p.waitingSince, cmd);
       const next: AppState = {
         ...state,
         preparations: replace(state.preparations, cmd.prepId, {
-          preparerId: p.preparerId ?? cmd.userId,
+          ...p,
           runState: 'en_curso',
           runningSince: cmd.at,
           waitingSince: null,
@@ -1546,7 +1635,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
 
     case 'alerts.sweep': {
       const ahora = new Date(cmd.at).getTime();
-      const dia = cmd.at.slice(0, 10);
+      const dia = diaEnEspana(cmd.at);
       let next = state;
 
       // Coches que llevan demasiado sin que nadie confirme dónde están.
@@ -1583,7 +1672,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
         if (!v.logisticActive || v.status !== 'apto_entrega' || !v.deliveryDate) continue;
         // Hoy, contado por el día del comando: un móvil sin cobertura puede
         // subir el barrido más tarde, y el día que valía era aquel.
-        if (v.deliveryDate.slice(0, 10) !== dia) continue;
+        if (diaEnEspana(v.deliveryDate) !== dia) continue;
         // Donde está el coche, si ahí se prepara. Un coche que el día de la
         // entrega sigue en la campa de Sondika no tiene quien lo repase:
         // eso es un traslado que no se hizo, no un repaso que falta.
@@ -1591,7 +1680,7 @@ function aplicar(state: AppState, cmd: Command): AppState {
         if (!sede || !next.sites.find((x) => x.id === sede)?.prepares) continue;
         // Ni encima de lo que ya está pedido o abierto.
         if (next.preparations.some((p) => p.vehicleId === v.id && (p.runState !== 'terminado' && p.runState !== 'cancelado'))) continue;
-        if (next.requests.some((r) => r.status === 'cancelada' && r.vehicleId === v.id && r.prepTipo === 'repaso' && r.cancelledAt?.slice(0, 10) === dia)) continue;
+        if (next.requests.some((r) => r.status === 'cancelada' && r.vehicleId === v.id && r.prepTipo === 'repaso' && !!r.cancelledAt && diaEnEspana(r.cancelledAt) === dia)) continue;
         if (next.requests.some((r) => r.type === 'preparacion' && r.vehicleId === v.id && (r.status !== 'terminada' && r.status !== 'cancelada'))) {
           continue;
         }

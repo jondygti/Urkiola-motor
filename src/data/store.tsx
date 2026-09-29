@@ -76,7 +76,10 @@ const TOKEN_KEY = 'urkiola.token.v1';
 // 25: la demo deja de aceptar estados de versiones anteriores y vuelve a
 // enlazar la sesión guardada con el usuario de la semilla vigente. Antes
 // una demo v23/v24 podía seguir sustituyendo por completo a la nueva.
-const STATE_SCHEMA_VERSION = 25;
+// 26: la preparación guarda el tiempo de quienes la tuvieron antes
+// (`tiempoAnterior`) y el historial se limita por coche y no para toda la
+// red. Lo guardado antes no reparte el tiempo de las reasignadas.
+const STATE_SCHEMA_VERSION = 26;
 
 interface StoredState {
   v: number;
@@ -563,6 +566,30 @@ export function useStore(): StoreValue {
 /** Atajo: solo el estado. */
 export function useAppState(): AppState {
   return useStore().state;
+}
+
+/**
+ * Historial completo de un coche desde el servidor.
+ *
+ * La sincronización solo trae lo reciente; la ficha es donde se promete el
+ * historial entero, así que lo pide al abrirse y tras cada sincronización.
+ * Sin conexión, o en la demostración, se queda con lo que haya en el móvil.
+ */
+export function useHistorialCompleto(vehicleId: Id | undefined): AppState['events'] {
+  const { sync, user } = useStore();
+  const [events, setEvents] = useState<AppState['events']>([]);
+  useEffect(() => {
+    setEvents([]);
+  }, [vehicleId]);
+  useEffect(() => {
+    if (!apiEnabled || !vehicleId || !user || !haySesion()) return;
+    let vigente = true;
+    api.historial(vehicleId)
+      .then((r) => { if (vigente) setEvents(r.events); })
+      .catch(() => { /* sin red o fuera de su ámbito: lo local basta */ });
+    return () => { vigente = false; };
+  }, [vehicleId, user, sync.lastSyncAt]);
+  return events;
 }
 
 /** Reloj compartido para los cronómetros (se actualiza cada `ms`). */

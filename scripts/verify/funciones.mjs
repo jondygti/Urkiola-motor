@@ -1,5 +1,11 @@
 import { USUARIOS, cambiarDeUsuario, entrarComo, elegirEnLista, estadoGuardado, marcador, pulsar } from './entorno.mjs';
 
+/** Una imagen PNG de un píxel: basta para que el selector de fotos la acepte. */
+const PNG_1PX = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64'
+);
+
 /**
  * Comprobaciones de la operativa: no que las pantallas carguen, sino que
  * el trabajo del día se pueda hacer y quede bien registrado.
@@ -139,10 +145,37 @@ export async function ejecutar(browser, BASE) {
       await page.getByText('Faltan 4 fotos', { exact: false }).isVisible()
     );
 
-    // La captura de cámara real no se automatiza en Chromium headless. El
-    // cierre correcto con cuatro ficheros reales se prueba contra backend en
-    // preproduccion.test.ts; aquí comprobamos que la interfaz no lo deja
-    // saltar.
+    // En el navegador «hacer foto» abre el selector de ficheros: se le da
+    // una imagen de verdad para cada diagonal. Sin esto, la prueba se paraba
+    // en «no deja terminar» y nadie comprobaba que, con las cuatro, el coche
+    // acaba en la plaza elegida y apto para entrega.
+    for (let i = 0; i < 4; i++) {
+      const [selector] = await Promise.all([
+        page.waitForEvent('filechooser', { timeout: 5000 }),
+        page.getByText('📷 Hacer foto', { exact: true }).first().click(),
+      ]);
+      await selector.setFiles({ name: `diagonal-${i}.png`, mimeType: 'image/png', buffer: PNG_1PX });
+      await page.waitForTimeout(400);
+    }
+    ok('6 · con las cuatro fotos ya deja terminar', !(await finalizar.isDisabled()));
+
+    await finalizar.click();
+    await page.waitForTimeout(700);
+
+    const s = await estadoGuardado(page);
+    const prep = s?.preparations?.find((p) => p.runState === 'terminado' && p.finishedAt
+      && s.vehicles?.find((v) => v.id === p.vehicleId)?.plate === '6412 NPV');
+    const mov = s?.movements?.find((m) => m.vehicleId === prep?.vehicleId && m.note === 'Ubicación al terminar la preparación');
+    const veh = s?.vehicles?.find((v) => v.id === prep?.vehicleId);
+    ok('6 · la preparación queda terminada', !!prep, prep?.finishedAt ?? '');
+    ok('6 · con el reportaje de cuatro fotos', Object.values(prep?.finalPhotos ?? {}).filter(Boolean).length === 4);
+    ok('6 · y genera el movimiento a la vez', !!mov, mov?.to?.zoneId ?? 'sin movimiento');
+    // La zona basta (regla 7): se comprueba la zona, no una plaza.
+    ok('6 · el coche queda en el sitio indicado',
+      !!mov && veh?.location?.zoneId === mov.to?.zoneId && (veh?.location?.zoneId ?? '').includes('park-02'),
+      veh?.location?.zoneId ?? '');
+    ok('6 · y queda apto para entrega', veh?.status === 'apto_entrega', veh?.status ?? '');
+
     ok('7 · sin errores de JavaScript', errores.length === 0, errores[0] ?? '');
     await context.close();
   }
@@ -826,7 +859,9 @@ export async function ejecutar(browser, BASE) {
       return { version: stored.v, session, director, protagonista, body: document.body.innerText };
     });
 
-    ok('25 · descarta el estado de una demo anterior', audit.version === 25 && audit.protagonista?.brand === 'Peugeot' && audit.protagonista?.model === '3008', JSON.stringify({ version: audit.version, protagonista: audit.protagonista }));
+    // La versión vigente, sea cual sea: escribir aquí el número exacto hacía
+    // fallar la prueba cada vez que se subía STATE_SCHEMA_VERSION (regla 1).
+    ok('25 · descarta el estado de una demo anterior', audit.version > 24 && audit.protagonista?.brand === 'Peugeot' && audit.protagonista?.model === '3008', JSON.stringify({ version: audit.version, protagonista: audit.protagonista }));
     ok('25 · recupera KM0 y matrícula de la demo actual', audit.protagonista?.commercialCategory === 'KM0' && audit.protagonista?.plate === '6412 NPV');
     ok('25 · la sesión usa el Director Comercial vigente', audit.session?.name === 'Dirección Peugeot · Citroën' && audit.session?.managedBrands?.join('|') === 'Peugeot|Citroën', JSON.stringify(audit.session));
     ok('25 · la interfaz deja de enseñar el perfil antiguo', audit.body.includes('Dirección Peugeot · Citroën') && !audit.body.includes('Dirección VN'));

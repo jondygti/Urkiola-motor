@@ -350,6 +350,11 @@ export interface FinalPreparationPhotos {
   rearRight: string;
 }
 
+export interface TiempoPreparador {
+  efectivoMs: number;
+  esperaMs: number;
+}
+
 export interface Preparation {
   requestId?: Id | null;
   cancelledAt?: ISODate | null;
@@ -367,6 +372,14 @@ export interface Preparation {
   /** Milisegundos ya consolidados (sin contar el tramo en curso). */
   effectiveMs: number;
   waitingMs: number;
+  /**
+   * Tiempo que dejaron hecho quienes la tuvieron antes que `preparerId`,
+   * por persona ('' = mientras no tuvo dueño). Lo del actual es el total
+   * menos esto. Sin ello, reasignar un trabajo a medias le apuntaba al
+   * nuevo las horas del anterior, y la productividad premiaba a quien no
+   * lo había hecho.
+   */
+  tiempoAnterior?: Record<string, TiempoPreparador>;
   targetMs: number;
   /** Instante desde el que corre el cronómetro; null si está parado. */
   runningSince: ISODate | null;

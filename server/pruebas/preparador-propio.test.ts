@@ -122,7 +122,11 @@ test('Logística reasigna solicitud y preparación juntas sin alterar tiempos ni
   await assert.rejects(svc.ejecutar(change, pedro));
   await svc.ejecutar(change, log);
   assert.equal(svc.estado.requests[0].assignedTo, ane.id);
-  assert.deepEqual(svc.estado.preparations[0], { ...before, preparerId: ane.id });
+  // El cronómetro queda igual; lo único nuevo es el tiempo que deja Pedro,
+  // apuntado a su nombre para que no se lo lleve Ane.
+  const { tiempoAnterior, ...resto } = svc.estado.preparations[0];
+  assert.deepEqual(resto, { ...before, preparerId: ane.id });
+  assert.ok(!tiempoAnterior || Object.keys(tiempoAnterior).every((k) => k === pedro.id));
   assert.equal(svc.estado.preparations[1].preparerId, pedro.id);
   assert.ok(svc.estadoDe(ane).preparations.some(x => x.id === p.id));
   assert.ok(!svc.estadoDe(pedro).preparations.some(x => x.id === p.id));
