@@ -14,6 +14,8 @@ import type {
   ServiceRequest,
   Carrier,
   Site,
+  TiempoPreparador,
+  TraceEvent,
   User,
   Vehicle,
 } from './types';
@@ -229,9 +231,15 @@ export const openCount = (s: AppState): FleetCount | undefined => s.counts.find(
 
 /* --------------------------------------------------------- trazabilidad */
 
-export function vehicleTimeline(s: AppState, vehicleId: Id) {
-  return s.events
-    .filter((e) => e.vehicleId === vehicleId)
+/**
+ * Historial de un coche. `delServidor` es el historial completo que pide la
+ * ficha: al móvil solo le llega lo reciente, y lo hecho en este móvil que
+ * aún no ha subido está en el estado local. Se juntan los dos sin repetir.
+ */
+export function vehicleTimeline(s: AppState, vehicleId: Id, delServidor: TraceEvent[] = []) {
+  const vistos = new Set<Id>();
+  return [...s.events.filter((e) => e.vehicleId === vehicleId), ...delServidor.filter((e) => e.vehicleId === vehicleId)]
+    .filter((e) => (vistos.has(e.id) ? false : (vistos.add(e.id), true)))
     .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 }
 
@@ -987,9 +995,90 @@ export function historialPreparador(s: AppState, userId: Id): Preparation[] {
     .sort((a, b) => b.finishedAt!.localeCompare(a.finishedAt!));
 }
 
-export function resumenPreparador(preparations: Preparation[]) {
+/**
+ * Lo que trabajó y esperó una persona en una preparación.
+ *
+ * Si la preparación pasó por varias manos, cada uno tiene lo suyo: el que
+ * la tiene ahora, el total menos lo que dejaron los anteriores; los
+ * anteriores, lo que dejaron. `null` es el tiempo que corrió sin dueño.
+ */
+export function tiempoDePreparador(p: Preparation, userId: Id | null): TiempoPreparador {
+  const anterior = p.tiempoAnterior ?? {};
+  const suyo = anterior[userId ?? ''] ?? { efectivoMs: 0, esperaMs: 0 };
+  if (p.preparerId !== userId) return suyo;
+  const cedido = Object.values(anterior).reduce(
+    (t, x) => ({ efectivoMs: t.efectivoMs + x.efectivoMs, esperaMs: t.esperaMs + x.esperaMs }),
+    { efectivoMs: 0, esperaMs: 0 }
+  );
+  return {
+    efectivoMs: suyo.efectivoMs + Math.max(0, p.effectiveMs - cedido.efectivoMs),
+    esperaMs: suyo.esperaMs + Math.max(0, p.waitingMs - cedido.esperaMs),
+  };
+}
+
+/**
+ * Resumen de los servicios terminados. Con `userId`, cuenta solo el tiempo
+ * de esa persona (el historial propio); sin él, el tiempo entero.
+ */
+export function resumenPreparador(preparations: Preparation[], userId?: Id) {
   const terminadas = preparations.filter(p => p.runState === 'terminado' && p.finishedAt);
-  const effectiveMs = terminadas.reduce((total, p) => total + p.effectiveMs, 0);
+  const tiempos = terminadas.map(p => userId === undefined
+    ? { efectivoMs: p.effectiveMs, esperaMs: p.waitingMs }
+    : tiempoDePreparador(p, userId));
+  const effectiveMs = tiempos.reduce((total, t) => total + t.efectivoMs, 0);
   return { total: terminadas.length, effectiveMs, avgMs: terminadas.length ? effectiveMs / terminadas.length : 0,
-    waitingMs: terminadas.reduce((total, p) => total + p.waitingMs, 0) };
+    waitingMs: tiempos.reduce((total, t) => total + t.esperaMs, 0) };
+}
+
+/** Mes (AAAA-MM) en el que terminó un servicio, en la hora del dispositivo. */
+export function mesDeFecha(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+export interface FilaProductividad {
+  id: string;
+  preparerId: Id | null;
+  /** Servicios que cerró esta persona. */
+  total: number;
+  /** Todo lo que trabajó, también en servicios que cerró otro. */
+  effectiveMs: number;
+  /** Media de lo trabajado por servicio cerrado. */
+  avgMs: number;
+  waitingMs: number;
+}
+
+/**
+ * Productividad por preparador de un conjunto de servicios terminados.
+ *
+ * Una preparación reasignada a medias suma a cada uno lo que hizo, y la
+ * cuenta de terminadas se la lleva quien la cerró. Antes todo iba a quien
+ * figuraba al final: el que empezaba y se la pasaban aparecía con cero.
+ */
+export function productividadPorPreparador(terminadas: Preparation[]): FilaProductividad[] {
+  const filas = new Map<string, FilaProductividad & { enCerradasMs: number }>();
+  const fila = (preparerId: Id | null) => {
+    const id = preparerId ?? '__sin_asignar__';
+    let f = filas.get(id);
+    if (!f) {
+      f = { id, preparerId, total: 0, effectiveMs: 0, avgMs: 0, waitingMs: 0, enCerradasMs: 0 };
+      filas.set(id, f);
+    }
+    return f;
+  };
+  for (const p of terminadas) {
+    const personas = new Set<Id | null>([p.preparerId,
+      ...Object.keys(p.tiempoAnterior ?? {}).map(k => (k === '' ? null : k))]);
+    for (const persona of personas) {
+      const t = tiempoDePreparador(p, persona);
+      const f = fila(persona);
+      f.effectiveMs += t.efectivoMs;
+      f.waitingMs += t.esperaMs;
+      if (persona === p.preparerId) {
+        f.total += 1;
+        f.enCerradasMs += t.efectivoMs;
+      }
+    }
+  }
+  return [...filas.values()].map(({ enCerradasMs, ...f }) => ({ ...f, avgMs: f.total ? enCerradasMs / f.total : 0 }));
 }

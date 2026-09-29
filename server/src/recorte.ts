@@ -10,7 +10,7 @@
  * implicados (sin los datos comerciales), las sedes y las plazas que
  * necesita para leer una ubicación, y su propio rol.
  */
-import type { AppState, Id, NotificationEvent, User, Vehicle } from '../../src/data/types';
+import type { AppState, Id, NotificationEvent, TraceEvent, User, Vehicle } from '../../src/data/types';
 import { avisoLeido, can, esDelComercial, esGestorComercial, vehiculoEnAmbitoComercial } from '../../src/data/selectors';
 
 /**
@@ -243,11 +243,47 @@ export function estadoPara(s: AppState, u: User, colaboradorExterno: boolean): A
   }
   return {
     ...recortado,
+    events: masRecientes(recortado.events, EVENTOS_AL_MOVIL),
     // La API conserva `read` para los clientes antiguos, pero nunca enseña
     // la lista de quién ha leído un aviso a sus demás destinatarios.
-    inbox: recortado.inbox.map((n) => {
+    inbox: masRecientes(recortado.inbox, AVISOS_AL_MOVIL).map((n) => {
       const read = avisoLeido(n, u.id);
       return { ...n, read, readBy: read ? [u.id] : [] };
     }),
   };
+}
+
+/**
+ * Lo que viaja al móvil en cada sincronización.
+ *
+ * El servidor guarda el historial entero de cada coche, pero mandarlo todo
+ * cada treinta segundos llenaría el móvil (y en el navegador no cabe: el
+ * almacenamiento local se queda en unos 5 MB). Llega lo reciente, que es lo
+ * que enseñan el panel y la bandeja; la ficha pide lo de su coche aparte
+ * (`historialDeVehiculo`).
+ */
+const EVENTOS_AL_MOVIL = 4000;
+const AVISOS_AL_MOVIL = 300;
+
+function masRecientes<T extends { at: string }>(lista: T[], limite: number): T[] {
+  if (lista.length <= limite) return lista;
+  return [...lista].sort((a, b) => b.at.localeCompare(a.at)).slice(0, limite);
+}
+
+/**
+ * Historial completo de un coche, solo si ese coche está en lo que este
+ * usuario puede recibir. Conocer su id no da acceso: se decide con el mismo
+ * recorte que la sincronización, y quien no recibe historial (el
+ * transportista) tampoco lo recibe por aquí.
+ */
+export function historialDeVehiculo(
+  s: AppState,
+  u: User,
+  colaboradorExterno: boolean,
+  vehicleId: string
+): TraceEvent[] | null {
+  if (colaboradorExterno) return null;
+  const visible = estadoPara(s, u, colaboradorExterno);
+  if (!visible.vehicles.some((v) => v.id === vehicleId)) return null;
+  return s.events.filter((e) => e.vehicleId === vehicleId).sort((a, b) => b.at.localeCompare(a.at));
 }

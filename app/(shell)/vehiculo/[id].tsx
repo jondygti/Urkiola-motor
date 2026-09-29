@@ -2,7 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { Btn, Detail, Divider, EmptyState, Grid, H1, Muted, Notice, Panel, Pill, Screen, Spacer, StateFlow, Timeline, Toolbar, space, tipografia, useTheme } from '@/ui';
-import { useAppState, useStore } from '@/data/store';
+import { useAppState, useHistorialCompleto, useStore } from '@/data/store';
 import {
   deliveryStatus,
   incidentsFor,
@@ -56,6 +56,7 @@ export default function VehicleScreen() {
     encontrado && (!esGestorComercial(user) || vehiculoEnAmbitoComercial(state, user, encontrado))
       ? encontrado
       : undefined;
+  const historial = useHistorialCompleto(vehicle?.id);
 
   if (!vehicle) {
     return (
@@ -72,7 +73,7 @@ export default function VehicleScreen() {
   const incidents = incidentsFor(state, vehicle.id);
   const requests = requestsFor(state, vehicle.id);
   const movements = movementsFor(state, vehicle.id);
-  const timeline = vehicleTimeline(state, vehicle.id);
+  const timeline = vehicleTimeline(state, vehicle.id, historial);
   const rules = state.rules.filter(
     (r) => (r.scopeKind === 'vehicle' && r.scopeRef === vehicle.id) ||
       (r.scopeKind === 'site' && r.scopeRef === vehicle.location?.siteId) ||

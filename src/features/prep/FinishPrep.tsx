@@ -58,6 +58,7 @@ export function FinishPrepModal({
   );
   const [fotos, setFotos] = useState<Partial<Record<FotoKey, FotoTomada>>>({});
   const [tomando, setTomando] = useState<FotoKey | null>(null);
+  const [falloFoto, setFalloFoto] = useState<string | null>(null);
   const [hayDano, setHayDano] = useState(false);
   const [dano, setDano] = useState('');
 
@@ -83,6 +84,7 @@ export function FinishPrepModal({
 
   const tomarFoto = async (key: FotoKey) => {
     setTomando(key);
+    setFalloFoto(null);
     try {
       const foto = await capturarYSubir('camera');
       if (foto) {
@@ -90,6 +92,8 @@ export function FinishPrepModal({
         if (anterior && !anterior.subida) void descartarFotoPendiente(anterior.ref);
         setFotos((actuales) => ({ ...actuales, [key]: foto }));
       }
+    } catch (e) {
+      setFalloFoto(e instanceof Error ? e.message : 'La foto no ha subido. Repítela.');
     } finally {
       setTomando(null);
     }
@@ -192,6 +196,12 @@ export function FinishPrepModal({
         })}
       </View>
 
+      {falloFoto ? (
+        <>
+          <Spacer h={space.sm} />
+          <Notice tone="warn">{falloFoto}</Notice>
+        </>
+      ) : null}
       {faltanFotos > 0 ? (
         <>
           <Spacer h={space.sm} />

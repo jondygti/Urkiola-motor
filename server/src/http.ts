@@ -134,7 +134,7 @@ const API = [
   '/push/token',
 ];
 /** Rutas de la API con algo detrás de la barra. */
-const API_PREFIJOS = ['/fotos'];
+const API_PREFIJOS = ['/fotos', '/historial'];
 
 export function crearServidor(servicio: Servicio, config: Config): http.Server {
   const conWeb = hayWeb(config.carpetaWeb);
@@ -303,6 +303,12 @@ async function enrutar(
   if (ruta === '/state' && metodo === 'GET') {
     const user = servicio.usuarioDeToken(req.headers.authorization);
     return { codigo: 200, cuerpo: servicio.estadoDe(user) };
+  }
+
+  const historial = ruta.match(/^\/historial\/([^/]+)$/);
+  if (historial && metodo === 'GET') {
+    const user = servicio.usuarioDeToken(req.headers.authorization);
+    return { codigo: 200, cuerpo: { events: servicio.historialDe(user, decodeURIComponent(historial[1])) } };
   }
 
   if (ruta === '/commands' && metodo === 'POST') {

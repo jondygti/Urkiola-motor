@@ -11,6 +11,7 @@ import type { Command } from './commands';
  * Contrato mínimo que debe implementar el backend (ver docs/BACKEND-API.md):
  *   POST /auth/login      { email, password }        -> { token, user }
  *   GET  /state                                      -> AppState
+ *   GET  /historial/:vehicleId                       -> { events }
  *   POST /commands        Command                    -> { ok: true }
  *   GET  /health                                     -> { ok: true }
  *   POST /push/token      { token }                  -> { ok: true }
@@ -101,6 +102,12 @@ export const api = {
       body: JSON.stringify({ codigo, nueva }),
     }),
   state: () => request<AppState>('/state'),
+  /**
+   * Historial completo de un coche. `/state` trae solo lo reciente para no
+   * llenar el móvil; la ficha lo pide entero cuando se abre.
+   */
+  historial: (vehicleId: string) =>
+    request<{ events: AppState['events'] }>(`/historial/${encodeURIComponent(vehicleId)}`),
   /**
    * URL temporal para una evidencia concreta.
    *

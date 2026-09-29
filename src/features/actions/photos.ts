@@ -55,6 +55,13 @@ export async function capturarYSubir(source: 'camera' | 'library' = 'camera'): P
     const ref = await api.subirFoto(uri);
     return { ref, vistaPrevia: uri, subida: true };
   } catch {
+    // En el navegador no hay dónde guardarla para después: la dirección de
+    // la foto deja de valer al recargar la página y el trabajo se quedaría
+    // apuntando a una imagen que ya no existe. Mejor decirlo ahora, con el
+    // coche delante, que es cuando se puede repetir (regla 15).
+    if (Platform.OS === 'web') {
+      throw new Error('La foto no ha subido. En el navegador no se puede guardar para después: repítela cuando haya conexión.');
+    }
     // Sin cobertura: se copia al espacio privado y duradero de la app. El
     // sincronizador la subirá antes de enviar el comando que la referencia.
     try {
