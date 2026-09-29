@@ -266,7 +266,7 @@ Ubicación · Movimiento · Solicitud · Preparación · Incidencia · Recuento`
             <Grid cols={4} minWidth={150}>
               {[
                 { t: 'Web + App', s: 'HTTPS · mismo código' },
-                { t: 'API', s: 'Node en Railway (UE)' },
+                { t: 'API', s: 'Node en Render (UE)' },
                 { t: 'Base de datos', s: 'PostgreSQL en Supabase' },
                 { t: 'Fotos y albaranes', s: 'Supabase Storage (S3)' },
               ].map((box) => (
