@@ -1,4 +1,4 @@
-# Instrucciones de trabajo · Urkiola Car Service
+# Instrucciones de trabajo · Easo Logistics
 
 Antes de modificar el proyecto, leer:
 

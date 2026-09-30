@@ -22,6 +22,9 @@ if (!process.argv.includes('--rapido') || !existsSync('dist/index.html')) {
 }
 
 const PANTALLAS = [
+  // La entrada, sin sesión: es lo primero que ve todo el mundo.
+  { usuario: null, ruta: '/login', ancho: 420, nombre: 'movil-login' },
+  { usuario: null, ruta: '/login', ancho: 1440, nombre: 'web-login' },
   // Las de campo, en un móvil.
   { usuario: 'preparador', ruta: '/mi-preparacion', ancho: 420, nombre: 'movil-preparador' },
   { usuario: 'preparador', ruta: '/mover', ancho: 420, nombre: 'movil-mover', escribir: '4821 LKM' },
@@ -37,15 +40,22 @@ const PANTALLAS = [
   { usuario: 'logistica', ruta: '/solicitudes', ancho: 1440, nombre: 'web-solicitudes' },
   { usuario: 'logistica', ruta: '/entregas', ancho: 1440, nombre: 'web-entregas' },
   { usuario: 'admin', ruta: '/administracion', ancho: 1440, nombre: 'web-admin' },
+  { usuario: 'logistica', ruta: '/preparacion', ancho: 1440, nombre: 'web-preparacion' },
+  { usuario: 'logistica', ruta: '/campa', ancho: 1440, nombre: 'web-campa' },
 ];
+
+// `--solo=web-flota,movil-login` para no repetir las trece cada vez.
+const solo = process.argv.find((a) => a.startsWith('--solo='))?.slice(7).split(',');
 
 const servidor = await servirEstatico('dist', PUERTO);
 const browser = await abrirNavegador();
 const dir = `capturas/${etiqueta}`;
 mkdirSync(dir, { recursive: true });
 
-for (const p of PANTALLAS) {
-  const { context, page } = await entrarComo(browser, USUARIOS[p.usuario], p.ancho);
+for (const p of PANTALLAS.filter((x) => !solo || solo.includes(x.nombre))) {
+  const { context, page } = p.usuario
+    ? await entrarComo(browser, USUARIOS[p.usuario], p.ancho)
+    : await sinSesion(browser, p.ancho);
   await page.goto(`${servidor.url}${p.ruta}`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(1400);
   if (p.escribir) {
@@ -59,4 +69,9 @@ for (const p of PANTALLAS) {
 
 await browser.close();
 servidor.cerrar();
+
+async function sinSesion(b, width) {
+  const context = await b.newContext({ viewport: { width, height: 900 } });
+  return { context, page: await context.newPage() };
+}
 console.log(`\nCapturas en ${dir}/`);

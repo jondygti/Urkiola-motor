@@ -4,7 +4,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } fro
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '@/data/store';
 import { roleLabel } from '@/data/selectors';
-import { Btn, Field, Input, Muted, Notice, Panel, Spacer, radius, space, useTheme, tipografia } from '@/ui';
+import { Btn, Field, Marca, Input, Muted, Notice, Panel, Spacer, radius, space, useTheme, tipografia } from '@/ui';
 import { api } from '@/data/api';
 
 export default function LoginScreen() {
@@ -53,9 +53,7 @@ export default function LoginScreen() {
         }}
       >
         <View style={{ width: '100%', maxWidth: 460, alignSelf: 'center' }}>
-          <Text style={{ color: '#fff', fontSize: tipografia.display, fontWeight: '900', lineHeight: 30 }}>
-            EASO{'\n'}LOGISTICS
-          </Text>
+          <Marca alto={62} tamanoTexto={tipografia.display} interlineado={30} />
           <Text style={{ color: c.navBrandSub, fontSize: tipografia.small, marginTop: 6, marginBottom: space.xl }}>
             Gestión logística de flota · Sondika · Leioa · Galdakao · Anoeta · Irun
           </Text>

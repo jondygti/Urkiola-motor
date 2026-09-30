@@ -4,6 +4,7 @@ import { Animated, Platform, Pressable, ScrollView, Text, View } from 'react-nat
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { radius, space, tipografia, useTheme } from '@/ui/theme';
 import { Icon } from '@/ui/Icon';
+import { Marca } from '@/ui/Marca';
 import { useStore } from '@/data/store';
 import { isSimpleRole, unreadCount } from '@/data/selectors';
 import { roleLabel } from '@/data/selectors';
@@ -85,7 +86,7 @@ function SimpleShell({ children }: { children: React.ReactNode }) {
         }}
       >
         <View style={{ flex: 1 }}>
-          <Text style={{ color: '#fff', fontSize: tipografia.strong, fontWeight: '900' }}>EASO LOGISTICS</Text>
+          <Marca alto={22} enDosLineas={false} tamanoTexto={tipografia.strong} />
           <Text style={{ color: c.navBrandSub, fontSize: tipografia.micro, marginTop: 2 }}>
             {user?.name} · {roleLabel(state, user?.role)}
           </Text>
@@ -134,9 +135,7 @@ function SideMenu({
   return (
     <View style={{ flex: 1, backgroundColor: c.navBg, paddingTop: insets.top + 14 }}>
       <View style={{ paddingHorizontal: 12, paddingBottom: 18 }}>
-        <Text style={{ color: '#fff', fontSize: tipografia.title, fontWeight: '900', lineHeight: 22 }}>
-          EASO{'\n'}LOGISTICS
-        </Text>
+        <Marca alto={44} tamanoTexto={tipografia.title} interlineado={22} />
         <Text style={{ color: c.navBrandSub, fontSize: tipografia.label, marginTop: 5 }}>
           {compact ? roleLabel(state, user?.role) : 'Gestión logística de flota'}
         </Text>

@@ -1,4 +1,4 @@
-# Urkiola Car Service · guía para Claude
+# Easo Logistics · guía para Claude
 
 > Actualización de cierre (20/09/2026): `docs/ESTADO-ACTUAL.md`, `docs/ARCHITECTURE.md`,
 > `docs/ROADMAP.md`, `docs/SEGURIDAD.md` y `docs/STAGING-CHECKLIST.md` describen el estado vigente.
@@ -174,6 +174,15 @@ Cada una viene de un fallo real de este proyecto:
     `scripts/verify/estilo.mjs`. La demo mete la fuente de iconos dentro del
     HTML (`scripts/build-demo.mjs`): sin eso sale con los iconos en blanco.
 
+31. **La marca es «Easo Logistics» y sale de `<Marca>`** (`src/ui/Marca.tsx`):
+    el símbolo EM del Grupo Easo Motor y el nombre escrito como texto. El
+    símbolo va incrustado en el propio componente, no pedido por su
+    dirección, porque la demo es un único HTML. Lo que NO se renombra, porque
+    romperlo cuesta instalaciones y sesiones: el `slug` y el `scheme` de
+    `app.config.ts`, los identificadores de paquete Android/iOS y las claves
+    internas `urkiola.*` del almacenamiento. Urkiola sigue siendo la empresa:
+    las frases que hablan de ella no se cambian sin preguntar.
+
 ## Comprobar antes de dar algo por bueno
 
 ```bash
@@ -204,7 +213,7 @@ Necesita Playwright disponible (global vale) y usa el Chromium ya instalado
 en la imagen. Si se añade una función nueva, **se añade su comprobación
 aquí**, no se prueba a mano y se olvida.
 
-La demostración navegable se genera con `npm run build:demo` (un único fichero HTML). En cada `push` verde a `main`, GitHub Actions publica un artefacto `urkiola-demo-<sha>`. No reutilizar enlaces/artifacts de commits anteriores.
+La demostración navegable se genera con `npm run build:demo` (un único fichero HTML). En cada `push` verde a `main`, GitHub Actions publica un artefacto `easo-logistics-demo-<sha>`. No reutilizar enlaces/artifacts de commits anteriores.
 
 ## Dónde está cada cosa
 

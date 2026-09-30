@@ -2,7 +2,7 @@
 
 Actualizado: **20/09/2026**.
 
-Decisión de producto: Urkiola Car Service tendrá aplicación **Android** distribuida mediante Google Play. La demo HTML y el panel web no acreditan por sí solos que la versión nativa esté lista para tienda.
+Decisión de producto: Easo Logistics tendrá aplicación **Android** distribuida mediante Google Play. La demo HTML y el panel web no acreditan por sí solos que la versión nativa esté lista para tienda.
 
 Los precios, plazos, límites de testers, requisitos de cuenta y políticas de Google Play/EAS cambian. **No se congelan aquí.** Cuando llegue esta fase hay que comprobar la documentación oficial vigente antes de pagar, configurar o publicar.
 

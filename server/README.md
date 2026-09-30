@@ -1,4 +1,4 @@
-# Servidor de Urkiola Car Service
+# Servidor de Easo Logistics
 
 Backend Node/TypeScript de la aplicación. Reutiliza `src/data/commands.ts`, por lo que web, Android y servidor comparten reglas de negocio.
 
