@@ -617,5 +617,43 @@ export async function ejecutar(browser, BASE) {
     ok('LOGÍSTICA · clasificación persiste al recargar', await page.getByText('DEMO · Stock VN', { exact: true }).isVisible());
     await context.close();
   }
+  /* ----------------- acciones en bloque: cada rol ve solo las suyas */
+  {
+    // Lo que sale en la barra es lo que el rol puede hacer coche a coche;
+    // qué coches concretos lo admiten lo dice la confirmación.
+    const esperado = {
+      admin: { si: ['Pedir traslado', 'Asignar comercial'], no: [] },
+      logistica: { si: ['Pedir traslado', 'Asignar comercial'], no: [] },
+      director: { si: [], no: ['Asignar comercial'] },
+      comercial: { si: [], no: ['Asignar comercial'] },
+    };
+    for (const [perfil, { si, no }] of Object.entries(esperado)) {
+      const { context, page } = await entrarComo(browser, USUARIOS[perfil], 1440);
+      await page.goto(`${BASE}/flota`, { waitUntil: 'networkidle' });
+      await page.waitForTimeout(700);
+      const casillas = page.locator('[data-testid="casilla-bloque"]');
+      if ((await casillas.count()) < 2) {
+        ok(`BLOQUE · ${perfil} · sin flota no hay bloque`, !page.url().endsWith('/flota') || (await casillas.count()) === 0);
+        await context.close();
+        continue;
+      }
+      await casillas.nth(0).click();
+      await page.waitForTimeout(300);
+      const barra = (await page.locator('[data-testid="barra-bloque"]').innerText().catch(() => '')).replace(/\s+/g, ' ');
+      ok(`BLOQUE · ${perfil} · ve sus acciones`, si.every((x) => barra.includes(x)), barra.slice(0, 100));
+      ok(`BLOQUE · ${perfil} · y no las que no le tocan`, no.every((x) => !barra.includes(x)), barra.slice(0, 100));
+      await context.close();
+    }
+
+    // El transportista no llega a ninguna tabla con casillas.
+    const { context, page } = await entrarComo(browser, USUARIOS.transportista, 1440);
+    for (const ruta of ['/flota', '/solicitudes', '/preparacion']) {
+      await page.goto(`${BASE}${ruta}`, { waitUntil: 'networkidle' });
+      await page.waitForTimeout(400);
+      ok(`BLOQUE · TRANSPORTISTA · ${ruta} sin casillas`, (await page.locator('[data-testid="casilla-bloque"]').count()) === 0);
+    }
+    await context.close();
+  }
+
   return resumen();
 }

@@ -1032,5 +1032,67 @@ export async function ejecutar(browser, BASE) {
     await context.close();
   }
 
+  /* -------------------------------------------- 31 · acciones en bloque */
+  {
+    const { context, page, errores } = await entrarComo(browser, USUARIOS.logistica, 1440);
+    await page.goto(`${BASE}/flota`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(800);
+    const casillas = page.locator('[data-testid="casilla-bloque"]');
+    ok('31 · la flota tiene una casilla por fila en el ordenador', (await casillas.count()) > 5);
+
+    // Tres coches marcados a mano.
+    for (const i of [0, 1, 2]) await casillas.nth(i).click();
+    await page.waitForTimeout(300);
+    const barra = page.locator('[data-testid="barra-bloque"]');
+    ok('31 · sale la barra con la cuenta', /3 seleccionados/.test(await barra.innerText().catch(() => '')));
+    const textoBarra = await barra.innerText();
+    ok('31 · con las acciones de logística', /Pedir traslado/.test(textoBarra) && /Asignar comercial/.test(textoBarra), textoBarra.replace(/\s+/g, ' ').slice(0, 120));
+
+    // «Seleccionar los N filtrados» marca todo lo filtrado, no solo la página.
+    await page.getByText(/^Seleccionar los \d+ filtrados$/).first().click();
+    await page.waitForTimeout(300);
+    const todos = Number((await barra.innerText()).match(/(\d+) seleccionados/)?.[1] ?? 0);
+    ok('31 · «seleccionar los filtrados» marca más que la página visible', todos > 40, String(todos));
+    await page.getByText('Quitar selección', { exact: true }).first().click();
+    await page.waitForTimeout(300);
+    ok('31 · y se puede quitar la selección', (await barra.count()) === 0);
+
+    // Pedir traslado a Irun de cinco coches: la confirmación dice cuántos,
+    // y los que no lo admiten, cuáles y por qué.
+    for (const i of [0, 1, 2, 3, 4]) await casillas.nth(i).click();
+    await page.waitForTimeout(300);
+    const antes = await estadoGuardado(page);
+    await pulsar(page, 'Pedir traslado', { exact: true });
+    await page.waitForTimeout(400);
+    await elegirEnLista(page, 'Elige la sede', 'Irun');
+    const cuenta = await page.locator('[data-testid="bloque-cuenta"]').innerText();
+    const n = Number(cuenta.match(/en (\d+) coche/)?.[1] ?? -1);
+    ok('31 · la confirmación dice el número de coches', n >= 0 && /pedir traslado a Irun/.test(cuenta), cuenta);
+    const rechazados = await page.locator('[data-testid="bloque-rechazados"]').innerText().catch(() => '');
+    ok('31 · y cuáles no la admiten, con el motivo', n === 5 || rechazados.length > 0, rechazados.replace(/\s+/g, ' ').slice(0, 120));
+    if (n > 0) await pulsar(page, `Aplicar a ${n === 1 ? '1 coche' : `${n} coches`}`, { exact: true });
+    await page.waitForTimeout(600);
+    const despues = await estadoGuardado(page);
+    const nuevas = (despues?.requests ?? []).filter((r) => !antes.requests.some((x) => x.id === r.id));
+    ok('31 · crea una solicitud por coche admitido', nuevas.length === n && nuevas.every((r) => r.type === 'traslado' && r.siteId === 'irun'), `${nuevas.length} de ${n}`);
+    const conApunte = nuevas.filter((r) => despues.events.some((e) => e.vehicleId === r.vehicleId && !antes.events.some((x) => x.id === e.id)));
+    ok('31 · y cada coche tiene su propio apunte en el historial', conApunte.length === n, `${conApunte.length} de ${n}`);
+    ok('31 · la selección se vacía al terminar', (await barra.count()) === 0);
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForTimeout(600);
+    const recargado = await estadoGuardado(page);
+    ok('31 · lo hecho sigue al volver a abrir la app', nuevas.every((r) => recargado.requests.some((x) => x.id === r.id)));
+    ok('31 · sin errores de JavaScript', errores.length === 0, errores[0] ?? '');
+    await context.close();
+  }
+  {
+    // En el móvil no hay casillas: se trabaja coche a coche.
+    const { context, page } = await entrarComo(browser, USUARIOS.logistica, 420);
+    await page.goto(`${BASE}/flota`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(700);
+    ok('31 · en el móvil no hay acciones en bloque', (await page.locator('[data-testid="casilla-bloque"]').count()) === 0);
+    await context.close();
+  }
+
   return resumen();
 }

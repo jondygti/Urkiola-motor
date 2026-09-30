@@ -199,6 +199,15 @@ Cada una viene de un fallo real de este proyecto:
     panel y la columna «Días» de la flota. No calcular días parados a mano en
     una pantalla: saldrían dos cifras distintas para el mismo coche.
 
+34. **Una acción en bloque no es un comando nuevo: es el mismo comando,
+    uno por coche** (`src/data/bloque.ts`). Así cada coche tiene su apunte y
+    el servidor comprueba cada uno, y es imposible hacer en bloque lo que no
+    se puede coche a coche. Antes de confirmar se pasa cada coche por
+    `comprobarPermiso` —la misma regla del servidor, que por eso vive en
+    `src/data/permisos.ts`— y se dice cuáles no la admiten y por qué; se
+    aplica al resto. Solo en el ordenador (`accionesEnBloque` de `DataTable`):
+    en el móvil se trabaja coche a coche. Lo vigila `server/pruebas/bloque.test.ts`.
+
 ## Comprobar antes de dar algo por bueno
 
 ```bash
@@ -216,6 +225,7 @@ npm run verify:api           # la app real contra el backend real
 | `scripts/verify/funciones.mjs` | operativa real, persistencia y regresiones de demo usada |
 | `scripts/verify/roles.mjs` | permisos, visibilidad y aislamiento por rol |
 | `server/pruebas/` | permisos, idempotencia, persistencia, seguridad e invariantes |
+| `server/pruebas/bloque.test.ts` | nadie hace en bloque lo que no puede coche a coche |
 | `server/pruebas/aleatorio.test.ts` | secuencias aleatorias reproducibles e invariantes |
 | `scripts/verify/backend.mjs` | cliente compilado contra backend real local |
 

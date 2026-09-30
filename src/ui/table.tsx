@@ -46,6 +46,7 @@ export function DataTable<T>({
   emptyText = 'No hay registros que coincidan con los filtros.',
   showFilters = true,
   pageSize = 40,
+  accionesEnBloque,
 }: {
   columns: Column<T>[];
   rows: T[];
@@ -55,11 +56,19 @@ export function DataTable<T>({
   showFilters?: boolean;
   /** Nº de filas visibles antes de pulsar «Mostrar más». */
   pageSize?: number;
+  /**
+   * Acciones en bloque, solo en escritorio: con esto la tabla lleva una
+   * casilla por fila y «seleccionar todos los filtrados», y pinta encima lo
+   * que devuelva esta función con las filas marcadas. En el móvil no: allí
+   * se trabaja coche a coche, con el coche delante.
+   */
+  accionesEnBloque?: (seleccionadas: T[], limpiar: () => void) => React.ReactNode;
 }) {
   const { c, isDesktop } = useTheme();
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [limit, setLimit] = useState(pageSize);
   const [orden, setOrden] = useState<Orden>(null);
+  const [marcadas, setMarcadas] = useState<Set<string>>(() => new Set());
 
   const hasFilters = showFilters && columns.some((col) => col.filter);
 
@@ -96,6 +105,25 @@ export function DataTable<T>({
   };
 
   const visible = ordenadas.slice(0, limit);
+
+  // Lo marcado que ya no está entre las filas (se cerró, se canceló, se
+  // filtró fuera) deja de contar: una acción en bloque solo va sobre lo que
+  // se ve en la lista filtrada.
+  const seleccionadas = useMemo(
+    () => (marcadas.size ? filtered.filter((r) => marcadas.has(keyExtractor(r))) : []),
+    [filtered, marcadas, keyExtractor]
+  );
+  const conBloque = !!accionesEnBloque && isDesktop;
+  const todasMarcadas = filtered.length > 0 && seleccionadas.length === filtered.length;
+  const marcar = (id: string) =>
+    setMarcadas((m) => {
+      const n = new Set(m);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  const marcarFiltradas = () => setMarcadas(new Set(filtered.map(keyExtractor)));
+  const limpiar = () => setMarcadas(new Set());
   const more = filtered.length - visible.length;
 
   /* ------------------------------------------------------------ móvil */
@@ -159,10 +187,43 @@ export function DataTable<T>({
   }
 
   /* --------------------------------------------------------- escritorio */
-  const totalWidth = columns.reduce((acc, col) => acc + (col.width ?? 150), 0);
+  const totalWidth = columns.reduce((acc, col) => acc + (col.width ?? 150), 0) + (conBloque ? 40 : 0);
 
   return (
     <View>
+      {conBloque && seleccionadas.length > 0 ? (
+        <View
+          testID="barra-bloque"
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 10,
+            padding: 10,
+            marginBottom: space.sm,
+            borderRadius: radius.md,
+            borderWidth: 1,
+            borderColor: c.primary,
+            backgroundColor: c.surfaceAlt,
+          }}
+        >
+          <Text style={{ fontSize: tipografia.small, fontWeight: '800', color: c.text }}>
+            {seleccionadas.length === 1 ? '1 seleccionado' : `${seleccionadas.length} seleccionados`}
+          </Text>
+          {!todasMarcadas ? (
+            <Pressable onPress={marcarFiltradas} accessibilityRole="button">
+              <Text style={{ fontSize: tipografia.small, fontWeight: '700', color: c.primary }}>
+                Seleccionar los {filtered.length} filtrados
+              </Text>
+            </Pressable>
+          ) : null}
+          <Pressable onPress={limpiar} accessibilityRole="button">
+            <Text style={{ fontSize: tipografia.small, fontWeight: '700', color: c.textMuted }}>Quitar selección</Text>
+          </Pressable>
+          <View style={{ flex: 1 }} />
+          {accionesEnBloque!(seleccionadas, limpiar)}
+        </View>
+      ) : null}
       <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={{ minWidth: '100%' }}>
         <View style={{ minWidth: totalWidth }}>
           {/* cabecera */}
@@ -174,6 +235,16 @@ export function DataTable<T>({
               paddingBottom: 8,
             }}
           >
+            {conBloque ? (
+              <View style={{ width: 40, paddingHorizontal: 8, justifyContent: 'flex-end' }}>
+                <Casilla
+                  marcada={todasMarcadas}
+                  onPress={todasMarcadas ? limpiar : marcarFiltradas}
+                  etiqueta={todasMarcadas ? 'Quitar selección' : `Seleccionar los ${filtered.length} filtrados`}
+                  testID="casilla-todas"
+                />
+              </View>
+            ) : null}
             {columns.map((col) => (
               <View key={col.key} style={{ width: col.width ?? 150, paddingHorizontal: 8 }}>
                 {col.sortValue ? (
@@ -237,6 +308,15 @@ export function DataTable<T>({
                 ...(Platform.OS === 'web' && onRowPress ? ({ cursor: 'pointer' } as object) : null),
               })}
             >
+              {conBloque ? (
+                <View style={{ width: 40, paddingHorizontal: 8 }}>
+                  <Casilla
+                    marcada={marcadas.has(keyExtractor(row))}
+                    onPress={() => marcar(keyExtractor(row))}
+                    etiqueta="Seleccionar esta fila"
+                  />
+                </View>
+              ) : null}
               {columns.map((col) => (
                 <View key={col.key} style={{ width: col.width ?? 150, paddingHorizontal: 8, paddingVertical: 9 }}>
                   {col.render(row)}
@@ -250,6 +330,42 @@ export function DataTable<T>({
       <ShowMore more={more} onPress={() => setLimit((l) => l + pageSize)} />
       <ResultCount shown={visible.length} total={filtered.length} />
     </View>
+  );
+}
+
+function Casilla({
+  marcada,
+  onPress,
+  etiqueta,
+  testID = 'casilla-bloque',
+}: {
+  marcada: boolean;
+  onPress: () => void;
+  etiqueta: string;
+  testID?: string;
+}) {
+  const { c } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: marcada }}
+      accessibilityLabel={etiqueta}
+      testID={testID}
+      hitSlop={8}
+      style={{
+        width: 20,
+        height: 20,
+        borderRadius: 5,
+        borderWidth: 1.5,
+        borderColor: marcada ? c.primary : c.border,
+        backgroundColor: marcada ? c.primary : c.surface,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {marcada ? <Icon name="hecho" size={tipografia.small} color="#fff" /> : null}
+    </Pressable>
   );
 }
 
