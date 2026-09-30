@@ -738,6 +738,17 @@ export const BASE_COLUMNS: { key: string; label: string }[] = [
   { key: 'received', label: 'Fecha de recepción' },
 ];
 
+/** Fases en las que se cuentan los días de un coche (`diasDelCoche`). */
+export type FaseDias = 'campa' | 'preparacion' | 'traslado';
+
+export type LimitesDias = Record<FaseDias, number>;
+
+export const FASE_DIAS_LABEL: Record<FaseDias, string> = {
+  campa: 'En campa',
+  preparacion: 'En preparación',
+  traslado: 'Esperando traslado',
+};
+
 export interface AdminConfig {
   /** Objetivo de preparación en minutos. */
   prepTargetMinutes: Record<VehicleType, number>;
@@ -751,6 +762,12 @@ export interface AdminConfig {
   repasoTargetMinutes: number;
   /** Horas sin comprobación física a partir de las que se avisa. */
   staleCheckHours: number;
+  /**
+   * Días que puede pasar un coche en cada fase antes de salir en «Requiere
+   * atención hoy». Un coche no se pierde de golpe: se queda parado, y un
+   * coche parado no avisa solo.
+   */
+  limitesDias?: LimitesDias;
   /**
    * Horas que puede estar un traslado encargado sin que nadie recoja las
    * llaves antes de avisar. Es donde se pierden los días: el plazo de 48 h

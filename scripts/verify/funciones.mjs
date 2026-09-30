@@ -979,5 +979,58 @@ export async function ejecutar(browser, BASE) {
     await context.close();
   }
 
+  /* ------------------------------------------- 30 · días que lleva parado */
+  {
+    const { context, page, errores } = await entrarComo(browser, USUARIOS.admin, 1440);
+    await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(700);
+    ok('30 · el panel tiene «Requiere atención hoy»', await page.getByText('Requiere atención hoy').isVisible());
+    ok('30 · y los días medios por sede', (await page.locator('[data-testid="dias-por-sede"]').count()) > 0);
+
+    // La flota se ordena por días: lo que más lleva, arriba.
+    await page.goto(`${BASE}/flota`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(700);
+    await page.locator('[aria-label="Ordenar por Días"]').first().click();
+    await page.waitForTimeout(400);
+    const dias = (await page.locator('[data-testid="dias-coche"]').allInnerTexts())
+      .map((t) => Number(t.match(/(\d+) día/)?.[1] ?? NaN))
+      .filter((n) => !Number.isNaN(n));
+    ok('30 · la flota tiene la columna «Días»', dias.length > 5, dias.slice(0, 5).join(' '));
+    ok('30 · y se ordena de más a menos', dias.every((d, i) => i === 0 || d <= dias[i - 1]), dias.slice(0, 8).join(' '));
+    await page.locator('[aria-label="Ordenar por Días"]').first().click();
+    await page.waitForTimeout(400);
+    const alReves = (await page.locator('[data-testid="dias-coche"]').allInnerTexts())
+      .map((t) => Number(t.match(/(\d+) día/)?.[1] ?? NaN))
+      .filter((n) => !Number.isNaN(n));
+    ok('30 · y de menos a más al volver a pulsar', alReves.every((d, i) => i === 0 || d >= alReves[i - 1]), alReves.slice(0, 8).join(' '));
+
+    // El límite se configura en Administración y se nota en el panel.
+    const configurar = async (valor) => {
+      await page.goto(`${BASE}/administracion`, { waitUntil: 'networkidle' });
+      await page.waitForTimeout(600);
+      const campo = page.getByText('DÍAS EN CAMPA ANTES DE AVISAR', { exact: true }).locator('xpath=following::input[1]');
+      await campo.fill(String(valor));
+      // El estado se guarda en el dispositivo con un pequeño retraso: si se
+      // recarga antes, la prueba mira un estado que aún no se ha escrito.
+      await page.waitForTimeout(2500);
+    };
+    await configurar(3650);
+    await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(600);
+    const conMucho = await page.locator('[data-testid="requiere-atencion"]').innerText().catch(() => '');
+    await configurar(1);
+    await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(600);
+    const conPoco = await page.locator('[data-testid="requiere-atencion"]').innerText().catch(() => '');
+    ok('30 · bajar el límite de campa saca coches en el panel', /En campa: \d+/.test(conPoco) && !/En campa/.test(conMucho), conPoco.slice(0, 80));
+    const s = await estadoGuardado(page);
+    ok('30 · el límite queda guardado', s?.config?.limitesDias?.campa === 1, JSON.stringify(s?.config?.limitesDias));
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForTimeout(600);
+    ok('30 · y sigue al volver a abrir la app', /En campa: \d+/.test(await page.locator('[data-testid="requiere-atencion"]').innerText().catch(() => '')));
+    ok('30 · sin errores de JavaScript', errores.length === 0, errores[0] ?? '');
+    await context.close();
+  }
+
   return resumen();
 }

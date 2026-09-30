@@ -2,6 +2,7 @@ import { ALL_PERMISSIONS, BASE_COLUMNS } from './types';
 import { diaEnEspana } from './delivery-date';
 import type {
   AdminConfig,
+  LimitesDias,
   AppState,
   Carrier,
   ColumnPref,
@@ -397,12 +398,25 @@ const REQUIREMENTS: Requirement[] = [
   { id: 'req-repaso-int', label: 'Limpieza interior', vehicleTypes: [], siteIds: [], tipos: ['repaso'], timed: true, optional: false, order: 12 },
 ];
 
+/**
+ * Límites de días de serie. Se cambian en Administración → Operativa.
+ *
+ * - Campa, 30 días: un coche de stock puede esperar venta semanas; pasado
+ *   un mes sin que nadie lo mueva, alguien debería preguntarse por qué.
+ * - Preparación, 3 días: el plazo comprometido son 48 h; al tercer día ya
+ *   se ha incumplido y hay que ver qué la tiene parada.
+ * - Traslado, 3 días: las mismas 48 h del transportista más un día para
+ *   que recoja las llaves.
+ */
+export const LIMITES_DIAS: LimitesDias = { campa: 30, preparacion: 3, traslado: 3 };
+
 export const CONFIG: AdminConfig = {
   prepTargetMinutes: { VN: 120, VO: 150 },
   // Media hora: es limpiar por dentro y por fuera un coche que ya está
   // preparado, no prepararlo.
   repasoTargetMinutes: 30,
   staleCheckHours: 72,
+  limitesDias: LIMITES_DIAS,
   pickupAlertHours: 24,
   waitReasons: ['Material', 'Matrículas', 'Documentación', 'Accesorios', 'Autorización', 'Incidencia', 'Otro'],
   requirements: REQUIREMENTS,

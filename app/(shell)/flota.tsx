@@ -1,15 +1,15 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
 import { MiniaturaVehiculo } from '@/features/common/Miniatura';
 import { Btn, Column, DataTable, Grid, H1, Input, Muted, Notice, Panel, Screen, Select, Spacer, StatLine, Toolbar, space, tipografia, useTheme } from '@/ui';
 import { useAppState, useStore } from '@/data/store';
-import { customValue, esDelComercial, fleetColumns, vehiculosVisiblesPara } from '@/data/selectors';
+import { customValue, diasDelCoche, esDelComercial, fleetColumns, vehiculosVisiblesPara } from '@/data/selectors';
 import { formatDateTime, locationLabel, matchesSearch, siteName, timeAgo, vehicleName } from '@/data/format';
 import { Cell, SituationPill, StatusPill, TypePill, useOpenVehicle } from '@/features/common/bits';
 import { ScreenGuard, usePerms } from '@/features/common/Guard';
 import { NuevoVehiculoModal } from '@/features/actions/NuevoVehiculo';
 import type { Vehicle } from '@/data/types';
-import { VEHICLE_STATUS_LABEL } from '@/data/types';
+import { FASE_DIAS_LABEL, VEHICLE_STATUS_LABEL } from '@/data/types';
 
 const ALL = '__all__';
 /** «Los míos»: los coches del comercial que ha entrado. */
@@ -235,6 +235,30 @@ export default function FleetScreen() {
   // La foto va delante de todo: no es una columna que se configure, es la
   // forma de reconocer el coche en la lista antes de leer nada.
   columns.unshift({ key: 'foto', header: 'Foto', width: 68, leading: true, render: (v) => <MiniaturaVehiculo vehicle={v} /> });
+  // Los días que lleva en lo que está haciendo: en campa, en preparación o
+  // esperando traslado. En rojo cuando pasa del límite de Administración.
+  // Se ordena pulsando la cabecera: lo que más lleva, arriba.
+  const ahora = Date.now();
+  // Va detrás del identificador y no al final: al final quedaba fuera de
+  // la pantalla, y una columna que hay que ir a buscar no se mira.
+  columns.splice(2, 0, {
+    key: 'dias',
+    header: 'Días',
+    width: 96,
+    sortValue: (v) => diasDelCoche(state, v, ahora)?.dias ?? -1,
+    render: (v) => {
+      const d = diasDelCoche(state, v, ahora);
+      if (!d) return <Cell muted>—</Cell>;
+      return (
+        <View testID="dias-coche">
+          <Text style={{ fontSize: tipografia.small, fontWeight: '800', color: d.pasado ? c.redFg : c.text }}>
+            {d.dias === 1 ? '1 día' : `${d.dias} días`}
+          </Text>
+          <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>{FASE_DIAS_LABEL[d.fase]}</Text>
+        </View>
+      );
+    },
+  });
 
   return (
     <ScreenGuard href="/flota" title="Flota">

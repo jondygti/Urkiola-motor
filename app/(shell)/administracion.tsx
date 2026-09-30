@@ -4,7 +4,8 @@ import { Btn, Checkbox, Code, Field, Grid, H1, H3, Input, Modal, Muted, Notice, 
 import { useAppState, useStore } from '@/data/store';
 import { API_URL, apiEnabled } from '@/data/api';
 import { TIPO_PREPARACION_LABEL, type Requirement, type TipoPreparacion, type VehicleType } from '@/data/types';
-import { can, roleLabel } from '@/data/selectors';
+import { can, limitesDias, roleLabel } from '@/data/selectors';
+import { LIMITES_DIAS } from '@/data/seed';
 import { LocationsAdmin } from '@/features/admin/LocationsAdmin';
 import { UsersAdmin } from '@/features/admin/UsersAdmin';
 import { FleetAdmin } from '@/features/admin/FleetAdmin';
@@ -20,6 +21,7 @@ export default function AdminScreen() {
   >('operativa');
   const [editing, setEditing] = useState<Requirement | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const limites = limitesDias(state);
 
   const setTarget = (type: VehicleType, minutes: number) =>
     run({
@@ -137,6 +139,26 @@ export default function AdminScreen() {
                   keyboardType="numeric"
                 />
               </Field>
+              {/* Pasados estos días, el coche sale en «Requiere atención hoy»
+                  del panel y en rojo en la columna «Días» de la flota. */}
+              {(['campa', 'preparacion', 'traslado'] as const).map((fase) => (
+                <Field
+                  key={fase}
+                  label={`Días ${fase === 'campa' ? 'en campa' : fase === 'preparacion' ? 'en preparación' : 'esperando traslado'} antes de avisar`}
+                  hint={fase === 'campa' ? 'Desde su último movimiento.' : 'Desde que se pidió.'}
+                >
+                  <Input
+                    value={String(limites[fase])}
+                    onChangeText={(v) =>
+                      run({
+                        type: 'config.update',
+                        patch: { limitesDias: { ...limites, [fase]: Number(v.replace(/\D/g, '')) || LIMITES_DIAS[fase] } },
+                      })
+                    }
+                    keyboardType="numeric"
+                  />
+                </Field>
+              ))}
               <Muted>
                 Ojo con la diferencia: el objetivo de 2 h es lo que debe durar el trabajo; las 48 h son el
                 plazo comprometido para tenerlo listo. Los plazos se calculan al crear la solicitud, así que

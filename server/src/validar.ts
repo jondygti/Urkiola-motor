@@ -106,6 +106,19 @@ function comprobarConfig(patch: unknown): void {
     }
   }
 
+  if (p.limitesDias !== undefined) {
+    const limites = p.limitesDias as Record<string, unknown> | null;
+    if (!limites || typeof limites !== 'object' || Array.isArray(limites)) {
+      throw malaPeticion('Los límites de días tienen que ser números.');
+    }
+    for (const fase of ['campa', 'preparacion', 'traslado']) {
+      const n = limites[fase];
+      if (typeof n !== 'number' || !Number.isInteger(n) || n <= 0 || n > 3650) {
+        throw malaPeticion(`El límite de días de ${fase} tiene que ser un número de días entre 1 y 3650.`);
+      }
+    }
+  }
+
   for (const [clave, valor] of Object.entries(p)) {
     // Las listas de la configuración son listas: si llega otra cosa, las
     // pantallas que las recorren se rompen al pintar.
