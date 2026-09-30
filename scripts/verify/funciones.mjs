@@ -173,6 +173,34 @@ export async function ejecutar(browser, BASE) {
       veh?.location?.zoneId ?? '');
     ok('6 · y queda apto para entrega', veh?.status === 'apto_entrega', veh?.status ?? '');
 
+    // La foto del coche en las listas: la miniatura de su última foto, que
+    // se hizo al sacarla. Nunca la original (sería bajarse megas por fila).
+    const miniaturaEnMover = async () => {
+      await page.goto(`${BASE}/mover`, { waitUntil: 'networkidle' });
+      await page.getByPlaceholder('1234 ABC').fill('6412 NPV');
+      await page.waitForTimeout(600);
+      return page.evaluate(() => {
+        const caja = document.querySelector('[data-testid="miniatura-foto"]');
+        const img = caja?.querySelector('img');
+        return { hay: !!caja, src: img?.getAttribute('src') ?? '', cargada: !!img && img.complete && img.naturalWidth > 0 };
+      });
+    };
+    const mini = await miniaturaEnMover();
+    ok('6 · la lista enseña la foto del coche en pequeño', mini.hay && mini.cargada, mini.src.slice(0, 30));
+    ok('6 · y es la miniatura, no la foto original', mini.src.startsWith('data:image/jpeg'), mini.src.slice(0, 30));
+    await page.locator('[data-testid="miniatura-foto"]').first().click();
+    await page.waitForTimeout(500);
+    ok('6 · al pulsarla se abre la foto en grande', await page.locator('[data-testid="foto-grande"]').isVisible());
+    await page.reload({ waitUntil: 'networkidle' });
+    const trasRecargar = await miniaturaEnMover();
+    ok('6 · la miniatura sigue ahí al volver a abrir la app', trasRecargar.hay && trasRecargar.cargada);
+
+    // Sin foto, la marca abreviada: PEU, CIT, OPE…
+    await page.goto(`${BASE}/mi-preparacion`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(600);
+    const marcas = await page.locator('[data-testid="miniatura-marca"]').allInnerTexts();
+    ok('6 · sin foto sale la marca abreviada', marcas.length > 0 && marcas.every((m) => /^[A-Z0-9]{1,3}$/.test(m.trim())), marcas.slice(0, 4).join(' '));
+
     ok('7 · sin errores de JavaScript', errores.length === 0, errores[0] ?? '');
     await context.close();
   }

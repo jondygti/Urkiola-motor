@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import { API_URL, api } from './api';
+import { subirMiniaturaPendiente } from './miniaturas';
 
 const COLA_FOTOS_KEY = `urkiola.photoqueue.${encodeURIComponent(API_URL || 'demo')}.v1`;
 
@@ -101,6 +102,7 @@ export async function resolverFotosPendientes<T>(valor: T): Promise<{ value: T; 
     let subida = item.uploadedRef;
     if (!subida) {
       subida = await api.subirFoto(item.uri);
+      await subirMiniaturaPendiente(item.ref, subida);
       actuales = actuales.map((x) => x.ref === item.ref ? { ...x, uploadedRef: subida } : x);
       // Persistir antes de mandar el comando evita volver a subir una foto si
       // se corta la red justo después de que Storage la haya aceptado.

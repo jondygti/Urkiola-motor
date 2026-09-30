@@ -1,6 +1,7 @@
 import { comercialLabel } from '@/data/format';
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
+import { MiniaturaVehiculo } from '@/features/common/Miniatura';
 import { Btn, Column, DataTable, Grid, H1, Icon, Kpi, Modal, Muted, Notice, Panel, Screen, Select, Spacer, StateFlow, StatLine, Toolbar, space, tipografia, useTheme } from '@/ui';
 import { useAppState, useTicker } from '@/data/store';
 import { prepElapsedMs, prepIsOverSla, prepProgress } from '@/data/commands';
@@ -46,6 +47,13 @@ export default function PreparationScreen() {
   );
 
   const columns: Column<Preparation>[] = [
+    {
+      key: 'foto',
+      header: 'Foto',
+      width: 68,
+      leading: true,
+      render: (p) => <MiniaturaVehiculo vehicle={state.vehicles.find((v) => v.id === p.vehicleId)} />,
+    },
     {
       key: 'vehicle',
       header: 'Vehículo',

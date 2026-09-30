@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { MiniaturaVehiculo } from '@/features/common/Miniatura';
 import { Text, View } from 'react-native';
 import { campo, Btn, Field, H1, Icon, Input, Modal, Muted, Notice, Panel, Pill, Screen, Segmented, Select, Spacer, radius, space, useTheme, type IconName } from '@/ui';
 import { useStore } from '@/data/store';
@@ -189,6 +190,7 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <MiniaturaVehiculo vehicle={vehicle} />
         <Text style={{ fontSize: campo.title, fontWeight: '900', color: c.text, flex: 1, minWidth: 140 }}>
           {vehicle ? vehicleRef(vehicle) : request.vehicleId}
         </Text>
@@ -452,6 +454,7 @@ function Entregados({ hechos }: { hechos: ReturnType<typeof trasladosHechos> }) 
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <MiniaturaVehiculo vehicle={vehicle} />
               <Text style={{ fontSize: campo.strong, fontWeight: '800', color: c.text, flex: 1, minWidth: 120 }}>
                 {vehicle ? vehicleRef(vehicle) : request.vehicleId}
               </Text>

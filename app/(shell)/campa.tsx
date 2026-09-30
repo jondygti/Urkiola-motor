@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
+import { MiniaturaVehiculo } from '@/features/common/Miniatura';
 import { Column, DataTable, Grid, H1, Kpi, Muted, Panel, Pill, ProgressBar, Screen, Select, Spacer, Toolbar, space, tipografia, useTheme } from '@/ui';
 import { useAppState } from '@/data/store';
 import { siteOccupancy, vehiclesAtSite, vehiclesInZone, zoneOccupancy } from '@/data/selectors';
@@ -31,6 +32,17 @@ export default function CampScreen() {
     state.vehicles.find((v) => v.location?.positionId === positionId && v.logisticActive);
 
   const columns: Column<Position>[] = [
+    {
+      key: 'foto',
+      header: 'Foto',
+      width: 68,
+      leading: true,
+      // Una plaza libre no tiene coche que enseñar.
+      render: (p) => {
+        const v = vehicleAt(p.id);
+        return v ? <MiniaturaVehiculo vehicle={v} /> : null;
+      },
+    },
     {
       key: 'code',
       header: 'Posición',

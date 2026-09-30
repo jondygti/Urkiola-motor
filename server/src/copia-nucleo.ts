@@ -95,7 +95,8 @@ export function resumirCopia(entrada: {
 }): ResumenCopia {
   const estado = rehacerEstado(entrada.comandos, entrada.semilla);
   const refs = fotosReferenciadas(estado);
-  const ficherosFoto = entrada.ficherosDeFoto.filter((f) => !f.endsWith('.tipo'));
+  // Las miniaturas (`.mini`) viajan con la copia pero no son evidencias: no cuentan.
+  const ficherosFoto = entrada.ficherosDeFoto.filter((f) => !f.endsWith('.tipo') && !f.endsWith('.mini'));
   const enCopia = new Set(ficherosFoto.map((f) => path.basename(f)));
   const faltan = entrada.fotosFuera
     ? []

@@ -284,6 +284,39 @@ try {
     // Pero no cualquiera que dé con la dirección estable.
     const sinSesion = await fetch(`${API}/fotos/${encodeURIComponent(idFoto)}`);
     ok('5 · sin sesión no se ve', sinSesion.status === 401, String(sinSesion.status));
+
+    // La miniatura para las listas: la sube quien hizo la foto, y la app
+    // conectada la pinta en vez de la original.
+    const mini = await fetch(`${API}/fotos/${encodeURIComponent(idFoto)}/miniatura`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${tokenNerea}` },
+      body: png,
+    });
+    ok('5 · quien hizo la foto sube su miniatura', mini.status === 200, String(mini.status));
+    const ajena = await fetch(`${API}/fotos/${encodeURIComponent(idFoto)}/miniatura`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${tokenAdmin}` },
+      body: png,
+    });
+    ok('5 · nadie más puede cambiarla', ajena.status === 404, String(ajena.status));
+    const accesos = await fetch(`${API}/fotos/miniaturas/acceso`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenAdmin}` },
+      body: JSON.stringify({ ids: [idFoto] }),
+    });
+    const { urls } = await accesos.json();
+    const vistaMini = urls?.[idFoto] ? await fetch(`${API}${urls[idFoto]}`) : null;
+    ok('5 · y otra cuenta la ve con un solo acceso para toda la lista', vistaMini?.status === 200, urls?.[idFoto] ?? 'sin URL');
+
+    await page2.goto(`${WEB}/mover`, { waitUntil: 'networkidle' });
+    await page2.getByPlaceholder('1234 ABC').fill(cocheRecepcion.plate ?? cocheRecepcion.vin8);
+    await page2.waitForTimeout(2500);
+    const src = await page2
+      .locator('[data-testid="miniatura-foto"] img')
+      .first()
+      .getAttribute('src')
+      .catch(() => null);
+    ok('5 · la app conectada pinta la miniatura, no la foto original', !!src && src.includes('&m=1'), src ?? 'sin miniatura');
   }
 
   /* ------------------- 7 · recuperar la contraseña sin pedir permiso */

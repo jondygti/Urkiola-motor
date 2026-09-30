@@ -183,6 +183,14 @@ Cada una viene de un fallo real de este proyecto:
     internas `urkiola.*` del almacenamiento. Urkiola sigue siendo la empresa:
     las frases que hablan de ella no se cambian sin preguntar.
 
+32. **Las listas enseñan la miniatura del coche, nunca la foto original**
+    (`<MiniaturaVehiculo>`, `src/features/common/Miniatura.tsx`). La
+    miniatura la hace el móvil al sacar la foto (`src/data/miniaturas.ts`) y
+    la sube detrás de la original: el servidor no tiene librería de imágenes
+    a propósito. Se ve con la misma autorización que la foto; la pone solo
+    quien subió la original. Sin miniatura, la marca abreviada (PEU, FOR…).
+    La última foto de cada coche sale de `ultimaFotoDe`.
+
 ## Comprobar antes de dar algo por bueno
 
 ```bash

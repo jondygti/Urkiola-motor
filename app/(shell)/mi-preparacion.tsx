@@ -5,6 +5,7 @@ import { campo, Btn, Field, H1, Icon, Modal, Muted, Notice, Panel, Pill, Progres
 import { useStore, useTicker } from '@/data/store';
 import { activePreparations, deadlineOf, prepRequestsSinAbrir, historialPreparador, mesDeFecha, resumenPreparador, tiempoDePreparador } from '@/data/selectors';
 import { idCreadoPor, prepElapsedMs, prepIsOverSla, prepProgress } from '@/data/commands';
+import { MiniaturaVehiculo } from '@/features/common/Miniatura';
 import { formatDateTime, formatDuration, formatShortDuration, siteName, userName, vehicleName, vehicleRef } from '@/data/format';
 import type { CheckState, Preparation, ServiceRequest } from '@/data/types';
 import { ScreenGuard, usePerms } from '@/features/common/Guard';
@@ -198,6 +199,7 @@ function PedidaCard({
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <MiniaturaVehiculo vehicle={vehicle} />
         <Text style={{ fontSize: campo.title, fontWeight: '900', color: c.text, flex: 1, minWidth: 130 }}>
           {vehicle ? vehicleRef(vehicle) : request.vehicleId}
         </Text>
@@ -258,6 +260,7 @@ function PrepCard({ prep, onOpen }: { prep: Preparation; onOpen: () => void }) {
       })}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <MiniaturaVehiculo vehicle={vehicle} />
         <Text style={{ fontSize: campo.title, fontWeight: '900', color: c.text, flex: 1, minWidth: 130 }}>
           {vehicle ? vehicleRef(vehicle) : prep.vehicleId}
         </Text>

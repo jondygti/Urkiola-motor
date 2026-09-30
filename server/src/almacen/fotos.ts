@@ -31,6 +31,13 @@ export interface AlmacenFotos {
   borrar(id: string): Promise<void>;
 }
 
+/**
+ * Dónde se guarda la miniatura de una foto: al lado, con el mismo nombre y
+ * `.mini` detrás. Así la copia de seguridad, que copia la carpeta o el
+ * bucket entero, se la lleva sin saber que existe.
+ */
+export const idMiniatura = (id: string) => `${id}.mini`;
+
 /** Tipos que se aceptan. Lo que no esté aquí no entra. */
 export const TIPOS_FOTO: Record<string, string> = {
   'image/jpeg': 'jpg',

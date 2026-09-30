@@ -2,6 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
 import { api, apiEnabled } from '@/data/api';
 import { registrarFotoPendiente } from '@/data/photoQueue';
+import { crearMiniatura, guardarMiniaturaLocal } from '@/data/miniaturas';
 
 /**
  * Toma una foto con la cámara o la elige de la galería.
@@ -49,10 +50,21 @@ export interface FotoTomada {
 export async function capturarYSubir(source: 'camera' | 'library' = 'camera'): Promise<FotoTomada | null> {
   const uri = await capturePhoto(source);
   if (!uri) return null;
-  if (!apiEnabled) return { ref: uri, vistaPrevia: uri, subida: true };
+  // La miniatura, para las listas, se hace ahora que la foto está en el
+  // móvil: después solo se podría hacer bajándose la original.
+  const miniatura = await crearMiniatura(uri);
+  if (!apiEnabled) {
+    if (miniatura) await guardarMiniaturaLocal(uri, miniatura);
+    return { ref: uri, vistaPrevia: uri, subida: true };
+  }
 
   try {
     const ref = await api.subirFoto(uri);
+    if (miniatura) {
+      // Sin esperarla: la foto, que es la prueba, ya está a salvo. Si la
+      // miniatura no sube, este móvil la guarda y la lista la sigue viendo.
+      void api.subirMiniatura(ref, miniatura).catch(() => guardarMiniaturaLocal(ref, miniatura));
+    }
     return { ref, vistaPrevia: uri, subida: true };
   } catch {
     // En el navegador no hay dónde guardarla para después: la dirección de
@@ -66,6 +78,7 @@ export async function capturarYSubir(source: 'camera' | 'library' = 'camera'): P
     // sincronizador la subirá antes de enviar el comando que la referencia.
     try {
       const ref = await registrarFotoPendiente(uri);
+      if (miniatura) await guardarMiniaturaLocal(ref, miniatura);
       return { ref, vistaPrevia: ref, subida: false };
     } catch {
       // Si ni siquiera podemos conservarla de forma duradera (disco lleno,
