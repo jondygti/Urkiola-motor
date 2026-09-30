@@ -1,4 +1,4 @@
-import { USUARIOS, cambiarDeUsuario, entrarComo, elegirEnLista, estadoGuardado, marcador, pulsar } from './entorno.mjs';
+import { USUARIOS, cambiarDeUsuario, entrarComo, elegirEnLista, estadoGuardado, lineasDeUbicacion, marcador, pulsar } from './entorno.mjs';
 
 /** Una imagen PNG de un píxel: basta para que el selector de fotos la acepte. */
 const PNG_1PX = Buffer.from(
@@ -47,11 +47,8 @@ export async function ejecutar(browser, BASE) {
     // ahora, con su plaza, y cuándo se confirmó por última vez. Una
     // ubicación de hace una semana es una suposición.
     ok('1 · dice dónde está el coche ahora mismo', ficha.includes('DÓNDE ESTÁ AHORA'));
-    ok(
-      '1 · con la sede, la zona y la plaza',
-      /📍[^\n]*·[^\n]*·[^\n]*/.test(ficha),
-      ficha.match(/📍[^\n]*/)?.[0] ?? ''
-    );
+    const ubicacion = (await lineasDeUbicacion(page))[0] ?? '';
+    ok('1 · con la sede, la zona y la plaza', /·[^\n]*·/.test(ubicacion), ubicacion);
     ok(
       '1 · y cuándo se comprobó, para saber si fiarse',
       /Comprobado hace|Nadie lo ha comprobado/.test(ficha),
@@ -65,7 +62,7 @@ export async function ejecutar(browser, BASE) {
       return m ? m[0] : null;
     });
     await elegirEnLista(page, zonaAntes ?? 'Elige zona', 'Parking 03');
-    const boton = page.getByText('✓ Mover a', { exact: false }).first();
+    const boton = page.getByText('Mover a', { exact: false }).first();
     ok('1 · el botón dice a dónde va', await boton.isVisible(), (await boton.textContent()) ?? '');
 
     await boton.click();
@@ -88,7 +85,7 @@ export async function ejecutar(browser, BASE) {
 
     // Encadenar: el campo se vacía y el destino se queda puesto.
     const campoVacio = (await page.getByPlaceholder('1234 ABC').inputValue()) === '';
-    const etiqueta = (await page.getByText('✓ Mover a', { exact: false }).first().textContent()) ?? '';
+    const etiqueta = (await page.getByText('Mover a', { exact: false }).first().textContent()) ?? '';
     ok('3 · el campo queda vacío para el siguiente', campoVacio);
     ok('3 · el destino se mantiene puesto', etiqueta.includes('P.03'), etiqueta);
     ok('3 · lleva la cuenta de lo movido', await page.getByText('Movidos ahora (1)').isVisible());
@@ -110,7 +107,7 @@ export async function ejecutar(browser, BASE) {
     await page.waitForTimeout(400);
     await elegirEnLista(page, 'Sondika', 'Leioa');
     await elegirEnLista(page, /^(Tejavana|Parking) \d\d$/, 'Parking 03');
-    await page.getByText('✓ Mover a', { exact: false }).first().click();
+    await page.getByText('Mover a', { exact: false }).first().click();
     await page.waitForTimeout(600);
 
     await page.goto(`${BASE}/mi-preparacion`, { waitUntil: 'networkidle' });
@@ -121,7 +118,7 @@ export async function ejecutar(browser, BASE) {
 
     await page.getByText('6412 NPV', { exact: true }).first().click();
     await page.waitForTimeout(500);
-    await page.getByText('✓ Terminar', { exact: false }).first().click();
+    await page.getByText(/^Terminar( ·| \()/).first().click();
     await page.waitForTimeout(500);
 
     ok('5 · al terminar pregunta dónde lo deja', await page.getByText('¿Dónde dejas el coche?').isVisible());
@@ -133,7 +130,7 @@ export async function ejecutar(browser, BASE) {
     ok('5 · ofrece «se queda donde está»', !!atajo && atajo.includes('P.03'), atajo ?? 'no aparece');
 
     await elegirEnLista(page, 'Parking 03', 'Parking 02');
-    const finalizar = page.getByText('✓ Terminar y dejarlo en', { exact: false }).first();
+    const finalizar = page.getByText('Terminar y dejarlo en', { exact: false }).first();
     ok('6 · el botón confirma el sitio', await finalizar.isVisible(), (await finalizar.textContent()) ?? '');
     ok('6 · no permite terminar sin el reportaje', await finalizar.isDisabled());
 
@@ -152,7 +149,7 @@ export async function ejecutar(browser, BASE) {
     for (let i = 0; i < 4; i++) {
       const [selector] = await Promise.all([
         page.waitForEvent('filechooser', { timeout: 5000 }),
-        page.getByText('📷 Hacer foto', { exact: true }).first().click(),
+        page.getByText('Hacer foto', { exact: true }).first().click(),
       ]);
       await selector.setFiles({ name: `diagonal-${i}.png`, mimeType: 'image/png', buffer: PNG_1PX });
       await page.waitForTimeout(400);
@@ -190,7 +187,7 @@ export async function ejecutar(browser, BASE) {
     await page.getByPlaceholder('1234 ABC').fill('4821 LKM');
     await page.waitForTimeout(400);
     await elegirEnLista(page, /^(Tejavana|Parking) \d\d$/, 'Parking 03');
-    await page.getByText('✓ Mover a', { exact: false }).first().click();
+    await page.getByText('Mover a', { exact: false }).first().click();
     await page.waitForTimeout(600);
     const s = await estadoGuardado(page);
     ok('8 · y el movimiento queda a su nombre', s?.movements?.[0]?.userId === 'u-juan', s?.movements?.[0]?.to?.zoneId ?? '');
@@ -249,7 +246,7 @@ export async function ejecutar(browser, BASE) {
       const ref = vehiculo?.plate ?? vehiculo?.vin8 ?? target.vehicleId;
       const cardPendiente = page.getByTestId('transfer-card').filter({ hasText: ref }).first();
       ok('10 · el transportista ve las llaves pendientes', (await cardPendiente.textContent() ?? '').includes('Llaves pendientes'));
-      ok('10 · no puede recogerlas antes de tiempo', (await cardPendiente.getByText('🔑 He recogido las llaves').count()) === 0);
+      ok('10 · no puede recogerlas antes de tiempo', (await cardPendiente.getByText('He recogido las llaves').count()) === 0);
 
       await cambiarDeUsuario(context, page, USUARIOS.logistica, `${BASE}/solicitudes`);
       await page.waitForTimeout(800);
@@ -261,7 +258,7 @@ export async function ejecutar(browser, BASE) {
       const indice = cola.findIndex((r) => r.id === target.id);
       ok('10 · Logística lo tiene en «Llaves por preparar»', indice >= 0);
       if (indice >= 0) {
-        await page.getByText('🔑 Llaves preparadas', { exact: true }).nth(indice).click();
+        await page.getByText('Llaves preparadas', { exact: true }).nth(indice).click();
         await page.waitForTimeout(700);
       }
       const trasPreparar = await estadoGuardado(page);
@@ -272,7 +269,7 @@ export async function ejecutar(browser, BASE) {
       await page.waitForTimeout(800);
       const cardLista = page.getByTestId('transfer-card').filter({ hasText: ref }).first();
       ok('11 · el transportista las ve listas', (await cardLista.textContent() ?? '').includes('Llaves listas'));
-      await cardLista.getByText('🔑 He recogido las llaves').click();
+      await cardLista.getByText('He recogido las llaves').click();
       await page.waitForTimeout(700);
 
       const despues = await estadoGuardado(page);
@@ -511,8 +508,8 @@ export async function ejecutar(browser, BASE) {
     await page.waitForTimeout(900);
 
     // Si no hay camión en descarga, se empieza uno.
-    if (await page.getByText('🚚 Empezar un camión', { exact: false }).first().isVisible().catch(() => false)) {
-      await page.getByText('🚚 Empezar un camión', { exact: false }).first().click();
+    if (await page.getByText('Empezar un camión', { exact: false }).first().isVisible().catch(() => false)) {
+      await page.getByText('Empezar un camión', { exact: false }).first().click();
       await page.waitForTimeout(600);
       await page.getByPlaceholder('9876 JKL').fill('1234 CAM');
       await page.waitForTimeout(200);
@@ -607,7 +604,7 @@ export async function ejecutar(browser, BASE) {
     const ficha = await page.evaluate(() => document.body.innerText);
     ok('19 · la ficha ofrece darlo por entregado', ficha.includes('Entregado al cliente'));
 
-    await page.getByText('🏁 Entregado al cliente', { exact: false }).first().click();
+    await page.getByText('Entregado al cliente', { exact: false }).first().click();
     await page.waitForTimeout(700);
     const modal = await page.evaluate(() => document.body.innerText);
     ok(
@@ -692,7 +689,7 @@ export async function ejecutar(browser, BASE) {
     ok('21 · al elegir un trayecto solo aparece su grupo', await grupos.count() === 1);
     const grupoTexto = await grupos.first().innerText();
     const conservaLlaves =
-      grupoTexto.includes('🔑 He recogido las llaves') ||
+      grupoTexto.includes('He recogido las llaves') ||
       grupoTexto.includes('Llaves pendientes') ||
       grupoTexto.includes('Llaves listas') ||
       grupoTexto.includes('Logística está preparando las llaves');
@@ -705,15 +702,15 @@ export async function ejecutar(browser, BASE) {
     await page.goto(`${BASE}/recepcion`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(1000);
     ok('22 · el enlace antiguo abre la descarga única', page.url().includes('/mi-recepcion'));
-    ok('22 · el albarán está en la misma pantalla', await page.getByText('📷 Adjuntar albarán', { exact: true }).isVisible());
-    await pulsar(page, '🚚 Empezar otro camión', { exact: true });
+    ok('22 · el albarán está en la misma pantalla', await page.getByText('Adjuntar albarán', { exact: true }).isVisible());
+    await pulsar(page, 'Empezar otro camión', { exact: true });
     await page.getByPlaceholder('9876 JKL').fill('TEST 222');
     await page.getByPlaceholder('Transportista Norte').fill('Camión de prueba');
     await pulsar(page, 'Empezar descarga', { exact: true });
     await page.waitForTimeout(1000);
     const estado = await estadoGuardado(page);
     const nuevo = estado.receptions.find((r) => r.truckPlate === 'TEST 222');
-    ok('22 · crear un camión lo selecciona aunque haya otros abiertos', (await page.locator('body').innerText()).includes('🚚 TEST 222'));
+    ok('22 · crear un camión lo selecciona aunque haya otros abiertos', (await page.locator('body').innerText()).replace(/\p{Co}/gu, '').includes(' TEST 222'));
     await page.getByPlaceholder('VIN-8 o matrícula', { exact: true }).fill('PRUEBA22');
     await pulsar(page, 'Añadir', { exact: true });
     await page.waitForTimeout(800);
@@ -739,7 +736,7 @@ export async function ejecutar(browser, BASE) {
     if (!v) throw new Error('Falta un coche en Leioa para probar el traslado');
     await page.goto(`${BASE}/vehiculo/${v.id}`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(800);
-    await pulsar(page, '🚚 Solicitar traslado', { exact: true });
+    await pulsar(page, 'Solicitar traslado', { exact: true });
     await page.waitForTimeout(300);
     const actual = s.sites.find((x) => x.id === (v.targetSiteId ?? s.sites.find((x) => x.prepares).id)).name;
     if (actual !== 'Galdakao') await elegirEnLista(page, actual, 'Galdakao');
@@ -811,7 +808,7 @@ export async function ejecutar(browser, BASE) {
     const campo = rec.page.getByText('ZONA', { exact: true }).first().locator('xpath=..');
     await campo.locator('[tabindex="0"]').first().click();
     await rec.page.getByText('Parking sin plazas', { exact: true }).last().click();
-    await pulsar(rec.page, '✓ Descargado · siguiente', { exact: true });
+    await pulsar(rec.page, 'Descargado · siguiente', { exact: true });
     await rec.page.waitForTimeout(900);
     const despues = await estadoGuardado(rec.page);
     ok('24 · recepción descarga sin plaza ficticia', despues.vehicles.find(v=>v.id===coche.id).location.zoneId === 'parking-test' && !despues.vehicles.find(v=>v.id===coche.id).location.positionId);
@@ -929,8 +926,8 @@ export async function ejecutar(browser, BASE) {
     ok('27 · no ve en su cola el trabajo de su compañera', !body.includes(ids[1]));
     await page.getByText('Empezar', { exact: true }).first().click();
     body = await page.evaluate(() => document.body.innerText);
-    ok('27 · un trabajo libre obliga a aceptarlo antes de tocarlo', body.includes('Empieza la preparación para asignártela') && !body.includes('✓ Terminar'));
-    await pulsar(page, '▶ Empezar y asignármela', { exact: true });
+    ok('27 · un trabajo libre obliga a aceptarlo antes de tocarlo', body.includes('Empieza la preparación para asignártela') && !/Terminar( ·| \()/.test(body));
+    await pulsar(page, 'Empezar y asignármela', { exact: true });
     // El estado demo se persiste con 600 ms de debounce; esperamos por encima
     // para comprobar lo que realmente quedó guardado, no solo el estado React en memoria.
     await page.waitForTimeout(800);
@@ -946,7 +943,7 @@ export async function ejecutar(browser, BASE) {
     ok('27 · historial excluye activos y ajenos', !body.includes(ids[0]) && !body.includes(ids[1]));
     await pulsar(page, 'Ver preparación finalizada', { exact: true });
     body = await page.evaluate(() => document.body.innerText);
-    ok('27 · detalle histórico no permite terminar ni reanudar', !body.includes('Reanudar') && !body.includes('✓ Terminar'));
+    ok('27 · detalle histórico no permite terminar ni reanudar', !body.includes('Reanudar') && !/Terminar( ·| \(|$)/m.test(body));
     await cambiarDeUsuario(context, page, USUARIOS.logistica, `${BASE}/preparacion`);
     body = await page.evaluate(() => document.body.innerText);
     ok('27 · oficina ve productividad por preparador', body.includes('Productividad por preparador') && body.includes('Pedro Larrea') && body.includes('1h 00m'));

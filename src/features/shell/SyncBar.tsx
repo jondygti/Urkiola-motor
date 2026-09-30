@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { radius, space, tipografia, useTheme } from '@/ui/theme';
 import { useStore } from '@/data/store';
 import { timeAgo } from '@/data/format';
+import { Icon, type IconName } from '@/ui/Icon';
 
 /**
  * Barra de estado de sincronización.
@@ -29,16 +30,16 @@ export function SyncBar() {
   const cambios = (n: number) => `${n} ${n === 1 ? 'cambio' : 'cambios'}`;
   const guardados = (n: number) => (n === 1 ? 'guardado' : 'guardados');
 
-  let icon: string;
+  let icon: IconName;
   let title: string;
   let detail: string;
 
   if (rejected.length > 0) {
-    icon = '⚠️';
+    icon = 'aviso';
     title = `${rejected.length} ${rejected.length === 1 ? 'acción rechazada' : 'acciones rechazadas'} por el servidor`;
     detail = 'Hay que revisarlas a mano: avisa a administración.';
   } else if (!online) {
-    icon = '📴';
+    icon = 'sinCobertura';
     title =
       pending > 0
         ? `Sin cobertura · ${cambios(pending)} ${guardados(pending)} en el móvil`
@@ -48,15 +49,15 @@ export function SyncBar() {
         ? 'Se subirán solos en cuanto vuelva la conexión. Puedes seguir trabajando.'
         : 'Puedes seguir trabajando: lo que hagas se guarda y se sube después.';
   } else if (syncing) {
-    icon = '⬆️';
+    icon = 'subiendo';
     title = `Subiendo ${cambios(pending)}…`;
     detail = 'No cierres la app hasta que termine.';
   } else if (pending > 0) {
-    icon = '⏳';
+    icon = 'esperando';
     title = `${cambios(pending)} pendientes de subir`;
     detail = error ?? 'Se reintentará en unos segundos.';
   } else {
-    icon = '⚠️';
+    icon = 'aviso';
     title = 'Problema al sincronizar';
     detail = error ?? 'Se reintentará automáticamente.';
   }
@@ -72,7 +73,7 @@ export function SyncBar() {
         gap: 10,
       }}
     >
-      <Text style={{ fontSize: tipografia.strong }}>{icon}</Text>
+      <Icon name={icon} size={tipografia.heading} color={fg} />
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={{ fontSize: tipografia.small, fontWeight: '800', color: fg }}>{title}</Text>
         <Text style={{ fontSize: tipografia.micro, color: fg, opacity: 0.85, marginTop: 1 }}>

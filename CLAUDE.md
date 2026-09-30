@@ -164,6 +164,16 @@ Cada una viene de un fallo real de este proyecto:
     gracia es ver muchas filas de un vistazo y se mira sentado.
     Lo vigila `scripts/verify/estilo.mjs`.
 
+30. **Los iconos salen de `<Icon name>` (`src/ui/Icon.tsx`), nunca de
+    emojis.** Cada teléfono dibuja un emoji a su manera y se habían repetido
+    hasta que Flota y Mis coches, o Preparación y Mi preparación, llevaban el
+    mismo en el menú. Las pantallas piden iconos por nombre de la app
+    (`flota`, `llaves`), y el de cada sección del menú es único. Paneles,
+    ventanas, botones, avisos, píldoras y celdas aceptan una prop `icon`. Las
+    flechas de ruta («Sondika → Leioa») son texto y se quedan. Lo vigila
+    `scripts/verify/estilo.mjs`. La demo mete la fuente de iconos dentro del
+    HTML (`scripts/build-demo.mjs`): sin eso sale con los iconos en blanco.
+
 ## Comprobar antes de dar algo por bueno
 
 ```bash

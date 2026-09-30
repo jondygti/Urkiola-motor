@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
-import { Btn, Field, Notice, radius, space, useTheme, tipografia } from '@/ui';
+import { Btn, Field, Icon, Notice, radius, space, useTheme, tipografia } from '@/ui';
 import { api } from '@/data/api';
 import { capturarYSubir, type FotoTomada } from './photos';
 import { descartarFotoPendiente } from '@/data/photoQueue';
@@ -82,11 +82,11 @@ export function CampoFotos({
       ) : null}
 
       <View style={{ flexDirection: 'row', gap: 8 }}>
-        <Btn small onPress={() => void anadir('camera')} disabled={subiendo}>
-          {subiendo ? 'Subiendo…' : '📷 Hacer foto'}
+        <Btn icon="foto" small onPress={() => void anadir('camera')} disabled={subiendo}>
+          {subiendo ? 'Subiendo…' : 'Hacer foto'}
         </Btn>
-        <Btn small onPress={() => void anadir('library')} disabled={subiendo}>
-          🖼️ Galería
+        <Btn icon="galeria" small onPress={() => void anadir('library')} disabled={subiendo}>
+          Galería
         </Btn>
       </View>
 
@@ -157,7 +157,7 @@ export function Fotos({ refs, onAbrir }: { refs: string[]; onAbrir?: (url: strin
                 justifyContent: 'center',
               }}
             >
-              <Text style={{ fontSize: tipografia.title }}>📷</Text>
+              <Icon name="foto" size={tipografia.title} color={c.textFaint} />
             </View>
           );
         }

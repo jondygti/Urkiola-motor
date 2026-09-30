@@ -77,9 +77,10 @@ export function NuevoVehiculoModal({
 
   return (
     <Modal
+      icon="mas"
       visible={visible}
       onClose={onClose}
-      title="➕ Dar de alta un vehículo"
+      title="Dar de alta un vehículo"
       footer={
         <Btn variant="primary" full onPress={alta} disabled={limpio.length < 4 || !!yaExiste}>
           {yaExiste ? 'Ese vehículo ya existe' : 'Dar de alta'}

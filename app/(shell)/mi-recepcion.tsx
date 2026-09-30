@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
-import { campo, Btn, Field, H1, Input, Modal, Muted, Notice, Panel, Pill, ProgressBar, Screen, Select, Spacer, space, useTheme } from '@/ui';
+import { campo, Btn, Field, H1, Icon, Input, Modal, Muted, Notice, Panel, Pill, ProgressBar, Screen, Select, Spacer, space, useTheme } from '@/ui';
 import { useStore } from '@/data/store';
 import { ReceptionDetails } from '@/features/reception/ReceptionDetails';
 import { vehicleByRef } from '@/data/selectors';
@@ -48,14 +48,14 @@ export default function QuickReceptionScreen() {
             <>
               <Muted>No hay ningún camión en descarga.</Muted>
               <Spacer />
-              <Btn variant="primary" full onPress={() => setNewOpen(true)}>
-                🚚 Empezar un camión
+              <Btn icon="camion" variant="primary" full onPress={() => setNewOpen(true)}>
+                Empezar un camión
               </Btn>
             </>
           ) : reception.closedAt ? (
             <>
               <Notice>Camión cerrado el {formatDateTime(reception.closedAt)}.</Notice>
-              <Btn full onPress={() => setNewOpen(true)}>🚚 Empezar un camión</Btn>
+              <Btn icon="camion" full onPress={() => setNewOpen(true)}>Empezar un camión</Btn>
             </>
           ) : (
             <UnloadFlow
@@ -162,7 +162,7 @@ function UnloadFlow({
     <>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <Text style={{ fontSize: campo.heading, fontWeight: '900', color: c.text, flex: 1 }}>
-          🚚 {reception.truckPlate}
+          <Icon name="camion" size={campo.title} color={c.text} /> {reception.truckPlate}
         </Text>
         <Pill tone={descargados === total && total > 0 ? 'ok' : 'amber'}>
           {descargados}/{total || '—'} descargados
@@ -200,8 +200,8 @@ function UnloadFlow({
                 marca, modelo y comercial después— o descargarlo igual y que logística lo cuadre.
               </Notice>
               <Spacer h={space.sm} />
-              <Btn full onPress={() => setAltaOpen(true)}>
-                ➕ Dar de alta {ref.trim().toUpperCase()}
+              <Btn icon="mas" full onPress={() => setAltaOpen(true)}>
+                Dar de alta {ref.trim().toUpperCase()}
               </Btn>
             </>
           )
@@ -255,16 +255,17 @@ function UnloadFlow({
         <Spacer h={space.sm} />
 
         <Btn
+          icon="hecho"
           variant="primary"
           full
           disabled={!ref.trim() || !zoneId}
           onPress={() => descargar(null)}
         >
-          ✓ Descargado · siguiente
+          Descargado · siguiente
         </Btn>
         <Spacer h={space.sm} />
-        <Btn full disabled={!ref.trim() || !zoneId} onPress={() => setDamageOpen(true)}>
-          ⚠ Llega con daños
+        <Btn icon="aviso" full disabled={!ref.trim() || !zoneId} onPress={() => setDamageOpen(true)}>
+          Llega con daños
         </Btn>
       </Panel>
 
@@ -314,8 +315,8 @@ function UnloadFlow({
         Cerrar este camión
       </Btn>
       <Spacer h={space.sm} />
-      <Btn full variant="ghost" onPress={onNew}>
-        🚚 Empezar otro camión
+      <Btn icon="camion" full variant="ghost" onPress={onNew}>
+        Empezar otro camión
       </Btn>
 
       <DamageModal
@@ -359,9 +360,10 @@ function DamageModal({
 
   return (
     <Modal
+      icon="aviso"
       visible={visible}
       onClose={onClose}
-      title={`⚠ Daños en ${refText.toUpperCase()}`}
+      title={`Daños en ${refText.toUpperCase()}`}
       footer={
         <Btn
           variant="primary"
@@ -408,9 +410,10 @@ function NewTruckModal({
 
   return (
     <Modal
+      icon="camion"
       visible={visible}
       onClose={onClose}
-      title="🚚 Empezar un camión"
+      title="Empezar un camión"
       footer={
         <Btn
           variant="primary"

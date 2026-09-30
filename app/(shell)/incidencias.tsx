@@ -177,7 +177,7 @@ export default function IncidentsScreen() {
       </Panel>
 
       {/* alta: primero se identifica el vehículo por matrícula o VIN-8 */}
-      <Modal visible={newOpen && !target} onClose={() => setNewOpen(false)} title="⚠️ Nueva incidencia">
+      <Modal icon="aviso" visible={newOpen && !target} onClose={() => setNewOpen(false)} title="Nueva incidencia">
         <Muted>Identifica el vehículo por matrícula o por los 8 últimos caracteres del bastidor.</Muted>
         <Spacer h={space.sm} />
         <Input value={ref} onChangeText={setRef} placeholder="Matrícula o VIN-8" autoCapitalize="characters" />
@@ -203,7 +203,7 @@ export default function IncidentsScreen() {
       ) : null}
 
       {grande ? (
-        <Modal visible onClose={() => setGrande(null)} title="📷 Foto de la incidencia">
+        <Modal icon="foto" visible onClose={() => setGrande(null)} title="Foto de la incidencia">
           <Image
             source={{ uri: grande }}
             style={{ width: '100%', height: 520, borderRadius: radius.md, backgroundColor: c.surfaceSunken }}
@@ -228,8 +228,9 @@ export default function IncidentsScreen() {
                     setToast('Incidencia cerrada.');
                     setDetail(null);
                   }}
+                  icon="hecho"
                 >
-                  ✓ Cerrar incidencia
+                  Cerrar incidencia
                 </Btn>
               ) : null}
               <Btn

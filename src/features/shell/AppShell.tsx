@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { radius, space, tipografia, useTheme } from '@/ui/theme';
+import { Icon } from '@/ui/Icon';
 import { useStore } from '@/data/store';
 import { isSimpleRole, unreadCount } from '@/data/selectors';
 import { roleLabel } from '@/data/selectors';
@@ -178,7 +179,11 @@ function SideMenu({
                   })}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
-                    <Text style={{ fontSize: tipografia.body }}>{item.icon}</Text>
+                    <Icon
+                      name={item.icon}
+                      size={tipografia.heading}
+                      color={active ? c.navTextActive : c.navText}
+                    />
                     <Text
                       style={{
                         color: active ? c.navTextActive : c.navText,
@@ -276,7 +281,7 @@ function MobileBar({
           justifyContent: 'center',
         }}
       >
-        <Text style={{ color: '#fff', fontSize: tipografia.title }}>☰</Text>
+        <Icon name="menu" size={tipografia.title} color="#fff" />
       </Pressable>
       <View style={{ flex: 1 }}>
         <Text numberOfLines={1} style={{ color: '#fff', fontSize: tipografia.body, fontWeight: '900' }}>
@@ -289,7 +294,7 @@ function MobileBar({
         accessibilityLabel="Notificaciones"
         style={{ paddingHorizontal: 6, flexDirection: 'row', alignItems: 'center', gap: 4 }}
       >
-        <Text style={{ fontSize: tipografia.heading }}>🔔</Text>
+        <Icon name="avisos" size={tipografia.title} color="#fff" />
         {unread > 0 ? <Badge count={unread} /> : null}
       </Pressable>
     </View>
@@ -322,7 +327,7 @@ function BottomTabs({ bottomInset, onMore }: { bottomInset: number; onMore: () =
             onPress={() => router.push(tab.href as never)}
             style={{ flex: 1, alignItems: 'center', paddingVertical: 9 }}
           >
-            <Text style={{ fontSize: tipografia.strong, opacity: active ? 1 : 0.55 }}>{tab.icon}</Text>
+            <Icon name={tab.icon} size={tipografia.title} color={active ? c.primary : c.textMuted} />
             <Text
               style={{
                 fontSize: tipografia.label,
@@ -337,7 +342,7 @@ function BottomTabs({ bottomInset, onMore }: { bottomInset: number; onMore: () =
         );
       })}
       <Pressable onPress={onMore} style={{ flex: 1, alignItems: 'center', paddingVertical: 9 }}>
-        <Text style={{ fontSize: tipografia.strong, opacity: 0.55 }}>☰</Text>
+        <Icon name="menu" size={tipografia.title} color={c.textMuted} />
         <Text style={{ fontSize: tipografia.label, marginTop: 2, color: c.textMuted, fontWeight: '600' }}>Más</Text>
       </Pressable>
     </View>
@@ -396,7 +401,7 @@ function Drawer({ open, onClose, unread }: { open: boolean; onClose: () => void;
             justifyContent: 'center',
           }}
         >
-          <Text style={{ color: '#fff', fontSize: tipografia.title }}>×</Text>
+          <Icon name="cerrar" size={tipografia.heading} color="#fff" />
         </Pressable>
       </Animated.View>
     </View>

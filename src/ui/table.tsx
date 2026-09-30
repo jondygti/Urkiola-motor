@@ -3,6 +3,7 @@ import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { radius, space, tipografia, useTheme } from './theme';
 import { EmptyState, Label } from './primitives';
 import { Input, Option, Select } from './controls';
+import { Icon } from './Icon';
 
 export type Column<T> = {
   key: string;
@@ -259,7 +260,7 @@ function MobileFilters<T>({
         <Text style={{ fontSize: tipografia.small, fontWeight: '700', color: c.text }}>
           Filtros por columna{activeCount ? ` · ${activeCount} activos` : ''}
         </Text>
-        <Text style={{ color: c.textFaint, fontSize: tipografia.micro }}>{open ? '▲' : '▼'}</Text>
+        <Icon name={open ? 'arriba' : 'abajo'} size={tipografia.body} color={c.textFaint} />
       </Pressable>
 
       {open ? (

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Text, View } from 'react-native';
-import { campo, Btn, Field, H1, Input, Modal, Muted, Notice, Panel, Pill, Screen, Segmented, Select, Spacer, radius, space, useTheme } from '@/ui';
+import { campo, Btn, Field, H1, Icon, Input, Modal, Muted, Notice, Panel, Pill, Screen, Segmented, Select, Spacer, radius, space, useTheme, type IconName } from '@/ui';
 import { useStore } from '@/data/store';
 import {
   carrierName,
@@ -62,9 +62,9 @@ export default function MyTransfersScreen() {
           value={pestana}
           onChange={(v) => setPestana(v as Fase)}
           options={[
-            { value: 'porRecoger', label: `🔑 Por recoger · ${porRecoger.length}` },
-            { value: 'recogidos', label: `🚚 Los llevo yo · ${recogidos.length}` },
-            { value: 'entregados', label: `✓ Entregados · ${hechos.length}` },
+            { value: 'porRecoger', icon: 'llaves', label: `Por recoger · ${porRecoger.length}` },
+            { value: 'recogidos', icon: 'camion', label: `Los llevo yo · ${recogidos.length}` },
+            { value: 'entregados', icon: 'hecho', label: `Entregados · ${hechos.length}` },
           ]}
         />
 
@@ -210,13 +210,13 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
 
       {requiereLlavesDeLeioa && !enRuta ? (
         <>
-          <Leg label="LLAVES EN" value="Leioa · Logística" icon="🔑" />
-          <Leg label="COCHE EN" value={locationLabel(state, request.from)} icon="📍" />
+          <Leg label="LLAVES EN" value="Leioa · Logística" icon="llaves" />
+          <Leg label="COCHE EN" value={locationLabel(state, request.from)} icon="ubicacion" />
         </>
       ) : (
-        <Leg label="RECOGER EN" value={locationLabel(state, request.from)} icon="📍" />
+        <Leg label="RECOGER EN" value={locationLabel(state, request.from)} icon="ubicacion" />
       )}
-      <Leg label="ENTREGAR EN" value={locationLabel(state, request.to)} icon="🏁" />
+      <Leg label="ENTREGAR EN" value={locationLabel(state, request.to)} icon="meta" />
       {request.carrierId ? (
         <Text style={{ fontSize: campo.micro, color: c.textFaint, marginTop: 4 }}>
           Encargado a {carrierName(state, request.carrierId)}
@@ -242,21 +242,22 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
         </Notice>
       ) : (
         <Btn
+          icon={enRuta ? 'hecho' : 'llaves'}
           variant="primary"
           full
           onPress={enRuta ? (tarde ? () => setMotivoOpen(true) : () => entregar()) : recoger}
         >
-          {enRuta ? '✓ He entregado el vehículo' : '🔑 He recogido las llaves'}
+          {enRuta ? 'He entregado el vehículo' : 'He recogido las llaves'}
         </Btn>
       )}
       <Spacer h={space.xs} />
       {enRuta ? (
         <Muted>
-          🔑 Llaves recogidas {request.pickedUpAt ? formatDateTime(request.pickedUpAt) : '—'}.
+          <Icon name="llaves" size={campo.small} color={c.textMuted} /> Llaves recogidas {request.pickedUpAt ? formatDateTime(request.pickedUpAt) : '—'}.
         </Muted>
       ) : requiereLlavesDeLeioa && llavesListas ? (
         <Muted>
-          🔑 Llaves listas en Leioa · Logística{request.keysReadyAt ? ` desde ${formatDateTime(request.keysReadyAt)}` : ''}. Recógelas antes de ir a por el coche a Sondika.
+          <Icon name="llaves" size={campo.small} color={c.textMuted} /> Llaves listas en Leioa · Logística{request.keysReadyAt ? ` desde ${formatDateTime(request.keysReadyAt)}` : ''}. Recógelas antes de ir a por el coche a Sondika.
         </Muted>
       ) : requiereLlavesDeLeioa ? (
         <Muted>
@@ -269,8 +270,8 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
       )}
 
       <Spacer h={space.sm} />
-      <Btn full onPress={() => setProblemOpen(true)}>
-        ⚠ Tengo un problema
+      <Btn icon="aviso" full onPress={() => setProblemOpen(true)}>
+        Tengo un problema
       </Btn>
 
       <Spacer h={space.sm} />
@@ -299,11 +300,11 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
   );
 }
 
-function Leg({ label, value, icon }: { label: string; value: string; icon: string }) {
+function Leg({ label, value, icon }: { label: string; value: string; icon: IconName }) {
   const { c } = useTheme();
   return (
     <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start', paddingVertical: 6 }}>
-      <Text style={{ fontSize: campo.strong }}>{icon}</Text>
+      <Icon name={icon} size={campo.title} color={c.primary} />
       <View style={{ flex: 1 }}>
         <Text style={{ fontSize: campo.label, fontWeight: '800', color: c.textFaint }}>{label}</Text>
         <Text style={{ fontSize: campo.strong, fontWeight: '600', color: c.text, marginTop: 2 }}>{value}</Text>
@@ -344,9 +345,10 @@ function ProblemModal({
 
   return (
     <Modal
+      icon="aviso"
       visible
       onClose={onClose}
-      title="⚠ Avisar de un problema"
+      title="Avisar de un problema"
       footer={
         <Btn variant="primary" full onPress={enviar}>
           Enviar aviso
@@ -459,14 +461,18 @@ function Entregados({ hechos }: { hechos: ReturnType<typeof trasladosHechos> }) 
             <Text style={{ fontSize: campo.small, color: c.text }}>
               {locationLabel(state, request.from, true)} → {locationLabel(state, request.to, true)}
             </Text>
-            <Text style={{ fontSize: campo.micro, color: c.textFaint }}>
-              🔑 {request.pickedUpAt ? formatDateTime(request.pickedUpAt) : 'Sin recogida apuntada'} · 🏁{' '}
+            {/* testID: las pruebas leen esta línea para ver que el registro
+                lleva la recogida y la entrega, no el icono. */}
+            <Text testID="registro-traslado" style={{ fontSize: campo.micro, color: c.textFaint }}>
+              <Icon name="llaves" size={campo.small} color={c.textFaint} />{' '}
+              {request.pickedUpAt ? formatDateTime(request.pickedUpAt) : 'Sin recogida apuntada'} ·{' '}
+              <Icon name="meta" size={campo.small} color={c.textFaint} />{' '}
               {request.deliveredAt ? formatDateTime(request.deliveredAt) : 'Sin entrega apuntada'}
               {horas === null ? '' : ` · ${Math.round(horas)} h`}
             </Text>
             {fueraDePlazo && request.delayReason ? (
               <Text style={{ fontSize: campo.micro, color: c.amberFg }}>
-                ⏱ {DELAY_REASON_LABEL[request.delayReason]}
+                <Icon name="tiempo" size={campo.small} color={c.amberFg} /> {DELAY_REASON_LABEL[request.delayReason]}
                 {request.delayNote ? ` · ${request.delayNote}` : ''}
               </Text>
             ) : null}
@@ -508,9 +514,10 @@ function MotivoRetrasoModal({
 
   return (
     <Modal
+      icon="tiempo"
       visible
       onClose={onClose}
-      title="⏱ Ha llegado fuera de plazo"
+      title="Ha llegado fuera de plazo"
       footer={
         <>
           <Btn
@@ -518,8 +525,9 @@ function MotivoRetrasoModal({
             full
             disabled={!motivo}
             onPress={() => motivo && onConfirm(motivo, nota.trim() || null)}
+            icon="hecho"
           >
-            ✓ Entregar
+            Entregar
           </Btn>
           <Spacer h={space.xs} />
           <Btn full onPress={onClose}>

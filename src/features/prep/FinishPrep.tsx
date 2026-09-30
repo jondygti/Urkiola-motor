@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
-import { Btn, Input, Modal, Muted, Notice, Spacer, radius, space, tipografia, useTheme } from '@/ui';
+import { Btn, Icon, Input, Modal, Muted, Notice, Spacer, radius, space, tipografia, useTheme } from '@/ui';
 import { useStore } from '@/data/store';
 import { can } from '@/data/selectors';
 import { locationLabel, vehicleRef } from '@/data/format';
@@ -128,22 +128,23 @@ export function FinishPrepModal({
 
   return (
     <Modal
+      icon="hecho"
       visible={visible}
       onClose={onClose}
-      title="✓ Terminar preparación"
+      title="Terminar preparación"
       footer={
         puedeMover ? (
           <>
-            <Btn variant="primary" full disabled={bloqueado || !dest.zoneId} onPress={() => terminar(true)}>
-              {dest.zoneId ? `✓ Terminar y dejarlo en ${destinationLabel(state, dest)}` : '✓ Terminar'}
+            <Btn icon="hecho" variant="primary" full disabled={bloqueado || !dest.zoneId} onPress={() => terminar(true)}>
+              {dest.zoneId ? `Terminar y dejarlo en ${destinationLabel(state, dest)}` : 'Terminar'}
             </Btn>
             <Btn full disabled={bloqueado} onPress={() => terminar(false)}>
               Terminar sin indicar sitio
             </Btn>
           </>
         ) : (
-          <Btn variant="primary" full disabled={bloqueado} onPress={() => terminar(false)}>
-            ✓ Terminar preparación
+          <Btn icon="hecho" variant="primary" full disabled={bloqueado} onPress={() => terminar(false)}>
+            Terminar preparación
           </Btn>
         )
       }
@@ -156,7 +157,7 @@ export function FinishPrepModal({
       ) : null}
 
       <Text style={{ fontSize: tipografia.body, fontWeight: '900', color: c.text }}>
-        📸 Reportaje final obligatorio
+        <Icon name="foto" size={tipografia.strong} color={c.primary} /> Reportaje final obligatorio
       </Text>
       <Muted>Cuatro diagonales dejan cubierta prácticamente toda la carrocería.</Muted>
       <Spacer h={space.sm} />
@@ -187,8 +188,8 @@ export function FinishPrepModal({
               ) : null}
               <Text style={{ fontSize: tipografia.small, fontWeight: '800', color: c.text }}>{t.label}</Text>
               <Muted>{t.hint}</Muted>
-              <Btn small onPress={() => void tomarFoto(t.key)} disabled={tomando !== null}>
-                {tomando === t.key ? 'Guardando…' : foto ? '📷 Repetir' : '📷 Hacer foto'}
+              <Btn icon="foto" small onPress={() => void tomarFoto(t.key)} disabled={tomando !== null}>
+                {tomando === t.key ? 'Guardando…' : foto ? 'Repetir' : 'Hacer foto'}
               </Btn>
               {foto && !foto.subida ? <Text style={{ fontSize: tipografia.label, color: c.amberFg }}>Pendiente de subir</Text> : null}
             </View>
@@ -229,7 +230,8 @@ export function FinishPrepModal({
         style={{ paddingVertical: 8 }}
       >
         <Text style={{ fontSize: tipografia.body, color: c.text, fontWeight: '700' }}>
-          {hayDano ? '☑' : '☐'} He detectado un daño
+          <Icon name={hayDano ? 'casillaMarcada' : 'casillaVacia'} size={tipografia.strong} color={hayDano ? c.primary : c.textMuted} />{' '}
+          He detectado un daño
         </Text>
       </Pressable>
       {hayDano ? (

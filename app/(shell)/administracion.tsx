@@ -65,7 +65,10 @@ export default function AdminScreen() {
       {tab === 'operativa' || tab === 'repaso' ? (
         <>
           <Grid cols={2} minWidth={380}>
-            <Panel title={tab === 'repaso' ? '🧽 Servicio de repaso de entrega' : '⏱️ Preparación completa'}>
+            <Panel
+              icon={tab === 'repaso' ? 'preparacion' : 'tiempo'}
+              title={tab === 'repaso' ? 'Servicio de repaso de entrega' : 'Preparación completa'}
+            >
               {tab === 'operativa' ? <>
               <Field label="Vehículo nuevo (VN) · minutos">
                 <Input
@@ -146,10 +149,10 @@ export default function AdminScreen() {
               </Muted>}
             </Panel>
 
-            <Panel title="☑️ Estados de los requisitos">
+            <Panel icon="comprobado" title="Estados de los requisitos">
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: space.sm }}>
-                <Pill tone="ok">✓ Completado</Pill>
-                <Pill tone="amber">⬜ Pendiente</Pill>
+                <Pill icon="hecho" tone="ok">Completado</Pill>
+                <Pill icon="pendiente" tone="amber">Pendiente</Pill>
                 <Pill tone="blue">— No requerido</Pill>
               </View>
               <Muted>
@@ -165,7 +168,7 @@ export default function AdminScreen() {
 
           <Spacer h={space.lg} />
 
-          <Panel title={tab === 'repaso' ? '✅ Checklist del repaso de entrega' : '✅ Checklist de preparación completa'}>
+          <Panel icon="comprobado" title={tab === 'repaso' ? 'Checklist del repaso de entrega' : 'Checklist de preparación completa'}>
             <Toolbar>
               <Btn
                 variant="primary"
@@ -240,7 +243,7 @@ export default function AdminScreen() {
 
       {tab === 'sistema' ? (
         <>
-          <Panel title="🔄 Regla de datos: Quiter → Easo Logistics">
+          <Panel icon="sincronizar" title="Regla de datos: Quiter → Easo Logistics">
             <Notice>
               <Text style={{ fontSize: tipografia.small, color: c.text, lineHeight: 18 }}>
                 <Text style={{ fontWeight: '800' }}>Quiter </Text>
@@ -262,7 +265,7 @@ Ubicación · Movimiento · Solicitud · Preparación · Incidencia · Recuento`
 
           <Spacer h={space.lg} />
 
-          <Panel title="☁️ Infraestructura">
+          <Panel icon="nube" title="Infraestructura">
             <Grid cols={4} minWidth={150}>
               {[
                 { t: 'Web + App', s: 'HTTPS · mismo código' },
@@ -290,11 +293,11 @@ Ubicación · Movimiento · Solicitud · Preparación · Incidencia · Recuento`
             </Grid>
             <StatLine
               items={[
-                '🇪🇺 Datos alojados en la UE (RGPD)',
-                '🔐 Permisos por rol, comprobados en el servidor',
-                '🛡️ Claves de servicio solo en el servidor',
-                '💾 Copias diarias + volcado semanal fuera',
-                '📊 Registro de auditoría',
+                { icon: 'nube', text: 'Datos alojados en la UE (RGPD)' },
+                { icon: 'candado', text: 'Permisos por rol, comprobados en el servidor' },
+                { icon: 'seguridad', text: 'Claves de servicio solo en el servidor' },
+                { icon: 'copias', text: 'Copias diarias + volcado semanal fuera' },
+                { icon: 'auditoria', text: 'Registro de auditoría' },
               ]}
             />
             <Spacer h={space.sm} />
@@ -306,7 +309,7 @@ Ubicación · Movimiento · Solicitud · Preparación · Incidencia · Recuento`
 
           <Spacer h={space.lg} />
 
-          <Panel title="🧪 Datos de demostración">
+          <Panel icon="pruebas" title="Datos de demostración">
             <Muted>
               En modo demostración los cambios se guardan solo en este dispositivo. Puedes volver al parque de
               ejemplo original cuando quieras.

@@ -64,7 +64,7 @@ export default function VehicleScreen() {
         <H1>Vehículo no encontrado</H1>
         <Muted>El vehículo {id} no existe o ha sido eliminado del parque.</Muted>
         <Spacer />
-        <Btn onPress={() => router.push('/flota')}>← Volver a Flota</Btn>
+        <Btn icon="volver" onPress={() => router.push('/flota')}>Volver a Flota</Btn>
       </Screen>
     );
   }
@@ -95,15 +95,16 @@ export default function VehicleScreen() {
       {toast ? <Notice tone="info">{toast}</Notice> : null}
 
       <Toolbar>
-        <Btn onPress={() => router.push('/flota')}>← Flota</Btn>
+        <Btn icon="volver" onPress={() => router.push('/flota')}>Flota</Btn>
         {canAny('recuentos.ejecutar', 'movimientos.registrar') ? (
           <Btn
+            icon="comprobado"
             onPress={() => {
               run({ type: 'vehicle.check', vehicleId: vehicle.id });
               setToast('Comprobación física registrada.');
             }}
           >
-            ✅ Comprobar ahora
+            Comprobar ahora
           </Btn>
         ) : null}
       </Toolbar>
@@ -115,7 +116,7 @@ export default function VehicleScreen() {
       <Spacer h={space.lg} />
 
       <Grid cols={2} minWidth={380}>
-        <Panel title="🚗 Identificación">
+        <Panel icon="flota" title="Identificación">
           <Detail label="Tipo" value={<TypePill type={vehicle.type} />} />
           <Detail label="Situación" value={<SituationPill situation={vehicle.situation} />} />
           <ClasificacionComercial vehicle={vehicle} onDone={setToast} />
@@ -128,7 +129,7 @@ export default function VehicleScreen() {
           <Detail label="Origen" value={`${vehicle.origin} · ${formatDateTime(vehicle.receivedAt)}`} />
         </Panel>
 
-        <Panel title="📍 Ubicación">
+        <Panel icon="ubicacion" title="Ubicación">
           <Detail
             label="Ubicación actual"
             value={locationLabel(state, vehicle.location)}
@@ -144,10 +145,10 @@ export default function VehicleScreen() {
             value={`${formatDateTime(vehicle.lastCheckAt)} · ${vehicle.lastCheckBy ?? '—'}`}
           />
           <Spacer h={space.sm} />
-          <Notice tone={isStale ? 'danger' : 'info'}>
+          <Notice tone={isStale ? 'danger' : 'info'} icon={isStale ? 'aviso' : 'comprobado'}>
             {isStale
-              ? `⚠️ Sin comprobación física desde hace ${Math.floor(staleHours / 24)} días.`
-              : `🟢 Comprobado ${timeAgo(vehicle.lastCheckAt)}.`}
+              ? `Sin comprobación física desde hace ${Math.floor(staleHours / 24)} días.`
+              : `Comprobado ${timeAgo(vehicle.lastCheckAt)}.`}
           </Notice>
         </Panel>
       </Grid>
@@ -158,7 +159,7 @@ export default function VehicleScreen() {
         {prep ? (
           <PrepPanel prep={prep} vehicle={vehicle} />
         ) : (
-          <Panel title="🧽 Preparación">
+          <Panel icon="preparacion" title="Preparación">
             <Muted>Este vehículo no tiene ninguna preparación abierta.</Muted>
             <Spacer h={space.sm} />
             <Btn
@@ -179,7 +180,7 @@ export default function VehicleScreen() {
         )}
 
         <View style={{ gap: space.md }}>
-          <Panel title="🔔 Notificaciones activas">
+          <Panel icon="avisos" title="Notificaciones activas">
             {rules.length === 0 ? (
               <Muted>Sin reglas que afecten a este vehículo.</Muted>
             ) : (
@@ -196,7 +197,7 @@ export default function VehicleScreen() {
             )}
           </Panel>
 
-          <Panel title="📅 Entrega al cliente">
+          <Panel icon="calendario" title="Entrega al cliente">
             {puedeGestionarEntrega(state, user, vehicle) ? (
               <>
                 <DateField
@@ -228,11 +229,11 @@ export default function VehicleScreen() {
             <EntregarVehiculo vehicle={vehicle} onDone={setToast} />
           </Panel>
 
-          <Panel title="🏷️ Campos propios">
+          <Panel icon="etiqueta" title="Campos propios">
             <CustomFields vehicle={vehicle} />
           </Panel>
 
-          <Panel title="⚠️ Incidencias y documentos">
+          <Panel icon="aviso" title="Incidencias y documentos">
             {incidents.length === 0 ? (
               <Notice>Recepción sin daños · sin incidencias abiertas.</Notice>
             ) : (
@@ -266,7 +267,7 @@ export default function VehicleScreen() {
       <Spacer h={space.lg} />
 
       <Grid cols={2} minWidth={420}>
-        <Panel title="🕘 Trazabilidad">
+        <Panel icon="historial" title="Trazabilidad">
           <Timeline
             events={timeline.map((e) => ({
               title: `${formatDateTime(e.at)} · ${e.title}`,
@@ -276,7 +277,7 @@ export default function VehicleScreen() {
         </Panel>
 
         <View style={{ gap: space.md }}>
-          <Panel title="📋 Solicitudes">
+          <Panel icon="solicitudes" title="Solicitudes">
             {requests.length === 0 ? (
               <EmptyState text="Sin solicitudes registradas." />
             ) : (
@@ -305,7 +306,7 @@ export default function VehicleScreen() {
             )}
           </Panel>
 
-          <Panel title="↔ Movimientos">
+          <Panel icon="movimientos" title="Movimientos">
             {movements.length === 0 ? (
               <EmptyState text="Sin movimientos registrados." />
             ) : (
@@ -342,10 +343,10 @@ function DeliveryState({ vehicle }: { vehicle: import('@/data/types').Vehicle })
         }`}
       />
       {estado.ready ? (
-        <Notice tone="info">✅ Listo para entregar.</Notice>
+        <Notice icon="comprobado" tone="info">Listo para entregar.</Notice>
       ) : (
-        <Notice tone={estado.atRisk ? 'danger' : 'warn'}>
-          {estado.atRisk ? '⚠️ En riesgo · ' : 'Pendiente · '}
+        <Notice tone={estado.atRisk ? 'danger' : 'warn'} icon={estado.atRisk ? 'aviso' : undefined}>
+          {estado.atRisk ? 'En riesgo · ' : 'Pendiente · '}
           {estado.missing.join(' · ')}
         </Notice>
       )}

@@ -242,7 +242,7 @@ export default function FleetScreen() {
       </Muted>
 
       <Toolbar>
-        <Input value={query} onChangeText={setQuery} placeholder="🔎 Buscar VIN-8 / matrícula / modelo" autoCapitalize="characters" />
+        <Input value={query} onChangeText={setQuery} placeholder="Buscar VIN-8 / matrícula / modelo" autoCapitalize="characters" />
         <Select
           value={scope}
           onChange={(v) => setScope(v as 'activos' | 'quiter')}
@@ -308,18 +308,19 @@ export default function FleetScreen() {
           // El atajo que pide la operativa del comercial: sus coches y en
           // qué punto está la preparación, sin tocar cuatro filtros.
           <Btn
+            icon="preparacion"
             variant={misPreparaciones ? 'primary' : undefined}
             onPress={() => {
               setScope('activos');
               setMisPreparaciones((v) => !v);
             }}
           >
-            🧽 Mis coches en preparación ({enPreparacion})
+            Mis coches en preparación ({enPreparacion})
           </Btn>
         ) : null}
         {can('flota.editar') ? (
-          <Btn variant="primary" onPress={() => setAltaOpen(true)}>
-            ➕ Dar de alta un vehículo
+          <Btn icon="mas" variant="primary" onPress={() => setAltaOpen(true)}>
+            Dar de alta un vehículo
           </Btn>
         ) : null}
       </Toolbar>
@@ -366,7 +367,7 @@ export default function FleetScreen() {
       <Spacer h={space.lg} />
 
       <Grid cols={1}>
-        <Panel title="🧠 Activación logística">
+        <Panel icon="activacion" title="Activación logística">
           <Muted>
             Se puede importar todo el parque de Quiter, incluidos coches de clientes. Solo aparecen por defecto
             en la operativa los que tienen actividad logística: {vehicles.filter((v) => v.logisticActive).length}{' '}
@@ -374,12 +375,12 @@ export default function FleetScreen() {
           </Muted>
           <StatLine
             items={[
-              '📍 Ubicación → Activo',
-              '↔ Movimiento → Activo',
-              '🧽 Preparación → Activo',
-              '📋 Recuento → Activo',
-              '⚠️ Incidencia → Activo',
-              '📋 Solicitud → Activo',
+              { icon: 'ubicacion', text: 'Ubicación → Activo' },
+              { icon: 'movimientos', text: 'Movimiento → Activo' },
+              { icon: 'preparacion', text: 'Preparación → Activo' },
+              { icon: 'recuentos', text: 'Recuento → Activo' },
+              { icon: 'incidencias', text: 'Incidencia → Activo' },
+              { icon: 'solicitudes', text: 'Solicitud → Activo' },
             ]}
           />
         </Panel>

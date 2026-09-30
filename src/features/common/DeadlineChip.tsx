@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import { radius, useTheme, tipografia } from '@/ui';
+import { Icon, radius, useTheme, tipografia, type IconName } from '@/ui';
 import type { Deadline } from '@/data/selectors';
 
 /** "quedan 31 h" · "vencido hace 3 h". Nada de fechas que haya que interpretar. */
@@ -21,11 +21,14 @@ export function DeadlineChip({
   deadline,
   compact,
   emptyLabel,
+  emptyIcon,
 }: {
   deadline: Deadline;
   compact?: boolean;
   /** Qué poner cuando el reloj no ha arrancado. Por defecto, «Sin plazo aún». */
   emptyLabel?: string;
+  /** Icono delante de `emptyLabel`. */
+  emptyIcon?: IconName;
 }) {
   const { c } = useTheme();
   if (deadline.remainingMs === null) {
@@ -33,6 +36,8 @@ export function DeadlineChip({
     return (
       <View style={{ backgroundColor: c.surfaceSunken, borderRadius: radius.pill, paddingVertical: 4, paddingHorizontal: 9 }}>
         <Text style={{ fontSize: tipografia.label, fontWeight: '800', color: c.textMuted }}>
+          {emptyIcon ? <Icon name={emptyIcon} size={tipografia.small} color={c.textMuted} /> : null}
+          {emptyIcon ? ' ' : ''}
           {emptyLabel ?? 'Sin plazo aún'}
         </Text>
       </View>
@@ -48,7 +53,9 @@ export function DeadlineChip({
 
   return (
     <View style={{ backgroundColor: bg, borderRadius: radius.pill, paddingVertical: 4, paddingHorizontal: 9 }}>
-      <Text style={{ fontSize: tipografia.label, fontWeight: '800', color: fg }}>{overdue ? '⏰ ' : ''}{texto}</Text>
+      <Text style={{ fontSize: tipografia.label, fontWeight: '800', color: fg }}>{overdue ? <Icon name="alarma" size={tipografia.small} color={fg} /> : null}
+        {overdue ? ' ' : ''}
+        {texto}</Text>
     </View>
   );
 }

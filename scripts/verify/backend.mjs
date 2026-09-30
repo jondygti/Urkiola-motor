@@ -2,7 +2,7 @@ import { execSync, spawn } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { abrirNavegador, elegirEnLista, estadoGuardado, marcador } from './entorno.mjs';
+import { abrirNavegador, elegirEnLista, estadoGuardado, lineasDeUbicacion, marcador } from './entorno.mjs';
 import { servirEstatico } from './servidor.mjs';
 
 /**
@@ -143,8 +143,7 @@ try {
   );
   // Acotado a la tarjeta del coche: en la web el menú lateral también tiene
   // una chincheta («Campa Sondika») y la primera que aparece es esa.
-  const tarjeta = fichaMover.slice(fichaMover.indexOf('DÓNDE ESTÁ AHORA'));
-  const linea = (tarjeta.match(/📍[^\n]*(\n[^\n]*)?/)?.[0] ?? '').replace(/\n/g, ' ').trim();
+  const linea = ((await lineasDeUbicacion(page))[0] ?? '').replace(/\n/g, ' ');
   ok('3 · y le dice dónde está para ir a por él', /[A-Za-zÁ-ú]{3}/.test(linea), linea);
 
   const zonaActual = await page.evaluate(() => {
@@ -152,7 +151,7 @@ try {
     return m ? m[0] : null;
   });
   await elegirEnLista(page, zonaActual ?? 'Elige zona', 'Parking 03');
-  await page.getByText('✓ Mover a', { exact: false }).first().click();
+  await page.getByText('Mover a', { exact: false }).first().click();
   await page.waitForTimeout(2000);
 
   const despues = await estadoDe(tokenPedro);

@@ -1,10 +1,16 @@
 import type { AppState, Permission, User } from '@/data/types';
 import { can, mobileSections } from '@/data/selectors';
+import type { IconName } from '@/ui/Icon';
 
 export interface NavItem {
   href: string;
   label: string;
-  icon: string;
+  /**
+   * Uno distinto por sección. Con emojis se repetían —el mismo coche para
+   * Flota y Mis coches, la misma esponja para Preparación y Mi preparación—
+   * y en la barra de abajo del móvil no se distinguían de un vistazo.
+   */
+  icon: IconName;
   /** Etiqueta corta para la barra inferior del móvil. */
   short?: string;
   /** Se ve si el rol tiene al menos uno de estos permisos. Vacío = siempre. */
@@ -24,12 +30,12 @@ export const NAV: NavGroup[] = [
       // El panel de control es de dirección: se ve solo con permiso, y de
       // serie solo lo tiene el administrador. Quien no lo tenga entra
       // directamente a su trabajo.
-      { href: '/', label: 'Dashboard', icon: '▦', short: 'Panel', anyOf: ['panel.ver'] },
-      { href: '/flota', label: 'Flota', icon: '🚗', short: 'Flota', anyOf: ['flota.ver'] },
+      { href: '/', label: 'Dashboard', icon: 'panel', short: 'Panel', anyOf: ['panel.ver'] },
+      { href: '/flota', label: 'Flota', icon: 'flota', short: 'Flota', anyOf: ['flota.ver'] },
       {
         href: '/entregas',
         label: 'Entregas',
-        icon: '📅',
+        icon: 'entregas',
         short: 'Entregas',
         anyOf: ['entregas.gestionar', 'solicitudes.gestionar'],
       },
@@ -41,11 +47,11 @@ export const NAV: NavGroup[] = [
       {
         href: '/mi-recepcion',
         label: 'Descargar camión',
-        icon: '📦',
+        icon: 'descargar',
         short: 'Descargar',
         anyOf: ['recepcion.ejecutar'],
       },
-      { href: '/campa', label: 'Campa Sondika', icon: '📍', short: 'Campa', anyOf: ['campa.ver'] },
+      { href: '/campa', label: 'Campa Sondika', icon: 'campa', short: 'Campa', anyOf: ['campa.ver'] },
     ],
   },
   {
@@ -54,7 +60,7 @@ export const NAV: NavGroup[] = [
       {
         href: '/solicitudes',
         label: 'Solicitudes',
-        icon: '📋',
+        icon: 'solicitudes',
         short: 'Tareas',
         // Es la pantalla de la oficina: los encargos de toda la red, para
         // repartirlos. Quien solo los *pide* —el comercial— no necesita ver
@@ -64,7 +70,7 @@ export const NAV: NavGroup[] = [
       {
         href: '/preparacion',
         label: 'Preparación',
-        icon: '🧽',
+        icon: 'preparacion',
         short: 'Preparar',
         // El panel de todas las preparaciones de la red es de oficina. El
         // preparador tiene «Mi preparación», que es su cola ordenada por
@@ -75,7 +81,7 @@ export const NAV: NavGroup[] = [
       {
         href: '/traslados',
         label: 'Traslados hechos',
-        icon: '🚚',
+        icon: 'traslados',
         short: 'Hechos',
         // El registro de lo que han hecho las empresas de transporte. El
         // transportista ve lo mismo en su propia app, en «Hechos».
@@ -84,22 +90,22 @@ export const NAV: NavGroup[] = [
       {
         href: '/movimientos',
         label: 'Movimientos',
-        icon: '↔',
+        icon: 'movimientos',
         short: 'Histórico',
         // El histórico de toda la flota es una herramienta de oficina. Quien
         // mueve coches lo que necesita es «Mover coche», y el recorrido de
         // un coche concreto está en su ficha.
         anyOf: ['solicitudes.gestionar'],
       },
-      { href: '/recuentos', label: 'Recuentos', icon: '📋', short: 'Recuento', anyOf: ['recuentos.ejecutar'] },
+      { href: '/recuentos', label: 'Recuentos', icon: 'recuentos', short: 'Recuento', anyOf: ['recuentos.ejecutar'] },
     ],
   },
   {
     title: 'CONTROL Y ADMIN',
     items: [
-      { href: '/incidencias', label: 'Incidencias', icon: '⚠', short: 'Incid.', anyOf: ['incidencias.crear', 'incidencias.cerrar'] },
-      { href: '/notificaciones', label: 'Notificaciones', icon: '🔔', short: 'Avisos' },
-      { href: '/administracion', label: 'Administración', icon: '⚙', short: 'Config.', anyOf: ['admin.configurar'] },
+      { href: '/incidencias', label: 'Incidencias', icon: 'incidencias', short: 'Incid.', anyOf: ['incidencias.crear', 'incidencias.cerrar'] },
+      { href: '/notificaciones', label: 'Notificaciones', icon: 'avisos', short: 'Avisos' },
+      { href: '/administracion', label: 'Administración', icon: 'admin', short: 'Config.', anyOf: ['admin.configurar'] },
     ],
   },
   {
@@ -112,28 +118,28 @@ export const NAV: NavGroup[] = [
       {
         href: '/mis-coches',
         label: 'Mis coches',
-        icon: '🚗',
+        icon: 'misCoches',
         short: 'Míos',
         anyOf: ['flota.asignarse'],
       },
       {
         href: '/mis-traslados',
         label: 'Mis traslados',
-        icon: '🚚',
+        icon: 'misTraslados',
         short: 'Traslados',
         anyOf: ['traslados.propios'],
       },
       {
         href: '/mi-preparacion',
         label: 'Mi preparación',
-        icon: '🧽',
+        icon: 'miPreparacion',
         short: 'Preparar',
         anyOf: ['preparacion.ejecutar'],
       },
       {
         href: '/mover',
         label: 'Mover coche',
-        icon: '📍',
+        icon: 'mover',
         short: 'Mover',
         anyOf: ['movimientos.registrar'],
       },

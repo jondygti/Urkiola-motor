@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
-import { campo, Btn, Grid, H1, Input, Kpi, Muted, Notice, Panel, Pill, ProgressBar, Screen, Segmented, Spacer, radius, space, useTheme } from '@/ui';
+import { campo, Btn, Grid, H1, Icon, Input, Kpi, Muted, Notice, Panel, Pill, ProgressBar, Screen, Segmented, Spacer, radius, space, useTheme } from '@/ui';
 import { useAppState, useStore, useTicker } from '@/data/store';
 import { deadlineOf, misCoches, type CocheMio } from '@/data/selectors';
 import { prepElapsedMs, prepIsOverSla, prepProgress } from '@/data/commands';
@@ -95,7 +95,7 @@ export default function MyCarsScreen() {
         {toast ? (
           <>
             <Spacer h={space.sm} />
-            <Notice>✓ {toast}</Notice>
+            <Notice icon="hecho">{toast}</Notice>
           </>
         ) : null}
 
@@ -254,14 +254,23 @@ function FichaCoche({
           {vehicleName(v)} · {vehicleRef(v)}
         </Text>
         <Text style={{ fontSize: campo.micro, fontWeight: '800', color: tono }}>
+          {fase === 'parado' ? null : (
+            <>
+              <Icon
+                name={fase === 'entregado' ? 'meta' : fase === 'listo' ? 'hecho' : fase === 'preparando' ? 'preparacion' : 'camion'}
+                size={campo.small}
+                color={tono}
+              />{' '}
+            </>
+          )}
           {fase === 'entregado'
-            ? '🏁 ENTREGADO'
+            ? 'ENTREGADO'
             : fase === 'listo'
-            ? '✓ LISTO PARA ENTREGAR'
+            ? 'LISTO PARA ENTREGAR'
             : fase === 'preparando'
-              ? '🧽 PREPARÁNDOSE'
+              ? 'PREPARÁNDOSE'
               : fase === 'trasladando'
-                ? '🚚 DE CAMINO'
+                ? 'DE CAMINO'
                 : 'SIN PEDIR NADA'}
         </Text>
       </View>
@@ -280,7 +289,7 @@ function FichaCoche({
       {/* La fecha comprometida manda sobre todo lo demás. */}
       {v.deliveryDate ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <Pill tone={fase === 'listo' ? 'ok' : 'blue'}>📅 Entrega {formatDate(v.deliveryDate)}</Pill>
+          <Pill icon="calendario" tone={fase === 'listo' ? 'ok' : 'blue'}>Entrega {formatDate(v.deliveryDate)}</Pill>
         </View>
       ) : (
         <Muted>Sin fecha de entrega comprometida.</Muted>
@@ -332,7 +341,7 @@ function FichaCoche({
 
       {incidencias.length ? (
         <Text style={{ fontSize: campo.micro, fontWeight: '800', color: c.redFg }}>
-          ⚠ {incidencias.length === 1 ? '1 incidencia abierta' : `${incidencias.length} incidencias abiertas`}
+          <Icon name="aviso" size={campo.small} color={c.redFg} /> {incidencias.length === 1 ? '1 incidencia abierta' : `${incidencias.length} incidencias abiertas`}
           : {incidencias[0].description}
         </Text>
       ) : null}
