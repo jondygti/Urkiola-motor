@@ -89,8 +89,11 @@ export function DataTable<T>({
   const ordenadas = useMemo(() => {
     const col = orden ? columns.find((x) => x.key === orden.key) : undefined;
     if (!orden || !col?.sortValue) return filtered;
-    const valor = col.sortValue;
-    return [...filtered].sort((a, b) => (orden.desc ? valor(b) - valor(a) : valor(a) - valor(b)));
+    // Cada valor se calcula una vez por fila y no en cada comparación:
+    // ordenar 400 filas son miles de comparaciones.
+    const conValor = filtered.map((row) => ({ row, v: col.sortValue!(row) }));
+    conValor.sort((a, b) => (orden.desc ? b.v - a.v : a.v - b.v));
+    return conValor.map((x) => x.row);
   }, [filtered, orden, columns]);
 
   const ordenarPor = (key: string) => {

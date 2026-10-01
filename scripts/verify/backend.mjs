@@ -285,6 +285,17 @@ try {
     const sinSesion = await fetch(`${API}/fotos/${encodeURIComponent(idFoto)}`);
     ok('5 · sin sesión no se ve', sinSesion.status === 401, String(sinSesion.status));
 
+    // Una foto sin miniatura (las hechas antes de que existieran) no deja
+    // un hueco en blanco en la lista: sale la marca del coche.
+    await page2.goto(`${WEB}/mover`, { waitUntil: 'networkidle' });
+    await page2.getByPlaceholder('1234 ABC').fill(cocheRecepcion.plate ?? cocheRecepcion.vin8);
+    await page2.waitForTimeout(2500);
+    ok(
+      '5 · foto sin miniatura: sale la marca, no un hueco',
+      (await page2.locator('[data-testid="miniatura-marca"]').count()) > 0 &&
+        (await page2.locator('[data-testid="miniatura-foto"]').count()) === 0
+    );
+
     // La miniatura para las listas: la sube quien hizo la foto, y la app
     // conectada la pinta en vez de la original.
     const mini = await fetch(`${API}/fotos/${encodeURIComponent(idFoto)}/miniatura`, {

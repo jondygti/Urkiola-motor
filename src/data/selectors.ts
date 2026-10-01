@@ -1107,7 +1107,9 @@ export function ultimaFotoDe(s: AppState, vehicleId: Id): string | null {
   if (!indice) {
     const mejor = new Map<Id, { ref: string; at: string }>();
     const apuntar = (vehicleId: Id | null | undefined, ref: string | null | undefined, at: string | null | undefined) => {
-      if (!vehicleId || !ref || !at) return;
+      // Las fotos del parque de ejemplo (`demo://`) no existen: no pueden
+      // tapar a una de verdad más antigua.
+      if (!vehicleId || !ref || !at || ref.startsWith('demo://')) return;
       const ya = mejor.get(vehicleId);
       if (!ya || at > ya.at) mejor.set(vehicleId, { ref, at });
     };
@@ -1130,7 +1132,7 @@ export function ultimaFotoDe(s: AppState, vehicleId: Id): string | null {
 export function abreviaturaDeMarca(brand: string | null | undefined): string {
   const limpia = (brand ?? '')
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .trim()
     .split(/[\s-]+/)[0]
     .replace(/[^A-Za-z0-9]/g, '')
@@ -1170,9 +1172,42 @@ function llegadaAlSitio(s: AppState, v: Vehicle): string | null {
     }
     llegadasPorEstado.set(s, indice);
   }
-  // Sin movimientos apuntados, lo que haya: cuándo se movió por última vez,
-  // cuándo se recibió o cuándo se vio dónde está.
-  return indice.get(v.id) ?? v.lastMovementAt ?? v.receivedAt ?? v.locationObservedAt ?? null;
+  // Manda el más reciente entre el historial y el propio coche: el móvil no
+  // siempre tiene todos los movimientos (el servidor recorta lo que manda).
+  // Sin ninguno, cuándo se recibió o cuándo se vio dónde está.
+  const historial = indice.get(v.id);
+  const ultimo = historial && v.lastMovementAt ? (historial > v.lastMovementAt ? historial : v.lastMovementAt) : historial ?? v.lastMovementAt;
+  return ultimo ?? v.receivedAt ?? v.locationObservedAt ?? null;
+}
+
+/**
+ * Lo abierto de cada coche: solicitudes sin cerrar y preparación en marcha.
+ *
+ * Una vez por estado, no una por coche: las solicitudes se acumulan mes a
+ * mes, y recorrerlas enteras por cada fila —y otra vez por cada comparación
+ * al ordenar la columna «Días»— dejaba el móvil a tirones con datos reales.
+ */
+type Abierto = { solicitudes: ServiceRequest[]; preparacion?: Preparation };
+const abiertoPorEstado = new WeakMap<AppState, Map<Id, Abierto>>();
+
+function abiertoDe(s: AppState, vehicleId: Id): Abierto {
+  let indice = abiertoPorEstado.get(s);
+  if (!indice) {
+    indice = new Map();
+    const de = (id: Id) => {
+      let x = indice!.get(id);
+      if (!x) indice!.set(id, (x = { solicitudes: [] }));
+      return x;
+    };
+    for (const r of s.requests) {
+      if (r.status !== 'terminada' && r.status !== 'cancelada') de(r.vehicleId).solicitudes.push(r);
+    }
+    for (const p of s.preparations) {
+      if (!p.finishedAt && !p.cancelledAt) de(p.vehicleId).preparacion ??= p;
+    }
+    abiertoPorEstado.set(s, indice);
+  }
+  return indice.get(vehicleId) ?? { solicitudes: [] };
 }
 
 export interface DiasDelCoche {
@@ -1200,9 +1235,7 @@ export interface DiasDelCoche {
 export function diasDelCoche(s: AppState, v: Vehicle, now = Date.now()): DiasDelCoche | null {
   if (!v.logisticActive || v.status === 'entregado') return null;
   const limites = limitesDias(s);
-  const abiertas = s.requests.filter(
-    (r) => r.vehicleId === v.id && r.status !== 'terminada' && r.status !== 'cancelada'
-  );
+  const { solicitudes: abiertas, preparacion: prep } = abiertoDe(s, v.id);
   const primero = (fechas: (string | null | undefined)[]) =>
     fechas.filter((x): x is string => !!x).sort()[0] ?? null;
 
@@ -1210,7 +1243,6 @@ export function diasDelCoche(s: AppState, v: Vehicle, now = Date.now()): DiasDel
   let desde: string | null;
   if (v.status === 'en_preparacion') {
     fase = 'preparacion';
-    const prep = s.preparations.find((p) => p.vehicleId === v.id && !p.finishedAt && !p.cancelledAt);
     desde = primero([
       ...abiertas.filter((r) => r.type === 'preparacion').map((r) => r.createdAt),
       prep?.startedAt,
