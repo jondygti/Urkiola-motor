@@ -1,12 +1,24 @@
 import { Redirect, useRouter } from 'expo-router';
 import React from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { Btn, Grid, H1, Kpi, Muted, Notice, Panel, Pill, Screen, Spacer, Timeline, TopNote, space, tipografia, useTheme } from '@/ui';
 import { useAppState, useStore, useTicker } from '@/data/store';
-import { dashboardKpis, attentionItems, recentActivity, sitePerformance } from '@/data/selectors';
+import {
+  dashboardKpis,
+  attentionItems,
+  diasMediosPorSede,
+  limitesDias,
+  recentActivity,
+  requiereAtencionHoy,
+  sitePerformance,
+} from '@/data/selectors';
+import { FASE_DIAS_LABEL, type FaseDias } from '@/data/types';
+import { MiniaturaVehiculo } from '@/features/common/Miniatura';
 import { homeFor, mobileHome } from '@/features/shell/nav';
 import { usePerms } from '@/features/common/Guard';
-import { formatDateTime, formatShortDuration, vehicleTitle } from '@/data/format';
+import { formatDateTime, formatShortDuration, vehicleRef, vehicleTitle } from '@/data/format';
+
+const dias = (n: number) => (n === 1 ? '1 día' : `${n} días`);
 
 export default function DashboardScreen() {
   const state = useAppState();
@@ -30,6 +42,9 @@ export default function DashboardScreen() {
   const perf = sitePerformance(state, now);
   const attention = attentionItems(state);
   const activity = recentActivity(state, 8);
+  const hoy = requiereAtencionHoy(state, now);
+  const porSede = diasMediosPorSede(state, now).filter((f) => f.campa.coches || f.preparacion.coches);
+  const limites = limitesDias(state);
 
   return (
     <Screen>
@@ -69,6 +84,115 @@ export default function DashboardScreen() {
           tone={kpis.stale > 0 ? 'red' : undefined}
           onPress={() => router.push('/recuentos')}
         />
+      </Grid>
+
+      <Spacer h={space.lg} />
+
+      {/* Lo primero que se mira al llegar: qué se ha quedado parado más de
+          la cuenta y qué incidencias siguen abiertas. Los límites de días
+          se cambian en Administración → Operativa. */}
+      <Grid cols={2} minWidth={420}>
+        <Panel icon="alarma" title="Requiere atención hoy">
+          {hoy.incidencias.length > 0 ? (
+            <Notice tone="danger" icon="incidencias" onPress={() => router.push('/incidencias')}>
+              {hoy.incidencias.length === 1
+                ? '1 incidencia abierta'
+                : `${hoy.incidencias.length} incidencias abiertas`}
+            </Notice>
+          ) : null}
+          {hoy.coches.length === 0 ? (
+            <Notice icon="comprobado">Ningún coche lleva más días de la cuenta.</Notice>
+          ) : (
+            <View testID="requiere-atencion">
+              <Text style={{ fontSize: tipografia.small, color: c.textMuted, marginBottom: space.sm }}>
+                {(Object.keys(hoy.porFase) as FaseDias[])
+                  .filter((f) => hoy.porFase[f] > 0)
+                  .map((f) => `${FASE_DIAS_LABEL[f]}: ${hoy.porFase[f]} con más de ${dias(limites[f])}`)
+                  .join(' · ')}
+              </Text>
+              {hoy.coches.slice(0, 6).map(({ vehicle: v, dias: d }) => (
+                <Pressable
+                  key={v.id}
+                  onPress={() => router.push(`/vehiculo/${v.id}` as never)}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 10,
+                    paddingVertical: 6,
+                    borderBottomWidth: 1,
+                    borderBottomColor: c.borderSoft,
+                    backgroundColor: pressed ? c.surfaceAlt : 'transparent',
+                  })}
+                >
+                  <MiniaturaVehiculo vehicle={v} lado={36} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: tipografia.small, fontWeight: '800', color: c.text }}>
+                      {vehicleRef(v)} · {v.brand} {v.model}
+                    </Text>
+                    <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>
+                      {FASE_DIAS_LABEL[d.fase]} · límite {dias(d.limite)}
+                    </Text>
+                  </View>
+                  <Pill tone="red">{dias(d.dias)}</Pill>
+                </Pressable>
+              ))}
+              {hoy.coches.length > 6 ? (
+                <>
+                  <Spacer h={space.sm} />
+                  <Btn small onPress={() => router.push('/flota')}>
+                    {`Ver los ${hoy.coches.length} en Flota`}
+                  </Btn>
+                </>
+              ) : null}
+            </View>
+          )}
+        </Panel>
+
+        <Panel icon="sede" title="Días medios por sede">
+          <View style={{ flexDirection: 'row', paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: c.border }}>
+            <Text style={{ flex: 1.2, fontSize: tipografia.micro, fontWeight: '800', color: c.textFaint }}>SEDE</Text>
+            <Text style={{ flex: 1, fontSize: tipografia.micro, fontWeight: '800', color: c.textFaint }}>EN CAMPA</Text>
+            <Text style={{ flex: 1, fontSize: tipografia.micro, fontWeight: '800', color: c.textFaint }}>
+              EN PREPARACIÓN
+            </Text>
+          </View>
+          {porSede.map((fila) => (
+            <View
+              key={fila.site.id}
+              testID="dias-por-sede"
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 9,
+                borderBottomWidth: 1,
+                borderBottomColor: c.borderSoft,
+              }}
+            >
+              <Text style={{ flex: 1.2, fontSize: tipografia.small, color: c.text, fontWeight: '600' }}>
+                {fila.site.name}
+              </Text>
+              {(['campa', 'preparacion'] as const).map((fase) => {
+                const x = fila[fase];
+                const pasado = x.media !== null && x.media > limites[fase];
+                return (
+                  <Text
+                    key={fase}
+                    style={{
+                      flex: 1,
+                      fontSize: tipografia.small,
+                      color: pasado ? c.redFg : x.media === null ? c.textFaint : c.text,
+                      fontWeight: pasado ? '800' : '400',
+                    }}
+                  >
+                    {x.media === null ? '—' : `${String(x.media).replace('.', ',')} d · ${x.coches}`}
+                  </Text>
+                );
+              })}
+            </View>
+          ))}
+          <Spacer h={space.sm} />
+          <Muted>Media de días de los coches que están ahí ahora · número de coches.</Muted>
+        </Panel>
       </Grid>
 
       <Spacer h={space.lg} />

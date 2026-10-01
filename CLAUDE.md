@@ -191,6 +191,14 @@ Cada una viene de un fallo real de este proyecto:
     quien subió la original. Sin miniatura, la marca abreviada (PEU, FOR…).
     La última foto de cada coche sale de `ultimaFotoDe`.
 
+33. **Los días de un coche salen de `diasDelCoche`** (`src/data/selectors.ts`):
+    en campa desde su último movimiento, en preparación y esperando traslado
+    desde que se pidió, contados en hora de España. Los límites de cada fase
+    se configuran en Administración (`config.limitesDias`; los de serie,
+    `LIMITES_DIAS` en `seed.ts`) y alimentan «Requiere atención hoy» del
+    panel y la columna «Días» de la flota. No calcular días parados a mano en
+    una pantalla: saldrían dos cifras distintas para el mismo coche.
+
 ## Comprobar antes de dar algo por bueno
 
 ```bash

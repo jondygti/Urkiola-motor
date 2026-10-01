@@ -79,7 +79,9 @@ const TOKEN_KEY = 'urkiola.token.v1';
 // 26: la preparación guarda el tiempo de quienes la tuvieron antes
 // (`tiempoAnterior`) y el historial se limita por coche y no para toda la
 // red. Lo guardado antes no reparte el tiempo de las reasignadas.
-const STATE_SCHEMA_VERSION = 26;
+// 27: la configuración trae los límites de días (`limitesDias`) de
+// «Requiere atención hoy» y de la columna «Días» de la flota.
+const STATE_SCHEMA_VERSION = 27;
 
 interface StoredState {
   v: number;

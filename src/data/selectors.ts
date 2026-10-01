@@ -18,10 +18,14 @@ import type {
   TraceEvent,
   User,
   Vehicle,
+  FaseDias,
+  LimitesDias,
 } from './types';
 import { BASE_COLUMNS } from './types';
 import { prepElapsedMs, prepIsOverSla, prepProgress } from './commands';
 import { hoursSince } from './format';
+import { diaEnEspana } from './delivery-date';
+import { LIMITES_DIAS } from './seed';
 
 const HOUR = 3_600_000;
 
@@ -1134,4 +1138,174 @@ export function abreviaturaDeMarca(brand: string | null | undefined): string {
     .replace(/[^A-Za-z0-9]/g, '')
     .toUpperCase();
   return limpia.slice(0, 3) || '—';
+}
+
+/* ------------------------------------------------- días que lleva parado */
+
+const DIA_MS = 24 * HOUR;
+
+/** Días naturales entre dos instantes, contados en hora de España (regla 29). */
+function diasEntre(desde: string, hasta: number): number {
+  const a = Date.parse(diaEnEspana(desde));
+  const b = Date.parse(diaEnEspana(new Date(hasta).toISOString()));
+  return Math.max(0, Math.round((b - a) / DIA_MS));
+}
+
+/** Los límites configurados, o los de serie si el estado guardado no los trae. */
+export const limitesDias = (s: AppState): LimitesDias => ({ ...LIMITES_DIAS, ...(s.config.limitesDias ?? {}) });
+
+/**
+ * Cuándo llegó cada coche al sitio donde está, según su historial de
+ * movimientos. Se calcula una vez por estado: la flota son cientos de
+ * coches y la columna «Días» los pinta todos.
+ */
+const llegadasPorEstado = new WeakMap<AppState, Map<Id, string>>();
+
+function llegadaAlSitio(s: AppState, v: Vehicle): string | null {
+  let indice = llegadasPorEstado.get(s);
+  if (!indice) {
+    indice = new Map();
+    for (const m of s.movements) {
+      if (m.status !== 'completado') continue;
+      const ya = indice.get(m.vehicleId);
+      if (!ya || m.at > ya) indice.set(m.vehicleId, m.at);
+    }
+    llegadasPorEstado.set(s, indice);
+  }
+  // Manda el más reciente entre el historial y el propio coche: el móvil no
+  // siempre tiene todos los movimientos (el servidor recorta lo que manda).
+  // Sin ninguno, cuándo se recibió o cuándo se vio dónde está.
+  const historial = indice.get(v.id);
+  const ultimo = historial && v.lastMovementAt ? (historial > v.lastMovementAt ? historial : v.lastMovementAt) : historial ?? v.lastMovementAt;
+  return ultimo ?? v.receivedAt ?? v.locationObservedAt ?? null;
+}
+
+/**
+ * Lo abierto de cada coche: solicitudes sin cerrar y preparación en marcha.
+ *
+ * Una vez por estado, no una por coche: las solicitudes se acumulan mes a
+ * mes, y recorrerlas enteras por cada fila —y otra vez por cada comparación
+ * al ordenar la columna «Días»— dejaba el móvil a tirones con datos reales.
+ */
+type Abierto = { solicitudes: ServiceRequest[]; preparacion?: Preparation };
+const abiertoPorEstado = new WeakMap<AppState, Map<Id, Abierto>>();
+
+function abiertoDe(s: AppState, vehicleId: Id): Abierto {
+  let indice = abiertoPorEstado.get(s);
+  if (!indice) {
+    indice = new Map();
+    const de = (id: Id) => {
+      let x = indice!.get(id);
+      if (!x) indice!.set(id, (x = { solicitudes: [] }));
+      return x;
+    };
+    for (const r of s.requests) {
+      if (r.status !== 'terminada' && r.status !== 'cancelada') de(r.vehicleId).solicitudes.push(r);
+    }
+    for (const p of s.preparations) {
+      if (!p.finishedAt && !p.cancelledAt) de(p.vehicleId).preparacion ??= p;
+    }
+    abiertoPorEstado.set(s, indice);
+  }
+  return indice.get(vehicleId) ?? { solicitudes: [] };
+}
+
+export interface DiasDelCoche {
+  fase: FaseDias;
+  /** Desde cuándo se cuenta. */
+  desde: string;
+  dias: number;
+  limite: number;
+  /** Lleva más días de los que se consideran normales en esa fase. */
+  pasado: boolean;
+}
+
+/**
+ * Cuántos días lleva un coche en lo que está haciendo ahora.
+ *
+ * - **En preparación**: desde que se pidió la preparación (o se empezó, si
+ *   se abrió sin pedirla). Lo que cuenta es el tiempo que el coche no está
+ *   disponible, no el que alguien le ha dedicado.
+ * - **Esperando traslado**: desde que se pidió el traslado.
+ * - **En campa** (aparcado, recepcionado o listo para entregar): desde que
+ *   llegó a donde está, según su último movimiento.
+ *
+ * Un coche entregado o sin actividad logística no cuenta: null.
+ */
+export function diasDelCoche(s: AppState, v: Vehicle, now = Date.now()): DiasDelCoche | null {
+  if (!v.logisticActive || v.status === 'entregado') return null;
+  const limites = limitesDias(s);
+  const { solicitudes: abiertas, preparacion: prep } = abiertoDe(s, v.id);
+  const primero = (fechas: (string | null | undefined)[]) =>
+    fechas.filter((x): x is string => !!x).sort()[0] ?? null;
+
+  let fase: FaseDias;
+  let desde: string | null;
+  if (v.status === 'en_preparacion') {
+    fase = 'preparacion';
+    desde = primero([
+      ...abiertas.filter((r) => r.type === 'preparacion').map((r) => r.createdAt),
+      prep?.startedAt,
+    ]);
+  } else if (v.status === 'traslado_solicitado' || v.status === 'en_traslado') {
+    fase = 'traslado';
+    desde = primero(abiertas.filter((r) => r.type === 'traslado').map((r) => r.createdAt));
+  } else {
+    fase = 'campa';
+    desde = null;
+  }
+  desde ??= llegadaAlSitio(s, v);
+  if (!desde) return null;
+
+  const dias = diasEntre(desde, now);
+  return { fase, desde, dias, limite: limites[fase], pasado: dias > limites[fase] };
+}
+
+/**
+ * El bloque «Requiere atención hoy» del panel: los coches que llevan más
+ * días de la cuenta, los que más se han pasado arriba, y las incidencias
+ * abiertas. Es lo que hay que mirar al llegar por la mañana; lo demás
+ * puede esperar.
+ */
+export function requiereAtencionHoy(s: AppState, now = Date.now()) {
+  const coches = activeVehicles(s)
+    .map((v) => ({ vehicle: v, dias: diasDelCoche(s, v, now) }))
+    .filter((x): x is { vehicle: Vehicle; dias: DiasDelCoche } => !!x.dias?.pasado)
+    .sort((a, b) => b.dias.dias - b.dias.limite - (a.dias.dias - a.dias.limite));
+  const porFase = { campa: 0, preparacion: 0, traslado: 0 } as Record<FaseDias, number>;
+  for (const c of coches) porFase[c.dias.fase] += 1;
+  return { coches, porFase, incidencias: openIncidents(s) };
+}
+
+export interface DiasPorSede {
+  site: Site;
+  campa: { media: number | null; coches: number };
+  preparacion: { media: number | null; coches: number };
+}
+
+/**
+ * Días medios en campa y en preparación de cada sede, con los coches que
+ * están ahí ahora. Dice qué sede tiene los coches parados, que es donde
+ * hay que ir a preguntar.
+ */
+export function diasMediosPorSede(s: AppState, now = Date.now()): DiasPorSede[] {
+  const acumulado = new Map<Id, { campa: number[]; preparacion: number[] }>();
+  for (const v of activeVehicles(s)) {
+    const siteId = v.location?.siteId;
+    if (!siteId) continue;
+    const d = diasDelCoche(s, v, now);
+    if (!d || d.fase === 'traslado') continue;
+    const fila = acumulado.get(siteId) ?? { campa: [], preparacion: [] };
+    fila[d.fase].push(d.dias);
+    acumulado.set(siteId, fila);
+  }
+  const media = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10 : null);
+  return s.sites.map((site) => {
+    const fila = acumulado.get(site.id) ?? { campa: [], preparacion: [] };
+    return {
+      site,
+      campa: { media: media(fila.campa), coches: fila.campa.length },
+      preparacion: { media: media(fila.preparacion), coches: fila.preparacion.length },
+    };
+  });
 }

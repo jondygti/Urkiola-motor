@@ -24,7 +24,15 @@ export type Column<T> = {
    * foto del coche, que se reconoce sin leer nada.
    */
   leading?: boolean;
+  /**
+   * Se puede ordenar por esta columna pulsando su cabecera: primero de
+   * mayor a menor (lo que más lleva, arriba), luego al revés, luego como
+   * venía.
+   */
+  sortValue?: (row: T) => number;
 };
+
+type Orden = { key: string; desc: boolean } | null;
 
 /**
  * Tabla con filtros por columna. En pantallas anchas se pinta como tabla
@@ -51,6 +59,7 @@ export function DataTable<T>({
   const { c, isDesktop } = useTheme();
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [limit, setLimit] = useState(pageSize);
+  const [orden, setOrden] = useState<Orden>(null);
 
   const hasFilters = showFilters && columns.some((col) => col.filter);
 
@@ -68,12 +77,28 @@ export function DataTable<T>({
     );
   }, [rows, filters, columns]);
 
+  const ordenadas = useMemo(() => {
+    const col = orden ? columns.find((x) => x.key === orden.key) : undefined;
+    if (!orden || !col?.sortValue) return filtered;
+    // Cada valor se calcula una vez por fila y no en cada comparación:
+    // ordenar 400 filas son miles de comparaciones.
+    const conValor = filtered.map((row) => ({ row, v: col.sortValue!(row) }));
+    conValor.sort((a, b) => (orden.desc ? b.v - a.v : a.v - b.v));
+    return conValor.map((x) => x.row);
+  }, [filtered, orden, columns]);
+
+  const ordenarPor = (key: string) => {
+    setLimit(pageSize);
+    setOrden((o) => (o?.key !== key ? { key, desc: true } : o.desc ? { key, desc: false } : null));
+  };
+  const ordenables = columns.filter((x) => x.sortValue);
+
   const setFilter = (key: string, v: string) => {
     setLimit(pageSize);
     setFilters((f) => ({ ...f, [key]: v }));
   };
 
-  const visible = filtered.slice(0, limit);
+  const visible = ordenadas.slice(0, limit);
   const more = filtered.length - visible.length;
 
   /* ------------------------------------------------------------ móvil */
@@ -82,6 +107,13 @@ export function DataTable<T>({
       <View>
         {hasFilters ? (
           <MobileFilters columns={columns} filters={filters} setFilter={setFilter} />
+        ) : null}
+        {ordenables.length ? (
+          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: space.sm }}>
+            {ordenables.map((col) => (
+              <BotonOrden key={col.key} header={col.header} orden={orden?.key === col.key ? orden : null} onPress={() => ordenarPor(col.key)} />
+            ))}
+          </View>
         ) : null}
         {filtered.length === 0 ? (
           <EmptyState text={emptyText} />
@@ -147,7 +179,25 @@ export function DataTable<T>({
           >
             {columns.map((col) => (
               <View key={col.key} style={{ width: col.width ?? 150, paddingHorizontal: 8 }}>
-                <Text style={{ fontSize: tipografia.micro, fontWeight: '800', color: c.textFaint }}>{col.header}</Text>
+                {col.sortValue ? (
+                  <Pressable
+                    onPress={() => ordenarPor(col.key)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Ordenar por ${col.header}`}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
+                  >
+                    <Text style={{ fontSize: tipografia.micro, fontWeight: '800', color: orden?.key === col.key ? c.primary : c.textFaint }}>
+                      {col.header}
+                    </Text>
+                    <Icon
+                      name={orden?.key === col.key ? (orden.desc ? 'bajar' : 'subir') : 'abajo'}
+                      size={tipografia.small}
+                      color={orden?.key === col.key ? c.primary : c.textFaint}
+                    />
+                  </Pressable>
+                ) : (
+                  <Text style={{ fontSize: tipografia.micro, fontWeight: '800', color: c.textFaint }}>{col.header}</Text>
+                )}
                 {hasFilters && col.filter ? (
                   <View style={{ marginTop: 5 }}>
                     {col.filter.type === 'text' ? (
@@ -203,6 +253,33 @@ export function DataTable<T>({
       <ShowMore more={more} onPress={() => setLimit((l) => l + pageSize)} />
       <ResultCount shown={visible.length} total={filtered.length} />
     </View>
+  );
+}
+
+function BotonOrden({ header, orden, onPress }: { header: string; orden: Orden; onPress: () => void }) {
+  const { c } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Ordenar por ${header}`}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        borderWidth: 1,
+        borderColor: orden ? c.primary : c.border,
+        backgroundColor: c.surface,
+        borderRadius: radius.md,
+        paddingVertical: 7,
+        paddingHorizontal: 12,
+      }}
+    >
+      <Text style={{ fontSize: tipografia.small, fontWeight: '700', color: orden ? c.primary : c.text }}>
+        Ordenar por {header.toLowerCase()}
+      </Text>
+      <Icon name={orden ? (orden.desc ? 'bajar' : 'subir') : 'abajo'} size={tipografia.body} color={orden ? c.primary : c.textFaint} />
+    </Pressable>
   );
 }
 
