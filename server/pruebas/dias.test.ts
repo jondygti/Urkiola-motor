@@ -22,6 +22,7 @@ function cocheAparcado(s: AppState): Vehicle {
 test('en campa se cuenta desde el último movimiento del historial', () => {
   const s = buildSeedState();
   const v = cocheAparcado(s);
+  v.lastMovementAt = null;
   s.movements = s.movements.filter((m) => m.vehicleId !== v.id);
   s.movements.push(
     { id: 'm-viejo', vehicleId: v.id, from: null, to: v.location!, userId: 'u-log', at: hace(40), status: 'completado' },
@@ -35,9 +36,21 @@ test('en campa se cuenta desde el último movimiento del historial', () => {
   assert.equal(d.pasado, false);
 });
 
+test('si el móvil no tiene todo el historial, manda el último movimiento del coche', () => {
+  const s = buildSeedState();
+  const v = cocheAparcado(s);
+  // El servidor recorta lo que manda: en el móvil solo queda un movimiento
+  // viejo, pero el coche sabe que se movió hace dos días.
+  s.movements = s.movements.filter((m) => m.vehicleId !== v.id);
+  s.movements.push({ id: 'm-viejo', vehicleId: v.id, from: null, to: v.location!, userId: 'u-log', at: hace(40), status: 'completado' });
+  v.lastMovementAt = hace(2);
+  assert.equal(diasDelCoche(s, v, AHORA)!.dias, 2);
+});
+
 test('los días se cuentan en hora de España, no de Greenwich', () => {
   const s = buildSeedState();
   const v = cocheAparcado(s);
+  v.lastMovementAt = null;
   s.movements = s.movements.filter((m) => m.vehicleId !== v.id);
   // Llegó el 29 a las 23:30 en España (21:30 UTC); a la 01:00 del 30 en
   // España ya es «otro día»: un día, no cero.

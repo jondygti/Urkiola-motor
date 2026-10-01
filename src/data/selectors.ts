@@ -1172,9 +1172,42 @@ function llegadaAlSitio(s: AppState, v: Vehicle): string | null {
     }
     llegadasPorEstado.set(s, indice);
   }
-  // Sin movimientos apuntados, lo que haya: cuándo se movió por última vez,
-  // cuándo se recibió o cuándo se vio dónde está.
-  return indice.get(v.id) ?? v.lastMovementAt ?? v.receivedAt ?? v.locationObservedAt ?? null;
+  // Manda el más reciente entre el historial y el propio coche: el móvil no
+  // siempre tiene todos los movimientos (el servidor recorta lo que manda).
+  // Sin ninguno, cuándo se recibió o cuándo se vio dónde está.
+  const historial = indice.get(v.id);
+  const ultimo = historial && v.lastMovementAt ? (historial > v.lastMovementAt ? historial : v.lastMovementAt) : historial ?? v.lastMovementAt;
+  return ultimo ?? v.receivedAt ?? v.locationObservedAt ?? null;
+}
+
+/**
+ * Lo abierto de cada coche: solicitudes sin cerrar y preparación en marcha.
+ *
+ * Una vez por estado, no una por coche: las solicitudes se acumulan mes a
+ * mes, y recorrerlas enteras por cada fila —y otra vez por cada comparación
+ * al ordenar la columna «Días»— dejaba el móvil a tirones con datos reales.
+ */
+type Abierto = { solicitudes: ServiceRequest[]; preparacion?: Preparation };
+const abiertoPorEstado = new WeakMap<AppState, Map<Id, Abierto>>();
+
+function abiertoDe(s: AppState, vehicleId: Id): Abierto {
+  let indice = abiertoPorEstado.get(s);
+  if (!indice) {
+    indice = new Map();
+    const de = (id: Id) => {
+      let x = indice!.get(id);
+      if (!x) indice!.set(id, (x = { solicitudes: [] }));
+      return x;
+    };
+    for (const r of s.requests) {
+      if (r.status !== 'terminada' && r.status !== 'cancelada') de(r.vehicleId).solicitudes.push(r);
+    }
+    for (const p of s.preparations) {
+      if (!p.finishedAt && !p.cancelledAt) de(p.vehicleId).preparacion ??= p;
+    }
+    abiertoPorEstado.set(s, indice);
+  }
+  return indice.get(vehicleId) ?? { solicitudes: [] };
 }
 
 export interface DiasDelCoche {
@@ -1202,9 +1235,7 @@ export interface DiasDelCoche {
 export function diasDelCoche(s: AppState, v: Vehicle, now = Date.now()): DiasDelCoche | null {
   if (!v.logisticActive || v.status === 'entregado') return null;
   const limites = limitesDias(s);
-  const abiertas = s.requests.filter(
-    (r) => r.vehicleId === v.id && r.status !== 'terminada' && r.status !== 'cancelada'
-  );
+  const { solicitudes: abiertas, preparacion: prep } = abiertoDe(s, v.id);
   const primero = (fechas: (string | null | undefined)[]) =>
     fechas.filter((x): x is string => !!x).sort()[0] ?? null;
 
@@ -1212,7 +1243,6 @@ export function diasDelCoche(s: AppState, v: Vehicle, now = Date.now()): DiasDel
   let desde: string | null;
   if (v.status === 'en_preparacion') {
     fase = 'preparacion';
-    const prep = s.preparations.find((p) => p.vehicleId === v.id && !p.finishedAt && !p.cancelledAt);
     desde = primero([
       ...abiertas.filter((r) => r.type === 'preparacion').map((r) => r.createdAt),
       prep?.startedAt,

@@ -18,6 +18,8 @@ import { homeFor, mobileHome } from '@/features/shell/nav';
 import { usePerms } from '@/features/common/Guard';
 import { formatDateTime, formatShortDuration, vehicleRef, vehicleTitle } from '@/data/format';
 
+const dias = (n: number) => (n === 1 ? '1 día' : `${n} días`);
+
 export default function DashboardScreen() {
   const state = useAppState();
   const { user, mode, state: s } = useStore();
@@ -105,10 +107,10 @@ export default function DashboardScreen() {
               <Text style={{ fontSize: tipografia.small, color: c.textMuted, marginBottom: space.sm }}>
                 {(Object.keys(hoy.porFase) as FaseDias[])
                   .filter((f) => hoy.porFase[f] > 0)
-                  .map((f) => `${FASE_DIAS_LABEL[f]}: ${hoy.porFase[f]} de más de ${limites[f]} días`)
+                  .map((f) => `${FASE_DIAS_LABEL[f]}: ${hoy.porFase[f]} con más de ${dias(limites[f])}`)
                   .join(' · ')}
               </Text>
-              {hoy.coches.slice(0, 6).map(({ vehicle: v, dias }) => (
+              {hoy.coches.slice(0, 6).map(({ vehicle: v, dias: d }) => (
                 <Pressable
                   key={v.id}
                   onPress={() => router.push(`/vehiculo/${v.id}` as never)}
@@ -128,10 +130,10 @@ export default function DashboardScreen() {
                       {vehicleRef(v)} · {v.brand} {v.model}
                     </Text>
                     <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>
-                      {FASE_DIAS_LABEL[dias.fase]} · límite {dias.limite} días
+                      {FASE_DIAS_LABEL[d.fase]} · límite {dias(d.limite)}
                     </Text>
                   </View>
-                  <Pill tone="red">{dias.dias} días</Pill>
+                  <Pill tone="red">{dias(d.dias)}</Pill>
                 </Pressable>
               ))}
               {hoy.coches.length > 6 ? (
