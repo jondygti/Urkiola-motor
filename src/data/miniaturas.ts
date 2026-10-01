@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
-import { api, apiEnabled } from './api';
+import { API_URL, api, apiEnabled } from './api';
 
 /**
  * Miniaturas de las fotos de los coches.
@@ -40,10 +40,24 @@ export async function crearMiniatura(uri: string): Promise<string | null> {
  * Sin servidor (demostración), o mientras una foto espera cobertura para
  * subir, la miniatura se guarda aquí, con la referencia de su foto. Son
  * unos 10 kB cada una.
+ *
+ * Con tope: en el navegador este almacén es el mismo en el que la app
+ * guarda todo su estado, y caben unos 5 MB. Sin límite, unos cientos de
+ * fotos lo llenaban y la app dejaba de poder guardar lo que hace la gente,
+ * que es mucho peor que perder el cuadrito de un coche (sale su marca).
+ * Se quedan las más recientes.
  */
-const CLAVE = 'urkiola.miniaturas.v1';
+const CLAVE = `urkiola.miniaturas.${encodeURIComponent(API_URL || 'demo')}.v1`;
+const MAXIMO_LOCALES = 40;
 let locales: Record<string, string> = {};
 let cargadas: Promise<void> | null = null;
+const oyentes = new Set<() => void>();
+
+/** Avisa cuando hay una miniatura nueva en el móvil, para repintarla. */
+export function alCambiarMiniaturas(oyente: () => void): () => void {
+  oyentes.add(oyente);
+  return () => oyentes.delete(oyente);
+}
 
 function cargarLocales(): Promise<void> {
   cargadas ??= AsyncStorage.getItem(CLAVE)
@@ -55,10 +69,18 @@ function cargarLocales(): Promise<void> {
   return cargadas;
 }
 
+async function guardarLocales(siguientes: Record<string, string>): Promise<void> {
+  // El orden de las claves es el de llegada: las primeras son las más viejas.
+  const claves = Object.keys(siguientes);
+  locales = Object.fromEntries(claves.slice(-MAXIMO_LOCALES).map((k) => [k, siguientes[k]]));
+  await AsyncStorage.setItem(CLAVE, JSON.stringify(locales)).catch(() => undefined);
+  for (const o of oyentes) o();
+}
+
 export async function guardarMiniaturaLocal(ref: string, miniatura: string): Promise<void> {
   await cargarLocales();
-  locales = { ...locales, [ref]: miniatura };
-  await AsyncStorage.setItem(CLAVE, JSON.stringify(locales)).catch(() => undefined);
+  const { [ref]: _, ...resto } = locales;
+  await guardarLocales({ ...resto, [ref]: miniatura });
 }
 
 /* ---------------------------------------- las que están en el servidor */
@@ -129,11 +151,10 @@ export async function subirMiniaturaPendiente(refLocal: string, refServidor: str
   const { [refLocal]: _, ...resto } = locales;
   try {
     await api.subirMiniatura(refServidor, mini);
-    locales = resto;
+    await guardarLocales(resto);
   } catch {
     // No ha subido: al menos en este móvil se sigue viendo, ya con la
     // referencia del servidor que es la que queda en el trabajo.
-    locales = { ...resto, [refServidor]: mini };
+    await guardarLocales({ ...resto, [refServidor]: mini });
   }
-  await AsyncStorage.setItem(CLAVE, JSON.stringify(locales)).catch(() => undefined);
 }
