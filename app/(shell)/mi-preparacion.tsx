@@ -1,7 +1,7 @@
 import { comercialLabel } from '@/data/format';
 import React, { useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { campo, Btn, Field, H1, Modal, Muted, Notice, Panel, Pill, ProgressBar, Screen, Select, Spacer, radius, space, useTheme } from '@/ui';
+import { campo, Btn, Field, H1, Icon, Modal, Muted, Notice, Panel, Pill, ProgressBar, Screen, Select, Spacer, radius, space, useTheme } from '@/ui';
 import { useStore, useTicker } from '@/data/store';
 import { activePreparations, deadlineOf, prepRequestsSinAbrir, historialPreparador, mesDeFecha, resumenPreparador, tiempoDePreparador } from '@/data/selectors';
 import { idCreadoPor, prepElapsedMs, prepIsOverSla, prepProgress } from '@/data/commands';
@@ -342,27 +342,28 @@ function WorkModal({
         puedeAceptar ? (
           <>
             <Muted>Empieza la preparación para asignártela antes de marcar el checklist o finalizar.</Muted>
-            <Btn variant="primary" full onPress={() => run({ type: 'prep.start', prepId: prep.id })}>
-              ▶ Empezar y asignármela
+            <Btn icon="empezar" variant="primary" full onPress={() => run({ type: 'prep.start', prepId: prep.id })}>
+              Empezar y asignármela
             </Btn>
           </>
         ) : puede ? (
           <>
             {enCurso ? (
-              <Btn full onPress={() => setPauseOpen(true)}>
-                ⏸ Pausar
+              <Btn icon="pausa" full onPress={() => setPauseOpen(true)}>
+                Pausar
               </Btn>
             ) : (
               <Btn
+                icon="empezar"
                 variant="primary"
                 full
                 onPress={() => run({ type: prep.startedAt ? 'prep.resume' : 'prep.start', prepId: prep.id })}
               >
-                ▶ {prep.startedAt ? 'Reanudar' : 'Empezar'}
+                {prep.startedAt ? 'Reanudar' : 'Empezar'}
               </Btn>
             )}
-            <Btn variant={pendientes === 0 ? 'primary' : 'default'} full onPress={() => setFinishOpen(true)}>
-              {pendientes === 0 ? '✓ Terminar · todo hecho' : `✓ Terminar (quedan ${pendientes})`}
+            <Btn icon="hecho" variant={pendientes === 0 ? 'primary' : 'default'} full onPress={() => setFinishOpen(true)}>
+              {pendientes === 0 ? 'Terminar · todo hecho' : `Terminar (quedan ${pendientes})`}
             </Btn>
           </>
         ) : (
@@ -471,7 +472,7 @@ function WorkModal({
                 justifyContent: 'center',
               }}
             >
-              {hecho ? <Text style={{ color: '#fff', fontSize: campo.strong, fontWeight: '900' }}>✓</Text> : null}
+              {hecho ? <Icon name="hecho" size={campo.strong} color="#fff" /> : null}
             </View>
             <View style={{ flex: 1 }}>
               <Text
@@ -505,9 +506,10 @@ function WorkModal({
       />
 
       <Modal
+        icon="pausa"
         visible={pauseOpen}
         onClose={() => setPauseOpen(false)}
-        title="⏸ ¿Por qué paras?"
+        title="¿Por qué paras?"
         footer={
           <>
             <Btn

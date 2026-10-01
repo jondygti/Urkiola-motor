@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Image, Text, View } from 'react-native';
-import { Btn, Column, DataTable, Field, Input, Modal, Notice, Panel, Pill, Select, Spacer, Toolbar, radius, space, tipografia, useTheme } from '@/ui';
+import { Btn, Column, DataTable, Field, Icon, Input, Modal, Notice, Panel, Pill, Select, Spacer, Toolbar, radius, space, tipografia, useTheme } from '@/ui';
 import { useStore } from '@/data/store';
 import { locationLabel, vehicleName } from '@/data/format';
 import type { Reception, ReceptionLine } from '@/data/types';
@@ -47,7 +47,7 @@ export function ReceptionDetails({ reception, onDone }: { reception: Reception; 
           { value: 'Pendiente', label: 'Pendiente' },
         ],
       },
-      render: (l) => (l.unloaded ? <Pill>✅ Descargado</Pill> : <Pill tone="amber">⏳ Pendiente</Pill>),
+      render: (l) => (l.unloaded ? <Pill icon="comprobado">Descargado</Pill> : <Pill icon="esperando" tone="amber">Pendiente</Pill>),
     },
     {
       key: 'damage',
@@ -57,7 +57,9 @@ export function ReceptionDetails({ reception, onDone }: { reception: Reception; 
       render: (l) =>
         l.damage ? (
           <View>
-            <Text style={{ fontSize: tipografia.small, color: c.redFg }}>⚠️ {l.damage}</Text>
+            <Text style={{ fontSize: tipografia.small, color: c.redFg }}>
+              <Icon name="aviso" size={tipografia.body} color={c.redFg} /> {l.damage}
+            </Text>
             <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>{l.photos.length} fotos</Text>
           </View>
         ) : (
@@ -91,6 +93,7 @@ export function ReceptionDetails({ reception, onDone }: { reception: Reception; 
           <Panel title="Albarán y descarga">
             <Toolbar>
               <Btn
+                icon="foto"
                 variant="primary"
                 onPress={async () => {
                   // El albarán se sube como cualquier otra foto: si se queda
@@ -109,7 +112,7 @@ export function ReceptionDetails({ reception, onDone }: { reception: Reception; 
                   }
                 }}
               >
-                📷 Adjuntar albarán
+                Adjuntar albarán
               </Btn>
               {reception.albaranUri ? (
                 <Btn
@@ -138,7 +141,7 @@ export function ReceptionDetails({ reception, onDone }: { reception: Reception; 
             {!reception.closedAt ? <AddLine receptionId={reception.id} onDone={setToast} /> : null}
           </Panel>
       {albaran ? (
-        <Modal visible onClose={() => setAlbaran(null)} title="📄 Albarán del camión">
+        <Modal icon="documento" visible onClose={() => setAlbaran(null)} title="Albarán del camión">
           <Image
             source={{ uri: albaran }}
             style={{ width: '100%', height: 520, borderRadius: radius.md, backgroundColor: c.surfaceSunken }}
@@ -233,8 +236,8 @@ function LineModal({
       title={`Descarga · ${line.ref}`}
       footer={
         <>
-          <Btn variant="primary" full onPress={() => save(true)}>
-            ✅ Marcar descargado
+          <Btn icon="comprobado" variant="primary" full onPress={() => save(true)}>
+            Marcar descargado
           </Btn>
           <Btn full onPress={() => save(false)}>
             Guardar sin descargar
@@ -249,8 +252,8 @@ function LineModal({
           <Notice tone="warn">
             {line.ref} no está en el parque. Dalo de alta con el bastidor y la línea queda enlazada.
           </Notice>
-          <Btn full onPress={() => setAltaOpen(true)}>
-            ➕ Dar de alta {line.ref}
+          <Btn icon="mas" full onPress={() => setAltaOpen(true)}>
+            Dar de alta {line.ref}
           </Btn>
           <Spacer h={space.sm} />
         </>

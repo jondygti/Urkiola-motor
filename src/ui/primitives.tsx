@@ -11,6 +11,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { radius, space, tipografia, useTheme } from './theme';
+import { Icon, type IconName } from './Icon';
 
 /* ---------------------------------------------------------------- textos */
 
@@ -23,12 +24,30 @@ export function H1({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function H2({ children, style }: { children: React.ReactNode; style?: StyleProp<TextStyle> }) {
+export function H2({
+  children,
+  style,
+  icon,
+}: {
+  children: React.ReactNode;
+  style?: StyleProp<TextStyle>;
+  /** Icono delante del título, del color de marca. */
+  icon?: IconName;
+}) {
   const { c } = useTheme();
-  return (
+  const titulo = (
     <Text style={[{ fontSize: tipografia.strong, fontWeight: '800', color: c.text, marginBottom: 10 }, style]}>
       {children}
     </Text>
+  );
+  if (!icon) return titulo;
+  // El icono va fuera del texto y no dentro: si el título ocupa dos líneas,
+  // la segunda empieza bajo la primera letra y no bajo el icono.
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+      <Icon name={icon} color={c.primary} style={{ marginTop: 1 }} />
+      <View style={{ flex: 1, minWidth: 0 }}>{titulo}</View>
+    </View>
   );
 }
 
@@ -94,10 +113,13 @@ export function Panel({
   children,
   style,
   title,
+  icon,
 }: {
   children?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   title?: React.ReactNode;
+  /** Icono del título. Los títulos no llevan emojis: llevan esto. */
+  icon?: IconName;
 }) {
   const { c } = useTheme();
   return (
@@ -113,7 +135,7 @@ export function Panel({
         style,
       ]}
     >
-      {title ? <H2>{title}</H2> : null}
+      {title ? <H2 icon={icon}>{title}</H2> : null}
       {children}
     </View>
   );
@@ -242,7 +264,7 @@ export function toneColors(c: ReturnType<typeof useTheme>['c'], tone: Tone) {
   }
 }
 
-export function Pill({ children, tone = 'ok' }: { children: React.ReactNode; tone?: Tone }) {
+export function Pill({ children, tone = 'ok', icon }: { children: React.ReactNode; tone?: Tone; icon?: IconName }) {
   const { c } = useTheme();
   const { bg, fg } = toneColors(c, tone);
   return (
@@ -253,15 +275,26 @@ export function Pill({ children, tone = 'ok' }: { children: React.ReactNode; ton
         paddingVertical: 4,
         paddingHorizontal: 9,
         alignSelf: 'flex-start',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
       }}
     >
+      {icon ? <Icon name={icon} size={tipografia.small} color={fg} /> : null}
       <Text style={{ color: fg, fontSize: tipografia.label, fontWeight: '800' }}>{children}</Text>
     </View>
   );
 }
 
+/** Un chip con su icono delante. */
+export type StatItem = React.ReactNode | { icon: IconName; text: React.ReactNode };
+
+function esConIcono(it: StatItem): it is { icon: IconName; text: React.ReactNode } {
+  return typeof it === 'object' && it !== null && 'icon' in it && 'text' in it;
+}
+
 /** Chips informativos (`.statline` del mockup). */
-export function StatLine({ items }: { items: React.ReactNode[] }) {
+export function StatLine({ items }: { items: StatItem[] }) {
   const { c } = useTheme();
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginVertical: space.sm }}>
@@ -273,9 +306,13 @@ export function StatLine({ items }: { items: React.ReactNode[] }) {
             borderRadius: radius.sm,
             paddingVertical: 6,
             paddingHorizontal: 9,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 5,
           }}
         >
-          <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>{it}</Text>
+          {esConIcono(it) ? <Icon name={it.icon} size={tipografia.small} color={c.textMuted} /> : null}
+          <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>{esConIcono(it) ? it.text : it}</Text>
         </View>
       ))}
     </View>
@@ -288,19 +325,39 @@ export function Notice({
   children,
   tone = 'info',
   onPress,
+  icon,
 }: {
   children: React.ReactNode;
   tone?: 'info' | 'warn' | 'danger';
   onPress?: () => void;
+  icon?: IconName;
 }) {
   const { c } = useTheme();
   const bg = tone === 'danger' ? c.noticeDangerBg : tone === 'warn' ? c.noticeWarnBg : c.noticeBg;
+  const colorIcono = tone === 'danger' ? c.redFg : tone === 'warn' ? c.amberFg : c.okFg;
+  const contenido =
+    typeof children === 'string' ? (
+      <Text style={{ fontSize: tipografia.small, color: c.text, lineHeight: 17 }}>{children}</Text>
+    ) : (
+      children
+    );
   const body = (
-    <View style={{ backgroundColor: bg, borderRadius: radius.md, padding: 11, marginVertical: 4 }}>
-      {typeof children === 'string' ? (
-        <Text style={{ fontSize: tipografia.small, color: c.text, lineHeight: 17 }}>{children}</Text>
+    <View
+      style={{
+        backgroundColor: bg,
+        borderRadius: radius.md,
+        padding: 11,
+        marginVertical: 4,
+        ...(icon ? { flexDirection: 'row' as const, alignItems: 'flex-start' as const, gap: 8 } : null),
+      }}
+    >
+      {icon ? (
+        <>
+          <Icon name={icon} size={tipografia.strong} color={colorIcono} />
+          <View style={{ flex: 1, minWidth: 0 }}>{contenido}</View>
+        </>
       ) : (
-        children
+        contenido
       )}
     </View>
   );
@@ -491,6 +548,8 @@ export function Btn({
   loading,
   full,
   small,
+  icon,
+  accessibilityLabel,
 }: {
   children: React.ReactNode;
   onPress?: () => void;
@@ -499,6 +558,10 @@ export function Btn({
   loading?: boolean;
   full?: boolean;
   small?: boolean;
+  /** Icono delante del texto, del mismo color que el texto. */
+  icon?: IconName;
+  /** Obligatorio si el botón es solo un icono: el icono no se lee en voz alta. */
+  accessibilityLabel?: string;
 }) {
   const { c } = useTheme();
   const isPrimary = variant === 'primary';
@@ -514,6 +577,7 @@ export function Btn({
       onPress={onPress}
       disabled={disabled || loading}
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       style={({ pressed }) => ({
         backgroundColor: bg,
         borderWidth: 1,
@@ -532,6 +596,7 @@ export function Btn({
       })}
     >
       {loading ? <ActivityIndicator size="small" color={fg} /> : null}
+      {icon && !loading ? <Icon name={icon} size={small ? tipografia.body : tipografia.strong} color={fg} /> : null}
       <Text style={{ color: fg, fontWeight: '700', fontSize: small ? tipografia.small : tipografia.body }}>
         {children}
       </Text>

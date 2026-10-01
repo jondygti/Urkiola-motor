@@ -93,9 +93,10 @@ export function ComercialVehiculo({ vehicle, onDone }: { vehicle: Vehicle; onDon
 
       {abierto ? (
         <Modal
+          icon="persona"
           visible
           onClose={() => setAbierto(false)}
-          title="👤 Comercial del vehículo"
+          title="Comercial del vehículo"
           footer={
             <Btn full onPress={() => setAbierto(false)}>
               Cerrar

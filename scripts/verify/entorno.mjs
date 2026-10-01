@@ -108,11 +108,26 @@ export async function pulsar(page, texto, { exact = false, primero = false } = {
   // texto a secas engañaba: el título del modal («⚠️ Registrar incidencia»)
   // coincide antes que el botón del pie, y pulsarlo no hace nada. Costó un
   // rato darse cuenta porque no da error: simplemente no pasa nada.
+  // Los iconos son letras de una fuente de iconos, en la zona de uso
+  // privado de Unicode (\p{Co}): el botón «Empezar otro camión» se lee como
+  // «<icono>Empezar otro camión». Se ignoran para comparar el texto exacto.
   const pulsables = page.locator('[tabindex="0"], button').filter({
-    hasText: exact ? new RegExp(`^\\s*${texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`) : texto,
+    hasText: exact
+      ? new RegExp(`^[\\s\\p{Co}]*${texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'u')
+      : texto,
   });
   await (primero ? pulsables.first() : pulsables.last()).click({ force: true });
 }
+
+/**
+ * Los textos de las líneas «dónde está el coche» de la pantalla, sin el
+ * icono. Antes se buscaban por el emoji 📍; ahora el icono es una letra de
+ * la fuente de iconos y la línea se localiza por su testID.
+ */
+export const lineasDeUbicacion = async (page) =>
+  (await page.locator('[data-testid="ubicacion-vehiculo"]').allInnerTexts()).map((t) =>
+    t.replace(/\p{Co}/gu, '').trim()
+  );
 
 /** Lo que la app ha guardado en el dispositivo, para comprobar el resultado. */
 export const estadoGuardado = (page) =>

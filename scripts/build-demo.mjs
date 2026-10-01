@@ -37,7 +37,21 @@ const jsDir = join(BUILD, '_expo/static/js/web');
 const entry = readdirSync(jsDir).find((f) => f.startsWith('entry-') && f.endsWith('.js'));
 if (!entry) throw new Error('No se encuentra el bundle de entrada en ' + jsDir);
 
-const bundle = readFileSync(join(jsDir, entry), 'utf8');
+// Las fuentes que carga el programa —la de los iconos— se piden por su
+// dirección (`/assets/…/MaterialCommunityIcons.<hash>.ttf`). Una página que
+// se abre con doble clic no tiene esa carpeta: sin esto, la demostración
+// sale con todos los iconos en blanco. Se cambia cada dirección por el
+// fichero entero incrustado, igual que se hace con la letra.
+const fuentesIncrustadas = [];
+const bundle = readFileSync(join(jsDir, entry), 'utf8').replace(/"(\/assets\/[^"]+\.ttf)"/g, (_, ruta) => {
+  const fichero = join(BUILD, ruta);
+  if (!existsSync(fichero)) throw new Error(`El programa pide la fuente ${ruta} y la exportación no la trae.`);
+  fuentesIncrustadas.push(ruta.split('/').pop());
+  return `"data:font/ttf;base64,${readFileSync(fichero).toString('base64')}"`;
+});
+if (!fuentesIncrustadas.some((f) => f.startsWith('MaterialCommunityIcons'))) {
+  throw new Error('No se ha encontrado la fuente de los iconos en el programa: la demo saldría sin iconos.');
+}
 
 // Un `</script` dentro del bundle cerraría la etiqueta antes de tiempo.
 if (bundle.includes('</script')) {

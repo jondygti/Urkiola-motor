@@ -2,7 +2,7 @@ import { comercialLabel } from '@/data/format';
 import { CancelarSolicitud } from '@/features/actions/CancelarSolicitud';
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
-import { Btn, Column, DataTable, Field, Grid, H1, Modal, Muted, Notice, Panel, Screen, Select, Spacer, Toolbar, space, tipografia, useTheme } from '@/ui';
+import { Btn, Column, DataTable, Field, Grid, H1, Icon, Modal, Muted, Notice, Panel, Screen, Select, Spacer, Toolbar, space, tipografia, useTheme } from '@/ui';
 import { useStore } from '@/data/store';
 import { activeCarriers, carrierName, deadlineOf, requestsBySite } from '@/data/selectors';
 import { formatDateTime, locationLabel, siteName, userName, vehicleName, vehicleRef } from '@/data/format';
@@ -63,12 +63,8 @@ export default function RequestsScreen() {
         ],
       },
       render: (r) => (
-        <Cell>
-          {r.type === 'traslado'
-            ? '🚚 Traslado'
-            : r.prepTipo === 'repaso'
-              ? '🧽 Repaso entrega'
-              : '🧽 Preparación'}
+        <Cell icon={r.type === 'traslado' ? 'camion' : 'preparacion'}>
+          {r.type === 'traslado' ? 'Traslado' : r.prepTipo === 'repaso' ? 'Repaso entrega' : 'Preparación'}
         </Cell>
       ),
     },
@@ -153,11 +149,12 @@ export default function RequestsScreen() {
           deadline={deadlineOf(state, r)}
           emptyLabel={
             esTrasladoDesdeSondika(r) && !r.keysReadyAt && !r.pickedUpAt
-              ? '🔑 Por preparar'
+              ? 'Por preparar'
               : r.type === 'traslado'
-                ? '🔑 Llaves sin recoger'
+                ? 'Llaves sin recoger'
                 : undefined
           }
+          emptyIcon={r.type === 'traslado' ? 'llaves' : undefined}
         />
       ),
     },
@@ -187,9 +184,9 @@ export default function RequestsScreen() {
       },
       render: (r) =>
         esTrasladoDesdeSondika(r) && !r.keysReadyAt && !r.pickedUpAt ? (
-          <Cell>🔑 Llaves por preparar</Cell>
+          <Cell icon="llaves">Llaves por preparar</Cell>
         ) : esTrasladoDesdeSondika(r) && !!r.keysReadyAt && !r.pickedUpAt ? (
-          <Cell>🔑 Llaves listas</Cell>
+          <Cell icon="llaves">Llaves listas</Cell>
         ) : (
           <RequestStatusPill status={r.status} urgent={r.urgent} />
         ),
@@ -218,7 +215,7 @@ export default function RequestsScreen() {
       {puedeGestionar ? (
         <>
           <Spacer />
-          <Panel title={`🔑 Llaves por preparar · ${llavesPorPreparar.length}`}>
+          <Panel icon="llaves" title={`Llaves por preparar · ${llavesPorPreparar.length}`}>
             {llavesPorPreparar.length === 0 ? (
               <Muted>No hay llaves pendientes de preparar para coches de Sondika.</Muted>
             ) : (
@@ -248,6 +245,7 @@ export default function RequestsScreen() {
                         </Text>
                       </View>
                       <Btn
+                        icon="llaves"
                         small
                         variant="primary"
                         onPress={() => {
@@ -255,7 +253,7 @@ export default function RequestsScreen() {
                           setToast(`${v ? vehicleRef(v) : 'Vehículo'} · llaves preparadas para recoger.`);
                         }}
                       >
-                        🔑 Llaves preparadas
+                        Llaves preparadas
                       </Btn>
                     </View>
                   </View>
@@ -354,6 +352,7 @@ function ManageModal({
   onDone: (m: string) => void;
 }) {
   const { state, run } = useStore();
+  const { c } = useTheme();
   const [status, setStatus] = useState<RequestStatus>(request.status);
   const [assignedTo, setAssignedTo] = useState<string | null>(request.assignedTo);
   const [carrierId, setCarrierId] = useState<string | null>(request.carrierId);
@@ -392,8 +391,9 @@ function ManageModal({
                 run({ type: 'request.update', requestId: request.id, status: 'asignada', assignedTo, carrierId });
                 onDone('Llaves preparadas en Leioa · Logística. El transportista ya puede recogerlas.');
               }}
+              icon="llaves"
             >
-              🔑 Llaves preparadas
+              Llaves preparadas
             </Btn>
           ) : null}
           {request.type === 'traslado' && !request.pickedUpAt && (request.status !== 'terminada' && request.status !== 'cancelada') && llavesPreparadas ? (
@@ -405,8 +405,9 @@ function ManageModal({
                   `Llaves entregadas. Empiezan las ${state.config.transferDeadlineHours} h del transportista.`
                 );
               }}
+              icon="llaves"
             >
-              🔑 Han recogido las llaves
+              Han recogido las llaves
             </Btn>
           ) : null}
           {request.type === 'preparacion' && status !== 'terminada' && puedePreparar ? (
@@ -428,8 +429,9 @@ function ManageModal({
                     : 'Preparación abierta y solicitud en curso.'
                 );
               }}
+              icon="preparacion"
             >
-              🧽 {request.prepTipo === 'repaso' ? 'Abrir repaso' : 'Abrir preparación'} en{' '}
+              {request.prepTipo === 'repaso' ? 'Abrir repaso' : 'Abrir preparación'} en{' '}
               {siteName(state, request.siteId)}
             </Btn>
           ) : null}
@@ -474,7 +476,7 @@ function ManageModal({
         <Field label="Llaves">
           {request.pickedUpAt ? (
             <Muted>
-              🔑 Recogidas {formatDateTime(request.pickedUpAt)} · entrega antes de{' '}
+              <Icon name="llaves" size={tipografia.small} color={c.textMuted} /> Recogidas {formatDateTime(request.pickedUpAt)} · entrega antes de{' '}
               {request.dueAt ? formatDateTime(request.dueAt) : '—'}
             </Muted>
           ) : requiereLlaves && request.keysReadyAt ? (

@@ -59,5 +59,31 @@ export function ejecutar() {
   const mal = CAMPO.filter((f) => readFileSync(f, 'utf8').includes('fontSize: tipografia.'));
   ok('DISEÑO · las pantallas de campo usan la escala de campo', mal.length === 0, mal.join(' · '));
 
+  // 4 · Sin emojis en las pantallas: los iconos salen de <Icon>. Los emojis
+  //     los dibuja cada teléfono a su manera y se habían repetido hasta no
+  //     distinguir una sección de otra. Las flechas (→ ← ↑ ↓) no cuentan:
+  //     son texto, como en «Sondika → Leioa».
+  const EMOJI =
+    /[\u{1F1E6}-\u{1F1FF}\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{23E9}-\u{23FA}\u{25A0}-\u{25FF}]/u;
+  const conEmoji = [];
+  for (const f of fuentes) {
+    for (const [i, linea] of readFileSync(f, 'utf8').split('\n').entries()) {
+      const codigo = linea.trim();
+      if (codigo.startsWith('//') || codigo.startsWith('*') || codigo.startsWith('/*')) continue;
+      if (EMOJI.test(linea)) conEmoji.push(`${f}:${i + 1}`);
+    }
+  }
+  ok('DISEÑO · sin emojis en las pantallas (iconos con <Icon>)', conEmoji.length === 0, conEmoji.slice(0, 3).join(' · '));
+
+  // 5 · Cada sección del menú con su propio icono.
+  const menu = readFileSync('src/features/shell/nav.ts', 'utf8');
+  const iconos = [...menu.matchAll(/icon: '(\w+)'/g)].map((m) => m[1]);
+  const repetidos = iconos.filter((n, i) => iconos.indexOf(n) !== i);
+  ok(
+    'DISEÑO · ningún icono repetido en el menú',
+    iconos.length > 10 && repetidos.length === 0,
+    repetidos.length ? `repetidos: ${repetidos.join(', ')}` : `${iconos.length} iconos`
+  );
+
   return resumen();
 }

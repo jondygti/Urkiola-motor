@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Text, View } from 'react-native';
-import { Btn, Checkbox, ConfirmDialog, Field, Input, Modal, Muted, Notice, Panel, Pill, Select, Spacer, Toolbar, space, tipografia, useTheme } from '@/ui';
+import { Btn, Checkbox, ConfirmDialog, Field, Icon, Input, Modal, Muted, Notice, Panel, Pill, Select, Spacer, Toolbar, space, tipografia, useTheme } from '@/ui';
 import { useStore } from '@/data/store';
 import { allColumns } from '@/data/selectors';
 import {
@@ -51,7 +51,7 @@ export function FleetAdmin({ onDone }: { onDone: (m: string) => void }) {
 
   return (
     <>
-      <Panel title="📋 Columnas de la lista de flota">
+      <Panel icon="solicitudes" title="Columnas de la lista de flota">
         <Muted>
           Elige qué columnas quieres ver y en qué orden. Afecta a la pantalla de Flota en la web; en el móvil
           la lista se muestra como fichas y enseña las primeras.
@@ -77,11 +77,11 @@ export function FleetAdmin({ onDone }: { onDone: (m: string) => void }) {
                 label={col.label}
               />
             </View>
-            <Btn small variant="ghost" onPress={() => move(col.key, -1)} disabled={i === 0}>
-              ↑
+            <Btn small variant="ghost" onPress={() => move(col.key, -1)} disabled={i === 0} accessibilityLabel={`Subir ${col.label}`}>
+              <Icon name="subir" size={tipografia.strong} color={c.textMuted} />
             </Btn>
-            <Btn small variant="ghost" onPress={() => move(col.key, 1)} disabled={i === columns.length - 1}>
-              ↓
+            <Btn small variant="ghost" onPress={() => move(col.key, 1)} disabled={i === columns.length - 1} accessibilityLabel={`Bajar ${col.label}`}>
+              <Icon name="bajar" size={tipografia.strong} color={c.textMuted} />
             </Btn>
           </View>
         ))}
@@ -89,7 +89,7 @@ export function FleetAdmin({ onDone }: { onDone: (m: string) => void }) {
 
       <Spacer h={space.lg} />
 
-      <Panel title="🏷️ Campos propios del vehículo">
+      <Panel icon="etiqueta" title="Campos propios del vehículo">
         <Muted>
           Si necesitas separar los coches de otra forma —financiera, campaña, cliente, prioridad…— crea aquí
           un campo. Aparecerá en la ficha del vehículo y, si quieres, como columna y filtro en la lista.
@@ -199,7 +199,8 @@ function FieldModal({
       <Modal
         visible
         onClose={onClose}
-        title={isNew ? '🏷️ Nuevo campo' : `Campo · ${field.label}`}
+        icon="etiqueta"
+        title={isNew ? 'Nuevo campo' : `Campo · ${field.label}`}
         footer={
           <>
             <Btn variant="primary" full onPress={save}>

@@ -1,4 +1,4 @@
-import { USUARIOS, entrarComo, elegirEnLista, estadoGuardado, marcador, pulsar } from './entorno.mjs';
+import { USUARIOS, entrarComo, elegirEnLista, estadoGuardado, lineasDeUbicacion, marcador, pulsar } from './entorno.mjs';
 
 /**
  * La jornada de cada rol, de principio a fin.
@@ -85,13 +85,13 @@ export async function ejecutar(browser, BASE) {
     await pulsar(page, 'Ver', { exact: true, primero: true });
     await page.waitForTimeout(700);
     const tieneCerrar = await page
-      .getByText('✓ Cerrar incidencia', { exact: false })
+      .getByText('Cerrar incidencia', { exact: false })
       .first()
       .isVisible()
       .catch(() => false);
     ok('LOGÍSTICA · puede cerrar incidencias', tieneCerrar);
     if (tieneCerrar) {
-      await pulsar(page, '✓ Cerrar incidencia');
+      await pulsar(page, 'Cerrar incidencia');
       await page.waitForTimeout(1000);
       const s = await estadoGuardado(page);
       ok(
@@ -167,15 +167,16 @@ export async function ejecutar(browser, BASE) {
     await page.goto(`${BASE}/mi-preparacion`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(1100);
     const cola = await page.evaluate(() => document.body.innerText);
-    ok('PREPARADOR · su cola dice dónde está cada coche', cola.includes('📍'), cola.match(/📍[^\n]*/)?.[0] ?? '');
+    const ubicaciones = await lineasDeUbicacion(page);
+    ok('PREPARADOR · su cola dice dónde está cada coche', ubicaciones.length > 0, ubicaciones[0] ?? '');
     ok(
       'PREPARADOR · con sede, zona y plaza',
-      /📍\s*\w+ · (Tej\.|P\.|Tejavana|Parking)/.test(cola),
-      cola.match(/📍[^\n]*/)?.[0] ?? ''
+      ubicaciones.some((u) => /^\w+ · (Tej\.|P\.|Tejavana|Parking)/.test(u)),
+      ubicaciones[0] ?? ''
     );
 
     // Si el coche está en otra sede, se avisa: no se puede empezar todavía.
-    const enOtraSede = /📍\s*(Sondika|Galdakao|Anoeta|Irun)/.test(cola);
+    const enOtraSede = ubicaciones.some((u) => /^(Sondika|Galdakao|Anoeta|Irun)/.test(u));
     ok(
       'PREPARADOR · y avisa si el coche aún no ha llegado',
       !enOtraSede || cola.includes('Todavía no está en'),
@@ -186,8 +187,8 @@ export async function ejecutar(browser, BASE) {
     // depende de si está empezada o solo pedida: vale cualquiera de ellos.
     await pulsar(page, /Empezar|Reanudar|Seguir trabajando/, { primero: true });
     await page.waitForTimeout(1000);
-    const dentro = await page.evaluate(() => document.body.innerText);
-    ok('PREPARADOR · y también al abrir la preparación', dentro.includes('📍'));
+    const dentro = await lineasDeUbicacion(page);
+    ok('PREPARADOR · y también al abrir la preparación', dentro.length > 0, dentro.at(-1) ?? '');
     await page.keyboard.press('Escape');
     await page.waitForTimeout(500);
 
@@ -197,7 +198,7 @@ export async function ejecutar(browser, BASE) {
     const antes = await estadoGuardado(page);
     const abierto = antes?.counts?.find((c) => !c.closedAt);
     if (abierto) {
-      await pulsar(page, '✓ Cerrar recuento');
+      await pulsar(page, 'Cerrar recuento');
       await page.waitForTimeout(900);
     }
 
@@ -223,12 +224,12 @@ export async function ejecutar(browser, BASE) {
     );
     ok(
       'PREPARADOR · y puede cerrarlo sin que el botón se salga',
-      pantallaRecuento.includes('✓ Cerrar recuento')
+      pantallaRecuento.includes('Cerrar recuento')
     );
 
     // Comprueba un coche del recuento.
     const matricula = conRecuento?.vehicles?.find((v) => nuevo?.expected?.includes(v.id) && v.plate)?.plate;
-    await pulsar(page, '📷 Escanear matrícula / VIN-8');
+    await pulsar(page, 'Escanear matrícula / VIN-8');
     await page.waitForTimeout(700);
     await page.getByPlaceholder('Ej.: 4821 LKM o 12345678').fill(matricula ?? '');
     await page.waitForTimeout(700);
@@ -244,7 +245,7 @@ export async function ejecutar(browser, BASE) {
     await page.waitForTimeout(500);
     await page.goto(`${BASE}/recuentos`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(900);
-    await pulsar(page, '✓ Cerrar recuento');
+    await pulsar(page, 'Cerrar recuento');
     await page.waitForTimeout(1000);
     const cerrado = (await estadoGuardado(page))?.counts?.find((c) => c.id === nuevo?.id);
     ok('PREPARADOR · y lo cierra al terminar', !!cerrado?.closedAt);
@@ -314,7 +315,7 @@ export async function ejecutar(browser, BASE) {
     await page.waitForTimeout(1000);
 
     const incidenciasAntes = (await estadoGuardado(page))?.incidents?.length ?? null;
-    await pulsar(page, '📸 Incidencia');
+    await pulsar(page, 'Incidencia', { exact: true });
     await page.waitForTimeout(700);
     await page.getByPlaceholder('Ej.: golpe en paragolpes trasero').first().fill('Rayón en la puerta');
     await page.waitForTimeout(300);
@@ -338,7 +339,7 @@ export async function ejecutar(browser, BASE) {
     await page.waitForTimeout(700);
     ok(
       'RECEPCIÓN · no puede cerrar incidencias',
-      !(await page.getByText('✓ Cerrar incidencia', { exact: false }).first().isVisible().catch(() => false))
+      !(await page.getByText('Cerrar incidencia', { exact: false }).first().isVisible().catch(() => false))
     );
 
     ok('RECEPCIÓN · sin errores de JavaScript', errores.length === 0, errores[0] ?? '');
@@ -435,7 +436,8 @@ export async function ejecutar(browser, BASE) {
       /LISTO PARA ENTREGAR|PREPARÁNDOSE|DE CAMINO|SIN PEDIR NADA/.test(mios),
       mios.match(/LISTO PARA ENTREGAR|PREPARÁNDOSE|DE CAMINO|SIN PEDIR NADA/)?.[0] ?? ''
     );
-    ok('COMERCIAL · y dónde está el coche', mios.includes('📍'), mios.match(/📍[^\n]*/)?.[0] ?? '');
+    const dondeMios = await lineasDeUbicacion(page);
+    ok('COMERCIAL · y dónde está el coche', dondeMios.length > 0, dondeMios[0] ?? '');
     // Lo entregado no es trabajo: va aparte, con su cuenta del mes.
     ok(
       'COMERCIAL · lo entregado va a su pestaña, fuera del trabajo',
@@ -541,8 +543,10 @@ export async function ejecutar(browser, BASE) {
     );
     // La línea de cada traslado, no el icono de la pestaña: hora de
     // recogida, hora de entrega y lo que tardó.
-    const linea = hechos.match(/🔑 [^\n]*🏁[^\n]*/)?.[0] ?? '';
-    ok('TRANSPORTISTA · con la recogida y la entrega de cada uno', !!linea, linea);
+    const linea = ((await page.locator('[data-testid="registro-traslado"]').allInnerTexts())[0] ?? '')
+      .replace(/\p{Co}/gu, '')
+      .trim();
+    ok('TRANSPORTISTA · con la recogida y la entrega de cada uno', /\d{2}\/\d{2}[^·]*·[^\n]*\d{2}\/\d{2}/.test(linea), linea);
     ok(
       'TRANSPORTISTA · y si fue en plazo o no',
       hechos.includes('En plazo') || hechos.includes('Fuera de plazo')

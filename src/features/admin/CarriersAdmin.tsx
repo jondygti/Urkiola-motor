@@ -28,7 +28,7 @@ export function CarriersAdmin({ onDone }: { onDone: (m: string) => void }) {
 
   return (
     <>
-      <Panel title="🚚 Empresas de transporte">
+      <Panel icon="camion" title="Empresas de transporte">
         <Muted>
           Marca qué sedes cubre cada una. Al pedir un traslado, la app propone la empresa que llega al
           destino, y los transportistas de esa empresa lo ven en su móvil.
@@ -141,7 +141,8 @@ function CarrierModal({
       <Modal
         visible
         onClose={onClose}
-        title={isNew ? '🚚 Nueva empresa de transporte' : `Empresa · ${carrier.name}`}
+        icon="camion"
+        title={isNew ? 'Nueva empresa de transporte' : `Empresa · ${carrier.name}`}
         footer={
           <>
             <Btn variant="primary" full onPress={save}>

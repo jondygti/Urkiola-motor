@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { radius, space, tipografia, useTheme } from './theme';
 import { Btn, H2, Label, Muted } from './primitives';
+import { Icon, type IconName } from './Icon';
 
 /* ---------------------------------------------------------------- modal */
 
@@ -21,12 +22,15 @@ export function Modal({
   title,
   children,
   footer,
+  icon,
 }: {
   visible: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  /** Icono del título, como en los paneles. */
+  icon?: IconName;
 }) {
   const { c, isDesktop } = useTheme();
   return (
@@ -62,14 +66,18 @@ export function Modal({
               marginBottom: space.sm,
             }}
           >
-            <H2 style={{ marginBottom: 0, flex: 1 }}>{title}</H2>
+            <View style={{ flex: 1 }}>
+              <H2 icon={icon} style={{ marginBottom: 0 }}>
+                {title}
+              </H2>
+            </View>
             <Pressable
               onPress={onClose}
               accessibilityLabel="Cerrar"
               hitSlop={10}
               style={{ paddingHorizontal: 8 }}
             >
-              <Text style={{ fontSize: tipografia.display, color: c.textMuted, lineHeight: 26 }}>×</Text>
+              <Icon name="cerrar" size={tipografia.title} color={c.textMuted} />
             </Pressable>
           </View>
           <ScrollView keyboardShouldPersistTaps="handled" style={{ flexGrow: 0 }}>
@@ -166,7 +174,7 @@ export function Input({
   );
 }
 
-export type Option<T extends string = string> = { value: T; label: string; hint?: string };
+export type Option<T extends string = string> = { value: T; label: string; hint?: string; icon?: IconName };
 
 /**
  * Desplegable propio (no usamos Picker nativo para que el aspecto sea
@@ -233,7 +241,7 @@ export function Select<T extends string = string>({
         >
           {current?.label ?? placeholder}
         </Text>
-        <Text style={{ fontSize: tipografia.label, color: c.textFaint }}>▼</Text>
+        <Icon name="abajo" size={tipografia.body} color={c.textFaint} />
       </Pressable>
 
       <Modal visible={open} onClose={() => setOpen(false)} title={title ?? placeholder}>
@@ -310,7 +318,7 @@ export function Checkbox({
           marginTop: 1,
         }}
       >
-        {checked ? <Text style={{ color: '#fff', fontSize: tipografia.small, fontWeight: '900' }}>✓</Text> : null}
+        {checked ? <Icon name="hecho" size={tipografia.small} color="#fff" /> : null}
       </View>
       <View style={{ flex: 1 }}>
         <Text style={{ fontSize: tipografia.body, color: c.text }}>{label}</Text>
@@ -353,8 +361,12 @@ export function Segmented<T extends string>({
               paddingHorizontal: 12,
               borderRadius: radius.sm,
               backgroundColor: active ? c.surface : 'transparent',
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 5,
             }}
           >
+            {o.icon ? <Icon name={o.icon} size={tipografia.body} color={active ? c.text : c.textMuted} /> : null}
             <Text style={{ fontSize: tipografia.small, fontWeight: active ? '800' : '600', color: active ? c.text : c.textMuted }}>
               {o.label}
             </Text>

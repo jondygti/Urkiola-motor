@@ -134,6 +134,7 @@ export default function NotificationsScreen() {
           <Btn onPress={() => run({ type: 'inbox.readAll' })}>Marcar todo como leído</Btn>
         ) : null}
         <Btn
+          icon="avisos"
           onPress={async () => {
             const token = await registerForPush();
             setToast(
@@ -143,7 +144,7 @@ export default function NotificationsScreen() {
             );
           }}
         >
-          🔔 Activar push en este dispositivo
+          Activar push en este dispositivo
         </Btn>
       </Toolbar>
 

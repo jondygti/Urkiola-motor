@@ -64,7 +64,7 @@ export function UsersAdmin({ onDone }: { onDone: (m: string) => void }) {
       </Toolbar>
 
       {tab === 'usuarios' ? (
-        <Panel title="👥 Usuarios">
+        <Panel icon="personas" title="Usuarios">
           <Toolbar>
             <Btn variant="primary" onPress={() => setUserModal(newUser())}>
               + Nuevo usuario
@@ -106,7 +106,7 @@ export function UsersAdmin({ onDone }: { onDone: (m: string) => void }) {
           ))}
         </Panel>
       ) : (
-        <Panel title="🔑 Roles y permisos">
+        <Panel icon="llaves" title="Roles y permisos">
           <Muted>
             Cada rol decide qué ve y qué puede hacer una persona, tanto en la web como en el móvil. Puedes
             crear roles nuevos si tu organización no encaja con los de serie.
@@ -212,7 +212,8 @@ function UserModal({ user, onClose, onDone }: { user: User; onClose: () => void;
       <Modal
         visible
         onClose={onClose}
-        title={isNew ? '👤 Nuevo usuario' : `Usuario · ${user.name}`}
+        icon="persona"
+        title={isNew ? 'Nuevo usuario' : `Usuario · ${user.name}`}
         footer={
           <>
             <Btn variant="primary" full onPress={save}>
@@ -381,7 +382,8 @@ function RoleModal({ role, onClose, onDone }: { role: RoleConfig; onClose: () =>
       <Modal
         visible
         onClose={onClose}
-        title={isNew ? '🔑 Nuevo rol' : `Rol · ${role.label}`}
+        icon="llaves"
+        title={isNew ? 'Nuevo rol' : `Rol · ${role.label}`}
         footer={
           <>
             <Btn variant="primary" full onPress={save}>

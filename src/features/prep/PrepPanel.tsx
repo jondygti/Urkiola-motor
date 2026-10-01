@@ -1,7 +1,7 @@
 import { comercialLabel } from '@/data/format';
 import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { Btn, Field, Modal, Muted, Notice, Panel, Pill, ProgressBar, Select, Spacer, StateFlow, Toolbar, radius, space, tipografia, useTheme } from '@/ui';
+import { Btn, Field, Icon, Modal, Muted, Notice, Panel, Pill, ProgressBar, Select, Spacer, StateFlow, Toolbar, radius, space, tipografia, useTheme } from '@/ui';
 import { useStore, useTicker } from '@/data/store';
 import { prepElapsedMs, prepIsOverSla, prepProgress, prepWaitingMs } from '@/data/commands';
 import { formatDuration, formatShortDuration, siteName, userName, vehicleTitle } from '@/data/format';
@@ -19,10 +19,16 @@ import { CampanaCheck } from './CampanaCheck';
 import { Fotos } from '@/features/actions/CampoFotos';
 
 const STATE_LABEL: Record<CheckState, string> = {
-  completado: '✅ Completado',
-  pendiente: '⬜ Pendiente',
-  no_requerido: '— No requerido',
+  completado: 'Completado',
+  pendiente: 'Pendiente',
+  no_requerido: 'No requerido',
 };
+
+const STATE_ICON = {
+  completado: 'comprobado',
+  pendiente: 'casillaVacia',
+  no_requerido: null,
+} as const;
 
 /** Panel completo de preparación: cronómetros, checklist y controles. */
 export function PrepPanel({
@@ -71,7 +77,10 @@ export function PrepPanel({
   };
 
   return (
-    <Panel title={prep.tipo === 'repaso' ? '🧽 Repaso de entrega' : '⏱️ Preparación y checklist'}>
+    <Panel
+      icon={prep.tipo === 'repaso' ? 'preparacion' : 'tiempo'}
+      title={prep.tipo === 'repaso' ? 'Repaso de entrega' : 'Preparación y checklist'}
+    >
       {vehicle ? (
         <Muted style={{ marginTop: -6, marginBottom: space.sm }}>
           {vehicleTitle(vehicle)} · {siteName(state, prep.siteId)} · preparador {userName(state, prep.preparerId)} · Comercial: {comercialLabel(state, vehicle)}
@@ -152,7 +161,12 @@ export function PrepPanel({
               }}
             >
               <Text style={{ fontSize: tipografia.body, color: c.text, fontWeight: '600' }}>
-                {item.state === 'completado' ? '✅' : '📷'} {item.label}
+                <Icon
+                  name={item.state === 'completado' ? 'comprobado' : 'foto'}
+                  size={tipografia.strong}
+                  color={item.state === 'completado' ? c.okFg : c.amberFg}
+                />{' '}
+                {item.label}
               </Text>
               <Text style={{ fontSize: tipografia.micro, color: c.textMuted, marginTop: 3 }}>
                 {item.state === 'completado'
@@ -177,7 +191,16 @@ export function PrepPanel({
                 disabled={bloqueado || item.state === 'no_requerido'}
               >
                 <Text style={{ fontSize: tipografia.body, color: c.text, fontWeight: '600' }}>
-                  {STATE_LABEL[item.state].split(' ')[0]} {item.label}
+                  {STATE_ICON[item.state] ? (
+                    <Icon
+                      name={STATE_ICON[item.state]!}
+                      size={tipografia.strong}
+                      color={item.state === 'completado' ? c.okFg : c.amberFg}
+                    />
+                  ) : (
+                    '—'
+                  )}{' '}
+                  {item.label}
                   {!item.timed ? '  ·  simple check' : ''}
                 </Text>
                 <Text style={{ fontSize: tipografia.micro, color: c.textMuted, marginTop: 3 }}>
@@ -238,23 +261,24 @@ export function PrepPanel({
         {!puedeEjecutar ? (
           <Muted>Tu rol puede consultar esta preparación, pero no modificarla.</Muted>
         ) : prep.runState === 'en_curso' ? (
-          <Btn small={compact} onPress={() => setPauseOpen(true)}>
-            ⏸ Pausar
+          <Btn icon="pausa" small={compact} onPress={() => setPauseOpen(true)}>
+            Pausar
           </Btn>
         ) : !cerrada ? (
           <Btn
+            icon="empezar"
             variant="primary"
             small={compact}
             onPress={() =>
               run({ type: prep.startedAt ? 'prep.resume' : 'prep.start', prepId: prep.id })
             }
           >
-            ▶ {prep.startedAt ? 'Reanudar' : 'Iniciar'}
+            {prep.startedAt ? 'Reanudar' : 'Iniciar'}
           </Btn>
         ) : null}
         {!cerrada && puedeTrabajar ? (
-          <Btn variant="primary" small={compact} onPress={() => setFinishOpen(true)}>
-            ✓ Finalizar preparación
+          <Btn icon="hecho" variant="primary" small={compact} onPress={() => setFinishOpen(true)}>
+            Finalizar preparación
           </Btn>
         ) : cerrada ? (
           <Muted>
@@ -272,9 +296,10 @@ export function PrepPanel({
       <FinishPrepModal prep={prep} visible={finishOpen} onClose={() => setFinishOpen(false)} />
 
       <Modal
+        icon="pausa"
         visible={pauseOpen}
         onClose={() => setPauseOpen(false)}
-        title="⏸ Pausar preparación"
+        title="Pausar preparación"
         footer={
           <Btn
             variant="primary"
@@ -299,7 +324,8 @@ export function PrepPanel({
         </Field>
         <Pressable onPress={() => setBlocked((b) => !b)} style={{ paddingVertical: 8 }}>
           <Text style={{ fontSize: tipografia.body, color: c.text }}>
-            {blocked ? '☑' : '☐'} Marcar como <Text style={{ fontWeight: '800' }}>bloqueado</Text> (avisa a
+            <Icon name={blocked ? 'casillaMarcada' : 'casillaVacia'} size={tipografia.strong} color={blocked ? c.primary : c.textMuted} />{' '}
+            Marcar como <Text style={{ fontWeight: '800' }}>bloqueado</Text> (avisa a
             logística)
           </Text>
         </Pressable>

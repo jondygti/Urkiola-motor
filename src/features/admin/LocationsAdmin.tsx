@@ -41,7 +41,7 @@ export function LocationsAdmin({ onDone }: { onDone: (m: string) => void }) {
 
   return (
     <>
-      <Panel title="🏢 Sedes">
+      <Panel icon="sede" title="Sedes">
         <Muted>
           Crea las sedes que necesites y dentro de cada una sus tejavanas o parkings, con las plazas que
           quepan de verdad. Nada de esto está fijado en el código.
@@ -98,7 +98,7 @@ export function LocationsAdmin({ onDone }: { onDone: (m: string) => void }) {
       <Spacer h={space.lg} />
 
       {site ? (
-        <Panel title={`📍 Zonas de ${site.name}`}>
+        <Panel icon="ubicacion" title={`Zonas de ${site.name}`}>
           <Toolbar>
             <Btn variant="primary" onPress={() => setZoneModal(newZone())}>
               {site.kind === 'campa' ? '+ Nueva tejavana' : '+ Nuevo parking'}
@@ -202,7 +202,8 @@ function SiteModal({
       <Modal
         visible
         onClose={onClose}
-        title={isNew ? '🏢 Nueva sede' : `Sede · ${site.name}`}
+        icon="sede"
+        title={isNew ? 'Nueva sede' : `Sede · ${site.name}`}
         footer={
           <>
             <Btn variant="primary" full onPress={save}>
@@ -298,7 +299,8 @@ function ZoneModal({ zone, onClose, onDone }: { zone: Zone; onClose: () => void;
       <Modal
         visible
         onClose={onClose}
-        title={isNew ? '📍 Nueva zona' : `Zona · ${zone.name}`}
+        icon="ubicacion"
+        title={isNew ? 'Nueva zona' : `Zona · ${zone.name}`}
         footer={
           <>
             <Btn variant="primary" full onPress={save}>

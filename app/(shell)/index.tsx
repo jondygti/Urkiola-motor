@@ -74,7 +74,7 @@ export default function DashboardScreen() {
       <Spacer h={space.lg} />
 
       <Grid cols={2} minWidth={420}>
-        <Panel title="⏱️ Rendimiento de preparación">
+        <Panel icon="tiempo" title="Rendimiento de preparación">
           <View style={{ gap: 2 }}>
             <View style={{ flexDirection: 'row', paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: c.border }}>
               <Text style={{ flex: 1.4, fontSize: tipografia.micro, fontWeight: '800', color: c.textFaint }}>SEDE</Text>
@@ -120,7 +120,7 @@ export default function DashboardScreen() {
           </Btn>
         </Panel>
 
-        <Panel title="⚠️ Atención">
+        <Panel icon="aviso" title="Atención">
           {attention.length === 0 ? (
             <Notice>Todo en orden: sin vehículos pendientes de revisión.</Notice>
           ) : (
@@ -153,7 +153,7 @@ export default function DashboardScreen() {
 
       <Spacer h={space.lg} />
 
-      <Panel title="🕘 Actividad reciente">
+      <Panel icon="historial" title="Actividad reciente">
         <Timeline
           events={activity.map((e) => {
             const v = state.vehicles.find((x) => x.id === e.vehicleId);

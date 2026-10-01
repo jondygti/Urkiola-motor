@@ -119,8 +119,8 @@ export default function CountsScreen() {
             </Btn>
             {current ? (
               <>
-                <Btn onPress={() => setScanOpen(true)}>📷 Escanear vehículo</Btn>
-                <Btn onPress={cerrarRecuento}>✓ Cerrar recuento</Btn>
+                <Btn icon="foto" onPress={() => setScanOpen(true)}>Escanear vehículo</Btn>
+                <Btn icon="hecho" onPress={cerrarRecuento}>Cerrar recuento</Btn>
               </>
             ) : null}
           </Toolbar>
@@ -164,8 +164,8 @@ export default function CountsScreen() {
               />
               <Spacer h={space.md} />
               {puedeRecontar ? (
-                <Btn variant="primary" full onPress={() => setScanOpen(true)}>
-                  📷 Escanear matrícula / VIN-8
+                <Btn icon="foto" variant="primary" full onPress={() => setScanOpen(true)}>
+                  Escanear matrícula / VIN-8
                 </Btn>
               ) : null}
               {/* En el móvil se cierra el recuento desde aquí, debajo de lo
@@ -173,8 +173,8 @@ export default function CountsScreen() {
               {!isDesktop && puedeRecontar ? (
                 <>
                   <Spacer h={space.sm} />
-                  <Btn full onPress={cerrarRecuento}>
-                    ✓ Cerrar recuento
+                  <Btn icon="hecho" full onPress={cerrarRecuento}>
+                    Cerrar recuento
                   </Btn>
                 </>
               ) : null}
@@ -287,9 +287,10 @@ function NewCountModal({
 
   return (
     <Modal
+      icon="recuentos"
       visible={visible}
       onClose={onClose}
-      title="📋 Nuevo recuento"
+      title="Nuevo recuento"
       footer={
         <Btn
           variant="primary"
@@ -366,7 +367,7 @@ function ScanModal({
     onDone(`${v ? vehicleRef(v) : vehicleId} comprobado.`);
     setRef('');
     setPositionId(null);
-    setFeedback('✅ Comprobación registrada. Puedes escanear el siguiente.');
+    setFeedback('Comprobación registrada. Puedes escanear el siguiente.');
   };
 
   const handleScan = (value: string) => {
@@ -380,9 +381,10 @@ function ScanModal({
 
   return (
     <Modal
+      icon="foto"
       visible
       onClose={onClose}
-      title="📷 Escanear vehículo"
+      title="Escanear vehículo"
       footer={
         found ? (
           <Btn variant="primary" full onPress={() => confirm(found.id)}>
@@ -435,7 +437,7 @@ function ScanModal({
         <Notice tone="warn">Sin coincidencias. Comprueba la matrícula o los 8 últimos del bastidor.</Notice>
       ) : null}
 
-      {feedback ? <Notice>{feedback}</Notice> : null}
+      {feedback ? <Notice icon="comprobado">{feedback}</Notice> : null}
 
       <Muted>
         Se registra automáticamente: vehículo, ubicación comprobada, fecha, hora y usuario ({userName(state, count.responsibleId)}).

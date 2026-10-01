@@ -121,10 +121,10 @@ export default function MovementsScreen() {
 
       <Toolbar>
         <IfCan permission="movimientos.registrar">
-          <Btn variant="primary" onPress={() => setPickerOpen(true)}>
-            📍 Registrar movimiento
+          <Btn icon="ubicacion" variant="primary" onPress={() => setPickerOpen(true)}>
+            Registrar movimiento
           </Btn>
-          <Btn onPress={() => router.push('/mover')}>⚡ Mover en cadena</Btn>
+          <Btn icon="rapido" onPress={() => router.push('/mover')}>Mover en cadena</Btn>
         </IfCan>
         <Select
           value={site}

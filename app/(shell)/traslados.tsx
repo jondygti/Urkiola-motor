@@ -1,7 +1,7 @@
 import { comercialLabel } from '@/data/format';
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
-import { Grid, H1, Input, Kpi, Muted, Panel, Pill, Screen, Segmented, Select, Spacer, radius, space, tipografia, useTheme } from '@/ui';
+import { Grid, H1, Icon, Input, Kpi, Muted, Panel, Pill, Screen, Segmented, Select, Spacer, radius, space, tipografia, useTheme } from '@/ui';
 import { useAppState } from '@/data/store';
 import { carrierName, motivosDeRetraso, resumenTransporte, trasladosHechos } from '@/data/selectors';
 import { formatDateTime, locationLabel, matchesSearch, userName, vehicleName, vehicleRef } from '@/data/format';
@@ -229,15 +229,17 @@ export default function TransfersDoneScreen() {
                 <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>
                   Comercial: {comercialLabel(state, vehicle)}
                 </Text>
-                <Text style={{ fontSize: tipografia.micro, color: c.textFaint }}>
-                  🔑 {request.pickedUpAt ? formatDateTime(request.pickedUpAt) : 'Sin recogida apuntada'} · 🏁{' '}
+                <Text testID="registro-traslado" style={{ fontSize: tipografia.micro, color: c.textFaint }}>
+                  <Icon name="llaves" size={tipografia.small} color={c.textFaint} />{' '}
+                  {request.pickedUpAt ? formatDateTime(request.pickedUpAt) : 'Sin recogida apuntada'} ·{' '}
+                  <Icon name="meta" size={tipografia.small} color={c.textFaint} />{' '}
                   {request.deliveredAt ? formatDateTime(request.deliveredAt) : 'Sin entrega apuntada'}
                   {horas === null ? '' : ` · ${Math.round(horas)} h`}
                   {request.deliveredBy ? ` · ${userName(state, request.deliveredBy)}` : ''}
                 </Text>
                 {fueraDePlazo && request.delayReason ? (
                   <Text style={{ fontSize: tipografia.micro, color: c.amberFg }}>
-                    ⏱ {DELAY_REASON_LABEL[request.delayReason]}
+                    <Icon name="tiempo" size={tipografia.small} color={c.amberFg} /> {DELAY_REASON_LABEL[request.delayReason]}
                     {request.delayNote ? ` · ${request.delayNote}` : ''}
                   </Text>
                 ) : null}

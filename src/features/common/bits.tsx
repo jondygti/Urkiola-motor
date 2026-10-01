@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { Text, View } from 'react-native';
-import { Pill, type Tone, useTheme, tipografia } from '@/ui';
+import { Icon, Pill, type IconName, type Tone, useTheme, tipografia } from '@/ui';
 import {
   INCIDENT_TYPE_LABEL,
   PREP_RUN_STATE_LABEL,
@@ -110,10 +110,12 @@ export function VehicleCell({ vehicle }: { vehicle: Vehicle | undefined }) {
  * celda pasó a 13 y la columna de la última comprobación empezó a partirse
  * en dos líneas; la tabla no necesitaba el aumento.
  */
-export function Cell({ children, muted }: { children: React.ReactNode; muted?: boolean }) {
+export function Cell({ children, muted, icon }: { children: React.ReactNode; muted?: boolean; icon?: IconName }) {
   const { c } = useTheme();
   return (
     <Text style={{ fontSize: tipografia.micro, color: muted ? c.textMuted : c.text }} numberOfLines={2}>
+      {icon ? <Icon name={icon} size={tipografia.body} color={muted ? c.textMuted : c.textFaint} /> : null}
+      {icon ? ' ' : ''}
       {children}
     </Text>
   );

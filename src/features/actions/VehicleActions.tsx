@@ -47,28 +47,28 @@ export function VehicleActions({
     <>
       <Toolbar>
         {puedeMover ? (
-          <Btn variant="primary" small={compact} onPress={() => setOpen('move')}>
-            📍 Registrar movimiento
+          <Btn icon="ubicacion" variant="primary" small={compact} onPress={() => setOpen('move')}>
+            Registrar movimiento
           </Btn>
         ) : null}
         {puedeSolicitar ? (
           <>
-            <Btn small={compact} onPress={() => setOpen('transfer')}>
-              🚚 Solicitar traslado
+            <Btn icon="camion" small={compact} onPress={() => setOpen('transfer')}>
+              Solicitar traslado
             </Btn>
-            <Btn small={compact} onPress={() => setOpen('prep')}>
-              🧽 Solicitar preparación
+            <Btn icon="preparacion" small={compact} onPress={() => setOpen('prep')}>
+              Solicitar preparación
             </Btn>
           </>
         ) : null}
         {puedeIncidencia ? (
-          <Btn small={compact} onPress={() => setOpen('incident')}>
-            📸 Incidencia
+          <Btn icon="foto" small={compact} onPress={() => setOpen('incident')}>
+            Incidencia
           </Btn>
         ) : null}
         {puedeAvisar ? (
-          <Btn small={compact} onPress={() => setOpen('notify')}>
-            🔔 Crear notificación
+          <Btn icon="avisos" small={compact} onPress={() => setOpen('notify')}>
+            Crear notificación
           </Btn>
         ) : null}
       </Toolbar>
@@ -136,9 +136,10 @@ export function MovementModal({
 
   return (
     <Modal
+      icon="ubicacion"
       visible={visible}
       onClose={onClose}
-      title="📍 Registrar movimiento"
+      title="Registrar movimiento"
       footer={
         <Btn variant="primary" full onPress={submit}>
           Registrar movimiento
@@ -285,7 +286,8 @@ export function RequestModal({
     <Modal
       visible={visible}
       onClose={onClose}
-      title={type === 'traslado' ? '🚚 Solicitar traslado' : '🧽 Solicitar servicio'}
+      icon={type === 'traslado' ? 'camion' : 'preparacion'}
+      title={type === 'traslado' ? 'Solicitar traslado' : 'Solicitar servicio'}
       footer={
         <Btn variant="primary" full disabled={!siteId} onPress={submit}>
           {aviso ? 'Pedir igualmente' : 'Crear solicitud'}
@@ -415,9 +417,10 @@ export function IncidentModal({
 
   return (
     <Modal
+      icon="aviso"
       visible={visible}
       onClose={onClose}
-      title="⚠️ Registrar incidencia"
+      title="Registrar incidencia"
       footer={
         <Btn variant="primary" full onPress={submit}>
           Registrar incidencia
@@ -511,9 +514,10 @@ export function NotificationRuleModal({
 
   return (
     <Modal
+      icon="avisos"
       visible={visible}
       onClose={onClose}
-      title="🔔 Crear notificación"
+      title="Crear notificación"
       footer={
         <Btn variant="primary" full onPress={submit}>
           Crear notificación

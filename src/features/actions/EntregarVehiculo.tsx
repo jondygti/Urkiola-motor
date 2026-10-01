@@ -46,21 +46,22 @@ export function EntregarVehiculo({
   if (entregado) {
     return (
       <View style={{ gap: 6 }}>
-        <Notice tone="info">
+        <Notice tone="info" icon="meta">
           <Text style={{ fontSize: tipografia.small, color: c.text }}>
-            🏁 Entregado al cliente {vehicle.deliveredAt ? `el ${formatDateTime(vehicle.deliveredAt)}` : ''}
+            Entregado al cliente {vehicle.deliveredAt ? `el ${formatDateTime(vehicle.deliveredAt)}` : ''}
             {vehicle.deliveredBy ? ` · ${userName(state, vehicle.deliveredBy)}` : ''}. Ya no ocupa plaza ni
             sale en la flota.
           </Text>
         </Notice>
         <Btn
+          icon="deshacer"
           small={compact}
           onPress={() => {
             run({ type: 'vehicle.activate', vehicleId: vehicle.id });
             onDone?.('El vehículo vuelve a la operativa. Comprueba dónde está.');
           }}
         >
-          ↩ No estaba entregado
+          No estaba entregado
         </Btn>
       </View>
     );
@@ -70,15 +71,16 @@ export function EntregarVehiculo({
 
   return (
     <>
-      <Btn variant="primary" small={compact} onPress={() => setAbierto(true)}>
-        🏁 Entregado al cliente
+      <Btn icon="meta" variant="primary" small={compact} onPress={() => setAbierto(true)}>
+        Entregado al cliente
       </Btn>
 
       {abierto ? (
         <Modal
+          icon="meta"
           visible
           onClose={() => setAbierto(false)}
-          title="🏁 Entregar al cliente"
+          title="Entregar al cliente"
           footer={
             <>
               <Btn onPress={() => setAbierto(false)}>Cancelar</Btn>

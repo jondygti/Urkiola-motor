@@ -1,7 +1,7 @@
 import { comercialLabel } from '@/data/format';
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
-import { Btn, Column, DataTable, Grid, H1, Kpi, Modal, Muted, Notice, Panel, Screen, Select, Spacer, StateFlow, StatLine, Toolbar, space, tipografia, useTheme } from '@/ui';
+import { Btn, Column, DataTable, Grid, H1, Icon, Kpi, Modal, Muted, Notice, Panel, Screen, Select, Spacer, StateFlow, StatLine, Toolbar, space, tipografia, useTheme } from '@/ui';
 import { useAppState, useTicker } from '@/data/store';
 import { prepElapsedMs, prepIsOverSla, prepProgress } from '@/data/commands';
 import { mesDeFecha, prepKpis, productividadPorPreparador } from '@/data/selectors';
@@ -98,7 +98,8 @@ export default function PreparationScreen() {
         return (
           <Cell muted={!v?.location}>
             {locationLabel(state, v?.location, true)}
-            {fuera ? ' ⚠' : ''}
+            {fuera ? ' ' : ''}
+            {fuera ? <Icon name="aviso" size={tipografia.body} color={c.amberFg} /> : null}
           </Cell>
         );
       },

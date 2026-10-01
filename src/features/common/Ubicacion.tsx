@@ -2,7 +2,7 @@ import React from 'react';
 import { Text, View } from 'react-native';
 import { useAppState } from '@/data/store';
 import { locationLabel } from '@/data/format';
-import { campo, useTheme } from '@/ui';
+import { campo, Icon, useTheme } from '@/ui';
 import type { Id, Vehicle } from '@/data/types';
 
 /**
@@ -48,8 +48,10 @@ export function UbicacionVehiculo({
       {/* Escala de campo siempre: esto se lee de pie, para saber a dónde
           andar. Aunque salga dentro de una pantalla de oficina, la pregunta
           que responde es de campa. */}
-      <Text style={{ fontSize: compacta ? campo.micro : campo.small, fontWeight: '700', color: tono }}>
-        📍 {texto}
+      {/* testID: las pruebas comprueban que la línea dice sede · zona · plaza,
+          y antes lo buscaban por el emoji. */}
+      <Text testID="ubicacion-vehiculo" style={{ fontSize: compacta ? campo.micro : campo.small, fontWeight: '700', color: tono }}>
+        <Icon name="ubicacion" size={compacta ? campo.small : campo.body} color={tono} /> {texto}
       </Text>
       {fuera ? (
         <Text style={{ fontSize: campo.micro, color: c.amberFg }}>

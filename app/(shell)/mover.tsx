@@ -110,7 +110,7 @@ export default function QuickMoveScreen() {
           <H1>Mover coche</H1>
           <Muted>Matrícula o bastidor, dónde lo dejas y listo. El destino se queda puesto.</Muted>
 
-          {toast ? <Notice>✓ {toast}</Notice> : null}
+          {toast ? <Notice icon="hecho">{toast}</Notice> : null}
           <Spacer />
 
           <Panel title="1 · ¿Qué coche?">
@@ -204,8 +204,8 @@ export default function QuickMoveScreen() {
 
           {/* El destino se ve siempre, también entre coche y coche: así se
               sabe de un vistazo que sigue puesto para el siguiente. */}
-          <Btn variant="primary" full disabled={!listo} onPress={mover}>
-            {dest.zoneId ? `✓ Mover a ${destinationLabel(state, dest)}` : '✓ Elige dónde lo dejas'}
+          <Btn icon="hecho" variant="primary" full disabled={!listo} onPress={mover}>
+            {dest.zoneId ? `Mover a ${destinationLabel(state, dest)}` : 'Elige dónde lo dejas'}
           </Btn>
           <Spacer h={space.xs} />
           <Muted>
