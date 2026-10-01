@@ -1,4 +1,5 @@
 import { comercialLabel } from '@/data/format';
+import { AccionesPreparacion } from '@/features/actions/Bloques';
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { MiniaturaVehiculo } from '@/features/common/Miniatura';
@@ -26,6 +27,7 @@ export default function PreparationScreen() {
   const [timing, setTiming] = useState(ALL);
   const [mesProductividad, setMesProductividad] = useState(ALL);
   const [detail, setDetail] = useState<Preparation | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
   const kpis = prepKpis({ ...state,
     preparations: state.preparations.filter((p) => (p.tipo ?? 'entrada') === servicio),
@@ -278,6 +280,12 @@ export default function PreparationScreen() {
       </Panel>
       <Spacer h={space.lg} />
 
+      {toast ? (
+        <>
+          <Notice>{toast}</Notice>
+          <Spacer h={space.sm} />
+        </>
+      ) : null}
       <Panel>
         <DataTable
           columns={columns}
@@ -285,6 +293,9 @@ export default function PreparationScreen() {
           keyExtractor={(p) => p.id}
           onRowPress={(p) => setDetail(p)}
           emptyText="No hay preparaciones con esos filtros."
+          accionesEnBloque={(seleccionadas, limpiar) => (
+            <AccionesPreparacion preps={seleccionadas} limpiar={limpiar} onHecho={setToast} />
+          )}
         />
       </Panel>
 

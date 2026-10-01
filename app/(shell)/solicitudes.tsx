@@ -1,4 +1,5 @@
 import { comercialLabel } from '@/data/format';
+import { AccionesSolicitudes } from '@/features/actions/Bloques';
 import { CancelarSolicitud } from '@/features/actions/CancelarSolicitud';
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
@@ -332,6 +333,9 @@ export default function RequestsScreen() {
           keyExtractor={(r) => r.id}
           onRowPress={(r) => openVehicle(r.vehicleId)}
           emptyText="No hay solicitudes con esos filtros."
+          accionesEnBloque={(seleccionadas, limpiar) => (
+            <AccionesSolicitudes requests={seleccionadas} limpiar={limpiar} onHecho={setToast} />
+          )}
         />
       </Panel>
 

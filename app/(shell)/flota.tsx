@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import { AccionesFlota } from '@/features/actions/Bloques';
 import { Text, View } from 'react-native';
 import { MiniaturaVehiculo } from '@/features/common/Miniatura';
 import { Btn, Column, DataTable, Grid, H1, Input, Muted, Notice, Panel, Screen, Select, Spacer, StatLine, Toolbar, space, tipografia, useTheme } from '@/ui';
@@ -389,6 +390,9 @@ export default function FleetScreen() {
           keyExtractor={(v) => v.id}
           onRowPress={(v) => openVehicle(v.id)}
           emptyText="Ningún vehículo coincide con la búsqueda y los filtros aplicados."
+          accionesEnBloque={(seleccionados, limpiar) => (
+            <AccionesFlota vehicles={seleccionados} limpiar={limpiar} onHecho={setToast} />
+          )}
         />
       </Panel>
 

@@ -43,7 +43,7 @@ src/
   http.ts
   servicio.ts
   auth.ts
-  permisos.ts
+  permisos.ts        (reexporta src/data/permisos.ts: la misma regla que usa la app)
   recorte.ts
   validar.ts
   push.ts
