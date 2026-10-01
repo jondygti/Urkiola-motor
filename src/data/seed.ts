@@ -1496,6 +1496,14 @@ export function buildSeedState(): AppState {
   // Peugeot 3008 KM0 y un Citroën C5 Aircross DEMO. No hace falta retocar
   // coches aleatorios al final: la historia de la demo es siempre la misma.
 
+  // El estado de cada coche sale de lo que tiene abierto, igual que en la
+  // app de verdad. Los coches de relleno se generaban con un estado al azar
+  // y salían 58 que no cuadraban: «traslado solicitado» sin traslado pedido,
+  // traslados pedidos sobre coches «aparcados» y «en preparación» sin nada.
+  // En una demo eso se ve enseguida (la confirmación en bloque ofrecía pedir
+  // traslado de un coche que decía estar esperándolo) y hace dudar del resto.
+  cuadrarEstados(vehicles, requests, preparations);
+
   return {
     users: USERS,
     carriers: CARRIERS,
@@ -1514,4 +1522,28 @@ export function buildSeedState(): AppState {
     events,
     config: CONFIG,
   };
+}
+
+/**
+ * Deja cada coche en el estado que le toca por su trabajo abierto, con las
+ * mismas reglas que los comandos: un traslado pedido lo deja «traslado
+ * solicitado» y, con las llaves recogidas, «en traslado»; una preparación
+ * abierta, «en preparación». Pedir una preparación no cambia el estado.
+ */
+function cuadrarEstados(vehicles: Vehicle[], requests: ServiceRequest[], preparations: Preparation[]): void {
+  const abierta = (r: ServiceRequest) => r.status !== 'terminada' && r.status !== 'cancelada';
+  for (const v of vehicles) {
+    if (!v.logisticActive || v.status === 'entregado') continue;
+    const traslado = requests.find((r) => r.vehicleId === v.id && r.type === 'traslado' && abierta(r));
+    const enMarcha = preparations.some(
+      (p) => p.vehicleId === v.id && p.runState !== 'terminado' && p.runState !== 'cancelado'
+    );
+    if (traslado) {
+      v.status = traslado.pickedUpAt || traslado.status === 'en_ruta' ? 'en_traslado' : 'traslado_solicitado';
+    } else if (enMarcha) {
+      v.status = 'en_preparacion';
+    } else if (v.status === 'traslado_solicitado' || v.status === 'en_traslado' || v.status === 'en_preparacion') {
+      v.status = 'aparcado';
+    }
+  }
 }

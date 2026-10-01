@@ -40,3 +40,22 @@ test('no convierte enlaces externos en pantallas internas', () => {
   const demo = ventanaDemo(navegador('file:///tmp/demo.html'));
   assert.throws(() => demo.history.pushState(null, '', 'https://otra.invalid/'));
 });
+
+test('las funciones del navegador se llaman sobre la ventana de verdad', () => {
+  // Una función nativa que, como getSelection, exige que «this» sea la
+  // ventana real: llamada sobre el envoltorio, el navegador da «Illegal
+  // invocation» y la demo fallaba en cada toque.
+  const real = navegador('file:///tmp/demo.html');
+  real.getSelection = function getSelection() {
+    assert.equal(this, real, 'llamada fuera de la ventana real');
+    return 'seleccion';
+  }.bind(real);
+  real.miDato = { a: 1 };
+  real.miFuncion = () => 42;
+  const demo = ventanaDemo(real);
+  assert.equal(demo.getSelection(), 'seleccion');
+  assert.equal(demo.getSelection, demo.getSelection, 'siempre la misma función');
+  assert.equal(demo.miDato, real.miDato);
+  assert.equal(demo.miFuncion, real.miFuncion, 'lo que guarda la app se devuelve tal cual');
+  assert.equal(demo.URL, real.URL);
+});
