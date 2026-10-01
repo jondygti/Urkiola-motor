@@ -18,6 +18,9 @@ El código actual está en `server/`. La especificación exacta de comandos vive
 | POST | `/commands` | aplicar un comando |
 | POST | `/fotos` | subir imagen/PDF; exige rol operativo con evidencia |
 | GET | `/fotos/:id` | recuperar archivo solo si la referencia forma parte del estado autorizado |
+| GET | `/fotos/:id/acceso` | dirección temporal (5 min) de una foto autorizada |
+| POST | `/fotos/:id/miniatura` | subir la miniatura (JPEG/PNG/WebP, máx. 200 kB); solo quien subió la foto original |
+| POST | `/fotos/miniaturas/acceso` | `{ ids }` → `{ urls }`: direcciones temporales de hasta 200 miniaturas de una vez; solo las autorizadas. `GET /fotos/:id?a=…&m=1` sirve la miniatura, nunca la original |
 | POST | `/push/token` | asociar dispositivo |
 
 La migración futura a Supabase Auth puede cambiar las rutas de autenticación, pero **no debe romper** las garantías de `/state`, `/commands`, permisos, offline o autoría histórica.

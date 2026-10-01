@@ -2,6 +2,7 @@ import { comercialLabel } from '@/data/format';
 import { CancelarSolicitud } from '@/features/actions/CancelarSolicitud';
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
+import { MiniaturaVehiculo } from '@/features/common/Miniatura';
 import { Btn, Column, DataTable, Field, Grid, H1, Icon, Modal, Muted, Notice, Panel, Screen, Select, Spacer, Toolbar, space, tipografia, useTheme } from '@/ui';
 import { useStore } from '@/data/store';
 import { activeCarriers, carrierName, deadlineOf, requestsBySite } from '@/data/selectors';
@@ -50,6 +51,13 @@ export default function RequestsScreen() {
   );
 
   const columns: Column<ServiceRequest>[] = [
+    {
+      key: 'foto',
+      header: 'Foto',
+      width: 68,
+      leading: true,
+      render: (r) => <MiniaturaVehiculo vehicle={state.vehicles.find((v) => v.id === r.vehicleId)} />,
+    },
     {
       key: 'type',
       header: 'Tipo',

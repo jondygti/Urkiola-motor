@@ -19,6 +19,11 @@ export type Column<T> = {
   primary?: boolean;
   /** En móvil se oculta. */
   secondary?: boolean;
+  /**
+   * En móvil va a la izquierda del título de la tarjeta, sin etiqueta: la
+   * foto del coche, que se reconoce sin leer nada.
+   */
+  leading?: boolean;
 };
 
 /**
@@ -82,8 +87,9 @@ export function DataTable<T>({
           <EmptyState text={emptyText} />
         ) : (
           visible.map((row) => {
-            const primary = columns.find((x) => x.primary) ?? columns[0];
-            const rest = columns.filter((x) => x !== primary && !x.secondary);
+            const primary = columns.find((x) => x.primary) ?? columns.find((x) => !x.leading) ?? columns[0];
+            const leading = columns.find((x) => x.leading);
+            const rest = columns.filter((x) => x !== primary && x !== leading && !x.secondary);
             return (
               <Pressable
                 key={keyExtractor(row)}
@@ -97,7 +103,14 @@ export function DataTable<T>({
                   marginBottom: space.sm,
                 })}
               >
-                <View style={{ marginBottom: 6 }}>{primary.render(row)}</View>
+                {leading ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                    {leading.render(row)}
+                    <View style={{ flex: 1 }}>{primary.render(row)}</View>
+                  </View>
+                ) : (
+                  <View style={{ marginBottom: 6 }}>{primary.render(row)}</View>
+                )}
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
                   {rest.map((col) => (
                     <View key={col.key} style={{ minWidth: '45%', flexShrink: 1 }}>

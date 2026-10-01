@@ -35,7 +35,7 @@ import { comprobarPermiso, esColaboradorExterno } from './permisos';
 import { estadoPara, historialDeVehiculo } from './recorte';
 import { avisosNuevos, enviarAvisos } from './push';
 import { validarComando } from './validar';
-import { TIPOS_FOTO, type AlmacenFotos, type Foto } from './almacen/fotos';
+import { TIPOS_FOTO, idMiniatura, type AlmacenFotos, type Foto } from './almacen/fotos';
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 import type { Correo } from './correo';
 import {
@@ -47,6 +47,10 @@ import {
   sinPermiso,
   temporalmenteNoDisponible,
 } from './errores';
+
+const TIPOS_MINIATURA = ['image/jpeg', 'image/png', 'image/webp'];
+/** Una miniatura de 144 px en JPEG pesa 5–10 kB; 200 kB ya no es una miniatura. */
+const MAX_MINIATURA_BYTES = 200 * 1024;
 
 /**
  * Un hash de mentira, para gastar el mismo tiempo cuando el correo no
@@ -641,20 +645,25 @@ export class Servicio {
     }
   }
 
+  /** Las evidencias que aparecen en el estado que este usuario puede ver. */
+  private fotosVisiblesPara(user: User): Set<string> {
+    const visible = this.estadoDe(user);
+    const refs = new Set<string>();
+    for (const i of visible.incidents) for (const f of i.photos) refs.add(f);
+    for (const p of visible.preparations) {
+      const f = p.finalPhotos;
+      if (f) for (const x of [f.frontLeft, f.frontRight, f.rearLeft, f.rearRight]) refs.add(x);
+    }
+    for (const r of visible.receptions) {
+      if (r.albaranUri) refs.add(r.albaranUri);
+      for (const l of r.lines) for (const f of l.photos) refs.add(f);
+    }
+    return refs;
+  }
+
   /** ¿La referencia de esta evidencia forma parte del estado autorizado? */
   private fotoReferenciadaPara(id: string, user: User): boolean {
-    const ref = `foto:${id}`;
-    const visible = this.estadoDe(user);
-    return (
-      visible.incidents.some((i) => i.photos.includes(ref)) ||
-      visible.preparations.some((p) => {
-        const f = p.finalPhotos;
-        return !!f && [f.frontLeft, f.frontRight, f.rearLeft, f.rearRight].includes(ref);
-      }) ||
-      visible.receptions.some(
-        (r) => r.albaranUri === ref || r.lines.some((l) => l.photos.includes(ref))
-      )
-    );
+    return this.fotosVisiblesPara(user).has(`foto:${id}`);
   }
 
   /**
@@ -669,6 +678,70 @@ export class Servicio {
     const foto = await this.fotos.leer(id);
     if (!foto) throw noEncontrado('Esa foto ya no está.');
     return foto;
+  }
+
+  /* --------------------------------------------------------- miniaturas */
+
+  /**
+   * Guarda la miniatura de una foto que acaba de subir este mismo usuario.
+   *
+   * Las listas enseñan la foto del coche en pequeño, y bajarse la original
+   * para pintar un cuadro de 48 puntos es gastar datos móviles en la campa.
+   * El servidor no trae una librería de imágenes (sería la dependencia más
+   * pesada de todo el backend para esto solo), así que la miniatura la hace
+   * el móvil al sacar la foto y la sube detrás de la original.
+   *
+   * Solo quien subió la original puede ponerle miniatura: el id va firmado
+   * con su usuario. Si no, cualquiera podría cambiar la imagen que ven los
+   * demás en la lista por otra.
+   */
+  async guardarMiniatura(id: string, cuerpo: Buffer, tipo: string, user: User): Promise<void> {
+    const terminarEscritura = this.comenzarEscritura();
+    try {
+      if (!subidaDelUsuario(id, user.id, this.config.secreto)) {
+        throw noEncontrado('Esa foto no es tuya o no existe.');
+      }
+      const limpio = (tipo ?? '').split(';')[0].trim().toLowerCase();
+      if (!TIPOS_MINIATURA.includes(limpio)) {
+        throw malaPeticion(`Una miniatura tiene que ser JPEG, PNG o WebP (${limpio || 'sin tipo'}).`);
+      }
+      if (cuerpo.length === 0) throw malaPeticion('La miniatura está vacía.');
+      if (cuerpo.length > MAX_MINIATURA_BYTES) {
+        throw malaPeticion('La miniatura pesa demasiado: tiene que ser una imagen pequeña, no la foto entera.');
+      }
+      await this.fotos.guardar(idMiniatura(id), { cuerpo, tipo: limpio });
+    } finally {
+      terminarEscritura();
+    }
+  }
+
+  /** La miniatura, con la misma autorización que la foto original. */
+  async leerMiniatura(id: string, user: User): Promise<Foto> {
+    if (!this.fotoReferenciadaPara(id, user)) throw noEncontrado('Esa foto ya no está.');
+    const foto = await this.fotos.leer(idMiniatura(id));
+    // Nunca se sirve la original en su lugar: la miniatura existe para no
+    // bajarla. Sin miniatura, la lista pinta la marca del coche.
+    if (!foto) throw noEncontrado('Esa foto no tiene miniatura.');
+    return foto;
+  }
+
+  /**
+   * Accesos a las miniaturas de una lista entera de una sola vez.
+   *
+   * Una pantalla de la flota pinta cuarenta coches: cuarenta peticiones
+   * para cuarenta cuadritos harían esperar a la lista. Lo que no le toca
+   * ver a este usuario simplemente no sale en la respuesta.
+   */
+  crearAccesosMiniatura(ids: unknown, user: User): Record<string, string> {
+    if (!Array.isArray(ids) || ids.length > 200 || ids.some((x) => typeof x !== 'string')) {
+      throw malaPeticion('Hace falta una lista de hasta 200 fotos.');
+    }
+    const visibles = this.fotosVisiblesPara(user);
+    const salida: Record<string, string> = {};
+    for (const id of ids as string[]) {
+      if (visibles.has(`foto:${id}`)) salida[id] = emitirTokenFoto(user.id, id, this.config.secreto);
+    }
+    return salida;
   }
 
   /** Crea una capacidad breve sin descargar antes el objeto desde Storage. */

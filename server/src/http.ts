@@ -230,6 +230,29 @@ async function enrutar(
     return { codigo: 200, cuerpo: { ok: true, id } };
   }
 
+  // Miniaturas: las sube el móvil detrás de la foto y las piden las listas.
+  const miniatura = ruta.match(/^\/fotos\/(.+)\/miniatura$/);
+  if (miniatura && metodo === 'POST') {
+    const user = servicio.usuarioDeToken(req.headers.authorization);
+    const id = decodeURIComponent(miniatura[1]);
+    const cuerpo = await leerBinario(req, 200 * 1024);
+    await servicio.guardarMiniatura(id, cuerpo, req.headers['content-type'] ?? '', user);
+    return { codigo: 200, cuerpo: { ok: true } };
+  }
+
+  if (ruta === '/fotos/miniaturas/acceso' && metodo === 'POST') {
+    const user = servicio.usuarioDeToken(req.headers.authorization);
+    const cuerpo = (await leerCuerpo(req)) as { ids?: unknown } | null;
+    const tokens = servicio.crearAccesosMiniatura(cuerpo?.ids, user);
+    const urls = Object.fromEntries(
+      Object.entries(tokens).map(([id, token]) => [
+        id,
+        `/fotos/${encodeURIComponent(id)}?a=${encodeURIComponent(token)}&m=1`,
+      ])
+    );
+    return { codigo: 200, cuerpo: { urls } };
+  }
+
   const accesoFoto = ruta.match(/^\/fotos\/(.+)\/acceso$/);
   if (accesoFoto && metodo === 'GET') {
     const user = servicio.usuarioDeToken(req.headers.authorization);
@@ -243,12 +266,14 @@ async function enrutar(
 
   if (ruta.startsWith('/fotos/') && (metodo === 'GET' || metodo === 'HEAD')) {
     const id = decodeURIComponent(ruta.slice('/fotos/'.length));
-    const capacidad = new URL(req.url ?? '/', 'http://interno').searchParams.get('a');
+    const parametros = new URL(req.url ?? '/', 'http://interno').searchParams;
+    const capacidad = parametros.get('a');
     const user = req.headers.authorization
       ? servicio.usuarioDeToken(req.headers.authorization)
       : servicio.usuarioDeTokenFoto(id, capacidad ?? undefined);
 
-    const foto = await servicio.leerFoto(id, user);
+    const foto =
+      parametros.get('m') === '1' ? await servicio.leerMiniatura(id, user) : await servicio.leerFoto(id, user);
     res.writeHead(200, {
       'Content-Type': foto.tipo,
       'Content-Length': foto.cuerpo.length,

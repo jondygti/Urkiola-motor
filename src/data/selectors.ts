@@ -1082,3 +1082,56 @@ export function productividadPorPreparador(terminadas: Preparation[]): FilaProdu
   }
   return [...filas.values()].map(({ enCerradasMs, ...f }) => ({ ...f, avgMs: f.total ? enCerradasMs / f.total : 0 }));
 }
+
+/* ------------------------------------------------------ foto del coche */
+
+/**
+ * La última foto de cada vehículo, para la miniatura de las listas.
+ *
+ * Sale de lo que ya se fotografía: el reportaje de cierre de una
+ * preparación (la diagonal delantera izquierda, que es la que enseña el
+ * coche entero), las fotos de una incidencia y las de daños al descargar el
+ * camión. Manda la más reciente: es la que dice cómo está hoy.
+ *
+ * Se calcula una vez por estado y no por fila: la flota tiene cientos de
+ * coches y cada pantalla pinta decenas a la vez.
+ */
+const fotosPorEstado = new WeakMap<AppState, Map<Id, string>>();
+
+export function ultimaFotoDe(s: AppState, vehicleId: Id): string | null {
+  let indice = fotosPorEstado.get(s);
+  if (!indice) {
+    const mejor = new Map<Id, { ref: string; at: string }>();
+    const apuntar = (vehicleId: Id | null | undefined, ref: string | null | undefined, at: string | null | undefined) => {
+      // Las fotos del parque de ejemplo (`demo://`) no existen: no pueden
+      // tapar a una de verdad más antigua.
+      if (!vehicleId || !ref || !at || ref.startsWith('demo://')) return;
+      const ya = mejor.get(vehicleId);
+      if (!ya || at > ya.at) mejor.set(vehicleId, { ref, at });
+    };
+    for (const p of s.preparations) apuntar(p.vehicleId, p.finalPhotos?.frontLeft, p.finishedAt);
+    for (const i of s.incidents) apuntar(i.vehicleId, i.photos[i.photos.length - 1], i.createdAt);
+    for (const r of s.receptions) {
+      for (const l of r.lines) apuntar(l.vehicleId, l.photos[l.photos.length - 1], r.closedAt ?? r.arrivedAt);
+    }
+    indice = new Map([...mejor].map(([id, x]) => [id, x.ref]));
+    fotosPorEstado.set(s, indice);
+  }
+  return indice.get(vehicleId) ?? null;
+}
+
+/**
+ * Tres letras de la marca para cuando el coche no tiene foto: PEU, FOR,
+ * JEE… Se leen de un vistazo en una lista y distinguen más que un icono de
+ * coche repetido en todas las filas.
+ */
+export function abreviaturaDeMarca(brand: string | null | undefined): string {
+  const limpia = (brand ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .split(/[\s-]+/)[0]
+    .replace(/[^A-Za-z0-9]/g, '')
+    .toUpperCase();
+  return limpia.slice(0, 3) || '—';
+}

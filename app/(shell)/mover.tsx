@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { MiniaturaVehiculo } from '@/features/common/Miniatura';
 import { Text, View } from 'react-native';
 import { campo, Btn, Field, H1, Input, Muted, Notice, Panel, Pill, Screen, Spacer, radius, space, useTheme } from '@/ui';
 import { useStore } from '@/data/store';
@@ -138,9 +139,12 @@ export default function QuickMoveScreen() {
                   padding: 12,
                 }}
               >
-                <Text style={{ fontSize: campo.strong, fontWeight: '900', color: c.text }}>
-                  {vehicleName(vehiculo)} · {vehicleRef(vehiculo)}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <MiniaturaVehiculo vehicle={vehiculo} />
+                  <Text style={{ fontSize: campo.strong, fontWeight: '900', color: c.text, flex: 1 }}>
+                    {vehicleName(vehiculo)} · {vehicleRef(vehiculo)}
+                  </Text>
+                </View>
 
                 {/* De dónde hay que sacarlo. Es lo primero que necesita quien
                     va a moverlo: sabe la matrícula, pero no dónde está

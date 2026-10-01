@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Text } from 'react-native';
+import { MiniaturaVehiculo } from '@/features/common/Miniatura';
 import { Btn, Column, DataTable, Grid, H1, Input, Muted, Notice, Panel, Screen, Select, Spacer, StatLine, Toolbar, space, tipografia, useTheme } from '@/ui';
 import { useAppState, useStore } from '@/data/store';
 import { customValue, esDelComercial, fleetColumns, vehiculosVisiblesPara } from '@/data/selectors';
@@ -231,6 +232,9 @@ export default function FleetScreen() {
 
   // La primera columna hace de título en la vista de móvil.
   if (columns.length > 0) columns[0] = { ...columns[0], primary: true };
+  // La foto va delante de todo: no es una columna que se configure, es la
+  // forma de reconocer el coche en la lista antes de leer nada.
+  columns.unshift({ key: 'foto', header: 'Foto', width: 68, leading: true, render: (v) => <MiniaturaVehiculo vehicle={v} /> });
 
   return (
     <ScreenGuard href="/flota" title="Flota">

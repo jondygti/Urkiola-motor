@@ -2,6 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
 import { api, apiEnabled } from '@/data/api';
 import { registrarFotoPendiente } from '@/data/photoQueue';
+import { crearMiniatura, guardarMiniaturaLocal } from '@/data/miniaturas';
 
 /**
  * Toma una foto con la cámara o la elige de la galería.
@@ -49,10 +50,25 @@ export interface FotoTomada {
 export async function capturarYSubir(source: 'camera' | 'library' = 'camera'): Promise<FotoTomada | null> {
   const uri = await capturePhoto(source);
   if (!uri) return null;
-  if (!apiEnabled) return { ref: uri, vistaPrevia: uri, subida: true };
+  // La miniatura, para las listas, se hace ahora que la foto está en el
+  // móvil: después solo se podría hacer bajándose la original. Se hace a la
+  // vez que se sube la foto y **no se espera**: el operario tiene el coche
+  // delante y lo que necesita saber es si la foto ha subido, no si ya está
+  // el cuadrito de la lista. Esperarla hacía cada foto más lenta.
+  const miniatura = crearMiniatura(uri);
+  const guardarAqui = (ref: string) =>
+    void miniatura.then((m) => (m ? guardarMiniaturaLocal(ref, m) : undefined));
+
+  if (!apiEnabled) {
+    guardarAqui(uri);
+    return { ref: uri, vistaPrevia: uri, subida: true };
+  }
 
   try {
     const ref = await api.subirFoto(uri);
+    // Si la miniatura no sube, este móvil la guarda y la lista la sigue
+    // viendo; la foto, que es la prueba, ya está a salvo.
+    void miniatura.then((m) => (m ? api.subirMiniatura(ref, m).catch(() => guardarMiniaturaLocal(ref, m)) : undefined));
     return { ref, vistaPrevia: uri, subida: true };
   } catch {
     // En el navegador no hay dónde guardarla para después: la dirección de
@@ -66,6 +82,7 @@ export async function capturarYSubir(source: 'camera' | 'library' = 'camera'): P
     // sincronizador la subirá antes de enviar el comando que la referencia.
     try {
       const ref = await registrarFotoPendiente(uri);
+      guardarAqui(ref);
       return { ref, vistaPrevia: ref, subida: false };
     } catch {
       // Si ni siquiera podemos conservarla de forma duradera (disco lleno,

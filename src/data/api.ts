@@ -153,6 +153,38 @@ export const api = {
     const { id } = (await res.json()) as { id: string };
     return `foto:${id}`;
   },
+  /**
+   * Sube la miniatura de una foto que ya está en el servidor. La hace el
+   * móvil al sacar la foto (`src/data/miniaturas.ts`).
+   */
+  subirMiniatura: async (ref: string, uri: string): Promise<void> => {
+    if (!ref.startsWith('foto:')) return;
+    const blob = await (await fetch(uri)).blob();
+    const res = await fetch(`${API_URL}/fotos/${encodeURIComponent(ref.slice('foto:'.length))}/miniatura`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': blob.type || 'image/jpeg',
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      },
+      body: blob,
+    });
+    if (!res.ok) throw new ApiError(res.status, `${res.status} ${res.statusText}`);
+  },
+  /**
+   * Direcciones temporales de las miniaturas de una lista entera, en una
+   * sola petición. Las que no le tocan a este usuario no vienen.
+   */
+  accesosMiniatura: async (refs: string[]): Promise<Record<string, string>> => {
+    const ids = refs.filter((r) => r.startsWith('foto:')).map((r) => r.slice('foto:'.length));
+    if (!ids.length || !apiEnabled) return {};
+    const { urls } = await request<{ urls: Record<string, string> }>('/fotos/miniaturas/acceso', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    });
+    return Object.fromEntries(
+      Object.entries(urls).map(([id, url]) => [`foto:${id}`, url.startsWith('http') ? url : `${API_URL}${url}`])
+    );
+  },
   /** Registra el móvil para recibir avisos. */
   pushToken: (token: string) =>
     request<{ ok: boolean }>('/push/token', {
