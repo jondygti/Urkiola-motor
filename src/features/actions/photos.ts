@@ -51,20 +51,24 @@ export async function capturarYSubir(source: 'camera' | 'library' = 'camera'): P
   const uri = await capturePhoto(source);
   if (!uri) return null;
   // La miniatura, para las listas, se hace ahora que la foto está en el
-  // móvil: después solo se podría hacer bajándose la original.
-  const miniatura = await crearMiniatura(uri);
+  // móvil: después solo se podría hacer bajándose la original. Se hace a la
+  // vez que se sube la foto y **no se espera**: el operario tiene el coche
+  // delante y lo que necesita saber es si la foto ha subido, no si ya está
+  // el cuadrito de la lista. Esperarla hacía cada foto más lenta.
+  const miniatura = crearMiniatura(uri);
+  const guardarAqui = (ref: string) =>
+    void miniatura.then((m) => (m ? guardarMiniaturaLocal(ref, m) : undefined));
+
   if (!apiEnabled) {
-    if (miniatura) await guardarMiniaturaLocal(uri, miniatura);
+    guardarAqui(uri);
     return { ref: uri, vistaPrevia: uri, subida: true };
   }
 
   try {
     const ref = await api.subirFoto(uri);
-    if (miniatura) {
-      // Sin esperarla: la foto, que es la prueba, ya está a salvo. Si la
-      // miniatura no sube, este móvil la guarda y la lista la sigue viendo.
-      void api.subirMiniatura(ref, miniatura).catch(() => guardarMiniaturaLocal(ref, miniatura));
-    }
+    // Si la miniatura no sube, este móvil la guarda y la lista la sigue
+    // viendo; la foto, que es la prueba, ya está a salvo.
+    void miniatura.then((m) => (m ? api.subirMiniatura(ref, m).catch(() => guardarMiniaturaLocal(ref, m)) : undefined));
     return { ref, vistaPrevia: uri, subida: true };
   } catch {
     // En el navegador no hay dónde guardarla para después: la dirección de
@@ -78,7 +82,7 @@ export async function capturarYSubir(source: 'camera' | 'library' = 'camera'): P
     // sincronizador la subirá antes de enviar el comando que la referencia.
     try {
       const ref = await registrarFotoPendiente(uri);
-      if (miniatura) await guardarMiniaturaLocal(ref, miniatura);
+      guardarAqui(ref);
       return { ref, vistaPrevia: ref, subida: false };
     } catch {
       // Si ni siquiera podemos conservarla de forma duradera (disco lleno,

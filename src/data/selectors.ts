@@ -1107,7 +1107,9 @@ export function ultimaFotoDe(s: AppState, vehicleId: Id): string | null {
   if (!indice) {
     const mejor = new Map<Id, { ref: string; at: string }>();
     const apuntar = (vehicleId: Id | null | undefined, ref: string | null | undefined, at: string | null | undefined) => {
-      if (!vehicleId || !ref || !at) return;
+      // Las fotos del parque de ejemplo (`demo://`) no existen: no pueden
+      // tapar a una de verdad más antigua.
+      if (!vehicleId || !ref || !at || ref.startsWith('demo://')) return;
       const ya = mejor.get(vehicleId);
       if (!ya || at > ya.at) mejor.set(vehicleId, { ref, at });
     };
@@ -1130,7 +1132,7 @@ export function ultimaFotoDe(s: AppState, vehicleId: Id): string | null {
 export function abreviaturaDeMarca(brand: string | null | undefined): string {
   const limpia = (brand ?? '')
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .trim()
     .split(/[\s-]+/)[0]
     .replace(/[^A-Za-z0-9]/g, '')

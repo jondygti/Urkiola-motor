@@ -154,6 +154,10 @@ export async function ejecutar(browser, BASE) {
       await selector.setFiles({ name: `diagonal-${i}.png`, mimeType: 'image/png', buffer: PNG_1PX });
       await page.waitForTimeout(400);
     }
+    // Se espera a que el botón se active, con un máximo, en vez de un tiempo
+    // fijo: en la CI de GitHub el navegador va más lento y 400 ms por foto
+    // no bastaban.
+    for (let i = 0; i < 40 && (await finalizar.isDisabled()); i++) await page.waitForTimeout(250);
     ok('6 · con las cuatro fotos ya deja terminar', !(await finalizar.isDisabled()));
 
     await finalizar.click();
@@ -178,7 +182,9 @@ export async function ejecutar(browser, BASE) {
     const miniaturaEnMover = async () => {
       await page.goto(`${BASE}/mover`, { waitUntil: 'networkidle' });
       await page.getByPlaceholder('1234 ABC').fill('6412 NPV');
-      await page.waitForTimeout(600);
+      // La miniatura se hace sin hacer esperar a la foto: puede tardar un poco.
+      await page.locator('[data-testid="miniatura-foto"] img').first().waitFor({ timeout: 8000 }).catch(() => undefined);
+      await page.waitForTimeout(300);
       return page.evaluate(() => {
         const caja = document.querySelector('[data-testid="miniatura-foto"]');
         const img = caja?.querySelector('img');
