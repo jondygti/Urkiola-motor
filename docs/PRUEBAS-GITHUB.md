@@ -29,8 +29,8 @@ En un `push` a `main`, el job **Generar demo navegable** espera a que navegador,
 Si todo queda verde:
 
 - ejecuta `npm run build:demo`;
-- publica `demo/urkiola-car-service-demo.html`;
-- nombre del artefacto: `urkiola-demo-<sha>`;
+- publica `demo/easo-logistics-demo.html`;
+- nombre del artefacto: `easo-logistics-demo-<sha>`;
 - retención: 30 días.
 
 Los logs de Chromium se conservan como artefactos durante 14 días.

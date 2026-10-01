@@ -19,6 +19,28 @@ export async function ejecutar(browser, BASE) {
   const errores = [];
   let cargas = 0;
 
+  // La entrada, sin sesión: tiene que llevar la marca —el símbolo EM y
+  // «Easo Logistics»— y ningún resto del nombre antiguo.
+  for (const width of [420, 1440]) {
+    const context = await browser.newContext({ viewport: { width, height: 900 } });
+    const page = await context.newPage();
+    await page.goto(BASE + '/login', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(300);
+    const marca = await page.evaluate(() => {
+      const cab = document.querySelector('[aria-label="Easo Logistics"]');
+      const img = cab?.querySelector('img');
+      return {
+        texto: cab?.textContent ?? '',
+        imagen: !!img && img.complete && img.naturalWidth > 0,
+        cuerpo: document.body.innerText,
+      };
+    });
+    if (!/EASO\s*LOGISTICS/.test(marca.texto)) problemas.push(`login · ${width}px: sin «Easo Logistics»`);
+    if (!marca.imagen) problemas.push(`login · ${width}px: el símbolo de la marca no carga`);
+    if (/car service/i.test(marca.cuerpo)) problemas.push(`login · ${width}px: sigue saliendo «Car Service»`);
+    await context.close();
+  }
+
   for (const usuario of Object.values(USUARIOS)) {
     for (const width of [420, 1440]) {
       const { context, page } = await entrarComo(browser, usuario, width);

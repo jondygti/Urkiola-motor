@@ -10,7 +10,7 @@ Evitar copiar manualmente toda la base de Quiter y evitar acceso de escritura al
 
 Diseño:
 
-`Quiter AutoWeb → QBI Premium → sincronizador en Render → staging en Supabase → validación/mapeo → Urkiola Car Service`
+`Quiter AutoWeb → QBI Premium → sincronizador en Render → staging en Supabase → validación/mapeo → Easo Logistics`
 
 No se asume aún si Quiter entregará PostgreSQL, otro motor relacional, exportaciones o un mecanismo específico. Esa decisión se toma con la documentación y credenciales que entregue Quiter.
 

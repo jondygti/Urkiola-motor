@@ -48,7 +48,7 @@ La demo se genera desde el código actual con:
 npm run build:demo
 ```
 
-Además, cada `push` a `main` ejecuta primero todas las comprobaciones. Solo si quedan verdes, GitHub Actions publica un artefacto `urkiola-demo-<sha>` con `urkiola-car-service-demo.html` durante 30 días.
+Además, cada `push` a `main` ejecuta primero todas las comprobaciones. Solo si quedan verdes, GitHub Actions publica un artefacto `easo-logistics-demo-<sha>` con `easo-logistics-demo.html` durante 30 días.
 
 La demo es offline y de ejemplo. No sustituye la prueba contra Render/Supabase ni Android real.
 

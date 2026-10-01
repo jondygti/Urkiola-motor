@@ -164,7 +164,7 @@ jobs:
       - name: Publicar demo descargable
         uses: actions/upload-artifact@v7
         with:
-          name: urkiola-demo-${{ github.sha }}
-          path: demo/urkiola-car-service-demo.html
+          name: easo-logistics-demo-${{ github.sha }}
+          path: demo/easo-logistics-demo.html
           if-no-files-found: error
           retention-days: 30

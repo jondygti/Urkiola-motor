@@ -1,5 +1,5 @@
 /**
- * Modelo de dominio de Urkiola Car Service.
+ * Modelo de dominio de Easo Logistics.
  *
  * Regla de datos del proyecto (recogida del mockup V18):
  *   - Quiter aporta el parque maestro (datos comerciales y de vehículo).

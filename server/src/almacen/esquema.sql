@@ -1,4 +1,4 @@
--- Esquema del backend de Urkiola Car Service.
+-- Esquema del backend de Easo Logistics.
 --
 -- Solo cuatro tablas. La verdad está en `comandos`: todo lo que ha pasado,
 -- con quién y cuándo. `foto` es un atajo para no rehacer el histórico

@@ -2,7 +2,7 @@
 
 Actualizado: **20/09/2026**
 
-Esta demo usa datos totalmente ficticios. Las sedes, roles y lógica operativa representan el funcionamiento previsto de Urkiola Car Service, pero las personas, matrículas, bastidores y vehículos concretos son datos de demostración.
+Esta demo usa datos totalmente ficticios. Las sedes, roles y lógica operativa representan el funcionamiento previsto de Easo Logistics, pero las personas, matrículas, bastidores y vehículos concretos son datos de demostración.
 
 ## Objetivo
 

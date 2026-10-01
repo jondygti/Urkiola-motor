@@ -2,7 +2,7 @@
 
 Actualizado: **20/09/2026**.
 
-Urkiola Car Service puede seguir desarrollándose y manteniéndose desde el repositorio, pero antes de depender del sistema en producción conviene cubrir tres necesidades externas.
+Easo Logistics puede seguir desarrollándose y manteniéndose desde el repositorio, pero antes de depender del sistema en producción conviene cubrir tres necesidades externas.
 
 ## 1. Revisión de seguridad
 

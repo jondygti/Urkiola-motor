@@ -1,5 +1,5 @@
 /**
- * Genera los iconos de marca de Urkiola Car Service.
+ * Genera los iconos de marca de Easo Logistics.
  *
  *   node scripts/generate-icons.mjs
  *

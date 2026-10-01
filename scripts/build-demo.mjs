@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BUILD = join(ROOT, '.demo-build');
 const OUT_DIR = join(ROOT, 'demo');
-const OUT = join(OUT_DIR, 'urkiola-car-service-demo.html');
+const OUT = join(OUT_DIR, 'easo-logistics-demo.html');
 
 console.log('· Compilando la web como página única…');
 rmSync(BUILD, { recursive: true, force: true });
