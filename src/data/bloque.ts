@@ -28,10 +28,12 @@ export interface FilaBloque {
   comando: CommandInput | null;
   /** Por qué no se puede, cuando no se puede. */
   motivo?: string;
+  /** Se puede, pero hay que saber algo antes de confirmar. */
+  aviso?: string;
 }
 
 export interface ResultadoBloque {
-  admitidos: { etiqueta: string; comando: CommandInput }[];
+  admitidos: { etiqueta: string; comando: CommandInput; aviso?: string }[];
   rechazados: { etiqueta: string; motivo: string }[];
 }
 
@@ -51,7 +53,7 @@ export function comprobarBloque(state: AppState, user: User | null, filas: FilaB
       ? comprobarPermiso(state, user, { ...f.comando, id: 'bloque-comprobacion', at, userId: user.id } as Command)
       : 'Sin sesión.';
     if (motivo) resultado.rechazados.push({ etiqueta: f.etiqueta, motivo });
-    else resultado.admitidos.push({ etiqueta: f.etiqueta, comando: f.comando });
+    else resultado.admitidos.push({ etiqueta: f.etiqueta, comando: f.comando, aviso: f.aviso });
   }
   return resultado;
 }
@@ -65,8 +67,10 @@ const entregado = 'Está entregado al cliente.';
 export function filasPedirSolicitud(
   state: AppState,
   vehicles: Vehicle[],
-  pedido: { requestType: 'traslado' | 'preparacion'; siteId: Id; urgent?: boolean }
+  pedido: { requestType: 'traslado' | 'preparacion'; siteId: Id; urgent?: boolean },
+  now = Date.now()
 ): FilaBloque[] {
+  const minimoMs = state.config.prepDeadlineHours * 3_600_000;
   return vehicles.map((v) => {
     const etiqueta = etiquetaDe(v, v.id);
     if (v.status === 'entregado') return { etiqueta, comando: null, motivo: entregado };
@@ -76,8 +80,17 @@ export function filasPedirSolicitud(
     const prepTipo = pedido.requestType === 'preparacion' ? ('entrada' as const) : undefined;
     const conflicto = conflictoSolicitud(state, { requestType: pedido.requestType, vehicleId: v.id, siteId: pedido.siteId, prepTipo });
     if (conflicto) return { etiqueta, comando: null, motivo: conflicto };
+    // La misma regla que coche a coche: con menos margen del mínimo hasta
+    // la entrega se pide igual, pero como urgente y avisándolo antes.
+    const margenCorto =
+      pedido.requestType === 'preparacion' &&
+      !!v.deliveryDate &&
+      new Date(v.deliveryDate).getTime() - now < minimoMs;
     return {
       etiqueta,
+      aviso: margenCorto
+        ? `Se entrega en menos de ${state.config.prepDeadlineHours} h: irá como urgente y puede no llegar.`
+        : undefined,
       comando: {
         type: 'request.create',
         requestType: pedido.requestType,
@@ -85,7 +98,7 @@ export function filasPedirSolicitud(
         vehicleId: v.id,
         siteId: pedido.siteId,
         to: { siteId: pedido.siteId },
-        urgent: !!pedido.urgent,
+        urgent: !!pedido.urgent || margenCorto,
         // La empresa se propone para cada coche según su ruta, igual que al
         // pedirlo de uno en uno.
         carrierId:

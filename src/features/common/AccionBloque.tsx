@@ -38,6 +38,7 @@ export function ConfirmarBloque({
   const { state, user, run } = useStore();
   const { admitidos, rechazados } = useMemo(() => comprobarBloque(state, user, filas), [state, user, filas]);
   const n = admitidos.length;
+  const conAviso = admitidos.filter((a) => a.aviso);
   const coches = (k: number) => (k === 1 ? '1 coche' : `${k} coches`);
 
   const aplicar = () => {
@@ -87,6 +88,25 @@ export function ConfirmarBloque({
                   </View>
                 ))}
               </ScrollView>
+            </>
+          ) : null}
+          {conAviso.length ? (
+            <>
+              <Spacer h={space.sm} />
+              <Notice tone="warn" icon="alarma">
+                {conAviso.length === 1 ? 'Ojo con este:' : `Ojo con estos ${conAviso.length}:`}
+              </Notice>
+              <View testID="bloque-avisos">
+                {conAviso.map((a, i) => (
+                  <View
+                    key={`${a.etiqueta}-${i}`}
+                    style={{ flexDirection: 'row', gap: 8, paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: c.borderSoft }}
+                  >
+                    <Text style={{ fontSize: tipografia.small, fontWeight: '800', color: c.text, minWidth: 90 }}>{a.etiqueta}</Text>
+                    <Text style={{ flex: 1, fontSize: tipografia.small, color: c.textMuted }}>{a.aviso}</Text>
+                  </View>
+                ))}
+              </View>
             </>
           ) : null}
           <Spacer h={space.sm} />

@@ -233,3 +233,24 @@ permite cambiar de camión y consultar el histórico. Al cambiar se reinicia el
 formulario del vehículo; al crear se selecciona el camión nuevo. La antigua
 ruta `/recepcion` redirige a `/mi-recepcion`, y el menú muestra una única
 entrada. Las configuraciones antiguas del menú móvil siguen funcionando.
+
+## Actualización: interfaz de Easo Logistics (iconos, marca, fotos, días y bloque)
+
+- **Iconos.** Cada sección del menú tiene el suyo, distinto de todos los
+  demás, y ya no hay emojis: cada teléfono los dibujaba a su manera.
+- **Marca.** La entrada y la cabecera del menú llevan el símbolo EM del Grupo
+  Easo Motor y «Easo Logistics».
+- **Foto del coche en las listas.** Flota, Solicitudes, Preparación, Campa,
+  Mi preparación, Mis traslados y Mover coche enseñan un cuadro con la última
+  foto del coche, siempre en miniatura, nunca la original. Sin foto, las tres
+  primeras letras de la marca. Al pulsarla se abre la foto en grande.
+- **Días parados.** El panel tiene «Requiere atención hoy» (incidencias
+  abiertas en rojo y coches que pasan del límite de días de su fase) y «Días
+  medios por sede». La flota tiene una columna «Días» que se ordena pulsando
+  la cabecera. Los límites se cambian en Administración → Preparación.
+- **Acciones en bloque, solo en el ordenador.** Flota, Solicitudes y
+  Preparación tienen una casilla por fila y «seleccionar todos los
+  filtrados». La barra enseña solo lo que el rol puede hacer, y la
+  confirmación dice cuántos coches son, cuáles no admiten la acción y por
+  qué, y cuáles irán como urgentes por la regla de las 48 h. Cada coche queda
+  con su apunte, igual que de uno en uno. En el móvil se trabaja coche a coche.

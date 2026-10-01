@@ -141,3 +141,24 @@ test('en el servidor: cada coche con su comando, su apunte y su comprobación', 
     await p.limpiar();
   }
 });
+
+test('en bloque se aplica la regla de las 48 h igual que coche a coche', () => {
+  const s = buildSeedState();
+  const libres = s.vehicles.filter(
+    (v) =>
+      v.logisticActive &&
+      v.status !== 'entregado' &&
+      !s.requests.some((r) => r.vehicleId === v.id && r.status !== 'terminada' && r.status !== 'cancelada') &&
+      !s.preparations.some((p) => p.vehicleId === v.id && p.runState !== 'terminado' && p.runState !== 'cancelado')
+  );
+  const [pronto, holgado] = libres;
+  const ahora = Date.parse(AT);
+  pronto.deliveryDate = new Date(ahora + 10 * 3_600_000).toISOString();
+  holgado.deliveryDate = new Date(ahora + 10 * 24 * 3_600_000).toISOString();
+  const filas = filasPedirSolicitud(s, [pronto, holgado], { requestType: 'preparacion', siteId: 'leioa' }, ahora);
+  const urgente = (f: FilaBloque) => (f.comando as { urgent?: boolean }).urgent;
+  assert.equal(urgente(filas[0]), true, 'con menos de 48 h va como urgente');
+  assert.match(filas[0].aviso ?? '', /menos de 48 h/);
+  assert.equal(urgente(filas[1]), false);
+  assert.equal(filas[1].aviso, undefined);
+});
