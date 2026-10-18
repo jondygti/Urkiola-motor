@@ -21,6 +21,7 @@ import { Client } from 'pg';
 import { problemasDeLaCopia, rehacerEstado, resumirCopia } from './copia-nucleo';
 import { leerConfig } from './config';
 import { FotosEnSupabase } from './almacen/fotos';
+import { sslPostgres } from './almacen/tls';
 import type { Command } from '../../src/data/commands';
 
 const config = leerConfig(process.env);
@@ -86,7 +87,7 @@ async function main() {
   if (!config.databaseUrl) throw new Error('Sin DATABASE_URL no hay dónde restaurar.');
   const cliente = new Client({
     connectionString: config.databaseUrl,
-    ssl: /localhost|127\.0\.0\.1/.test(config.databaseUrl) ? undefined : { rejectUnauthorized: true },
+    ssl: sslPostgres(config.databaseUrl),
   });
   await cliente.connect();
 
