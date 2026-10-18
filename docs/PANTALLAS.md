@@ -254,3 +254,35 @@ entrada. Las configuraciones antiguas del menú móvil siguen funcionando.
   confirmación dice cuántos coches son, cuáles no admiten la acción y por
   qué, y cuáles irán como urgentes por la regla de las 48 h. Cada coche queda
   con su apunte, igual que de uno en uno. En el móvil se trabaja coche a coche.
+
+## Actualización: ocupación de los preparadores
+
+- **Panel de dirección → «Ocupación de preparadores».** Una barra por sede:
+  horas de preparación ÷ horas de presencia. Verde del 70 al 80 %, ámbar por
+  encima del 80 % y gris por debajo del 70 %. Se elige entre el mes pasado
+  (cerrado) y lo que va del mes en curso. Al tocar una sede salen sus
+  preparadores, cuántos trabajos se contaron con el tiempo estándar porque no
+  se usó el cronómetro y cuántos marcan más de tres veces su estándar (para
+  revisar: casi siempre es alguien que se olvidó de pulsar «Terminar»). Si
+  una sede pasa del 80 % dos meses cerrados seguidos, sale arriba un aviso, y
+  la campana se lo dice a dirección y a logística una sola vez.
+- **Administración → «Tiempos estándar».** Minutos de cada tarea, para todas
+  las sedes y, si hace falta, por sede: VN 2 h, flota 1 h 30 en Leioa y 2 h en
+  Ford/Mazda, VO a fondo 4 h, repaso VO y repaso de entrega 30 min, carrocería
+  45 min. Son a la vez el objetivo del cronómetro y lo que se cuenta cuando no
+  se usó. Sustituyen a los antiguos objetivos VN/VO y del repaso.
+- **Administración → «Calendario».** La jornada de cada preparador (7 h 40 de
+  lunes a viernes) y su reparto entre sedes, con la fecha desde la que vale;
+  vacaciones, bajas y permisos, sin motivo; y los festivos, generales o de una
+  sede. Quien no tiene ficha cuenta con la jornada de serie repartida entre
+  sus sedes, y sale marcado «Sin ficha».
+- **Pedir servicio → «Tarea».** Al pedir una preparación se elige la tarea
+  (VN, flota, VO a fondo; o repaso de entrega o repaso VO), con su tiempo al
+  lado. Sin tocarla, la que le toca al coche. La oficina la puede corregir
+  desde la preparación.
+- **Mi preparación → «Carrocería».** Para coches que no están en la flota: el
+  preparador escribe la matrícula y pulsa «Empezar», con pausa y «Terminar»
+  como una preparación. «Ya está hecho» lo apunta sin cronómetro, con el
+  tiempo estándar. No da de alta ningún coche: solo cuenta su tiempo.
+- **Sede nueva: Ford/Mazda Galdakao**, del grupo Easo. Prepara y se gestiona
+  como Bizkaia (Grúas Francis).

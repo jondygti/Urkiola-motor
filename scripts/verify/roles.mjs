@@ -25,22 +25,36 @@ export async function ejecutar(browser, BASE) {
     ok('ADMIN · con la flota contada', /FLOTA TOTAL/i.test(panel));
     ok('ADMIN · y el menú completo', panel.includes('Administración') && panel.includes('Recuentos'));
 
-    // 2 · Cambia un objetivo de preparación y queda guardado.
+    // 1b · La ocupación de los preparadores, con Leioa en ámbar (la demo la
+    // carga por encima del 80 % los dos últimos meses) y el aviso.
+    ok('ADMIN · ve la ocupación de preparadores', panel.includes('Ocupación de preparadores'));
+    ok('ADMIN · con el aviso de Leioa', /Leioa lleva dos meses por encima del 80/.test(panel));
+    await page.locator('[data-testid="ocupacion-sede"]').first().click();
+    await page.waitForTimeout(400);
+    ok(
+      'ADMIN · y al tocar una sede salen sus preparadores',
+      (await page.locator('[data-testid="ocupacion-preparador"]').count()) > 0
+    );
+
+    // 2 · Cambia un tiempo estándar y queda guardado.
     await page.goto(`${BASE}/administracion`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(900);
-    const campoVN = page.getByText('Vehículo nuevo (VN) · minutos', { exact: false }).first();
-    ok('ADMIN · puede configurar los objetivos', await campoVN.isVisible());
-
-    await page.locator('input').filter({ hasNot: page.locator('[type=password]') }).first().waitFor();
-    const inputs = page.locator('input');
-    await inputs.nth(0).fill('135');
+    await pulsar(page, 'Tiempos estándar', { exact: true });
+    await page.waitForTimeout(700);
+    const filaVN = page.locator('[data-testid="tiempo-vn"]');
+    ok('ADMIN · puede configurar los tiempos estándar', await filaVN.isVisible());
+    await filaVN.locator('input').first().fill('135');
     await page.waitForTimeout(1200);
     const cfg = await estadoGuardado(page);
-    ok(
-      'ADMIN · el objetivo de VN queda guardado',
-      cfg?.config?.prepTargetMinutes?.VN === 135,
-      String(cfg?.config?.prepTargetMinutes?.VN)
-    );
+    const vn = cfg?.config?.tiemposEstandar?.find((t) => t.tarea === 'vn' && t.siteId === null);
+    ok('ADMIN · el tiempo estándar de VN queda guardado', vn?.minutos === 135, String(vn?.minutos));
+
+    // 2b · El calendario de los preparadores.
+    await pulsar(page, 'Calendario', { exact: true });
+    await page.waitForTimeout(700);
+    const calendario = await page.evaluate(() => document.body.innerText);
+    ok('ADMIN · ve la jornada de cada preparador', calendario.includes('Pedro Larrea') && calendario.includes('7 h 40 min'));
+    ok('ADMIN · y las vacaciones y festivos', calendario.includes('Vacaciones') && calendario.includes('San Marcial'));
 
     // 3 · Da de alta un usuario nuevo.
     // Las pestañas de Administración son botones, no un desplegable.
@@ -191,6 +205,23 @@ export async function ejecutar(browser, BASE) {
     ok('PREPARADOR · y también al abrir la preparación', dentro.length > 0, dentro.at(-1) ?? '');
     await page.keyboard.press('Escape');
     await page.waitForTimeout(500);
+
+    // Carrocería: un coche que no está en la flota, por matrícula. Cuenta
+    // para su ocupación y no da de alta ningún vehículo.
+    await page.goto(`${BASE}/mi-preparacion`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(900);
+    const flotaAntes = (await estadoGuardado(page))?.vehicles?.length;
+    await page.getByPlaceholder('1234 ABC').fill('7777 xyz');
+    await page.locator('[tabindex="0"], button').filter({ hasText: /^[\s\p{Co}]*Empezar\s*$/u }).last().click();
+    await page.waitForTimeout(900);
+    let sueltos = (await estadoGuardado(page))?.trabajosSueltos ?? [];
+    const carroceria = sueltos.find((t) => t.matricula === '7777XYZ');
+    ok('PREPARADOR · empieza una carrocería por matrícula', carroceria?.runState === 'en_curso', carroceria?.runState ?? 'no está');
+    ok('PREPARADOR · sin dar de alta el coche en la flota', (await estadoGuardado(page))?.vehicles?.length === flotaAntes);
+    await page.locator('[data-testid="carroceria-abierta"]').getByText('Terminar', { exact: true }).click();
+    await page.waitForTimeout(900);
+    sueltos = (await estadoGuardado(page))?.trabajosSueltos ?? [];
+    ok('PREPARADOR · y la termina', sueltos.find((t) => t.matricula === '7777XYZ')?.runState === 'terminado');
 
     // Recuento completo: crear, comprobar un coche y cerrar.
     await page.goto(`${BASE}/recuentos`, { waitUntil: 'networkidle' });

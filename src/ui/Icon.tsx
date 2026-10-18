@@ -35,6 +35,8 @@ const ICONOS = {
   avisos: 'bell-outline',
   admin: 'cog-outline',
   mover: 'car-arrow-right',
+  ocupacion: 'gauge',
+  carroceria: 'car-wrench',
 
   // Acciones y datos.
   menu: 'menu',

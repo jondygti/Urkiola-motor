@@ -6,10 +6,14 @@ import { useStore } from '@/data/store';
 import { activeCarriers, can, suggestCarrier, puedeGestionarEntrega } from '@/data/selectors';
 import { DateField } from '@/features/common/DateField';
 import { CampoFotos } from './CampoFotos';
-import { locationLabel, vehicleTitle } from '@/data/format';
+import { formatShortDuration, locationLabel, vehicleTitle } from '@/data/format';
+import { minutosEstandar, tablaDeTiempos, tareaCompatible, tareaPorDefecto } from '@/data/tiempos';
 import {
   INCIDENT_TYPE_LABEL,
   NOTIFY_CONDITION_LABEL,
+  TAREA_LABEL,
+  TAREAS_DE_TIPO,
+  type TareaPreparacion,
   type IncidentType,
   type NotifyAudience,
   type NotifyCondition,
@@ -222,6 +226,10 @@ export function RequestModal({
   const { state, user, run } = useStore();
   const puedeFijarEntrega = puedeGestionarEntrega(state, user, vehicle);
   const [prepTipo, setPrepTipo] = useState<'entrada' | 'repaso'>('entrada');
+  // La tarea marca contra qué tiempo estándar se mide. Sin tocarla, la que
+  // le toca al coche (VO a fondo para un VO, flota para un renting…).
+  const [tareaTocada, setTarea] = useState<TareaPreparacion | null>(null);
+  const tarea = tareaTocada && tareaCompatible(prepTipo, tareaTocada) ? tareaTocada : tareaPorDefecto(vehicle, prepTipo);
   const prepSites = state.sites.filter((s) => s.prepares);
   const destinoInicial = type === 'preparacion'
     ? (prepSites.some((s) => s.id === vehicle.targetSiteId) ? vehicle.targetSiteId! : (prepSites[0]?.id ?? ''))
@@ -270,6 +278,7 @@ export function RequestModal({
       type: 'request.create',
       requestType: type,
       prepTipo: type === 'preparacion' ? prepTipo : undefined,
+      tarea: type === 'preparacion' ? tarea : undefined,
       vehicleId: vehicle.id,
       siteId,
       to: { siteId },
@@ -303,6 +312,13 @@ export function RequestModal({
             { value: 'repaso', label: 'Repaso de entrega' }]} />
         <Muted>{prepTipo === 'repaso' ? 'Limpieza interior y exterior, con checklist y tiempo propios.'
           : 'Preparación completa del vehículo con todos sus requisitos.'}</Muted>
+      </Field> : null}
+      {type === 'preparacion' ? <Field label="Tarea" hint="Decide su tiempo estándar.">
+        <Select full value={tarea} onChange={setTarea} title="Tarea"
+          options={TAREAS_DE_TIPO[prepTipo].map((t) => ({
+            value: t,
+            label: `${TAREA_LABEL[t]} · ${formatShortDuration(minutosEstandar(tablaDeTiempos(state.config), t, siteId || null) * 60_000)}`,
+          }))} />
       </Field> : null}
       <Field label="Origen">
         <Muted>{locationLabel(state, vehicle.location)}</Muted>
@@ -559,7 +575,10 @@ export function NotificationRuleModal({
           full
           value={condition}
           onChange={(v) => setCondition(v as NotifyCondition)}
-          options={Object.entries(NOTIFY_CONDITION_LABEL).map(([value, label]) => ({ value, label }))}
+          options={Object.entries(NOTIFY_CONDITION_LABEL)
+            // La ocupación es de una sede, no de un coche.
+            .filter(([value]) => value !== 'ocupacion_alta')
+            .map(([value, label]) => ({ value, label }))}
           title="Condición"
         />
       </Field>

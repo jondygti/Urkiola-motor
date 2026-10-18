@@ -26,6 +26,7 @@ import { prepElapsedMs, prepIsOverSla, prepProgress } from './commands';
 import { hoursSince } from './format';
 import { diaEnEspana } from './delivery-date';
 import { LIMITES_DIAS } from './seed';
+import { minutosEstandar, tablaDeTiempos } from './tiempos';
 
 const HOUR = 3_600_000;
 
@@ -152,7 +153,7 @@ export function sitePerformance(s: AppState, now = Date.now()): SitePerformance[
       const avgMs = durations.length ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
       const targetMs = preps.length
         ? Math.round(preps.reduce((a, p) => a + p.targetMs, 0) / preps.length)
-        : s.config.prepTargetMinutes.VN * 60_000;
+        : minutosEstandar(tablaDeTiempos(s.config), 'vn', site.id) * 60_000;
       const outOfSla = preps.filter((p) => prepIsOverSla(p, now)).length;
       const atRisk = preps.filter(
         (p) => !prepIsOverSla(p, now) && prepElapsedMs(p, now) > p.targetMs * 0.85

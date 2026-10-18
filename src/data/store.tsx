@@ -83,7 +83,12 @@ const TOKEN_KEY = 'urkiola.token.v1';
 // «Requiere atención hoy» y de la columna «Días» de la flota.
 // 28: los coches de ejemplo tienen el estado que les toca por su trabajo
 // abierto; una demo guardada antes los seguiría enseñando descuadrados.
-const STATE_SCHEMA_VERSION = 28;
+// 29: entran los tiempos estándar por tarea y sede (sustituyen a los
+// objetivos VN/VO y del repaso), la sede Ford/Mazda de Galdakao, la
+// carrocería sin coche de la flota, el calendario de los preparadores y la
+// historia de dos meses de trabajo terminado de la demo. Una demo guardada
+// antes no tendría nada de eso y la ocupación saldría en gris.
+const STATE_SCHEMA_VERSION = 29;
 
 interface StoredState {
   v: number;
@@ -162,6 +167,7 @@ function estadoInicial(): AppState {
   return apiEnabled ? {
     ...s, users: [], vehicles: [], movements: [], requests: [], preparations: [],
     counts: [], incidents: [], rules: [], inbox: [], receptions: [], events: [],
+    trabajosSueltos: [], fichasLaborales: [], ausencias: [],
   } : s;
 }
 

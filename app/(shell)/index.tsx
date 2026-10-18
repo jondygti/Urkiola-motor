@@ -14,6 +14,7 @@ import {
 } from '@/data/selectors';
 import { FASE_DIAS_LABEL, type FaseDias } from '@/data/types';
 import { MiniaturaVehiculo } from '@/features/common/Miniatura';
+import { OcupacionPanel } from '@/features/prep/OcupacionPanel';
 import { homeFor, mobileHome } from '@/features/shell/nav';
 import { usePerms } from '@/features/common/Guard';
 import { formatDateTime, formatShortDuration, vehicleRef, vehicleTitle } from '@/data/format';
@@ -50,8 +51,8 @@ export default function DashboardScreen() {
     <Screen>
       <H1>Centro de control</H1>
       <Muted>
-        Vista global de flota, logística y preparación. Sondika almacena; Leioa, Galdakao, Anoeta e Irun
-        preparan.
+        Vista global de flota, logística y preparación. Sondika almacena; Leioa, Galdakao, Ford/Mazda Galdakao,
+        Anoeta e Irun preparan.
       </Muted>
 
       <Spacer />
@@ -194,6 +195,10 @@ export default function DashboardScreen() {
           <Muted>Media de días de los coches que están ahí ahora · número de coches.</Muted>
         </Panel>
       </Grid>
+
+      <Spacer h={space.lg} />
+
+      <OcupacionPanel state={state} now={now} />
 
       <Spacer h={space.lg} />
 
