@@ -182,6 +182,10 @@ Cada una viene de un fallo real de este proyecto:
     `app.config.ts`, los identificadores de paquete Android/iOS y las claves
     internas `urkiola.*` del almacenamiento. Urkiola sigue siendo la empresa:
     las frases que hablan de ella no se cambian sin preguntar.
+    Los iconos de la app (Android, tienda, arranque y pestaña del navegador)
+    llevan el mismo símbolo, en azul Easo `#007AC0`, y salen de
+    `scripts/marca/iconos.py`: el logotipo que tenemos mide 228 px y ampliado
+    se ve borroso, así que allí está dibujado como polígonos.
 
 32. **Las listas enseñan la miniatura del coche, nunca la foto original**
     (`<MiniaturaVehiculo>`, `src/features/common/Miniatura.tsx`). La
