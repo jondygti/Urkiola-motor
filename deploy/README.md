@@ -2,6 +2,9 @@
 
 Este directorio describe el despliegue **vigente**. El antiguo stack Docker + MinIO + Caddy se retiró porque ya no corresponde a la arquitectura decidida.
 
+> ¿Solo quieres enseñarla funcionando, con datos de ejemplo y gratis? Eso es
+> [`PRUEBA-GRATIS.md`](PRUEBA-GRATIS.md), no este staging.
+
 ## Qué se despliega
 
 - **Render Web Service**: `server/Dockerfile`, con contexto de build en la raíz del repositorio.

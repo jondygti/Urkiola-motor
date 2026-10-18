@@ -16,9 +16,6 @@ on:
       servidor:
         description: 'Dirección del servidor, por ejemplo https://easo-logistics-prueba.onrender.com'
         required: true
-  # TEMPORAL: para probar la compilación en la rama antes de fusionarla.
-  push:
-    branches: [modo-prueba]
 
 permissions:
   contents: read
@@ -35,7 +32,7 @@ jobs:
     env:
       # La dirección se incrusta al compilar (regla 8): un APK habla siempre
       # con el servidor con el que se compiló.
-      EXPO_PUBLIC_API_URL: ${{ inputs.servidor || 'https://easo-logistics-prueba.onrender.com' }}
+      EXPO_PUBLIC_API_URL: ${{ inputs.servidor }}
       EXPO_NO_TELEMETRY: 1
       NODE_ENV: production
     steps:
