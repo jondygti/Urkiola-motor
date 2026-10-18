@@ -22,8 +22,11 @@ ENV EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY . .
+# Metro lanza un trabajador por núcleo y cada uno se lleva su memoria: en
+# la máquina de compilación de Render, con muchos núcleos, llegó a 8 GB y la
+# cortaron sin decir nada. Con dos tarda algo más y no pasa de 1,2 GB.
 RUN if [ -n "$EXPO_PUBLIC_API_URL" ]; then \
-      npx expo export --platform web --output-dir dist --clear; \
+      npx expo export --platform web --output-dir dist --clear --max-workers 2; \
     else \
       mkdir -p dist && echo 'Sin EXPO_PUBLIC_API_URL: imagen sin panel web.'; \
     fi
