@@ -18,7 +18,8 @@ on:
         required: true
 
 permissions:
-  contents: read
+  # Para dejar el APK en la publicación «apk-prueba» (ver el último paso).
+  contents: write
 
 concurrency:
   group: apk-prueba
@@ -92,3 +93,19 @@ jobs:
           retention-days: 30
           # El APK tal cual, no dentro de un zip: se descarga y se instala.
           archive: false
+      - name: Publicar en una dirección fija para el móvil
+        # Los «Artifacts» de una ejecución piden entrar en GitHub y se
+        # descargan mal desde el móvil. La publicación «apk-prueba» se
+        # sustituye en cada compilación y deja siempre el último en
+        # …/releases/download/apk-prueba/easo-logistics.apk, que se abre
+        # desde el navegador del teléfono y se instala. El APK solo lleva la
+        # dirección del servidor; ninguna contraseña.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          cp salida/*.apk salida/easo-logistics.apk
+          notas="APK de prueba para $EXPO_PUBLIC_API_URL, compilado el $(date -u +'%d/%m/%Y %H:%M') UTC desde ${GITHUB_SHA::7}. Solo para pruebas con datos de ejemplo; no es la versión de Google Play."
+          gh release delete apk-prueba --yes --cleanup-tag 2>/dev/null || true
+          gh release create apk-prueba salida/easo-logistics.apk \
+            --title 'APK de prueba' --notes "$notas" --prerelease --target "$GITHUB_SHA"
