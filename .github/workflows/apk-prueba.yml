@@ -76,7 +76,7 @@ jobs:
           } >> gradle.properties
       - name: Compilar el APK
         working-directory: android
-        run: ./gradlew assembleRelease --no-daemon
+        run: ./gradlew assembleRelease --no-daemon --stacktrace --console=plain
       - name: Nombre con fecha y servidor
         run: |
           host=$(printf '%s' "$EXPO_PUBLIC_API_URL" | sed -E 's#https://##; s#[/:]#-#g')
