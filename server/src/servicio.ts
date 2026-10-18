@@ -96,6 +96,10 @@ export function estadoVacio(): AppState {
     inbox: [],
     receptions: [],
     events: [],
+    // El calendario y la carrocería de la demo son de personas de la demo.
+    trabajosSueltos: [],
+    fichasLaborales: [],
+    ausencias: [],
   };
 }
 

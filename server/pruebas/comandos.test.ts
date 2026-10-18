@@ -510,7 +510,7 @@ test('una configuración inválida se rechaza en vez de romper la app de todos',
     cmd('config.update', { patch: { prepTargetMinutes: { VN: 90, VO: 150 } } }, { userId: admin.id }),
     admin
   );
-  assert.equal(p.servicio.estado.config.prepTargetMinutes.VN, 90);
+  assert.equal(p.servicio.estado.config.prepTargetMinutes?.VN, 90);
 });
 
 

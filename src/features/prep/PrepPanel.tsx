@@ -5,9 +5,12 @@ import { Btn, Field, Icon, Modal, Muted, Notice, Panel, Pill, ProgressBar, Selec
 import { useStore, useTicker } from '@/data/store';
 import { prepElapsedMs, prepIsOverSla, prepProgress, prepWaitingMs } from '@/data/commands';
 import { formatDuration, formatShortDuration, siteName, userName, vehicleTitle } from '@/data/format';
+import { tareaDePreparacion } from '@/data/tiempos';
 import {
   PREP_PHASES,
   PREP_PHASE_LABEL,
+  TAREA_LABEL,
+  TAREAS_DE_TIPO,
   type CheckState,
   type Preparation,
   type Vehicle,
@@ -86,6 +89,20 @@ export function PrepPanel({
           {vehicleTitle(vehicle)} · {siteName(state, prep.siteId)} · preparador {userName(state, prep.preparerId)} · Comercial: {comercialLabel(state, vehicle)}
         </Muted>
       ) : null}
+      {/* La tarea decide contra qué tiempo estándar se mide. La corrige
+          quien reparte; quien prepara la ve. */}
+      {puedeGestionar && !cancelada ? (
+        <Field label="Tarea">
+          <Select
+            value={tareaDePreparacion(prep, vehicle)}
+            onChange={(t) => run({ type: 'prep.setTarea', prepId: prep.id, tarea: t })}
+            title="Tarea"
+            options={TAREAS_DE_TIPO[prep.tipo ?? 'entrada'].map((t) => ({ value: t, label: TAREA_LABEL[t] }))}
+          />
+        </Field>
+      ) : (
+        <Muted style={{ marginBottom: space.sm }}>Tarea: {TAREA_LABEL[tareaDePreparacion(prep, vehicle)]}</Muted>
+      )}
       <View
         style={{
           flexDirection: 'row',

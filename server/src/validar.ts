@@ -61,7 +61,24 @@ export const TIPOS: ReadonlySet<string> = new Set<Command['type']>([
   'vehicle.deliver',
   'vehicle.create',
   'vehicle.setSalesRep',
+  'prep.setTarea',
+  'suelto.empezar',
+  'suelto.apuntar',
+  'suelto.pausar',
+  'suelto.reanudar',
+  'suelto.terminar',
+  'suelto.cancelar',
+  'tiempo.set',
+  'calendario.ficha',
+  'calendario.fichaBorrar',
+  'calendario.ausencia',
+  'calendario.ausenciaBorrar',
+  'calendario.festivo',
+  'calendario.festivoBorrar',
 ]);
+
+const TAREAS = ['vn', 'flota', 'vo_fondo', 'vo_repaso', 'repaso_entrega', 'carroceria'];
+const DIA = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * Números de la configuración que, si llegan mal, rompen la aplicación de
@@ -163,6 +180,8 @@ export function validarComando(cuerpo: unknown, userId: string, ahora = Date.now
 
   if (c.type.startsWith('prep.')) {
     const campos = c.type === 'prep.create' ? ['vehicleId', 'siteId'] : ['prepId'];
+    if (c.tarea !== undefined && !TAREAS.includes(String(c.tarea))) throw malaPeticion('Tarea no válida.');
+    if (c.type === 'prep.setTarea' && c.tarea === undefined) throw malaPeticion('Indica la tarea.');
     if (c.type === 'prep.item') campos.push('requirementId');
     for (const campo of campos) {
       if (typeof c[campo] !== 'string' || !(c[campo] as string).trim()) {
@@ -189,6 +208,45 @@ export function validarComando(cuerpo: unknown, userId: string, ahora = Date.now
         throw malaPeticion('Describe el daño detectado o indica que no hay daños.');
       }
     }
+  }
+  if (c.type === 'request.create' && c.tarea !== undefined && !TAREAS.includes(String(c.tarea))) {
+    throw malaPeticion('Tarea no válida.');
+  }
+  if (c.type.startsWith('suelto.')) {
+    if (c.type === 'suelto.empezar' || c.type === 'suelto.apuntar') {
+      if (typeof c.siteId !== 'string' || !c.siteId.trim()) throw malaPeticion('Indica la sede.');
+      if (typeof c.matricula !== 'string' || !c.matricula.trim() || c.matricula.length > 20) {
+        throw malaPeticion('Escribe la matrícula del coche.');
+      }
+      if (c.tarea !== 'carroceria') throw malaPeticion('Tarea no válida.');
+    } else if (typeof c.sueltoId !== 'string' || !c.sueltoId.trim()) {
+      throw malaPeticion('Falta el trabajo.');
+    }
+  }
+  if (c.type === 'tiempo.set') {
+    if (!TAREAS.includes(String(c.tarea))) throw malaPeticion('Tarea no válida.');
+    if (c.siteId !== null && (typeof c.siteId !== 'string' || !c.siteId.trim())) throw malaPeticion('Sede no válida.');
+    if (c.minutos !== null && !(typeof c.minutos === 'number' && Number.isInteger(c.minutos) && c.minutos > 0 && c.minutos <= 1440)) {
+      throw malaPeticion('Los minutos tienen que ser un número entero entre 1 y 1440.');
+    }
+  }
+  if (c.type === 'calendario.ficha') {
+    if (typeof c.preparadorId !== 'string' || !DIA.test(String(c.desde))) throw malaPeticion('Indica el preparador y desde qué día.');
+    if (!(typeof c.jornadaMinutos === 'number' && Number.isInteger(c.jornadaMinutos) && c.jornadaMinutos > 0 && c.jornadaMinutos <= 720)) {
+      throw malaPeticion('La jornada tiene que estar entre 1 minuto y 12 horas.');
+    }
+    if (!Array.isArray(c.reparto) || c.reparto.length === 0) throw malaPeticion('Indica al menos una sede.');
+    const total = (c.reparto as { pct?: unknown }[]).reduce((x, r) => x + (typeof r?.pct === 'number' ? r.pct : NaN), 0);
+    if (!Number.isFinite(total) || Math.abs(total - 100) > 0.5) throw malaPeticion('El reparto entre sedes tiene que sumar 100 %.');
+  }
+  if (c.type === 'calendario.ausencia') {
+    if (typeof c.preparadorId !== 'string' || !DIA.test(String(c.desde)) || !DIA.test(String(c.hasta)) || String(c.hasta) < String(c.desde)) {
+      throw malaPeticion('Indica el preparador y unas fechas válidas.');
+    }
+    if (!['vacaciones', 'baja', 'permiso', 'otro'].includes(String(c.tipo))) throw malaPeticion('Tipo de ausencia no válido.');
+  }
+  if (c.type === 'calendario.festivo') {
+    if (!DIA.test(String(c.fecha)) || typeof c.nombre !== 'string' || !c.nombre.trim()) throw malaPeticion('Indica la fecha y el nombre del festivo.');
   }
   if (c.type === 'request.create' && c.prepTipo !== undefined &&
       !['entrada', 'repaso'].includes(String(c.prepTipo))) {

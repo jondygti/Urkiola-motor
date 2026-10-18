@@ -13,6 +13,7 @@ import { DeadlineChip } from '@/features/common/DeadlineChip';
 import { FinishPrepModal } from '@/features/prep/FinishPrep';
 import { CampanaCheck } from '@/features/prep/CampanaCheck';
 import { UbicacionVehiculo } from '@/features/common/Ubicacion';
+import { CarroceriaPanel } from '@/features/prep/Carroceria';
 
 /**
  * Pantalla de trabajo del preparador.
@@ -126,6 +127,10 @@ export default function MyPrepScreen() {
               })}
             </>
           )}
+          {vista !== 'historial' ? <>
+            <Spacer h={space.md} />
+            <CarroceriaPanel onDone={setToast} />
+          </> : null}
         </View>
 
         {abierta ? (

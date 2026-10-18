@@ -1,7 +1,7 @@
 /**
  * Matriz de permisos: cada comando contra cada rol.
  *
- * La tabla de abajo dice, para los 44 comandos, quién debe poder ejecutarlos
+ * La tabla de abajo dice, para cada comando, quién debe poder ejecutarlos
  * y quién no. No es una comprobación de lo que hace el código: es lo que
  * TIENE que hacer, escrito aparte. Si alguien añade un comando y se olvida
  * de su permiso, o afloja uno sin querer, esto lo canta.
@@ -56,6 +56,15 @@ const PUEDEN: Record<string, Rol[]> = {
   'prep.resume': ['preparador'],
   'prep.item': ['preparador'],
   'prep.finish': ['preparador'],
+  // Qué tarea es decide contra qué tiempo se mide: lo corrige quien reparte.
+  'prep.setTarea': ['admin', 'logistica'],
+  // La carrocería la apunta quien la hace; la oficina puede corregirla.
+  'suelto.empezar': ['preparador'],
+  'suelto.apuntar': ['preparador'],
+  'suelto.pausar': ['admin', 'logistica', 'preparador'],
+  'suelto.reanudar': ['admin', 'logistica', 'preparador'],
+  'suelto.terminar': ['admin', 'logistica', 'preparador'],
+  'suelto.cancelar': ['admin', 'logistica', 'preparador'],
 
   // Recuentos
   'count.create': ['admin', 'logistica', 'preparador', 'recepcion'],
@@ -115,6 +124,14 @@ const PUEDEN: Record<string, Rol[]> = {
   'customField.delete': ['admin'],
   'carrier.upsert': ['admin'],
   'carrier.delete': ['admin'],
+  // Tiempos estándar y calendario de preparadores.
+  'tiempo.set': ['admin'],
+  'calendario.ficha': ['admin'],
+  'calendario.fichaBorrar': ['admin'],
+  'calendario.ausencia': ['admin'],
+  'calendario.ausenciaBorrar': ['admin'],
+  'calendario.festivo': ['admin'],
+  'calendario.festivoBorrar': ['admin'],
 };
 
 /**
@@ -162,6 +179,12 @@ function ejemplos(s: AppState): Record<string, CommandInput> {
   const campo = s.config.customFields[0];
   const empresa = s.carriers[0];
   const requisito = s.config.requirements[0];
+  // Una carrocería del primer preparador, que es el que hace de «preparador».
+  const preparador = s.users.find((u) => u.role === 'preparador')!;
+  const suelto = (s.trabajosSueltos ?? []).find((t) => t.preparerId === preparador.id)!;
+  const ficha = (s.fichasLaborales ?? [])[0];
+  const ausencia = (s.ausencias ?? [])[0];
+  const festivo = (s.config.festivos ?? [])[0];
 
   return {
     'vehicle.check': { type: 'vehicle.check', vehicleId: vehiculo.id },
@@ -260,6 +283,23 @@ function ejemplos(s: AppState): Record<string, CommandInput> {
     'customField.delete': { type: 'customField.delete', fieldId: campo.id },
     'carrier.upsert': { type: 'carrier.upsert', carrier: empresa },
     'carrier.delete': { type: 'carrier.delete', carrierId: empresa.id },
+    'prep.setTarea': { type: 'prep.setTarea', prepId: prep.id, tarea: 'vo_fondo' },
+    'suelto.empezar': { type: 'suelto.empezar', siteId: 'leioa', matricula: '1234ABC', tarea: 'carroceria' },
+    'suelto.apuntar': { type: 'suelto.apuntar', siteId: 'leioa', matricula: '1234ABC', tarea: 'carroceria' },
+    'suelto.pausar': { type: 'suelto.pausar', sueltoId: suelto.id },
+    'suelto.reanudar': { type: 'suelto.reanudar', sueltoId: suelto.id },
+    'suelto.terminar': { type: 'suelto.terminar', sueltoId: suelto.id },
+    'suelto.cancelar': { type: 'suelto.cancelar', sueltoId: suelto.id },
+    'tiempo.set': { type: 'tiempo.set', tarea: 'vn', siteId: null, minutos: 110 },
+    'calendario.ficha': {
+      type: 'calendario.ficha', preparadorId: preparador.id, desde: '2026-11-01', jornadaMinutos: 460,
+      reparto: [{ siteId: 'leioa', pct: 100 }],
+    },
+    'calendario.fichaBorrar': { type: 'calendario.fichaBorrar', fichaId: ficha.id },
+    'calendario.ausencia': { type: 'calendario.ausencia', preparadorId: preparador.id, desde: '2026-11-02', hasta: '2026-11-03', tipo: 'vacaciones' },
+    'calendario.ausenciaBorrar': { type: 'calendario.ausenciaBorrar', ausenciaId: ausencia.id },
+    'calendario.festivo': { type: 'calendario.festivo', fecha: '2026-11-01', siteId: null, nombre: 'Todos los Santos' },
+    'calendario.festivoBorrar': { type: 'calendario.festivoBorrar', festivoId: festivo.id },
   };
 }
 
