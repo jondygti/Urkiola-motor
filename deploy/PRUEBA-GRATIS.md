@@ -63,10 +63,12 @@ empresa** (eso es `render.yaml` y `deploy/README.md`).
 1. En GitHub: **Actions → APK de prueba → Run workflow**.
 2. En «Dirección del servidor» pon la de Render (`https://easo-logistics-prueba.onrender.com`
    o la que te haya dado) y pulsa **Run workflow**.
-3. Tarda unos 15 minutos. Cuando salga en verde, entra en la ejecución y, abajo, en
-   **Artifacts**, descarga el APK.
-4. Pásalo al móvil (correo, WhatsApp, cable…) y ábrelo. Android pedirá permitir instalar
-   apps de esta fuente: acéptalo solo para esto.
+3. Tarda unos 15 minutos. Cuando salga en verde, el APK queda siempre en la misma
+   dirección, que se abre directamente desde el navegador del móvil:
+   https://github.com/jondygti/Urkiola-motor/releases/download/apk-prueba/easo-logistics.apk
+   (también en la propia ejecución, abajo, en **Artifacts**).
+4. Ábrelo en el móvil. Android pedirá permitir instalar apps de esta fuente: acéptalo
+   solo para esto.
 
 El APK solo funciona en móviles Android de los últimos años (procesador de 64 bits,
 que es lo que llevan casi todos desde hace tiempo).
