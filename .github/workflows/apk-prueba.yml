@@ -31,7 +31,7 @@ jobs:
   apk:
     name: Compilar APK
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 45
     env:
       # La dirección se incrusta al compilar (regla 8): un APK habla siempre
       # con el servidor con el que se compiló.
@@ -61,6 +61,19 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Generar el proyecto Android
         run: npx expo prebuild --platform android --no-install --clean
+      - name: Ajustar la compilación
+        working-directory: android
+        # Con la memoria de serie, Gradle se quedaba sin «Metaspace» a los
+        # 15 minutos y se colgaba hasta que GitHub lo cortaba a la hora.
+        # Y solo se compila para arm64, que es lo que llevan los móviles de
+        # los últimos años: compilar las cuatro arquitecturas cuadruplicaba
+        # el tiempo para teléfonos que no va a usar nadie en la campa.
+        run: |
+          sed -i '/^org.gradle.jvmargs=/d; /^reactNativeArchitectures=/d' gradle.properties
+          {
+            echo 'org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8'
+            echo 'reactNativeArchitectures=arm64-v8a'
+          } >> gradle.properties
       - name: Compilar el APK
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon
