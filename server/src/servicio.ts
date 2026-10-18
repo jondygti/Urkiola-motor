@@ -236,7 +236,7 @@ export class Servicio {
 
     if (await this.almacen.hayCredenciales()) return;
 
-    if (config.produccion) {
+    if (config.produccion && !config.modoPrueba) {
       console.warn(
         'ATENCIÓN: no hay ninguna contraseña dada de alta y no se ha configurado ' +
           'URKIOLA_ADMIN_EMAIL / URKIOLA_ADMIN_PASSWORD. Nadie va a poder entrar.'
@@ -244,6 +244,9 @@ export class Servicio {
       return;
     }
 
+    // En un servidor de prueba en internet, la contraseña compartida tiene
+    // que cumplir lo mismo que cualquier otra (ya lo exige leerConfig).
+    if (config.modoPrueba) comprobarFortaleza(config.clavePruebas);
     for (const u of this.estadoActual.users) {
       await this.guardarCredencial(u.id, u.email, config.clavePruebas);
     }

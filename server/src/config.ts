@@ -51,6 +51,16 @@ export interface Config {
   /** Minutos que vale el enlace de restablecer. */
   minutosEnlace: number;
   produccion: boolean;
+  /**
+   * Servidor de prueba en internet con los datos de ejemplo
+   * (`URKIOLA_MODO=prueba`). Sirve para enseñar la plataforma funcionando
+   * de verdad —varios móviles, fotos, avisos— sin tocar datos de la empresa.
+   * No es producción: no lleva correo y todos los usuarios de ejemplo
+   * comparten la contraseña de `URKIOLA_CLAVE_PRUEBAS`, que aquí es
+   * obligatoria y fuerte. Con la de serie («urkiola») cualquiera que
+   * encontrase la dirección entraría como Gerencia.
+   */
+  modoPrueba: boolean;
 }
 
 function entero(valor: string | undefined, porDefecto: number): number {
@@ -89,16 +99,26 @@ export function leerConfig(env: NodeJS.ProcessEnv = process.env): Config {
     );
   }
 
+  const modoPrueba = env.URKIOLA_MODO === 'prueba';
+
   if (produccion) {
     const faltan: string[] = [];
     if (!env.DATABASE_URL) faltan.push('DATABASE_URL');
-    if (env.URKIOLA_SEMILLA !== 'vacia') faltan.push('URKIOLA_SEMILLA=vacia');
     if (!env.SUPABASE_URL) faltan.push('SUPABASE_URL');
     if (!env.SUPABASE_SERVICE_ROLE_KEY) faltan.push('SUPABASE_SERVICE_ROLE_KEY');
     if (!env.PUBLIC_URL) faltan.push('PUBLIC_URL');
-    if (!env.URKIOLA_ADMIN_EMAIL) faltan.push('URKIOLA_ADMIN_EMAIL');
-    if (!env.URKIOLA_ADMIN_PASSWORD) faltan.push('URKIOLA_ADMIN_PASSWORD');
-    if (!env.EMAIL_API_KEY) faltan.push('EMAIL_API_KEY');
+    if (modoPrueba) {
+      // Datos de ejemplo, sí; contraseña de ejemplo, no.
+      const clave = (env.URKIOLA_CLAVE_PRUEBAS ?? '').trim();
+      if (clave.length < 12 || /urkiola|contrase|123456|password|qwerty|abc123/i.test(clave)) {
+        faltan.push('URKIOLA_CLAVE_PRUEBAS (12 caracteres como mínimo y nada fácil de adivinar)');
+      }
+    } else {
+      if (env.URKIOLA_SEMILLA !== 'vacia') faltan.push('URKIOLA_SEMILLA=vacia');
+      if (!env.URKIOLA_ADMIN_EMAIL) faltan.push('URKIOLA_ADMIN_EMAIL');
+      if (!env.URKIOLA_ADMIN_PASSWORD) faltan.push('URKIOLA_ADMIN_PASSWORD');
+      if (!env.EMAIL_API_KEY) faltan.push('EMAIL_API_KEY');
+    }
     if (faltan.length) {
       throw new Error(
         'Configuración de producción incompleta. El servidor no arrancará en modo degradado: ' +
@@ -132,5 +152,6 @@ export function leerConfig(env: NodeJS.ProcessEnv = process.env): Config {
     urlPublica: (env.PUBLIC_URL ?? (origenes[0] === '*' ? '' : origenes[0]) ?? '').replace(/\/+$/, ''),
     minutosEnlace: entero(env.URKIOLA_MINUTOS_ENLACE, 60),
     produccion,
+    modoPrueba,
   };
 }
