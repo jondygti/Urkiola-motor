@@ -1,0 +1,80 @@
+name: APK de prueba
+
+# Compila la app de Android como APK para instalarla a mano, fuera de
+# Google Play, apuntando al servidor que se le diga. Se lanza a mano desde
+# GitHub → Actions → «APK de prueba» → «Run workflow»; el APK queda para
+# descargar en la propia ejecución. Paso a paso en deploy/PRUEBA-GRATIS.md.
+#
+# No usa EAS ni ninguna cuenta de Expo: compila con Gradle en la máquina de
+# GitHub. Firma con la clave de depuración pública de React Native, así que
+# sirve para pruebas y nunca para Google Play; a cambio, cada APK nuevo se
+# instala encima del anterior sin perder la sesión.
+
+on:
+  workflow_dispatch:
+    inputs:
+      servidor:
+        description: 'Dirección del servidor, por ejemplo https://easo-logistics-prueba.onrender.com'
+        required: true
+  # TEMPORAL: para probar la compilación en la rama antes de fusionarla.
+  push:
+    branches: [modo-prueba]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apk-prueba
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    name: Compilar APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      # La dirección se incrusta al compilar (regla 8): un APK habla siempre
+      # con el servidor con el que se compiló.
+      EXPO_PUBLIC_API_URL: ${{ inputs.servidor || 'https://easo-logistics-prueba.onrender.com' }}
+      EXPO_NO_TELEMETRY: 1
+      NODE_ENV: production
+    steps:
+      - name: Comprobar la dirección del servidor
+        run: |
+          if ! printf '%s' "$EXPO_PUBLIC_API_URL" | grep -Eq '^https://[A-Za-z0-9.-]+(:[0-9]+)?/?$'; then
+            echo "La dirección tiene que ser https://algo, sin rutas detrás. Recibido: $EXPO_PUBLIC_API_URL"
+            exit 1
+          fi
+          echo "EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL%/}" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Instalar dependencias
+        run: npm ci --no-audit --no-fund
+      - name: Generar el proyecto Android
+        run: npx expo prebuild --platform android --no-install --clean
+      - name: Compilar el APK
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon
+      - name: Nombre con fecha y servidor
+        run: |
+          host=$(printf '%s' "$EXPO_PUBLIC_API_URL" | sed -E 's#https://##; s#[/:]#-#g')
+          mkdir -p salida
+          cp android/app/build/outputs/apk/release/app-release.apk "salida/easo-logistics-${host}-$(date +%Y%m%d-%H%M).apk"
+      - name: Dejar el APK para descargar
+        uses: actions/upload-artifact@v7
+        with:
+          name: easo-logistics-apk
+          path: salida/*.apk
+          if-no-files-found: error
+          retention-days: 30
+          # El APK tal cual, no dentro de un zip: se descarga y se instala.
+          archive: false
