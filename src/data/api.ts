@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
 import type { AppState } from './types';
 import type { Command } from './commands';
 
@@ -137,20 +139,9 @@ export const api = {
    * vez de descubrirlo cuando alguien va a reclamar al transportista.
    */
   subirFoto: async (uri: string): Promise<string> => {
-    const origen = await fetch(uri);
-    const blob = await origen.blob();
-    const res = await fetch(`${API_URL}/fotos`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': blob.type || 'image/jpeg',
-        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-      },
-      body: blob,
-    });
-    if (!res.ok) {
-      throw new ApiError(res.status, `${res.status} ${res.statusText}`);
-    }
-    const { id } = (await res.json()) as { id: string };
+    const { status, body } = await subirFichero(`${API_URL}/fotos`, uri);
+    if (status < 200 || status >= 300) throw new ApiError(status, mensajeDe(body, status));
+    const { id } = JSON.parse(body) as { id: string };
     return `foto:${id}`;
   },
   /**
@@ -159,16 +150,9 @@ export const api = {
    */
   subirMiniatura: async (ref: string, uri: string): Promise<void> => {
     if (!ref.startsWith('foto:')) return;
-    const blob = await (await fetch(uri)).blob();
-    const res = await fetch(`${API_URL}/fotos/${encodeURIComponent(ref.slice('foto:'.length))}/miniatura`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': blob.type || 'image/jpeg',
-        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-      },
-      body: blob,
-    });
-    if (!res.ok) throw new ApiError(res.status, `${res.status} ${res.statusText}`);
+    const url = `${API_URL}/fotos/${encodeURIComponent(ref.slice('foto:'.length))}/miniatura`;
+    const { status, body } = await subirFichero(url, uri);
+    if (status < 200 || status >= 300) throw new ApiError(status, mensajeDe(body, status));
   },
   /**
    * Direcciones temporales de las miniaturas de una lista entera, en una
@@ -192,3 +176,53 @@ export const api = {
       body: JSON.stringify({ token }),
     }),
 };
+
+/** Tipo de imagen por la extensión del fichero; la cámara de Android saca JPEG. */
+function tipoDe(uri: string, deBlob?: string): string {
+  if (deBlob) return deBlob;
+  const ext = uri.split('?')[0].split('.').pop()?.toLowerCase();
+  return ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : ext === 'heic' ? 'image/heic'
+    : ext === 'pdf' ? 'application/pdf' : 'image/jpeg';
+}
+
+/** El mensaje del servidor si lo hay («La foto está vacía.»), o el código. */
+function mensajeDe(body: string, status: number): string {
+  try {
+    const m = (JSON.parse(body) as { error?: string; mensaje?: string }).error ?? (JSON.parse(body) as { mensaje?: string }).mensaje;
+    if (m) return m;
+  } catch {
+    /* no era JSON */
+  }
+  return `Error ${status} al subir la foto`;
+}
+
+/**
+ * Sube un fichero del dispositivo tal cual, como cuerpo de la petición.
+ *
+ * En el móvil va por la subida nativa de `expo-file-system` (la misma
+ * librería que ya usa la cola de fotos sin cobertura). Antes se hacía
+ * igual que en la web —leer el fichero como Blob y mandarlo con `fetch`—, y
+ * en Android eso envía el cuerpo VACÍO: el servidor contestaba «la foto está
+ * vacía» y ninguna foto llegaba nunca. En el navegador funcionaba, por eso
+ * las pruebas automáticas, que van en navegador, no lo vieron.
+ */
+async function subirFichero(url: string, uri: string): Promise<{ status: number; body: string }> {
+  const cabeceras: Record<string, string> = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+  if (Platform.OS !== 'web') {
+    const tipo = tipoDe(uri);
+    const r = await FileSystem.uploadAsync(url, uri, {
+      httpMethod: 'POST',
+      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+      mimeType: tipo,
+      headers: { ...cabeceras, 'Content-Type': tipo },
+    });
+    return { status: r.status, body: r.body };
+  }
+  const blob = await (await fetch(uri)).blob();
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { ...cabeceras, 'Content-Type': tipoDe(uri, blob.type) },
+    body: blob,
+  });
+  return { status: res.status, body: await res.text() };
+}
