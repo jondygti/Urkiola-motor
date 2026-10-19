@@ -7,7 +7,7 @@ import { API_URL, ApiError, api, apiEnabled, haySesion, setAuthToken } from './a
 import { buildSeedState } from './seed';
 import { registerForPush } from './push';
 import { isSimpleRole } from './selectors';
-import { confirmarFotosPendientes, resolverFotosPendientes } from './photoQueue';
+import { confirmarFotosPendientes, referenciasDe, resolverFotosPendientes } from './photoQueue';
 import {
   borrarTokenSeguro,
   guardarTokenSeguro,
@@ -138,6 +138,15 @@ interface StoreValue {
   run: (cmd: CommandInput) => Command;
   /** Fuerza un intento de subida (botón «reintentar»). */
   flushNow: () => void;
+  /**
+   * Vuelve a mandar una acción que el servidor rechazó. Sirve cuando el
+   * rechazo era un fallo ya arreglado: la primera foto desde Android llegaba
+   * vacía y la incidencia entera se quedaba rechazada, con su foto guardada
+   * en el móvil. Sin esto el aviso no se podía quitar nunca.
+   */
+  reintentarRechazada: (commandId: Id) => void;
+  /** La quita para siempre, y con ella las fotos que solo eran suyas. */
+  descartarRechazada: (commandId: Id) => void;
   /**
    * Entra en la aplicación.
    *
@@ -560,10 +569,33 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const sync = useMemo<SyncStatus>(() => ({
     online, pending: queue.length, syncing, lastSyncAt, error, rejected,
   }), [online, queue.length, syncing, lastSyncAt, error, rejected]);
+  const reintentarRechazada = useCallback((commandId: Id) => {
+    const r = rejectedRef.current.find((x) => x.command.id === commandId);
+    if (!r) return;
+    // Al final de la cola, con su id de siempre: si el servidor ya la
+    // tuviera, la descarta como repetida en vez de aplicarla dos veces.
+    cambiarTrabajo(
+      [...queueRef.current.filter((c) => c.id !== commandId), r.command],
+      rejectedRef.current.filter((x) => x.command.id !== commandId)
+    );
+    setState(applyAll(confirmado.current, queueRef.current));
+    dirty.current = true;
+    void sincronizar();
+  }, [cambiarTrabajo, sincronizar]);
+
+  const descartarRechazada = useCallback((commandId: Id) => {
+    const r = rejectedRef.current.find((x) => x.command.id === commandId);
+    if (!r) return;
+    const quedan = rejectedRef.current.filter((x) => x.command.id !== commandId);
+    cambiarTrabajo(queueRef.current, quedan);
+    void confirmarFotosPendientes(referenciasDe(r.command), [...queueRef.current, ...quedan.map((x) => x.command)])
+      .catch(() => undefined);
+  }, [cambiarTrabajo]);
+
   const value = useMemo<StoreValue>(() => ({
     state, ready, mode: apiEnabled ? 'api' : 'demo', user, sync, run,
-    flushNow: () => { void sincronizar(); }, login, logout, resetDemo,
-  }), [state, ready, user, sync, run, sincronizar, login, logout, resetDemo]);
+    flushNow: () => { void sincronizar(); }, reintentarRechazada, descartarRechazada, login, logout, resetDemo,
+  }), [state, ready, user, sync, run, sincronizar, reintentarRechazada, descartarRechazada, login, logout, resetDemo]);
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
 
