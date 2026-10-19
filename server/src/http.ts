@@ -164,7 +164,13 @@ export function crearServidor(servicio: Servicio, config: Config): http.Server {
       }
 
       const salida = await enrutar(servicio, config, req, ruta, res);
-      if (!salida) return; // ya ha respondido por su cuenta (una foto)
+      if (!salida) {
+        // Ya ha respondido por su cuenta (una foto). Se apunta igual: sin
+        // esto no había forma de saber si una foto se llegó a ver. La ruta
+        // va sin la parte de después del «?», que lleva el permiso de acceso.
+        registrar(req, ruta, 200, inicio);
+        return;
+      }
       responder(res, salida.codigo, salida.cuerpo);
       registrar(req, ruta, salida.codigo, inicio);
     } catch (e) {

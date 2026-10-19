@@ -209,14 +209,28 @@ function mensajeDe(body: string, status: number): string {
 async function subirFichero(url: string, uri: string): Promise<{ status: number; body: string }> {
   const cabeceras: Record<string, string> = authToken ? { Authorization: `Bearer ${authToken}` } : {};
   if (Platform.OS !== 'web') {
-    const tipo = tipoDe(uri);
-    const r = await FileSystem.uploadAsync(url, uri, {
-      httpMethod: 'POST',
-      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-      mimeType: tipo,
-      headers: { ...cabeceras, 'Content-Type': tipo },
-    });
-    return { status: r.status, body: r.body };
+    // La miniatura llega como `data:` (base64 en memoria) y la subida nativa
+    // solo sabe mandar ficheros: se escribe antes en un fichero temporal.
+    // Sin esto las miniaturas no subían nunca desde Android y las listas
+    // enseñaban siempre la marca en vez de la foto.
+    const datos = uri.match(/^data:([^;,]+);base64,(.*)$/s);
+    let fichero = uri;
+    if (datos) {
+      fichero = `${FileSystem.cacheDirectory}subida-${Date.now()}-${Math.random().toString(36).slice(2)}.${datos[1] === 'image/png' ? 'png' : 'jpg'}`;
+      await FileSystem.writeAsStringAsync(fichero, datos[2], { encoding: FileSystem.EncodingType.Base64 });
+    }
+    try {
+      const tipo = datos ? datos[1] : tipoDe(uri);
+      const r = await FileSystem.uploadAsync(url, fichero, {
+        httpMethod: 'POST',
+        uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+        mimeType: tipo,
+        headers: { ...cabeceras, 'Content-Type': tipo },
+      });
+      return { status: r.status, body: r.body };
+    } finally {
+      if (datos) await FileSystem.deleteAsync(fichero, { idempotent: true }).catch(() => undefined);
+    }
   }
   const blob = await (await fetch(uri)).blob();
   const res = await fetch(url, {
