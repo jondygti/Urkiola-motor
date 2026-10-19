@@ -476,6 +476,54 @@ try {
     await ctxScope.close();
   }
 
+  /* 11 · Una acción rechazada se puede revisar, reintentar y descartar. Antes
+     el aviso rojo no se quitaba nunca, ni con el fallo ya arreglado: la
+     primera foto desde Android llegaba vacía y la incidencia se quedaba
+     rechazada para siempre en el móvil. */
+  {
+    const admin = await entrar('admin@urkiolacarservice.com');
+    const coche = (await estadoDe(admin.token)).vehicles.find((v) => v.logisticActive && v.location);
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await page.goto(`${WEB}/login`, { waitUntil: 'networkidle' });
+    await page.getByPlaceholder('nombre@urkiolacarservice.com').fill(admin.user.email);
+    await page.getByPlaceholder('••••••••').fill(CLAVE);
+    await page.getByText('Entrar', { exact: true }).first().click();
+    await page.waitForURL((url) => url.pathname === '/');
+    const ahora = new Date().toISOString();
+    const valida = { type: 'vehicle.check', id: `cmd-rechazada-ok-${Date.now()}`, at: ahora, userId: admin.user.id, vehicleId: coche.id };
+    const mala = { type: 'vehicle.check', id: `cmd-rechazada-mal-${Date.now()}`, at: ahora, userId: admin.user.id, vehicleId: 'v-NOEXISTE' };
+    await page.evaluate(({ clave, trabajo }) => localStorage.setItem(clave, JSON.stringify(trabajo)), {
+      clave: `urkiola.api.${encodeURIComponent(API)}.user.${encodeURIComponent(admin.user.id)}.work`,
+      trabajo: { queue: [], rejected: [valida, mala].map((command) => ({ command, reason: 'La foto está vacía.', at: ahora })) },
+    });
+    await page.reload({ waitUntil: 'networkidle' });
+    const aviso = page.getByText('2 acciones rechazadas por el servidor');
+    await aviso.waitFor({ state: 'visible', timeout: 10000 });
+    ok('11 · el aviso de rechazadas sale', await aviso.isVisible());
+    await page.getByLabel('Revisar acciones rechazadas').click();
+    await page.locator('[data-testid="accion-rechazada"]').first().waitFor();
+    ok('11 · «Revisar» enseña cada una con su motivo',
+      (await page.locator('[data-testid="accion-rechazada"]').count()) === 2 &&
+      (await page.getByText('Motivo: La foto está vacía.').count()) === 2);
+    // La primera es la válida (van en el orden en que se guardaron).
+    await page.locator('[data-testid="accion-rechazada"]').first().getByText('Reintentar', { exact: true }).click();
+    await page.getByText('1 acción rechazada por el servidor').waitFor({ state: 'visible', timeout: 10000 });
+    // Reintentada, la comprobación llega al servidor.
+    let llego = false;
+    for (let i = 0; i < 20 && !llego; i++) {
+      const v = (await estadoDe(admin.token)).vehicles.find((x) => x.id === coche.id);
+      llego = v?.lastCheckAt === ahora;
+      if (!llego) await new Promise((r) => setTimeout(r, 500));
+    }
+    ok('11 · «Reintentar» la manda al servidor', llego);
+    // La ventana sigue abierta con la que queda.
+    await page.locator('[data-testid="accion-rechazada"]').first().getByText('Descartar', { exact: true }).click();
+    await page.getByText('acción rechazada por el servidor').waitFor({ state: 'detached', timeout: 10000 }).catch(() => undefined);
+    ok('11 · «Descartar» quita el aviso', (await page.getByText('rechazada por el servidor').count()) === 0);
+    await ctx.close();
+  }
+
   const bien = resumen();
   console.log(bien ? '\n✔ La app funciona contra el servidor.' : '\n✖ Hay comprobaciones que fallan.');
   process.exitCode = bien ? 0 : 1;
