@@ -341,6 +341,11 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
       return null;
     }
 
+    case 'request.setAccesorios':
+    case 'request.setOrden':
+      // La orden de Quiter la lleva la oficina, que es quien la abre.
+      return tiene(s, u, 'solicitudes.gestionar') ? null : 'No puedes gestionar las órdenes de trabajo.';
+
     case 'prep.setTarea':
       // Qué tarea es decide contra qué tiempo se mide el trabajo de alguien:
       // es de quien reparte, no de quien la hace.

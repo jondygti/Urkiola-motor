@@ -248,6 +248,17 @@ export interface ServiceRequest {
   /** Qué tarea se pide (VN, flota, VO a fondo…). Sin valor, la del coche. */
   tarea?: TareaPreparacion;
   /**
+   * Accesorios que necesita este coche (ids de requisitos con `accesorio`).
+   * Sin valor (solicitudes de antes), todos los de la lista.
+   */
+  accesorios?: Id[];
+  /**
+   * La orden de trabajo de Quiter de esta preparación: la abre Jon con la
+   * limpieza y preentrega y los accesorios pedidos, y apunta aquí su número.
+   * Los repasos no llevan orden.
+   */
+  ordenTrabajo?: { numero: string; at: ISODate; by: Id } | null;
+  /**
    * Por qué se entregó fuera de plazo.
    *
    * Queda registrado *que* se pasó de las 48 h, pero sin el motivo la
@@ -826,6 +837,13 @@ export interface Requirement {
   timed: boolean;
   /** Se marca "no requerido" por defecto salvo que aplique. */
   optional: boolean;
+  /**
+   * Es un accesorio que se pide en la orden de trabajo de Quiter
+   * (matrículas, alfombrillas, baliza, kit…). No todos los coches lo
+   * necesitan: quien pide la preparación marca cuáles, y los que no marca le
+   * salen al preparador como «no requerido».
+   */
+  accesorio?: boolean;
   order: number;
 }
 

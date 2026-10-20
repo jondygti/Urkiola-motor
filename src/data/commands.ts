@@ -49,6 +49,7 @@ import type {
 } from './types';
 import { REQUEST_STATUS_LABEL, TAREA_LABEL, TIPO_AUSENCIA_LABEL } from './types';
 import { mesAnterior, nombreDelMes, sedesConOcupacionAlta } from './ocupacion';
+import { accesoriosPara, aplicarAccesorios, llevaOrden } from './ordenTrabajo';
 import { minutosEstandar, tablaDeTiempos, tareaCompatible, tareaPorDefecto } from './tiempos';
 import { avisoPara, rolUsadoEnReglas, can } from './selectors';
 import { locationLabel, siteName, userName, vehicleTitle } from './format';
@@ -90,6 +91,8 @@ export type Command =
       prepTipo?: TipoPreparacion;
       /** Qué tarea (VN, flota, VO a fondo…). Sin ella, la que toca al coche. */
       tarea?: TareaPreparacion;
+      /** Accesorios que necesita el coche, para la orden de Quiter. */
+      accesorios?: Id[];
     }
   | {
       type: 'request.update';
@@ -138,6 +141,10 @@ export type Command =
    * el estándar nuevo: si no, se mediría contra el de la tarea equivocada.
    */
   | { type: 'prep.setTarea'; id: Id; at: string; userId: Id; prepId: Id; tarea: TareaPreparacion }
+  /** Cambia los accesorios pedidos. Lleva la lista que tiene que quedar. */
+  | { type: 'request.setAccesorios'; id: Id; at: string; userId: Id; requestId: Id; accesorios: Id[] }
+  /** Apunta (o quita, con null) el número de la orden de trabajo de Quiter. */
+  | { type: 'request.setOrden'; id: Id; at: string; userId: Id; requestId: Id; numero: string | null }
   /** Empieza un trabajo de carrocería sobre un coche que no está en la flota. */
   | { type: 'suelto.empezar'; id: Id; at: string; userId: Id; siteId: Id; matricula: string; tarea: 'carroceria' }
   /** Lo apunta ya hecho, sin cronómetro: cuenta su tiempo estándar. */
@@ -487,6 +494,12 @@ function addInbox(
 
 const AVISOS_DIAS = 60;
 const AVISOS_MAX = 5000;
+
+/** Solo los ids que son accesorio para ese tipo de coche, sin repetir. */
+function accesoriosValidos(state: AppState, tipo: VehicleType, ids: Id[]): Id[] {
+  const posibles = new Set(accesoriosPara(state, tipo).map((r) => r.id));
+  return [...new Set(ids.filter((id) => typeof id === 'string' && posibles.has(id)))];
+}
 
 /** AAAA-MM-DD válido. */
 function esDia(x: unknown): x is string {
@@ -1074,6 +1087,11 @@ function aplicar(state: AppState, cmd: Command): AppState {
         ...(cmd.requestType === 'preparacion' && cmd.tarea && tareaCompatible(cmd.prepTipo ?? 'entrada', cmd.tarea)
           ? { tarea: cmd.tarea }
           : {}),
+        // Solo los que existen como accesorio para este coche, y solo en una
+        // preparación: un repaso no lleva orden de trabajo.
+        ...(cmd.requestType === 'preparacion' && (cmd.prepTipo ?? 'entrada') === 'entrada' && Array.isArray(cmd.accesorios)
+          ? { accesorios: accesoriosValidos(state, vehicle.type, cmd.accesorios) }
+          : {}),
       };
       const vehiclePatch: Partial<Vehicle> =
         cmd.requestType === 'traslado'
@@ -1337,7 +1355,9 @@ function aplicar(state: AppState, cmd: Command): AppState {
         tarea,
         phase: 'pendiente',
         runState: 'pendiente',
-        items: checklistFor(state, vehicle, tipo),
+        // Los accesorios que no se han pedido le salen como «no requerido»:
+        // si no, el preparador va a por una baliza que nadie quiere.
+        items: aplicarAccesorios(checklistFor(state, vehicle, tipo), state.config.requirements, pedidoAbierto?.accesorios),
         effectiveMs: 0,
         waitingMs: 0,
         targetMs: target,
@@ -1739,6 +1759,50 @@ function aplicar(state: AppState, cmd: Command): AppState {
         vehicleId: p.vehicleId,
         kind: 'preparacion',
         title: `Tarea: ${TAREA_LABEL[cmd.tarea]}`,
+        detail: userName(state, cmd.userId),
+        at: cmd.at,
+        userId: cmd.userId,
+      });
+    }
+
+    /* --------------------------------------- orden de trabajo de Quiter */
+    case 'request.setAccesorios': {
+      const r = state.requests.find((x) => x.id === cmd.requestId);
+      const v = r ? state.vehicles.find((x) => x.id === r.vehicleId) : undefined;
+      if (!r || !v || !llevaOrden(r) || r.status === 'cancelada' || !Array.isArray(cmd.accesorios)) return state;
+      const accesorios = accesoriosValidos(state, v.type, cmd.accesorios);
+      // La preparación abierta de esa solicitud cambia con ella.
+      const preparations = state.preparations.map((p) =>
+        p.requestId === r.id && p.runState !== 'terminado' && p.runState !== 'cancelado'
+          ? { ...p, items: aplicarAccesorios(p.items, state.config.requirements, accesorios) }
+          : p
+      );
+      const next: AppState = { ...state, requests: replace(state.requests, r.id, { accesorios }), preparations };
+      return addEvent(next, {
+        vehicleId: r.vehicleId,
+        kind: 'solicitud',
+        title: 'Accesorios de la preparación',
+        detail: `${state.config.requirements.filter((x) => accesorios.includes(x.id)).map((x) => x.label).join(', ') || 'ninguno'} · ${userName(state, cmd.userId)}`,
+        at: cmd.at,
+        userId: cmd.userId,
+      });
+    }
+
+    case 'request.setOrden': {
+      const r = state.requests.find((x) => x.id === cmd.requestId);
+      if (!r || !llevaOrden(r)) return state;
+      const numero = typeof cmd.numero === 'string' ? cmd.numero.trim().slice(0, 30) : null;
+      if ((r.ordenTrabajo?.numero ?? null) === (numero || null)) return state;
+      const next: AppState = {
+        ...state,
+        requests: replace(state.requests, r.id, {
+          ordenTrabajo: numero ? { numero, at: cmd.at, by: cmd.userId } : null,
+        }),
+      };
+      return addEvent(next, {
+        vehicleId: r.vehicleId,
+        kind: 'solicitud',
+        title: numero ? `Orden de trabajo ${numero}` : 'Orden de trabajo quitada',
         detail: userName(state, cmd.userId),
         at: cmd.at,
         userId: cmd.userId,

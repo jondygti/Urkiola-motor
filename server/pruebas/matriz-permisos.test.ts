@@ -58,6 +58,9 @@ const PUEDEN: Record<string, Rol[]> = {
   'prep.finish': ['preparador'],
   // Qué tarea es decide contra qué tiempo se mide: lo corrige quien reparte.
   'prep.setTarea': ['admin', 'logistica'],
+  // La orden de trabajo de Quiter la abre la oficina.
+  'request.setAccesorios': ['admin', 'logistica'],
+  'request.setOrden': ['admin', 'logistica'],
   // La carrocería la apunta quien la hace; la oficina puede corregirla.
   'suelto.empezar': ['preparador'],
   'suelto.apuntar': ['preparador'],
@@ -284,6 +287,8 @@ function ejemplos(s: AppState): Record<string, CommandInput> {
     'carrier.upsert': { type: 'carrier.upsert', carrier: empresa },
     'carrier.delete': { type: 'carrier.delete', carrierId: empresa.id },
     'prep.setTarea': { type: 'prep.setTarea', prepId: prep.id, tarea: 'vo_fondo' },
+    'request.setAccesorios': { type: 'request.setAccesorios', requestId: solicitud.id, accesorios: ['req-baliza'] },
+    'request.setOrden': { type: 'request.setOrden', requestId: solicitud.id, numero: 'OT-1234' },
     'suelto.empezar': { type: 'suelto.empezar', siteId: 'leioa', matricula: '1234ABC', tarea: 'carroceria' },
     'suelto.apuntar': { type: 'suelto.apuntar', siteId: 'leioa', matricula: '1234ABC', tarea: 'carroceria' },
     'suelto.pausar': { type: 'suelto.pausar', sueltoId: suelto.id },
