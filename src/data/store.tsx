@@ -88,7 +88,9 @@ const TOKEN_KEY = 'urkiola.token.v1';
 // carrocería sin coche de la flota, el calendario de los preparadores y la
 // historia de dos meses de trabajo terminado de la demo. Una demo guardada
 // antes no tendría nada de eso y la ocupación saldría en gris.
-const STATE_SCHEMA_VERSION = 29;
+// 30: los requisitos de accesorios llevan la marca `accesorio` y las
+// solicitudes de preparación, sus accesorios y la orden de Quiter.
+const STATE_SCHEMA_VERSION = 30;
 
 interface StoredState {
   v: number;

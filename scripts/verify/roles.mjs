@@ -56,6 +56,24 @@ export async function ejecutar(browser, BASE) {
     ok('ADMIN · ve la jornada de cada preparador', calendario.includes('Pedro Larrea') && calendario.includes('7 h 40 min'));
     ok('ADMIN · y las vacaciones y festivos', calendario.includes('Vacaciones') && calendario.includes('San Marcial'));
 
+    // 2c · Las órdenes de trabajo de Quiter: las preparaciones pedidas sin
+    // orden, con sus líneas, y el número se apunta y la saca de la lista.
+    await page.goto(`${BASE}/solicitudes`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(900);
+    const ordenes = page.locator('[data-testid="orden-por-abrir"]');
+    const antesOrdenes = await ordenes.count();
+    ok('ADMIN · ve las órdenes de trabajo por abrir en Quiter', antesOrdenes > 0, `${antesOrdenes}`);
+    ok('ADMIN · cada una con limpieza y preentrega', (await ordenes.first().innerText()).includes('Limpieza y preentrega'));
+    await ordenes.first().getByPlaceholder('Nº de orden').fill('OT-PRUEBA-1');
+    await ordenes.first().getByText('Apuntar', { exact: true }).click();
+    await page.waitForTimeout(900);
+    const conOrden = (await estadoGuardado(page))?.requests?.find((r) => r.ordenTrabajo?.numero === 'OT-PRUEBA-1');
+    ok('ADMIN · apunta el número de la orden', !!conOrden);
+    ok('ADMIN · y sale de la lista', (await ordenes.count()) === antesOrdenes - 1);
+    // Lo que sigue es otra vez en Administración.
+    await page.goto(`${BASE}/administracion`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(900);
+
     // 3 · Da de alta un usuario nuevo.
     // Las pestañas de Administración son botones, no un desplegable.
     await pulsar(page, 'Usuarios y roles', { exact: true });

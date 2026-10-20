@@ -287,6 +287,14 @@ en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
   1 h 30 en Leioa y 2 h en Ford/Mazda, VO a fondo 4 h, repasos 30 min,
   carrocería 45 min; en Administración → Tiempos estándar) y el plazo
   comprometido (48 h). No mezclarlos.
+- **La orden de trabajo de Quiter la abre Jon**, una por preparación, con
+  **limpieza y preentrega** siempre y los **accesorios que se pidieron**
+  (matrículas, alfombrillas, baliza, kit; requisitos con `accesorio`).
+  Quiter no deja escribir desde fuera, así que la app se la deja escrita en
+  Solicitudes → «Órdenes de trabajo por abrir en Quiter» para copiarla, y
+  guarda el número (`request.setOrden`). Los accesorios no pedidos le salen
+  al preparador como «no requerido». **Los repasos no llevan orden.**
+  `src/data/ordenTrabajo.ts`.
 - **La carrocería no es un coche de la flota**: el preparador apunta la
   matrícula (`TrabajoSuelto`) y solo cuenta para su ocupación. Darlo de alta
   como vehículo lo metería en la flota de todos.

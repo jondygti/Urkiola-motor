@@ -6,6 +6,7 @@ import { useStore, useTicker } from '@/data/store';
 import { prepElapsedMs, prepIsOverSla, prepProgress, prepWaitingMs } from '@/data/commands';
 import { formatDuration, formatShortDuration, siteName, userName, vehicleTitle } from '@/data/format';
 import { tareaDePreparacion } from '@/data/tiempos';
+import { lineasOrden } from '@/data/ordenTrabajo';
 import {
   PREP_PHASES,
   PREP_PHASE_LABEL,
@@ -87,6 +88,17 @@ export function PrepPanel({
       {vehicle ? (
         <Muted style={{ marginTop: -6, marginBottom: space.sm }}>
           {vehicleTitle(vehicle)} · {siteName(state, prep.siteId)} · preparador {userName(state, prep.preparerId)} · Comercial: {comercialLabel(state, vehicle)}
+        </Muted>
+      ) : null}
+      {prep.tipo !== 'repaso' ? (
+        <Muted style={{ marginBottom: space.sm }}>
+          {(() => {
+            const r = state.requests.find((x) => x.id === prep.requestId);
+            if (!r) return 'Sin solicitud: no tiene orden de trabajo de Quiter.';
+            return r.ordenTrabajo
+              ? `Orden de trabajo ${r.ordenTrabajo.numero} · ${lineasOrden(state, r).join(', ')}`
+              : `Orden de trabajo por abrir · ${lineasOrden(state, r).join(', ')}`;
+          })()}
         </Muted>
       ) : null}
       {/* La tarea decide contra qué tiempo estándar se mide. La corrige

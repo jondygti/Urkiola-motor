@@ -14,6 +14,10 @@ import { FinishPrepModal } from '@/features/prep/FinishPrep';
 import { CampanaCheck } from '@/features/prep/CampanaCheck';
 import { UbicacionVehiculo } from '@/features/common/Ubicacion';
 import { CarroceriaPanel } from '@/features/prep/Carroceria';
+import type { AppState } from '@/data/types';
+
+/** Número de la orden de trabajo de Quiter de la solicitud de esta preparación. */
+const ordenDe = (s: AppState, p: Preparation) => s.requests.find((r) => r.id === p.requestId)?.ordenTrabajo?.numero ?? null;
 
 /**
  * Pantalla de trabajo del preparador.
@@ -386,6 +390,10 @@ function WorkModal({
           a por él, y después para saber de dónde salió. */}
       {vehicle?.deliveryDate ? <Text style={{ fontSize: campo.small, color: c.text, marginTop: 4 }}>
         Entrega: {formatDateTime(vehicle.deliveryDate)}
+      </Text> : null}
+      {/* El número de la orden de Quiter, para apuntar en ella lo que se use. */}
+      {ordenDe(state, prep) ? <Text style={{ fontSize: campo.small, color: c.text, marginTop: 4 }}>
+        Orden de trabajo: {ordenDe(state, prep)}
       </Text> : null}
       <UbicacionVehiculo vehicle={vehicle} esperadoEn={prep.siteId} />
       <Spacer h={space.sm} />

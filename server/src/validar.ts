@@ -62,6 +62,8 @@ export const TIPOS: ReadonlySet<string> = new Set<Command['type']>([
   'vehicle.create',
   'vehicle.setSalesRep',
   'prep.setTarea',
+  'request.setAccesorios',
+  'request.setOrden',
   'suelto.empezar',
   'suelto.apuntar',
   'suelto.pausar',
@@ -221,6 +223,20 @@ export function validarComando(cuerpo: unknown, userId: string, ahora = Date.now
       if (c.tarea !== 'carroceria') throw malaPeticion('Tarea no válida.');
     } else if (typeof c.sueltoId !== 'string' || !c.sueltoId.trim()) {
       throw malaPeticion('Falta el trabajo.');
+    }
+  }
+  if (c.type === 'request.create' && c.accesorios !== undefined &&
+      (!Array.isArray(c.accesorios) || c.accesorios.some((x) => typeof x !== 'string'))) {
+    throw malaPeticion('Los accesorios tienen que ser una lista.');
+  }
+  if (c.type === 'request.setAccesorios') {
+    if (typeof c.requestId !== 'string' || !Array.isArray(c.accesorios) || c.accesorios.some((x) => typeof x !== 'string')) {
+      throw malaPeticion('Indica la solicitud y la lista de accesorios.');
+    }
+  }
+  if (c.type === 'request.setOrden') {
+    if (typeof c.requestId !== 'string' || (c.numero !== null && (typeof c.numero !== 'string' || c.numero.length > 30))) {
+      throw malaPeticion('El número de orden tiene que ser un texto de hasta 30 caracteres.');
     }
   }
   if (c.type === 'tiempo.set') {

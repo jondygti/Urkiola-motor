@@ -286,3 +286,16 @@ entrada. Las configuraciones antiguas del menú móvil siguen funcionando.
   tiempo estándar. No da de alta ningún coche: solo cuenta su tiempo.
 - **Sede nueva: Ford/Mazda Galdakao**, del grupo Easo. Prepara y se gestiona
   como Bizkaia (Grúas Francis).
+
+## Actualización: orden de trabajo de Quiter
+
+- **Pedir servicio → «Accesorios que necesita».** Matrículas, alfombrillas,
+  baliza y kit reparapinchazos, marcados de entrada salvo las matrículas si
+  el coche ya las tiene. La limpieza y la preentrega van siempre.
+- **Solicitudes → «Órdenes de trabajo por abrir en Quiter».** Cada
+  preparación pedida sin orden, con sus líneas, «Copiar orden» (coche,
+  bastidor, matrícula, sede y líneas, para pegar en Quiter), «Accesorios» para
+  cambiarlos y el hueco del número. Al apuntarlo sale de la lista.
+- **En la preparación** se ve el número de orden; al preparador, solo los
+  accesorios pedidos (el resto, «no requerido»).
+- Los repasos de entrega no llevan orden.
