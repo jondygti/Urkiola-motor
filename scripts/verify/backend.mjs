@@ -108,7 +108,7 @@ try {
   page.on('pageerror', (e) => errores.push(String(e).slice(0, 200)));
   page.on('console', (m) => m.type() === 'error' && errores.push(m.text().slice(0, 200)));
 
-  await page.goto(`${WEB}/login`, { waitUntil: 'networkidle' });
+  await page.goto(`${WEB}/login`, { waitUntil: 'load' });
   await page.waitForTimeout(800);
   ok('1 · pide contraseña, no un perfil de la lista', await page.getByText('Contraseña').first().isVisible());
 
@@ -131,7 +131,7 @@ try {
   const antes = await estadoDe(tokenPedro);
   const coche = antes.vehicles.find((v) => v.location?.siteId === 'leioa' && v.plate);
 
-  await page.goto(`${WEB}/mover`, { waitUntil: 'networkidle' });
+  await page.goto(`${WEB}/mover`, { waitUntil: 'load' });
   await page.waitForTimeout(900);
   await page.getByPlaceholder('1234 ABC').fill(coche.plate);
   await page.waitForTimeout(600);
@@ -184,7 +184,7 @@ try {
       title: 'Apunte antiguo del servidor', detail: 'solo en el servidor', at: '2025-01-15T09:00:00.000Z', userId: null });
     await route.fulfill({ response: r, json: cuerpo });
   });
-  await page.goto(`${WEB}/vehiculo/${encodeURIComponent(coche.id)}`, { waitUntil: 'networkidle' });
+  await page.goto(`${WEB}/vehiculo/${encodeURIComponent(coche.id)}`, { waitUntil: 'load' });
   await page.waitForTimeout(1200);
   ok('4 · la ficha enseña el historial que solo tiene el servidor',
     await page.getByText('Apunte antiguo del servidor', { exact: false }).first().isVisible().catch(() => false));
@@ -193,7 +193,7 @@ try {
   /* ------------------------------------- 3 · otro dispositivo lo ve */
   const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page2 = await ctx2.newPage();
-  await page2.goto(`${WEB}/login`, { waitUntil: 'networkidle' });
+  await page2.goto(`${WEB}/login`, { waitUntil: 'load' });
   await page2.waitForTimeout(800);
   await page2.getByPlaceholder('nombre@urkiolacarservice.com').fill('logistica@urkiolacarservice.com');
   await page2.getByPlaceholder('••••••••').fill(CLAVE);
@@ -209,6 +209,26 @@ try {
     cocheAlli?.location?.zoneId === movimiento?.to.zoneId,
     `${cocheAlli?.location?.zoneId ?? 'sin ubicación'} (esperado ${movimiento?.to.zoneId})`
   );
+
+  // Sin refrescar: con la pantalla de logística abierta, otro da de alta un
+  // coche y tiene que aparecerle solo, en segundos, no al cabo de 30 s.
+  {
+    const { token: tokenAdmin } = await entrar('admin@urkiolacarservice.com');
+    await page2.waitForTimeout(1500);
+    const inicio = Date.now();
+    const alta = await fetch(`${API}/commands`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenAdmin}` },
+      body: JSON.stringify({ type: 'vehicle.create', id: 'cmd-verify-en-vivo', at: new Date().toISOString(), userId: 'u-admin',
+        vin8: 'ENVIVO01', brand: 'Peugeot', location: { siteId: 'sondika' } }),
+    });
+    let visto = false;
+    while (!visto && Date.now() - inicio < 8_000) {
+      await page2.waitForTimeout(400);
+      visto = !!(await estadoGuardado(page2))?.vehicles?.some((v) => v.id === 'v-ENVIVO01');
+    }
+    ok('5 · le aparece sin refrescar la pantalla', alta.status === 200 && visto, `${((Date.now() - inicio) / 1000).toFixed(1)} s`);
+  }
 
   /* --------------------------------- 4 · el externo sigue viendo poco */
   const { token: tokenIker } = await entrar('transporte@urkiolacarservice.com');
@@ -287,7 +307,7 @@ try {
 
     // Una foto sin miniatura (las hechas antes de que existieran) no deja
     // un hueco en blanco en la lista: sale la marca del coche.
-    await page2.goto(`${WEB}/mover`, { waitUntil: 'networkidle' });
+    await page2.goto(`${WEB}/mover`, { waitUntil: 'load' });
     await page2.getByPlaceholder('1234 ABC').fill(cocheRecepcion.plate ?? cocheRecepcion.vin8);
     await page2.waitForTimeout(2500);
     ok(
@@ -319,7 +339,7 @@ try {
     const vistaMini = urls?.[idFoto] ? await fetch(`${API}${urls[idFoto]}`) : null;
     ok('5 · y otra cuenta la ve con un solo acceso para toda la lista', vistaMini?.status === 200, urls?.[idFoto] ?? 'sin URL');
 
-    await page2.goto(`${WEB}/mover`, { waitUntil: 'networkidle' });
+    await page2.goto(`${WEB}/mover`, { waitUntil: 'load' });
     await page2.getByPlaceholder('1234 ABC').fill(cocheRecepcion.plate ?? cocheRecepcion.vin8);
     await page2.waitForTimeout(2500);
     const src = await page2
@@ -336,7 +356,7 @@ try {
     const ctx3 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     const olvido = await ctx3.newPage();
 
-    await olvido.goto(`${WEB}/login`, { waitUntil: 'networkidle' });
+    await olvido.goto(`${WEB}/login`, { waitUntil: 'load' });
     await olvido.waitForTimeout(900);
     await olvido.getByPlaceholder('nombre@urkiolacarservice.com').fill('ane@urkiolacarservice.com');
     await olvido.waitForTimeout(200);
@@ -360,7 +380,7 @@ try {
 
     if (codigo) {
       await olvido.goto(`${WEB}/restablecer?codigo=${encodeURIComponent(codigo)}`, {
-        waitUntil: 'networkidle',
+        waitUntil: 'load',
       });
       await olvido.waitForTimeout(1100);
       await olvido.getByPlaceholder('Al menos 12 caracteres').fill('cuatro ruedas y un motor');
@@ -462,14 +482,14 @@ try {
     }
     const ctxScope = await browser.newContext();
     const pageScope = await ctxScope.newPage();
-    await pageScope.goto(`${WEB}/login`, { waitUntil: 'networkidle' });
+    await pageScope.goto(`${WEB}/login`, { waitUntil: 'load' });
     await pageScope.getByPlaceholder('nombre@urkiolacarservice.com').fill(session.user.email);
     await pageScope.getByPlaceholder('••••••••').fill(CLAVE);
     await pageScope.getByText('Entrar', { exact: true }).first().click();
     // Esperar el destino final del login: / es una redirección intermedia.
     await pageScope.waitForURL(url => url.pathname === '/flota');
     await pageScope.getByText('SCOPEVO1', { exact: true }).first().waitFor({ state: 'visible' });
-    await pageScope.goto(`${WEB}/vehiculo/${forbidden}`, { waitUntil: 'networkidle' });
+    await pageScope.goto(`${WEB}/vehiculo/${forbidden}`, { waitUntil: 'load' });
     // La hidratación y la restauración de sesión continúan tras networkidle.
     await pageScope.getByText('Vehículo no encontrado', { exact: true }).waitFor({ state: 'visible', timeout: 10000 }).catch(async e => { console.error('Ficha ajena:', pageScope.url(), await pageScope.locator('body').innerText()); throw e; });
     ok('10 · URL directa no revela ficha ajena', await pageScope.getByText('Vehículo no encontrado', { exact: true }).isVisible());
@@ -485,7 +505,7 @@ try {
     const coche = (await estadoDe(admin.token)).vehicles.find((v) => v.logisticActive && v.location);
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
-    await page.goto(`${WEB}/login`, { waitUntil: 'networkidle' });
+    await page.goto(`${WEB}/login`, { waitUntil: 'load' });
     await page.getByPlaceholder('nombre@urkiolacarservice.com').fill(admin.user.email);
     await page.getByPlaceholder('••••••••').fill(CLAVE);
     await page.getByText('Entrar', { exact: true }).first().click();
@@ -497,7 +517,7 @@ try {
       clave: `urkiola.api.${encodeURIComponent(API)}.user.${encodeURIComponent(admin.user.id)}.work`,
       trabajo: { queue: [], rejected: [valida, mala].map((command) => ({ command, reason: 'La foto está vacía.', at: ahora })) },
     });
-    await page.reload({ waitUntil: 'networkidle' });
+    await page.reload({ waitUntil: 'load' });
     const aviso = page.getByText('2 acciones rechazadas por el servidor');
     await aviso.waitFor({ state: 'visible', timeout: 10000 });
     ok('11 · el aviso de rechazadas sale', await aviso.isVisible());

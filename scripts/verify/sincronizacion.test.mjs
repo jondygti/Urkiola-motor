@@ -39,7 +39,12 @@ function sesion(db, user, estado) {
 async function dispositivo(t, { db = new Map(), remoto = seed.buildSeedState(), estadoApi, enviar, estricto = false } = {}) {
   const enviados = [];
   const intervalos = new Map();
-  let actual, token = null, appEvent, netEvent, fallaDisco = false;
+  let actual, token = null, netEvent, fallaDisco = false;
+  // Hay más de una cosa pendiente de que la app vuelva a primer plano.
+  const appEvents = new Set();
+  // `/cambios`: cada espera queda abierta hasta que la prueba anuncia un cambio.
+  let version = 1;
+  const esperas = new Set();
   let leer = estadoApi;
   let mandar = enviar;
   const storage = {
@@ -66,12 +71,20 @@ async function dispositivo(t, { db = new Map(), remoto = seed.buildSeedState(), 
       return { user, token: `token:${user.id}` };
     },
     async pushToken() {},
+    cambios(conocida, signal) {
+      if (conocida !== version) return Promise.resolve({ version });
+      return new Promise((resolve, reject) => {
+        const avisar = () => { esperas.delete(avisar); resolve({ version }); };
+        esperas.add(avisar);
+        signal?.addEventListener('abort', () => { esperas.delete(avisar); reject(new ApiError(0, 'cortada')); });
+      });
+    },
   };
   const deps = {
     react: React,
     '@react-native-async-storage/async-storage': storage,
     '@react-native-community/netinfo': { addEventListener(fn) { netEvent = fn; return () => {}; } },
-    'react-native': { AppState: { addEventListener(_, fn) { appEvent = fn; return { remove() {} }; } } },
+    'react-native': { AppState: { currentState: 'active', addEventListener(_, fn) { appEvents.add(fn); return { remove() { appEvents.delete(fn); } }; } } },
     './api': { API_URL: 'https://api.pruebas.invalid', apiEnabled: true, ApiError, api,
       haySesion: () => token !== null, setAuthToken: (v) => { token = v; } },
     './commands': commands, './seed': seed, './selectors': selectors,
@@ -106,7 +119,8 @@ async function dispositivo(t, { db = new Map(), remoto = seed.buildSeedState(), 
     set fallaDisco(v) { fallaDisco = v; },
     async entrar(user) { let fallo; await paso(async () => { fallo = await actual.login(user.email, ''); }); return fallo; },
     async reloj() { await paso(() => intervalos.get(30_000)?.()); },
-    async primerPlano() { await paso(() => appEvent?.('active')); },
+    async primerPlano() { await paso(() => { for (const fn of appEvents) fn('active'); }); },
+    async otroCambia() { version += 1; await paso(() => { for (const avisar of [...esperas]) avisar(); }); await paso(); },
     async conectar() { await paso(() => netEvent?.({ isConnected: true })); },
   };
 }
@@ -122,6 +136,17 @@ test('una pantalla sin pendientes recibe cambios al pasar el tiempo y al volver 
   cambiar('2222 DEF');
   await d.primerPlano();
   assert.equal(d.store.state.vehicles.find((v) => v.id === id).plate, '2222 DEF');
+  assert.equal(d.enviados.length, 0);
+});
+
+test('lo que cambia otro aparece solo, sin esperar al reloj ni volver al primer plano', async (t) => {
+  const d = await dispositivo(t);
+  assert.equal(await d.entrar(d.remoto.users[0]), null);
+  await paso();
+  const id = d.remoto.vehicles[0].id;
+  d.remoto = { ...d.remoto, vehicles: d.remoto.vehicles.map((v) => v.id === id ? { ...v, plate: '3333 GHJ' } : v) };
+  await d.otroCambia();
+  assert.equal(d.store.state.vehicles.find((v) => v.id === id).plate, '3333 GHJ');
   assert.equal(d.enviados.length, 0);
 });
 
