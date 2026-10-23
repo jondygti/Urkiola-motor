@@ -205,6 +205,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // Las respuestas de una sesión anterior no pueden tocar la sesión nueva.
   const generacion = useRef(0);
   const ocupada = useRef<number | null>(null);
+  // Un aviso de cambios que llega a mitad de una sincronización no se puede
+  // perder: lo que trae puede haberse guardado después de la descarga.
+  const otraVuelta = useRef(false);
   const persistencia = useRef<Promise<void>>(Promise.resolve());
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirty = useRef(false);
@@ -276,7 +279,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const sincronizar = useCallback(async function sincronizar() {
     const persona = userRef.current;
     const turno = generacion.current;
-    if (!apiEnabled || !persona || !haySesion() || ocupada.current === turno) return;
+    if (!apiEnabled || !persona || !haySesion()) return;
+    if (ocupada.current === turno) {
+      otraVuelta.current = true;
+      return;
+    }
+    otraVuelta.current = false;
     ocupada.current = turno;
     setSyncing(true);
     const vigente = () => generacion.current === turno && userRef.current?.id === persona.id;
@@ -365,7 +373,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (ocupada.current === turno) ocupada.current = null;
       if (vigente()) {
         setSyncing(false);
-        if (reintentar) void sincronizar();
+        if (reintentar || otraVuelta.current) void sincronizar();
       }
     }
   }, [cambiarTrabajo, guardar, persistirTrabajo, suspenderSesion]);
@@ -492,6 +500,50 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const timer = setInterval(() => { void sincronizar(); }, RETRY_MS);
     return () => { unsubscribe(); listener.remove(); clearInterval(timer); };
   }, [ready, sincronizar]);
+
+  // Lo que hacen los demás aparece solo, sin refrescar: se espera en
+  // `/cambios` y, cuando el servidor dice que hay algo nuevo, se sincroniza.
+  // En el móvil solo con la app delante; al volver a ella ya se sincroniza.
+  // La comprobación de cada 30 s se queda por si esto falla.
+  useEffect(() => {
+    if (!apiEnabled || !ready || !user) return;
+    let vivo = true;
+    let delante = RNAppState.currentState !== 'background';
+    let corte: AbortController | null = null;
+    let despertar: (() => void) | null = null;
+    const pausa = (ms: number) => new Promise<void>((r) => {
+      const t = setTimeout(() => { despertar = null; r(); }, ms);
+      despertar = () => { clearTimeout(t); despertar = null; r(); };
+    });
+    const escucha = RNAppState.addEventListener('change', (s) => {
+      delante = s !== 'background';
+      if (delante) despertar?.();
+      else corte?.abort();
+    });
+    void (async () => {
+      let version: number | null = null;
+      while (vivo) {
+        if (!delante || !haySesion()) {
+          await pausa(30_000);
+          continue;
+        }
+        corte = new AbortController();
+        try {
+          const r = await api.cambios(version, corte.signal);
+          if (!vivo) break;
+          if (version !== null && r.version !== version) void sincronizar();
+          version = r.version;
+        } catch (err) {
+          if (!vivo) break;
+          // Sin red o servidor dormido: se espera un poco y se vuelve a
+          // escuchar. El 401 lo resuelve la sincronización normal.
+          if (err instanceof ApiError && err.status === 401) void sincronizar();
+          await pausa(5_000);
+        }
+      }
+    })();
+    return () => { vivo = false; corte?.abort(); despertar?.(); escucha.remove(); };
+  }, [ready, user?.id, sincronizar]);
 
   const run = useCallback<StoreValue['run']>((partial) => {
     const persona = userRef.current;

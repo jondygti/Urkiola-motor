@@ -15,6 +15,7 @@ El código actual está en `server/`. La especificación exacta de comandos vive
 | POST | `/auth/restablecer` | recuperación actual |
 | GET | `/state` | estado autorizado del usuario (con los 4.000 apuntes y 300 avisos más recientes) |
 | GET | `/historial/:vehicleId` | historial completo de un coche; 404 si el coche no está en su estado autorizado y siempre para transportistas |
+| GET | `/cambios?version=N` | espera larga (hasta 25 s): contesta `{ version }` en cuanto se aplica un comando nuevo, o al acabar la espera. No dice qué ha cambiado; la app pide `/state` y recibe su recorte de siempre |
 | POST | `/commands` | aplicar un comando |
 | POST | `/fotos` | subir imagen/PDF; exige rol operativo con evidencia |
 | GET | `/fotos/:id` | recuperar archivo solo si la referencia forma parte del estado autorizado |

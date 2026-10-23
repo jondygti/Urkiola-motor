@@ -13,6 +13,7 @@ import type { Command } from './commands';
  * Contrato mínimo que debe implementar el backend (ver docs/BACKEND-API.md):
  *   POST /auth/login      { email, password }        -> { token, user }
  *   GET  /state                                      -> AppState
+ *   GET  /cambios?version=N                          -> { version } (espera)
  *   GET  /historial/:vehicleId                       -> { events }
  *   POST /commands        Command                    -> { ok: true }
  *   GET  /health                                     -> { ok: true }
@@ -55,9 +56,10 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init?: RequestInit, esperaMs = TIMEOUT_MS): Promise<T> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), esperaMs);
+  init?.signal?.addEventListener('abort', () => controller.abort());
 
   let res: Response;
   try {
@@ -104,6 +106,18 @@ export const api = {
       body: JSON.stringify({ codigo, nueva }),
     }),
   state: () => request<AppState>('/state'),
+  /**
+   * Espera a que alguien cambie algo. El servidor tiene la petición abierta
+   * hasta 25 s y contesta en cuanto hay un comando nuevo; entonces la app
+   * pide `/state`. Es lo que hace que un cambio salga en las demás pantallas
+   * sin refrescar.
+   */
+  cambios: (version: number | null, signal?: AbortSignal) =>
+    request<{ version: number }>(
+      `/cambios${version === null ? '' : `?version=${version}`}`,
+      { signal },
+      40_000
+    ),
   /**
    * Historial completo de un coche. `/state` trae solo lo reciente para no
    * llenar el móvil; la ficha lo pide entero cuando se abre.
