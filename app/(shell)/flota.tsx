@@ -264,20 +264,34 @@ export default function FleetScreen() {
   return (
     <ScreenGuard href="/flota" title="Flota">
     <Screen>
-      <H1>Flota</H1>
-      <Muted>
-        Por defecto se muestran los vehículos con actividad logística. El parque completo de Quiter puede
-        consultarse cuando sea necesario.
-      </Muted>
+      {/* Los filtros dicen solo su nombre mientras no se usan («Tipo»,
+          «Estado»): «Todos los comerciales» ocupaba el triple y la fila no
+          cabía. Con un valor elegido enseñan el valor. */}
+      {/* Título, cuenta y alta en una línea: lo que antes ocupaban un
+          párrafo explicativo y una fila de botones aparte. */}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.md, marginBottom: space.sm }}>
+        <View style={{ flexGrow: 1 }}>
+          <H1>Flota</H1>
+          <Muted>
+            {rows.length === 1 ? '1 vehículo' : `${rows.length} vehículos`}
+            {scope === 'activos' ? ' activos' : ' en el parque de Quiter'}
+          </Muted>
+        </View>
+        {can('flota.editar') ? (
+          <Btn icon="mas" variant="primary" onPress={() => setAltaOpen(true)}>
+            Dar de alta
+          </Btn>
+        ) : null}
+      </View>
 
       <Toolbar>
-        <Input value={query} onChangeText={setQuery} placeholder="Buscar VIN-8 / matrícula / modelo" autoCapitalize="characters" />
+        <Input value={query} onChangeText={setQuery} placeholder="Matrícula, bastidor o modelo" autoCapitalize="characters" />
         <Select
           value={scope}
           onChange={(v) => setScope(v as 'activos' | 'quiter')}
           title="Ámbito"
           options={[
-            { value: 'activos', label: 'Vehículos activos' },
+            { value: 'activos', label: 'Activos' },
             { value: 'quiter', label: 'Todo el parque Quiter' },
           ]}
         />
@@ -286,7 +300,7 @@ export default function FleetScreen() {
           onChange={setType}
           title="Tipo"
           options={[
-            { value: ALL, label: 'Todos los tipos' },
+            { value: ALL, label: 'Tipo' },
             { value: 'VN', label: 'VN' },
             { value: 'VO', label: 'VO' },
           ]}
@@ -296,7 +310,7 @@ export default function FleetScreen() {
           onChange={setRep}
           title="Comercial"
           options={[
-            { value: ALL, label: 'Todos los comerciales' },
+            { value: ALL, label: 'Comercial' },
             ...(esComercial ? [{ value: MIOS, label: `Solo los míos · ${user!.name}` }] : []),
             ...reps.map((r) => ({ value: r, label: r })),
             { value: '__none__', label: 'Sin asignar' },
@@ -317,7 +331,7 @@ export default function FleetScreen() {
           onChange={setSite}
           title="Ubicación"
           options={[
-            { value: ALL, label: 'Todas las ubicaciones' },
+            { value: ALL, label: 'Ubicación' },
             ...state.sites.map((s) => ({ value: s.id, label: s.name })),
           ]}
         />
@@ -326,12 +340,13 @@ export default function FleetScreen() {
           onChange={setStatus}
           title="Estado"
           options={[
-            { value: ALL, label: 'Todos los estados' },
+            { value: ALL, label: 'Estado' },
             ...Object.entries(VEHICLE_STATUS_LABEL).map(([value, label]) => ({ value, label })),
           ]}
         />
       </Toolbar>
 
+      {esComercial ? (
       <Toolbar>
         {esComercial ? (
           // El atajo que pide la operativa del comercial: sus coches y en
@@ -347,12 +362,8 @@ export default function FleetScreen() {
             Mis coches en preparación ({enPreparacion})
           </Btn>
         ) : null}
-        {can('flota.editar') ? (
-          <Btn icon="mas" variant="primary" onPress={() => setAltaOpen(true)}>
-            Dar de alta un vehículo
-          </Btn>
-        ) : null}
       </Toolbar>
+      ) : null}
 
       {toast ? (
         <>
@@ -376,14 +387,6 @@ export default function FleetScreen() {
       ) : null}
 
       <Panel>
-        <Notice>
-          <Text style={{ fontSize: tipografia.small, color: c.text }}>
-            <Text style={{ fontWeight: '800' }}>Filtros por columna: </Text>
-            se combinan entre sí y con la búsqueda. Las columnas que se ven, su orden y los campos propios se
-            configuran en Administración → Flota y columnas.
-          </Text>
-        </Notice>
-        <Spacer h={space.sm} />
         <DataTable
           columns={columns}
           rows={rows}
@@ -396,27 +399,6 @@ export default function FleetScreen() {
         />
       </Panel>
 
-      <Spacer h={space.lg} />
-
-      <Grid cols={1}>
-        <Panel icon="activacion" title="Activación logística">
-          <Muted>
-            Se puede importar todo el parque de Quiter, incluidos coches de clientes. Solo aparecen por defecto
-            en la operativa los que tienen actividad logística: {vehicles.filter((v) => v.logisticActive).length}{' '}
-            de {vehicles.length}.
-          </Muted>
-          <StatLine
-            items={[
-              { icon: 'ubicacion', text: 'Ubicación → Activo' },
-              { icon: 'movimientos', text: 'Movimiento → Activo' },
-              { icon: 'preparacion', text: 'Preparación → Activo' },
-              { icon: 'recuentos', text: 'Recuento → Activo' },
-              { icon: 'incidencias', text: 'Incidencia → Activo' },
-              { icon: 'solicitudes', text: 'Solicitud → Activo' },
-            ]}
-          />
-        </Panel>
-      </Grid>
 
       <NuevoVehiculoModal
         visible={altaOpen}

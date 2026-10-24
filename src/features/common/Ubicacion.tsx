@@ -37,7 +37,9 @@ export function UbicacionVehiculo({
   const loc = vehicle?.location ?? null;
   const fuera = !!esperadoEn && !!loc?.siteId && loc.siteId !== esperadoEn;
   const sinPlaza = !!loc?.zoneId && !loc.positionId;
-  const tono = !loc ? c.redFg : fuera ? c.amberFg : c.text;
+  // La ubicación va siempre en el color del texto; el aviso de que no está
+  // donde toca va debajo, en ámbar. Las dos en ámbar se leían como una sola.
+  const tono = !loc ? c.redFg : c.text;
 
   const texto = !loc
     ? 'Sin ubicación registrada'

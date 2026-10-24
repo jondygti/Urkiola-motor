@@ -223,11 +223,12 @@ function SideMenu({
 }
 
 function Badge({ count }: { count: number }) {
-  const { c } = useTheme();
   return (
     <View
       style={{
-        backgroundColor: c.accent,
+        // Rojo, como en cualquier aplicación: es lo que se reconoce como
+        // «tienes algo sin leer». Igual en claro y en oscuro.
+        backgroundColor: '#d92d20',
         minWidth: 18,
         height: 18,
         borderRadius: 9,
@@ -236,7 +237,7 @@ function Badge({ count }: { count: number }) {
         paddingHorizontal: 5,
       }}
     >
-      <Text style={{ color: '#06231d', fontSize: tipografia.label, fontWeight: '900' }}>{count > 99 ? '99+' : count}</Text>
+      <Text style={{ color: '#fff', fontSize: tipografia.label, fontWeight: '900' }}>{count > 99 ? '99+' : count}</Text>
     </View>
   );
 }

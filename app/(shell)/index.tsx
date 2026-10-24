@@ -49,11 +49,7 @@ export default function DashboardScreen() {
 
   return (
     <Screen>
-      <H1>Centro de control</H1>
-      <Muted>
-        Vista global de flota, logística y preparación. Sondika almacena; Leioa, Galdakao, Ford/Mazda Galdakao,
-        Anoeta e Irun preparan.
-      </Muted>
+      <H1>Panel de control</H1>
 
       <Spacer />
 

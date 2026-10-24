@@ -21,7 +21,7 @@ export async function ejecutar(browser, BASE) {
     await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(900);
     const panel = await page.evaluate(() => document.body.innerText);
-    ok('ADMIN · entra en el centro de control', panel.includes('Centro de control'));
+    ok('ADMIN · entra en el panel de control', panel.includes('Panel de control'));
     ok('ADMIN · con la flota contada', /FLOTA TOTAL/i.test(panel));
     ok('ADMIN · y el menú completo', panel.includes('Administración') && panel.includes('Recuentos'));
 
@@ -103,7 +103,7 @@ export async function ejecutar(browser, BASE) {
     await page.waitForTimeout(900);
     ok(
       'LOGÍSTICA · no entra al panel de dirección',
-      !(await page.evaluate(() => document.body.innerText)).includes('Centro de control'),
+      !(await page.evaluate(() => document.body.innerText)).includes('Panel de control'),
       page.url()
     );
 

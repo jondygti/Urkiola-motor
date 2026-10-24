@@ -218,7 +218,6 @@ export default function RequestsScreen() {
     <ScreenGuard href="/solicitudes" title="Solicitudes">
     <Screen>
       <H1>Solicitudes</H1>
-      <Muted>Traslados y preparaciones, filtrados por sede y estado del flujo de trabajo.</Muted>
 
       {toast ? <Notice>{toast}</Notice> : null}
 

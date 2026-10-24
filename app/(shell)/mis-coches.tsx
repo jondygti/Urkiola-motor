@@ -88,9 +88,6 @@ export default function MyCarsScreen() {
     <ScreenGuard href="/mis-coches" title="Mis coches">
       <Screen>
         <H1>Mis coches</H1>
-        <Muted>
-          Los que vendes tú y en qué punto está cada uno: lo que has pedido, cómo va y dónde está el coche.
-        </Muted>
 
         {toast ? (
           <>
