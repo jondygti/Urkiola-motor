@@ -468,34 +468,42 @@ export function ProgressBar({ pct, tone }: { pct: number; tone?: Tone }) {
   );
 }
 
-/** Flujo de estados (`.state-flow`). */
+/**
+ * Flujo de estados: una barra por paso, rellena hasta donde ha llegado.
+ *
+ * Antes eran píldoras con flechas, todas del mismo tamaño y muy pequeñas: el
+ * paso actual no se distinguía del resto. Ahora se lee de un vistazo cuánto
+ * le queda y en cuál está, que va en negrita y con la barra marcada.
+ */
 export function StateFlow({ steps, activeIndex }: { steps: string[]; activeIndex: number }) {
   const { c } = useTheme();
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
-      {steps.map((s, i) => (
-        <React.Fragment key={s}>
-          <View
-            style={{
-              backgroundColor: i <= activeIndex ? c.okBg : c.surfaceSunken,
-              borderRadius: radius.sm,
-              paddingVertical: 7,
-              paddingHorizontal: 9,
-            }}
-          >
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+      {steps.map((s, i) => {
+        const hecho = i <= activeIndex;
+        const actual = i === activeIndex;
+        return (
+          <View key={s} style={{ flexGrow: 1, flexBasis: 90, gap: 6 }}>
+            <View
+              style={{
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: hecho ? c.primary : c.trackBg,
+                ...(actual ? { outlineWidth: 3, outlineColor: c.blueBg, outlineStyle: 'solid' } : null),
+              }}
+            />
             <Text
               style={{
-                fontSize: tipografia.label,
-                fontWeight: '800',
-                color: i <= activeIndex ? c.okFg : c.textMuted,
+                fontSize: tipografia.micro,
+                fontWeight: actual ? '800' : '500',
+                color: actual ? c.text : hecho ? c.text : c.textMuted,
               }}
             >
               {s}
             </Text>
           </View>
-          {i < steps.length - 1 ? <Text style={{ color: c.textFaint }}>→</Text> : null}
-        </React.Fragment>
-      ))}
+        );
+      })}
     </View>
   );
 }
@@ -569,7 +577,9 @@ export function Btn({
   const isGhost = variant === 'ghost';
 
   const bg = isPrimary ? c.primary : isDanger ? c.redFg : isGhost ? 'transparent' : c.surface;
-  const fg = isPrimary || isDanger ? '#fff' : isGhost ? c.textMuted : c.text;
+  // En modo oscuro el azul es más claro y el texto va oscuro encima: blanco
+  // sobre ese azul no se lee.
+  const fg = isPrimary ? c.primaryText : isDanger ? '#fff' : isGhost ? c.textMuted : c.text;
   const border = isPrimary ? c.primary : isDanger ? c.redFg : isGhost ? 'transparent' : c.border;
 
   return (

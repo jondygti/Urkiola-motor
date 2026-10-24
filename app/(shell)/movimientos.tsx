@@ -115,7 +115,6 @@ export default function MovementsScreen() {
     <ScreenGuard href="/movimientos" title="Movimientos">
     <Screen>
       <H1>Movimientos</H1>
-      <Muted>Dentro de una misma concesión o entre cualquier ubicación de la red.</Muted>
 
       {toast ? <Notice>{toast}</Notice> : null}
 

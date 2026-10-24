@@ -1,6 +1,7 @@
 import { comercialLabel } from '@/data/format';
 import { AccionesSolicitudes } from '@/features/actions/Bloques';
 import { CancelarSolicitud } from '@/features/actions/CancelarSolicitud';
+import { OrdenesTrabajo } from '@/features/actions/OrdenesTrabajo';
 import React, { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { MiniaturaVehiculo } from '@/features/common/Miniatura';
@@ -217,7 +218,6 @@ export default function RequestsScreen() {
     <ScreenGuard href="/solicitudes" title="Solicitudes">
     <Screen>
       <H1>Solicitudes</H1>
-      <Muted>Traslados y preparaciones, filtrados por sede y estado del flujo de trabajo.</Muted>
 
       {toast ? <Notice>{toast}</Notice> : null}
 
@@ -270,6 +270,8 @@ export default function RequestsScreen() {
               })
             )}
           </Panel>
+          <Spacer />
+          <OrdenesTrabajo onDone={setToast} />
         </>
       ) : null}
 

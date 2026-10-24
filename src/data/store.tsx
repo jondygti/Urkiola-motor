@@ -7,7 +7,7 @@ import { API_URL, ApiError, api, apiEnabled, haySesion, setAuthToken } from './a
 import { buildSeedState } from './seed';
 import { registerForPush } from './push';
 import { isSimpleRole } from './selectors';
-import { confirmarFotosPendientes, resolverFotosPendientes } from './photoQueue';
+import { confirmarFotosPendientes, referenciasDe, resolverFotosPendientes } from './photoQueue';
 import {
   borrarTokenSeguro,
   guardarTokenSeguro,
@@ -83,7 +83,14 @@ const TOKEN_KEY = 'urkiola.token.v1';
 // «Requiere atención hoy» y de la columna «Días» de la flota.
 // 28: los coches de ejemplo tienen el estado que les toca por su trabajo
 // abierto; una demo guardada antes los seguiría enseñando descuadrados.
-const STATE_SCHEMA_VERSION = 28;
+// 29: entran los tiempos estándar por tarea y sede (sustituyen a los
+// objetivos VN/VO y del repaso), la sede Ford/Mazda de Galdakao, la
+// carrocería sin coche de la flota, el calendario de los preparadores y la
+// historia de dos meses de trabajo terminado de la demo. Una demo guardada
+// antes no tendría nada de eso y la ocupación saldría en gris.
+// 30: los requisitos de accesorios llevan la marca `accesorio` y las
+// solicitudes de preparación, sus accesorios y la orden de Quiter.
+const STATE_SCHEMA_VERSION = 30;
 
 interface StoredState {
   v: number;
@@ -134,6 +141,15 @@ interface StoreValue {
   /** Fuerza un intento de subida (botón «reintentar»). */
   flushNow: () => void;
   /**
+   * Vuelve a mandar una acción que el servidor rechazó. Sirve cuando el
+   * rechazo era un fallo ya arreglado: la primera foto desde Android llegaba
+   * vacía y la incidencia entera se quedaba rechazada, con su foto guardada
+   * en el móvil. Sin esto el aviso no se podía quitar nunca.
+   */
+  reintentarRechazada: (commandId: Id) => void;
+  /** La quita para siempre, y con ella las fotos que solo eran suyas. */
+  descartarRechazada: (commandId: Id) => void;
+  /**
    * Entra en la aplicación.
    *
    * Con backend comprueba la contraseña contra el servidor y guarda la
@@ -162,6 +178,7 @@ function estadoInicial(): AppState {
   return apiEnabled ? {
     ...s, users: [], vehicles: [], movements: [], requests: [], preparations: [],
     counts: [], incidents: [], rules: [], inbox: [], receptions: [], events: [],
+    trabajosSueltos: [], fichasLaborales: [], ausencias: [],
   } : s;
 }
 
@@ -188,6 +205,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // Las respuestas de una sesión anterior no pueden tocar la sesión nueva.
   const generacion = useRef(0);
   const ocupada = useRef<number | null>(null);
+  // Un aviso de cambios que llega a mitad de una sincronización no se puede
+  // perder: lo que trae puede haberse guardado después de la descarga.
+  const otraVuelta = useRef(false);
   const persistencia = useRef<Promise<void>>(Promise.resolve());
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirty = useRef(false);
@@ -259,7 +279,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const sincronizar = useCallback(async function sincronizar() {
     const persona = userRef.current;
     const turno = generacion.current;
-    if (!apiEnabled || !persona || !haySesion() || ocupada.current === turno) return;
+    if (!apiEnabled || !persona || !haySesion()) return;
+    if (ocupada.current === turno) {
+      otraVuelta.current = true;
+      return;
+    }
+    otraVuelta.current = false;
     ocupada.current = turno;
     setSyncing(true);
     const vigente = () => generacion.current === turno && userRef.current?.id === persona.id;
@@ -348,7 +373,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (ocupada.current === turno) ocupada.current = null;
       if (vigente()) {
         setSyncing(false);
-        if (reintentar) void sincronizar();
+        if (reintentar || otraVuelta.current) void sincronizar();
       }
     }
   }, [cambiarTrabajo, guardar, persistirTrabajo, suspenderSesion]);
@@ -476,6 +501,50 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return () => { unsubscribe(); listener.remove(); clearInterval(timer); };
   }, [ready, sincronizar]);
 
+  // Lo que hacen los demás aparece solo, sin refrescar: se espera en
+  // `/cambios` y, cuando el servidor dice que hay algo nuevo, se sincroniza.
+  // En el móvil solo con la app delante; al volver a ella ya se sincroniza.
+  // La comprobación de cada 30 s se queda por si esto falla.
+  useEffect(() => {
+    if (!apiEnabled || !ready || !user) return;
+    let vivo = true;
+    let delante = RNAppState.currentState !== 'background';
+    let corte: AbortController | null = null;
+    let despertar: (() => void) | null = null;
+    const pausa = (ms: number) => new Promise<void>((r) => {
+      const t = setTimeout(() => { despertar = null; r(); }, ms);
+      despertar = () => { clearTimeout(t); despertar = null; r(); };
+    });
+    const escucha = RNAppState.addEventListener('change', (s) => {
+      delante = s !== 'background';
+      if (delante) despertar?.();
+      else corte?.abort();
+    });
+    void (async () => {
+      let version: number | null = null;
+      while (vivo) {
+        if (!delante || !haySesion()) {
+          await pausa(30_000);
+          continue;
+        }
+        corte = new AbortController();
+        try {
+          const r = await api.cambios(version, corte.signal);
+          if (!vivo) break;
+          if (version !== null && r.version !== version) void sincronizar();
+          version = r.version;
+        } catch (err) {
+          if (!vivo) break;
+          // Sin red o servidor dormido: se espera un poco y se vuelve a
+          // escuchar. El 401 lo resuelve la sincronización normal.
+          if (err instanceof ApiError && err.status === 401) void sincronizar();
+          await pausa(5_000);
+        }
+      }
+    })();
+    return () => { vivo = false; corte?.abort(); despertar?.(); escucha.remove(); };
+  }, [ready, user?.id, sincronizar]);
+
   const run = useCallback<StoreValue['run']>((partial) => {
     const persona = userRef.current;
     if (apiEnabled && (!persona || !datosCargados.current)) {
@@ -554,10 +623,33 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const sync = useMemo<SyncStatus>(() => ({
     online, pending: queue.length, syncing, lastSyncAt, error, rejected,
   }), [online, queue.length, syncing, lastSyncAt, error, rejected]);
+  const reintentarRechazada = useCallback((commandId: Id) => {
+    const r = rejectedRef.current.find((x) => x.command.id === commandId);
+    if (!r) return;
+    // Al final de la cola, con su id de siempre: si el servidor ya la
+    // tuviera, la descarta como repetida en vez de aplicarla dos veces.
+    cambiarTrabajo(
+      [...queueRef.current.filter((c) => c.id !== commandId), r.command],
+      rejectedRef.current.filter((x) => x.command.id !== commandId)
+    );
+    setState(applyAll(confirmado.current, queueRef.current));
+    dirty.current = true;
+    void sincronizar();
+  }, [cambiarTrabajo, sincronizar]);
+
+  const descartarRechazada = useCallback((commandId: Id) => {
+    const r = rejectedRef.current.find((x) => x.command.id === commandId);
+    if (!r) return;
+    const quedan = rejectedRef.current.filter((x) => x.command.id !== commandId);
+    cambiarTrabajo(queueRef.current, quedan);
+    void confirmarFotosPendientes(referenciasDe(r.command), [...queueRef.current, ...quedan.map((x) => x.command)])
+      .catch(() => undefined);
+  }, [cambiarTrabajo]);
+
   const value = useMemo<StoreValue>(() => ({
     state, ready, mode: apiEnabled ? 'api' : 'demo', user, sync, run,
-    flushNow: () => { void sincronizar(); }, login, logout, resetDemo,
-  }), [state, ready, user, sync, run, sincronizar, login, logout, resetDemo]);
+    flushNow: () => { void sincronizar(); }, reintentarRechazada, descartarRechazada, login, logout, resetDemo,
+  }), [state, ready, user, sync, run, sincronizar, reintentarRechazada, descartarRechazada, login, logout, resetDemo]);
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
 

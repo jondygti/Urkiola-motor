@@ -106,11 +106,6 @@ export default function CampScreen() {
     <ScreenGuard href="/campa" title="Campa">
     <Screen>
       <H1>{site.kind === 'campa' ? `Campa ${site.name}` : `Parkings de ${site.name}`}</H1>
-      <Muted>
-        {site.prepares
-          ? 'Sede de preparación: almacena y prepara vehículos.'
-          : 'Solo almacenamiento y logística. No es sede de preparación.'}
-      </Muted>
 
       <Toolbar>
         <Select

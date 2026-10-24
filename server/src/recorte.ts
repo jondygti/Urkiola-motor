@@ -138,6 +138,9 @@ export function estadoParaColaborador(s: AppState, u: User): AppState {
     ),
     receptions: [],
     events: [],
+    trabajosSueltos: [],
+    fichasLaborales: [],
+    ausencias: [],
     config: {
       ...s.config,
       // Su rol basta: los permisos de los demás no son asunto suyo.
@@ -182,6 +185,8 @@ export function estadoParaAmbitoComercial(s: AppState, u: User): AppState {
     // comercial. No se envían por comodidad ni quedan en el dispositivo.
     counts: [],
     receptions: [],
+    // La carrocería es trabajo de taller, sin coche de la flota detrás.
+    trabajosSueltos: [],
     events: s.events.filter((e) => !e.vehicleId || ids.has(e.vehicleId)),
     inbox: s.inbox.filter((n) => paraEste(n, u) && (!n.vehicleId || ids.has(n.vehicleId))),
   };
@@ -217,6 +222,7 @@ export function estadoParaSedes(s: AppState, u: User): AppState {
     counts: s.counts.filter((c) => suyas.has(c.siteId)),
     incidents: s.incidents.filter((i) => ids.has(i.vehicleId)),
     receptions: s.receptions.filter((r) => suyas.has(r.siteId)),
+    trabajosSueltos: (s.trabajosSueltos ?? []).filter((t) => suyas.has(t.siteId)),
     events: s.events.filter((e) => !e.vehicleId || ids.has(e.vehicleId)),
     // Cada uno recibe sus avisos y no los de los demás. Mandarlos todos y
     // esconderlos en la pantalla es dejarlos en el móvil de cualquiera.
@@ -235,11 +241,20 @@ export function estadoPara(s: AppState, u: User, colaboradorExterno: boolean): A
     const ocupados = new Set(s.preparations.filter(p => p.preparerId && p.preparerId !== u.id
       && p.runState !== 'terminado' && p.runState !== 'cancelado').map(p => p.vehicleId));
     recortado = { ...recortado,
+      // Su carrocería, no la de sus compañeros.
+      trabajosSueltos: (recortado.trabajosSueltos ?? []).filter((t) => t.preparerId === u.id),
       preparations: recortado.preparations.filter(p => p.preparerId === u.id || (!p.preparerId &&
         !s.requests.some(r => r.id === p.requestId && r.assignedTo && r.assignedTo !== u.id))),
       requests: recortado.requests.filter(r => r.type !== 'preparacion' ||
         ((!r.assignedTo || r.assignedTo === u.id) && !ocupados.has(r.vehicleId))),
     };
+  }
+  // El calendario de los preparadores es de personas, y las ausencias,
+  // además, sensibles: solo lo recibe quien ve la ocupación o la configura.
+  // Mandarlo a todos y esconderlo en la pantalla sería dejar en cualquier
+  // móvil quién está de baja.
+  if (colaboradorExterno || !(can(s, u, 'panel.ver') || can(s, u, 'admin.configurar'))) {
+    recortado = { ...recortado, fichasLaborales: [], ausencias: [] };
   }
   return {
     ...recortado,
