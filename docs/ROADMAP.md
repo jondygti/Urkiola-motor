@@ -1,12 +1,13 @@
 # Hoja de ruta
 
-Actualizado: **20/09/2026**.
+Actualizado: **24/10/2026**.
 
-La fase de añadir funciones está en pausa. La prioridad es convertir la base auditada en un sistema de producción controlado.
+La prioridad es convertir la base auditada en un sistema de producción controlado. Las funciones nuevas solo entran cuando Jon las pide y las valida.
 
 | Fase | Estado | Criterio de salida |
 | --- | --- | --- |
 | 0. Base funcional y auditoría | **Hecha** | `main` auditado; persistencia demo corregida; ámbitos/evidencias protegidos; CI completa verde; demo generada |
+| 0b. Servidor de prueba gratuito | **Hecho** (octubre) | Render y Supabase gratuitos, APK de prueba, datos cargados a mano; ver `deploy/PRUEBA-GRATIS.md` |
 | 1. Staging | **Siguiente** | Gobierno GitHub revisado; Render + Supabase separados de producción; API/web/fotos funcionando; reinicio y dos dispositivos probados |
 | 2. Recuperación y seguridad de entorno | Pendiente | copia completa (PostgreSQL + Storage) y restauración probadas; 2FA/DPA/CORS/TLS revisados |
 | 3. Auth | Pendiente | migración controlada a Supabase Auth sin perder autoría ni colas |

@@ -1,22 +1,18 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Text, View } from 'react-native';
+import { Text } from 'react-native';
 import { Icon, Pill, type IconName, type Tone, useTheme, tipografia } from '@/ui';
 import {
-  INCIDENT_TYPE_LABEL,
   PREP_RUN_STATE_LABEL,
   REQUEST_STATUS_LABEL,
   VEHICLE_STATUS_LABEL,
-  type Incident,
   type IncidentStatus,
   type PrepRunState,
   type RequestStatus,
   type Situation,
-  type Vehicle,
   type VehicleStatus,
   type VehicleType,
 } from '@/data/types';
-import { vehicleName, vehicleRef } from '@/data/format';
 
 const STATUS_TONE: Record<VehicleStatus, Tone> = {
   recepcionado: 'blue',
@@ -80,23 +76,6 @@ export function IncidentStatusPill({ status }: { status: IncidentStatus }) {
     <Pill tone={INCIDENT_TONE[status]}>
       {status === 'abierta' ? 'Abierta' : status === 'pendiente' ? 'Pendiente' : 'Cerrada'}
     </Pill>
-  );
-}
-
-export function IncidentTypeLabel({ incident }: { incident: Incident }) {
-  const { c } = useTheme();
-  return <Text style={{ fontSize: tipografia.small, color: c.text }}>{INCIDENT_TYPE_LABEL[incident.type]}</Text>;
-}
-
-/** Celda de vehículo: nombre + referencia operativa. */
-export function VehicleCell({ vehicle }: { vehicle: Vehicle | undefined }) {
-  const { c } = useTheme();
-  if (!vehicle) return <Text style={{ fontSize: tipografia.small, color: c.textMuted }}>—</Text>;
-  return (
-    <View>
-      <Text style={{ fontSize: tipografia.body, fontWeight: '700', color: c.text }}>{vehicleRef(vehicle)}</Text>
-      <Text style={{ fontSize: tipografia.micro, color: c.textMuted }}>{vehicleName(vehicle)}</Text>
-    </View>
   );
 }
 

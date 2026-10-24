@@ -1,7 +1,7 @@
 import { Redirect, useRouter } from 'expo-router';
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { Btn, Grid, H1, Kpi, Muted, Notice, Panel, Pill, Screen, Spacer, Timeline, TopNote, space, tipografia, useTheme } from '@/ui';
+import { Btn, Grid, H1, Kpi, Muted, Notice, Panel, Pill, Screen, Spacer, Timeline, space, tipografia, useTheme } from '@/ui';
 import { useAppState, useStore, useTicker } from '@/data/store';
 import {
   dashboardKpis,
@@ -257,24 +257,6 @@ export default function DashboardScreen() {
           )}
         </Panel>
       </Grid>
-
-      <Spacer h={space.lg} />
-
-      <TopNote>
-        <Text style={{ fontSize: tipografia.small, color: c.text, lineHeight: 18 }}>
-          <Text style={{ fontWeight: '800' }}>Web + App: </Text>
-          la web es para gestión y control; la app móvil es para ejecución en campa, transporte y
-          preparación. Ambas usan el mismo backend y comparten este mismo código.
-        </Text>
-      </TopNote>
-      <TopNote>
-        <Text style={{ fontSize: tipografia.small, color: c.text, lineHeight: 18 }}>
-          <Text style={{ fontWeight: '800' }}>Modelo de datos: </Text>
-          Quiter aporta el parque maestro ({state.vehicles.length} vehículos). Easo Logistics controla la actividad
-          logística. Un vehículo se activa automáticamente al registrar ubicación, movimiento, solicitud,
-          preparación, incidencia o recuento.
-        </Text>
-      </TopNote>
 
       <Spacer h={space.lg} />
 

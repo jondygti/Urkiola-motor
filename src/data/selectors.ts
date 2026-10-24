@@ -483,31 +483,6 @@ const vehicleOrden = (v: Vehicle) => `${v.brand} ${v.model} ${v.plate ?? v.vin8}
 
 /* ------------------------------------------------------- tareas del día */
 
-export interface MyWork {
-  preparations: Preparation[];
-  /** Pedidas por el comercial y todavía sin abrir: también son suyas. */
-  prepRequests: ServiceRequest[];
-  transfers: ServiceRequest[];
-  counts: FleetCount[];
-  incidents: number;
-}
-
-/** Tareas pendientes del usuario que ha iniciado sesión. */
-export function myWork(s: AppState, userId: Id): MyWork {
-  const user = s.users.find((u) => u.id === userId);
-  const inScope = (siteId: Id) => !user || user.siteIds.length === 0 || user.siteIds.includes(siteId);
-
-  return {
-    preparations: activePreparations(s).filter(
-      (p) => (p.preparerId === userId || !p.preparerId) && inScope(p.siteId)
-    ),
-    prepRequests: prepRequestsSinAbrir(s, userId),
-    transfers: myTransfers(s, userId),
-    counts: s.counts.filter((c) => !c.closedAt && inScope(c.siteId)),
-    incidents: openIncidents(s).length,
-  };
-}
-
 /**
  * Preparaciones que ha pedido un comercial y que todavía no ha abierto
  * nadie.
@@ -605,7 +580,6 @@ export function attentionItems(s: AppState) {
 
 /** % de checklist de una preparación (reexport cómodo para las pantallas). */
 export { prepProgress, prepElapsedMs, prepIsOverSla };
-export const HOUR_MS = HOUR;
 
 
 /* ------------------------------------------------------ roles y permisos */
@@ -634,9 +608,6 @@ export function mobileSections(s: AppState, user: User | null): string[] {
   if (!user) return [];
   return roleConfig(s, user.role)?.mobileSections ?? [];
 }
-
-/** Usuarios activos, que son los que pueden aparecer como responsables. */
-export const activeUsers = (s: AppState): User[] => s.users.filter((u) => u.active);
 
 /* ------------------------------------------- columnas y campos propios */
 
@@ -799,24 +770,6 @@ export function deadlineOf(s: AppState, r: ServiceRequest, now = Date.now()): De
   };
 }
 
-/** Solicitudes abiertas cuyo plazo ya se ha pasado. */
-export function overdueRequests(s: AppState, now = Date.now()): ServiceRequest[] {
-  return openRequests(s).filter((r) => deadlineOf(s, r, now).overdue);
-}
-
-/** Ordena por urgencia real: primero lo vencido, luego lo que menos tiempo tiene. */
-export function byDeadline(s: AppState, now = Date.now()) {
-  return (a: ServiceRequest, b: ServiceRequest) => {
-    const da = deadlineOf(s, a, now).remainingMs;
-    const db = deadlineOf(s, b, now).remainingMs;
-    // Lo que aún no tiene plazo va al final: nadie lo ha comprometido.
-    if (da === null && db === null) return 0;
-    if (da === null) return 1;
-    if (db === null) return -1;
-    return da - db;
-  };
-}
-
 
 /* --------------------------------------------- empresas de transporte */
 
@@ -883,11 +836,6 @@ export function areaComercialDe(v: Vehicle): 'vn' | 'vo' {
 /** Roles con ámbito comercial propio y recortado. */
 export function esGestorComercial(user: User | null): boolean {
   return !!user && (user.role === 'director_comercial' || user.role === 'responsable_vo');
-}
-
-/** Comerciales que dependen directamente de un responsable/director. */
-export function equipoComercial(s: AppState, responsableId: Id): User[] {
-  return s.users.filter((u) => u.active && u.managerId === responsableId);
 }
 
 /**

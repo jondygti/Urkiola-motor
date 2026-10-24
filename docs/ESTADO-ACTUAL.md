@@ -1,6 +1,6 @@
 # Estado actual de Easo Logistics
 
-Actualizado: **20 de septiembre de 2026**.
+Actualizado: **24 de octubre de 2026**. Lo más reciente está en «Octubre de 2026», al final; las secciones con fecha anterior se conservan como registro.
 
 Este documento responde a una pregunta: **¿qué está realmente hecho hoy?** No mezcla planes futuros con implementación actual.
 
@@ -32,7 +32,10 @@ La aplicación dispone de:
 - incidencias con fotos;
 - recuentos;
 - notificaciones y barridos programables desde el servidor;
-- entrega al cliente y salida de flota activa.
+- entrega al cliente y salida de flota activa;
+- ocupación de preparadores con tiempos estándar y calendario;
+- orden de trabajo de Quiter preparada para copiar, con los accesorios pedidos;
+- cambios de los demás en pantalla al momento, sin refrescar.
 
 ## Ámbito comercial
 
@@ -107,17 +110,17 @@ Hallazgos ya corregidos en código/documentación:
 - retirada del despliegue Docker/MinIO legado;
 - guía única para Render + Supabase y checklist de staging.
 
-Pendientes que requieren configuración externa y no se resuelven con un commit:
+Pendientes que requieren configuración externa y no se resuelven con un commit (comprobado el 24/10/2026):
 
-- el repositorio GitHub está actualmente público;
+- el repositorio GitHub sigue siendo público;
 - `main` no tiene ruleset/protección;
-- no está activo el borrado automático de ramas fusionadas Las ramas temporales históricas se comprobaron eliminadas el 22/09/2026.
+- no está activo el borrado automático de ramas fusionadas.
 
 Antes de introducir secretos o datos reales, revisar estos tres puntos en GitHub.
 
 ## Lo que NO está hecho todavía
 
-- despliegue real en Render;
+- staging y producción en Render (solo existe el servidor de prueba gratuito);
 - proyectos definitivos de Supabase para staging/producción;
 - migración de la autenticación propia a Supabase Auth;
 - prueba real de PostgreSQL/Storage en el entorno elegido;
@@ -134,7 +137,7 @@ Antes de introducir secretos o datos reales, revisar estos tres puntos en GitHub
 - Android: Google Play, empezando por prueba interna.
 - Quiter: **QBI Premium ya contratado**; integración de solo lectura al principio.
 - Multiempresa: preparar la arquitectura, pero no activar un segundo cliente hasta tener aislamiento probado.
-- No añadir funciones nuevas por defecto: priorizar despliegue, datos reales y piloto.
+- Las funciones nuevas se piden y validan una a una; la prioridad sigue siendo despliegue, datos reales y piloto.
 
 ## Revisión del ámbito comercial (20/09/2026)
 
@@ -147,7 +150,7 @@ Antes de introducir secretos o datos reales, revisar estos tres puntos en GitHub
 - Chromium comprueba ambos responsables, URLs ajenas, edición persistente de clasificación y operaciones comerciales por API real.
 
 - La restauración de sesión sin caché espera a recuperar la cuenta antes de habilitar rutas, conservando los enlaces directos. Con caché se mantiene el arranque offline inmediato.
-- La demo solo acepta un estado persistido de su versión exacta (v26 actualmente) y re-vincula la sesión con el usuario canónico actual; una demo antigua ya no puede ocultar una semilla nueva.
+- La demo solo acepta un estado persistido de su versión exacta y re-vincula la sesión con el usuario canónico actual; una demo antigua ya no puede ocultar una semilla nueva.
 - Las evidencias fotográficas/albaranes se sirven únicamente si la referencia aparece en el estado autorizado del usuario; conocer un ID no da acceso fuera de su ámbito.
 
 
@@ -177,7 +180,7 @@ Preparación completa y repaso permiten elegir fecha y hora de entrega (horas y 
 
 Los preparadores comparten los trabajos libres de sus sedes. Al abrir una solicitud o empezar una preparación libre, se asigna al actor y desaparece de la cola de los compañeros. La reserva se valida en servidor: dos aceptaciones concurrentes no comparten ni duplican trabajo; el segundo recibe un rechazo y la cola offline conserva su tratamiento de conflictos. Sin conexión, la reserva es provisional hasta sincronizar. Logística conserva la visión de gestión y los permisos existentes.
 
-«Mi historial» reúne únicamente los servicios propios finalizados, con mes, fecha, sede, tiempos efectivos y esperas. Sus resúmenes separan preparación completa y repaso; los detalles son de solo lectura. La oficina dispone en Preparación de productividad por preparador (terminadas, tiempo efectivo, media y esperas), por sede, servicio y mes, además del detalle filtrable por persona y estado. No se calcula una tasa de ocupación laboral sin datos de jornada.
+«Mi historial» reúne únicamente los servicios propios finalizados, con mes, fecha, sede, tiempos efectivos y esperas. Sus resúmenes separan preparación completa y repaso; los detalles son de solo lectura. La oficina dispone en Preparación de productividad por preparador (terminadas, tiempo efectivo, media y esperas), por sede, servicio y mes, además del detalle filtrable por persona y estado. La ocupación laboral, con jornada y calendario, llegó después: ver «Octubre de 2026».
 
 ### Correcciones de asignación (27/09/2026)
 
@@ -190,4 +193,23 @@ Reasignar desde Logística actualiza conjuntamente la solicitud y su preparació
 - **Día en hora de España.** El barrido de avisos y los repasos de entrega cuentan «hoy» en hora peninsular, con el cambio de hora europeo. Antes, entre las 00:00 y las 02:00 «hoy» era todavía ayer.
 - **Fotos en el navegador.** Si una foto no sube desde la web, se dice al momento para repetirla: el navegador no puede guardarla para después como hace el móvil.
 - La comprobación con navegador vuelve a terminar una preparación con las cuatro fotos y a comprobar que el coche queda en la plaza elegida y apto para entrega.
-- Versión de datos del dispositivo: **v26**.
+- Versión de datos del dispositivo entonces: v26.
+
+## Octubre de 2026
+
+**Servidor de prueba.** Render (plan gratuito) + Supabase (PostgreSQL y Storage, plan gratuito) en `https://easo-logistics-prueba.onrender.com`, y APK de prueba compilado por GitHub Actions (`apk-prueba.yml`). Guía en `deploy/PRUEBA-GRATIS.md`. El 24/10 se vació para cargar a mano la estructura real: quedan las seis sedes, las dos empresas de transporte, roles, checklists y tiempos estándar; usuarios, coches, zonas y plazas se crean desde cero. Los datos anteriores están en los esquemas `easo_antes_20261024` y `easo_copia_20261024`.
+
+Funciones añadidas:
+
+- **Ford/Mazda Galdakao** como sede de preparación, gestionada como Bizkaia.
+- **Ocupación de preparadores** (`src/data/ocupacion.ts`): horas trabajadas sin pausas ÷ horas de presencia, por preparador, sede y mes; tiempos estándar por tarea y sede; calendario con jornada, reparto entre sedes, festivos y ausencias; aviso cuando una sede pasa del 80 % dos meses seguidos. Carrocería como trabajo suelto, sin dar de alta el coche.
+- **Fotos desde Android**: la subida usa `FileSystem.uploadAsync` (con `fetch` el cuerpo llegaba vacío) y las miniaturas también se suben.
+- **Leer matrícula y bastidor con la cámara**, reconociendo el texto en el propio móvil.
+- **Acciones rechazadas**: el aviso permite revisar cada una con su motivo y reintentarla o descartarla.
+- **Orden de trabajo de Quiter**: al pedir una preparación se eligen los accesorios; en Solicitudes queda la orden escrita para copiarla en Quiter y apuntar su número. Los repasos no llevan orden.
+- **Cambios en vivo**: `GET /cambios` (espera larga) avisa a cada pantalla abierta en cuanto se aplica un comando; la comprobación cada 30 s queda de respaldo.
+- **Nueva imagen**: azul Easo, pantallas sin frases explicativas, flota, ficha del coche y tarjeta del preparador reorganizadas.
+
+Pendiente de decidir: pedidos de dotación a recambios (parado hasta hablar con Quiter sobre crear órdenes desde fuera).
+
+Versión de datos del dispositivo: **v30**.

@@ -304,6 +304,9 @@ Ubicación · Movimiento · Solicitud · Preparación · Incidencia · Recuento`
             </Muted>
           </Panel>
 
+          {/* Solo en la demostración: conectada a un servidor, no hay datos de
+              ejemplo que restaurar y el botón salía desactivado sin más. */}
+          {mode !== 'api' ? <>
           <Spacer h={space.lg} />
 
           <Panel icon="pruebas" title="Datos de demostración">
@@ -318,11 +321,11 @@ Ubicación · Movimiento · Solicitud · Preparación · Incidencia · Recuento`
                 resetDemo();
                 setToast('Datos de demostración restaurados.');
               }}
-              disabled={mode === 'api'}
             >
               Restaurar datos de ejemplo
             </Btn>
           </Panel>
+          </> : null}
         </>
       ) : null}
 

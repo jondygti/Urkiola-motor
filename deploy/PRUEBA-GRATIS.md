@@ -79,7 +79,8 @@ dirección va dentro.
 
 ## 4 · Quién entra
 
-Todos con la contraseña de `URKIOLA_CLAVE_PRUEBAS`. Los mismos perfiles que la demo:
+Todos con la contraseña de `URKIOLA_CLAVE_PRUEBAS`. Recién montado, el servidor trae
+los mismos perfiles que la demo:
 
 | Perfil | Correo |
 |---|---|
@@ -96,7 +97,33 @@ Todos con la contraseña de `URKIOLA_CLAVE_PRUEBAS`. Los mismos perfiles que la 
 | Responsable VO | `responsable.vo@urkiolacarservice.com` |
 
 Cada uno puede cambiar su contraseña después. Para una prueba con más gente, el
-administrador da de alta usuarios desde Administración.
+administrador da de alta usuarios desde Administración. Mientras el servidor esté en
+modo prueba, los usuarios nuevos empiezan con esa misma contraseña.
+
+> **Estado del servidor de prueba de Urkiola (24/10/2026):** se vació para cargar a
+> mano la estructura real (ver el apartado 5). Ya no tiene los perfiles de arriba: solo
+> el administrador, con las seis sedes, las dos empresas de transporte y la
+> configuración.
+
+## 5 · Empezar de cero (vaciar el servidor)
+
+Para quitar los datos de ejemplo y dejar solo la estructura. **No se borra nada**: las
+tablas actuales se apartan con otro nombre y se ponen unas nuevas en su sitio.
+
+1. En Supabase (SQL), crear un esquema nuevo con la tabla `foto` y el estado limpio,
+   partiendo del actual: vaciar `users` (dejando el administrador), `vehicles`,
+   `zones`, `positions`, `movements`, `requests`, `preparations`, `counts`,
+   `incidents`, `inbox`, `receptions`, `events`, `trabajosSueltos`,
+   `fichasLaborales`, `ausencias` y las reglas de aviso de un coche concreto.
+2. Renombrar `easo` a una copia con fecha (`easo_antes_AAAAMMDD`) y el nuevo a `easo`.
+3. **Dar el esquema y la tabla al usuario de la app**:
+   `alter schema easo owner to easo_app; alter table easo.foto owner to easo_app;`.
+   Sin esto el servidor no arranca («no schema has been selected to create in»).
+4. Render → **Manual Deploy**. Al arrancar, el servidor crea el resto de tablas y da al
+   administrador la contraseña de `URKIOLA_CLAVE_PRUEBAS`.
+5. En cada móvil o navegador, cerrar sesión y volver a entrar.
+
+Para volver atrás basta con renombrar los esquemas al revés y reiniciar.
 
 ## Lo que hay que saber del plan gratuito
 

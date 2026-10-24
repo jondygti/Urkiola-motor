@@ -37,17 +37,3 @@ export async function registerForPush(): Promise<string | null> {
     return null;
   }
 }
-
-/** Aviso local inmediato (se usa en modo demo para ver el flujo completo). */
-export async function notifyLocal(title: string, body: string): Promise<void> {
-  if (Platform.OS === 'web') return;
-  try {
-    const Notifications = await import('expo-notifications');
-    await Notifications.scheduleNotificationAsync({
-      content: { title, body },
-      trigger: null,
-    });
-  } catch {
-    /* sin módulo nativo disponible: se ignora */
-  }
-}

@@ -1,6 +1,6 @@
 # Arquitectura de Easo Logistics
 
-Actualizado: **20/09/2026**.
+Actualizado: **24/10/2026**.
 
 ## Principio
 
@@ -31,6 +31,10 @@ La API conserva como contrato estable:
 
 El servidor procesa comandos en orden y está diseñado para **un único líder escritor**. PostgreSQL mantiene un advisory lock de sesión; `DATABASE_URL` debe usar conexión directa o pooler en modo sesión, no transaction pooling. Durante un redeploy de Render puede haber dos procesos temporalmente: la instancia nueva pide el relevo por PostgreSQL `LISTEN/NOTIFY`, la antigua deja de aceptar escrituras, drena las que ya estaban en curso, suelta el lock y deja de anunciarse saludable; solo entonces la nueva reconstruye el estado y toma el liderazgo. Las escrituras que lleguen a la antigua durante el drenaje reciben `503`, que el cliente trata como reintentable. No escalar horizontalmente a varios escritores sin rediseñar `servicio.ts` y las garantías de orden.
 
+## Cambios en vivo
+
+Cada pantalla conectada espera en `GET /cambios?version=N`. El servidor mantiene la petición abierta hasta 25 s y contesta en cuanto aplica un comando; entonces el cliente pide `/state` con su recorte de siempre. `/cambios` no dice qué ha cambiado, así que no puede filtrar nada que el usuario no deba ver. La sincronización cada 30 s se mantiene como respaldo.
+
 ## Offline e idempotencia
 
 La aplicación puede aplicar un comando localmente sin cobertura y enviarlo después. Por eso:
@@ -46,7 +50,7 @@ La aplicación puede aplicar un comando localmente sin cobertura y enviarlo desp
 
 Sede → zona → plaza. La plaza es opcional. Una zona con cero plazas numeradas es válida y representa un parking donde se conoce la zona, no el hueco exacto.
 
-Sondika es almacén y no prepara. Leioa, Galdakao, Anoeta e Irun son sedes de preparación según configuración.
+Sondika es almacén y no prepara. Leioa, Galdakao, Ford/Mazda Galdakao, Anoeta e Irun son sedes de preparación según configuración.
 
 ## Ámbito comercial
 
