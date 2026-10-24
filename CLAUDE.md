@@ -164,6 +164,13 @@ Cada una viene de un fallo real de este proyecto:
     gracia es ver muchas filas de un vistazo y se mira sentado.
     Lo vigila `scripts/verify/estilo.mjs`.
 
+36. **El color es el azul Easo y solo significa algo cuando no es azul**
+    (`src/ui/theme.tsx`): rojo, incidencia; ámbar, ojo con el plazo; verde,
+    está bien. El verde de marca del primer mockup no casaba con el
+    logotipo. Y **las pantallas no se explican a sí mismas**: nada de una
+    frase debajo del título contando para qué sirve. Si una pantalla
+    necesita explicación, lo que hay que arreglar es la pantalla.
+
 30. **Los iconos salen de `<Icon name>` (`src/ui/Icon.tsx`), nunca de
     emojis.** Cada teléfono dibuja un emoji a su manera y se habían repetido
     hasta que Flota y Mis coches, o Preparación y Mi preparación, llevaban el

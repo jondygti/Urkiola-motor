@@ -11,7 +11,7 @@ export default function Root({ children }: { children: React.ReactNode }) {
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-        <meta name="theme-color" content="#10262d" />
+        <meta name="theme-color" content="#0e2233" />
         <meta
           name="description"
           content="Easo Logistics · gestión logística de flota: campa, traslados, preparación, recuentos e incidencias."
@@ -30,8 +30,8 @@ export default function Root({ children }: { children: React.ReactNode }) {
 }
 
 const bodyStyle = `
-body { background-color: #f3f6f7; }
+body { background-color: #f4f6f9; }
 @media (prefers-color-scheme: dark) {
-  body { background-color: #0b171b; }
+  body { background-color: #0a1520; }
 }
 `;

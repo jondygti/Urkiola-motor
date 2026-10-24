@@ -7,7 +7,7 @@ import { activePreparations, deadlineOf, prepRequestsSinAbrir, historialPreparad
 import { idCreadoPor, prepElapsedMs, prepIsOverSla, prepProgress } from '@/data/commands';
 import { MiniaturaVehiculo } from '@/features/common/Miniatura';
 import { formatDateTime, formatDuration, formatShortDuration, siteName, userName, vehicleName, vehicleRef } from '@/data/format';
-import type { CheckState, Preparation, ServiceRequest } from '@/data/types';
+import type { CheckState, Id, Preparation, ServiceRequest, Vehicle } from '@/data/types';
 import { ScreenGuard, usePerms } from '@/features/common/Guard';
 import { DeadlineChip } from '@/features/common/DeadlineChip';
 import { FinishPrepModal } from '@/features/prep/FinishPrep';
@@ -214,23 +214,19 @@ function PedidaCard({
         </Text>
         <DeadlineChip deadline={plazo} />
         {esRepaso ? <Pill tone="blue">Repaso de entrega</Pill> : null}
-        {request.urgent ? <Pill tone="red">Urgente</Pill> : <Pill tone="amber">Sin empezar</Pill>}
+        {request.urgent ? <Pill tone="red">Urgente</Pill> : <Pill tone="neutral">Sin empezar</Pill>}
       </View>
 
       <Text style={{ fontSize: campo.body, color: c.textMuted, marginTop: 2 }}>
-        {vehicle ? vehicleName(vehicle) : ''} · {siteName(state, request.siteId)}
+        {vehicle ? vehicleName(vehicle) : ''} · para {siteName(state, request.siteId)}
       </Text>
-      <Text style={{ fontSize: campo.small, color: c.text, marginTop: 3, fontWeight: '700' }}>
-        Comercial: {comercialLabel(state, vehicle)}
-      </Text>
-      {vehicle?.deliveryDate ? <Text style={{ fontSize: campo.small, color: c.text, marginTop: 4 }}>
-        Entrega: {formatDateTime(vehicle.deliveryDate)}
-      </Text> : null}
-      <UbicacionVehiculo vehicle={vehicle} esperadoEn={request.siteId} />
-      <Text style={{ fontSize: campo.small, color: c.textMuted, marginTop: 4 }}>
+      <DondeEsta vehicle={vehicle} esperadoEn={request.siteId} />
+      <Text style={{ fontSize: campo.small, color: c.textMuted, marginTop: space.sm }}>
+        {lineaDeEntrega(state, vehicle)}
+        {' · '}
         {esRepaso && vehicle?.deliveryDate && new Date(vehicle.deliveryDate).toDateString() === new Date().toDateString()
-          ? 'Se entrega hoy'
-          : `Pedida por ${userName(state, request.createdBy)}`}
+          ? 'se entrega hoy'
+          : `pedida por ${userName(state, request.createdBy)}`}
         {request.note ? ` · ${request.note}` : ''}
       </Text>
 
@@ -280,15 +276,12 @@ function PrepCard({ prep, onOpen }: { prep: Preparation; onOpen: () => void }) {
       </View>
 
       <Text style={{ fontSize: campo.body, color: c.textMuted, marginTop: 2 }}>
-        {vehicle ? vehicleName(vehicle) : ''} · {siteName(state, prep.siteId)}
+        {vehicle ? vehicleName(vehicle) : ''} · para {siteName(state, prep.siteId)}
       </Text>
-      <Text style={{ fontSize: campo.small, color: c.text, marginTop: 3, fontWeight: '700' }}>
-        Comercial: {comercialLabel(state, vehicle)}
+      <DondeEsta vehicle={vehicle} esperadoEn={prep.siteId} />
+      <Text style={{ fontSize: campo.small, color: c.textMuted, marginTop: space.sm }}>
+        {lineaDeEntrega(state, vehicle)}
       </Text>
-      {vehicle?.deliveryDate ? <Text style={{ fontSize: campo.small, color: c.text, marginTop: 4 }}>
-        Entrega: {formatDateTime(vehicle.deliveryDate)}
-      </Text> : null}
-      <UbicacionVehiculo vehicle={vehicle} esperadoEn={prep.siteId} />
 
       <Spacer h={space.sm} />
       <ProgressBar pct={pct} tone={fuera ? 'red' : 'ok'} />
@@ -306,6 +299,27 @@ function PrepCard({ prep, onOpen }: { prep: Preparation; onOpen: () => void }) {
       </Btn>
     </Pressable>
   );
+}
+
+/**
+ * Dónde está el coche, en su recuadro: es lo que el preparador necesita para
+ * echar a andar, así que se separa del resto de la tarjeta en vez de ser una
+ * línea más entre el comercial y la fecha.
+ */
+function DondeEsta({ vehicle, esperadoEn }: { vehicle: Vehicle | undefined; esperadoEn: Id }) {
+  const { c } = useTheme();
+  return (
+    <View style={{ marginTop: space.md, paddingHorizontal: space.md, paddingVertical: space.sm, borderRadius: radius.md, backgroundColor: c.surfaceSunken }}>
+      <UbicacionVehiculo vehicle={vehicle} esperadoEn={esperadoEn} />
+    </View>
+  );
+}
+
+/** «Entrega 28/10 · 16:36 · Mikel Santos»: para cuándo y para quién, en una línea. */
+function lineaDeEntrega(state: AppState, vehicle: Vehicle | undefined): string {
+  const comercial = comercialLabel(state, vehicle);
+  const quien = comercial === 'Sin asignar' ? 'sin comercial asignado' : comercial;
+  return vehicle?.deliveryDate ? `Entrega ${formatDateTime(vehicle.deliveryDate)} · ${quien}` : quien.charAt(0).toUpperCase() + quien.slice(1);
 }
 
 /* -------------------------------------------------------- vista de trabajo */

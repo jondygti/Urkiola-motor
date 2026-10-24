@@ -340,7 +340,7 @@ export async function ejecutar(browser, BASE) {
     // seguro que no tiene ya una preparación abierta.
     await page.goto(`${BASE}/flota`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(900);
-    await elegirEnLista(page, 'Todas las ubicaciones', 'Sondika');
+    await elegirEnLista(page, 'Ubicación', 'Sondika');
     await page.waitForTimeout(700);
     const candidatas = await page.evaluate(() => {
       const txt = [...document.querySelectorAll('div')].map((d) => d.textContent ?? '').join('\n');
@@ -475,7 +475,7 @@ export async function ejecutar(browser, BASE) {
     await admin.page.waitForTimeout(900);
     ok(
       '15 · el administrador sí ve el panel',
-      (await admin.page.evaluate(() => document.body.innerText)).includes('Centro de control')
+      (await admin.page.evaluate(() => document.body.innerText)).includes('Panel de control')
     );
     ok('15 · sin errores de JavaScript', admin.errores.length === 0, admin.errores[0] ?? '');
     await admin.context.close();
@@ -487,10 +487,10 @@ export async function ejecutar(browser, BASE) {
       const texto = await page.evaluate(() => document.body.innerText);
       ok(
         `15 · ${perfil} no ve el panel y aterriza en su trabajo`,
-        !texto.includes('Centro de control'),
+        !texto.includes('Panel de control'),
         page.url()
       );
-      ok(`15 · ${perfil}: el menú tampoco lo ofrece`, !texto.includes('Dashboard'));
+      ok(`15 · ${perfil}: el menú tampoco lo ofrece`, !/^Panel$/m.test(texto));
       ok(`15 · ${perfil}: sin errores de JavaScript`, errores.length === 0, errores[0] ?? '');
       await context.close();
     }
@@ -505,10 +505,10 @@ export async function ejecutar(browser, BASE) {
 
     ok(
       '16 · logística puede dar de alta un coche',
-      await page.getByText('Dar de alta un vehículo', { exact: false }).first().isVisible()
+      await page.getByText('Dar de alta', { exact: true }).first().isVisible()
     );
 
-    await page.getByText('Dar de alta un vehículo', { exact: false }).first().click();
+    await page.getByText('Dar de alta', { exact: true }).first().click();
     await page.waitForTimeout(600);
     await page.getByPlaceholder('Ej. 34567890').fill('PRUEBA99');
     await page.getByPlaceholder('1234 ABC').fill('9999 ZZZ');

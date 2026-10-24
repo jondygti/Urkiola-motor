@@ -82,10 +82,6 @@ export default function DeliveriesScreen() {
     <ScreenGuard href="/entregas" title="Entregas">
       <Screen>
         <H1>Entregas</H1>
-        <Muted>
-          Vehículos con fecha comprometida con el cliente, y qué le falta a cada uno para poder
-          entregarse.
-        </Muted>
 
         <Spacer />
 

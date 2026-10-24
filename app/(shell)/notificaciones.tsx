@@ -112,7 +112,6 @@ export default function NotificationsScreen() {
   return (
     <Screen>
       <H1>Notificaciones</H1>
-      <Muted>Reglas automáticas por vehículo, sede, estado o tiempo. Aviso push en la app y en la web.</Muted>
 
       {toast ? <Notice>{toast}</Notice> : null}
 

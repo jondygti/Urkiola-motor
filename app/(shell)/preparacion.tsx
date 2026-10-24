@@ -209,7 +209,6 @@ export default function PreparationScreen() {
     <ScreenGuard href="/preparacion" title="Preparación">
     <Screen>
       <H1>Preparación</H1>
-      <Muted>Leioa, Galdakao, Anoeta e Irun. Cada equipo tiene su propia cola de trabajo.</Muted>
 
       <Notice>
         <Text style={{ fontSize: tipografia.small, color: c.text, lineHeight: 18 }}>
