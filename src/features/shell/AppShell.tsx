@@ -2,7 +2,7 @@ import { usePathname, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { radius, space, tipografia, useTheme } from '@/ui/theme';
+import { radius, tipografia, useTheme } from '@/ui/theme';
 import { Icon } from '@/ui/Icon';
 import { Marca } from '@/ui/Marca';
 import { useStore } from '@/data/store';
@@ -223,11 +223,12 @@ function SideMenu({
 }
 
 function Badge({ count }: { count: number }) {
-  const { c } = useTheme();
   return (
     <View
       style={{
-        backgroundColor: c.accent,
+        // Rojo, como en cualquier aplicación: es lo que se reconoce como
+        // «tienes algo sin leer». Igual en claro y en oscuro.
+        backgroundColor: '#d92d20',
         minWidth: 18,
         height: 18,
         borderRadius: 9,
@@ -236,7 +237,7 @@ function Badge({ count }: { count: number }) {
         paddingHorizontal: 5,
       }}
     >
-      <Text style={{ color: '#06231d', fontSize: tipografia.label, fontWeight: '900' }}>{count > 99 ? '99+' : count}</Text>
+      <Text style={{ color: '#fff', fontSize: tipografia.label, fontWeight: '900' }}>{count > 99 ? '99+' : count}</Text>
     </View>
   );
 }
@@ -406,5 +407,3 @@ function Drawer({ open, onClose, unread }: { open: boolean; onClose: () => void;
     </View>
   );
 }
-
-export const SHELL_SPACING = space;

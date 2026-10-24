@@ -72,6 +72,11 @@ function referenciasEn(valor: unknown, salida = new Set<string>()): Set<string> 
   return salida;
 }
 
+/** Todas las referencias que lleva un comando, para soltar sus fotos al descartarlo. */
+export function referenciasDe(valor: unknown): string[] {
+  return [...referenciasEn(valor)];
+}
+
 function reemplazar(valor: unknown, mapa: Map<string, string>): unknown {
   if (typeof valor === 'string') return mapa.get(valor) ?? valor;
   if (Array.isArray(valor)) return valor.map((x) => reemplazar(x, mapa));

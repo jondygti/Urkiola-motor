@@ -1,7 +1,7 @@
 import { Redirect, useRouter } from 'expo-router';
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { Btn, Grid, H1, Kpi, Muted, Notice, Panel, Pill, Screen, Spacer, Timeline, TopNote, space, tipografia, useTheme } from '@/ui';
+import { Btn, Grid, H1, Kpi, Muted, Notice, Panel, Pill, Screen, Spacer, Timeline, space, tipografia, useTheme } from '@/ui';
 import { useAppState, useStore, useTicker } from '@/data/store';
 import {
   dashboardKpis,
@@ -14,6 +14,7 @@ import {
 } from '@/data/selectors';
 import { FASE_DIAS_LABEL, type FaseDias } from '@/data/types';
 import { MiniaturaVehiculo } from '@/features/common/Miniatura';
+import { OcupacionPanel } from '@/features/prep/OcupacionPanel';
 import { homeFor, mobileHome } from '@/features/shell/nav';
 import { usePerms } from '@/features/common/Guard';
 import { formatDateTime, formatShortDuration, vehicleRef, vehicleTitle } from '@/data/format';
@@ -48,11 +49,7 @@ export default function DashboardScreen() {
 
   return (
     <Screen>
-      <H1>Centro de control</H1>
-      <Muted>
-        Vista global de flota, logística y preparación. Sondika almacena; Leioa, Galdakao, Anoeta e Irun
-        preparan.
-      </Muted>
+      <H1>Panel de control</H1>
 
       <Spacer />
 
@@ -197,6 +194,10 @@ export default function DashboardScreen() {
 
       <Spacer h={space.lg} />
 
+      <OcupacionPanel state={state} now={now} />
+
+      <Spacer h={space.lg} />
+
       <Grid cols={2} minWidth={420}>
         <Panel icon="tiempo" title="Rendimiento de preparación">
           <View style={{ gap: 2 }}>
@@ -256,24 +257,6 @@ export default function DashboardScreen() {
           )}
         </Panel>
       </Grid>
-
-      <Spacer h={space.lg} />
-
-      <TopNote>
-        <Text style={{ fontSize: tipografia.small, color: c.text, lineHeight: 18 }}>
-          <Text style={{ fontWeight: '800' }}>Web + App: </Text>
-          la web es para gestión y control; la app móvil es para ejecución en campa, transporte y
-          preparación. Ambas usan el mismo backend y comparten este mismo código.
-        </Text>
-      </TopNote>
-      <TopNote>
-        <Text style={{ fontSize: tipografia.small, color: c.text, lineHeight: 18 }}>
-          <Text style={{ fontWeight: '800' }}>Modelo de datos: </Text>
-          Quiter aporta el parque maestro ({state.vehicles.length} vehículos). Easo Logistics controla la actividad
-          logística. Un vehículo se activa automáticamente al registrar ubicación, movimiento, solicitud,
-          preparación, incidencia o recuento.
-        </Text>
-      </TopNote>
 
       <Spacer h={space.lg} />
 

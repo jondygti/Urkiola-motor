@@ -35,6 +35,8 @@ const ICONOS = {
   avisos: 'bell-outline',
   admin: 'cog-outline',
   mover: 'car-arrow-right',
+  ocupacion: 'gauge',
+  carroceria: 'car-wrench',
 
   // Acciones y datos.
   menu: 'menu',
@@ -71,6 +73,7 @@ const ICONOS = {
   personas: 'account-group-outline',
   sede: 'domain',
   buscar: 'magnify',
+  filtro: 'filter-variant',
   nube: 'cloud-outline',
   seguridad: 'shield-check-outline',
   candado: 'lock-outline',

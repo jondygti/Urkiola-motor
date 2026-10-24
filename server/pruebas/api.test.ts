@@ -162,3 +162,45 @@ test('los comandos se aplican en fila aunque lleguen a la vez', async (t) => {
   // de un estado que otro estaba cambiando.
   assert.equal(servicio.estado.events.length, antes + 10);
 });
+
+test('/cambios espera hasta que alguien cambia algo y entonces contesta', async (t) => {
+  const { base, servicio } = await levantar(t);
+  assert.equal((await fetch(`${base}/cambios`)).status, 401);
+  const login = await fetch(`${base}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'logistica@urkiolacarservice.com', password: CLAVE }),
+  });
+  const { token } = (await json(login)) as { token: string };
+  const cabeceras = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+
+  // Sin versión, contesta enseguida con la actual.
+  const { version } = (await json(await fetch(`${base}/cambios`, { headers: cabeceras }))) as { version: number };
+  assert.equal(typeof version, 'number');
+
+  // Con la actual se queda esperando…
+  const inicio = Date.now();
+  const espera = fetch(`${base}/cambios?version=${version}`, { headers: cabeceras }).then(json);
+  await new Promise((r) => setTimeout(r, 300));
+
+  // …hasta que otro aplica un comando.
+  const vehiculo = servicio.estado.vehicles.find((v) => v.location?.siteId === 'sondika')!;
+  const r = await fetch(`${base}/commands`, {
+    method: 'POST',
+    headers: cabeceras,
+    body: JSON.stringify({ type: 'vehicle.check', id: 'cmd-cambios-1', at: new Date().toISOString(), userId: 'u-log', vehicleId: vehiculo.id }),
+  });
+  assert.equal(r.status, 200);
+  const despues = (await espera) as { version: number };
+  assert.notEqual(despues.version, version);
+  assert.ok(Date.now() - inicio < 5_000, 'contesta al momento, no al acabar la espera');
+
+  // Un reintento del mismo comando no cambia nada, así que no despierta a nadie.
+  await fetch(`${base}/commands`, {
+    method: 'POST',
+    headers: cabeceras,
+    body: JSON.stringify({ type: 'vehicle.check', id: 'cmd-cambios-1', at: new Date().toISOString(), userId: 'u-log', vehicleId: vehiculo.id }),
+  });
+  const quieta = await servicio.esperarCambio(despues.version, 200);
+  assert.equal(quieta, despues.version);
+});

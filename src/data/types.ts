@@ -245,6 +245,19 @@ export interface ServiceRequest {
    * y no una preparación entera.
    */
   prepTipo?: TipoPreparacion;
+  /** Qué tarea se pide (VN, flota, VO a fondo…). Sin valor, la del coche. */
+  tarea?: TareaPreparacion;
+  /**
+   * Accesorios que necesita este coche (ids de requisitos con `accesorio`).
+   * Sin valor (solicitudes de antes), todos los de la lista.
+   */
+  accesorios?: Id[];
+  /**
+   * La orden de trabajo de Quiter de esta preparación: la abre Jon con la
+   * limpieza y preentrega y los accesorios pedidos, y apunta aquí su número.
+   * Los repasos no llevan orden.
+   */
+  ordenTrabajo?: { numero: string; at: ISODate; by: Id } | null;
   /**
    * Por qué se entregó fuera de plazo.
    *
@@ -296,6 +309,50 @@ export const TIPO_PREPARACION_LABEL: Record<TipoPreparacion, string> = {
   entrada: 'Preparación',
   repaso: 'Repaso de entrega',
 };
+
+/**
+ * Qué trabajo es, para medirlo contra su tiempo estándar.
+ *
+ * `TipoPreparacion` decide el checklist (entera o repaso); la tarea decide
+ * cuánto debería costar. No son lo mismo: un VN y un VO a fondo llevan la
+ * misma lista de requisitos, pero dos horas medidas contra cuatro hacían
+ * que el VO pareciera ir siempre tarde.
+ *
+ * La carrocería no es una preparación de un coche de la flota: el preparador
+ * apunta la matrícula de un coche que no está en la base de datos, y se
+ * cuenta solo para la ocupación (`TrabajoSuelto`).
+ */
+export type TareaPreparacion = 'vn' | 'flota' | 'vo_fondo' | 'vo_repaso' | 'repaso_entrega' | 'carroceria';
+
+export const TAREA_LABEL: Record<TareaPreparacion, string> = {
+  vn: 'VN',
+  flota: 'Flota',
+  vo_fondo: 'VO a fondo',
+  vo_repaso: 'Repaso VO',
+  repaso_entrega: 'Repaso de entrega',
+  carroceria: 'Carrocería',
+};
+
+/** Las tareas que caben en cada tipo de preparación (la carrocería, en ninguna). */
+export const TAREAS_DE_TIPO: Record<TipoPreparacion, TareaPreparacion[]> = {
+  entrada: ['vn', 'flota', 'vo_fondo'],
+  repaso: ['repaso_entrega', 'vo_repaso'],
+};
+
+/**
+ * Minutos que debería costar una tarea en una sede. `siteId` null vale para
+ * todas; si una sede tiene el suyo, manda el suyo (la flota de Leioa se
+ * prepara en hora y media y la de Ford/Mazda en dos).
+ *
+ * Es a la vez el objetivo del cronómetro y el tiempo que se cuenta cuando el
+ * preparador no lo usó: dos números para lo mismo acababan diciendo cosas
+ * distintas.
+ */
+export interface TiempoEstandar {
+  tarea: TareaPreparacion;
+  siteId: Id | null;
+  minutos: number;
+}
 
 export type PrepPhase = 'pendiente' | 'base' | 'pendiente_elementos' | 'preentrega' | 'apto_entrega';
 
@@ -366,6 +423,11 @@ export interface Preparation {
   preparerId: Id | null;
   /** Preparación de entrada o repaso de entrega. Sin valor = entrada. */
   tipo?: TipoPreparacion;
+  /**
+   * Qué trabajo es, para su tiempo estándar. Sin valor (datos de antes) se
+   * deduce del coche y del tipo: `tareaDePreparacion`.
+   */
+  tarea?: TareaPreparacion;
   phase: PrepPhase;
   runState: PrepRunState;
   items: ChecklistItem[];
@@ -380,6 +442,11 @@ export interface Preparation {
    * lo había hecho.
    */
   tiempoAnterior?: Record<string, TiempoPreparador>;
+  /**
+   * Tiempo estándar de la tarea, copiado al abrirla. Se copia y no se mira
+   * en la tabla cada vez para que cambiar la tabla mañana no reescriba los
+   * meses ya cerrados.
+   */
   targetMs: number;
   /** Instante desde el que corre el cronómetro; null si está parado. */
   runningSince: ISODate | null;
@@ -391,6 +458,88 @@ export interface Preparation {
   finalPhotos?: FinalPreparationPhotos | null;
   /** Incidencia creada durante el cierre cuando el preparador declara un daño. */
   damageIncidentId?: Id | null;
+}
+
+/* ------------------------------------------------- trabajo sin coche */
+
+/**
+ * Un trabajo que hace el preparador sobre un coche que no está en la flota.
+ *
+ * Hoy, la carrocería: el coche viene de taller o de un cliente, no está en
+ * Quiter como stock, y darlo de alta como vehículo lo metería en la flota de
+ * todos. Se apunta con la matrícula que escribe el preparador y cuenta para
+ * su ocupación, nada más.
+ */
+export interface TrabajoSuelto {
+  id: Id;
+  tarea: 'carroceria';
+  siteId: Id;
+  preparerId: Id;
+  matricula: string;
+  runState: 'en_curso' | 'en_espera' | 'terminado' | 'cancelado';
+  /** Milisegundos ya consolidados, sin el tramo en curso. */
+  effectiveMs: number;
+  runningSince: ISODate | null;
+  targetMs: number;
+  createdAt: ISODate;
+  startedAt: ISODate | null;
+  finishedAt: ISODate | null;
+}
+
+/* ----------------------------------------------- calendario de preparadores */
+
+/** Qué parte de su jornada pasa un preparador en cada sede. Suma 100. */
+export interface RepartoSede {
+  siteId: Id;
+  pct: number;
+}
+
+/**
+ * Jornada y reparto por sedes de un preparador desde una fecha.
+ *
+ * Lleva fecha de inicio y no se sobrescribe: si Ane pasa en marzo de Leioa
+ * a Galdakao, enero y febrero tienen que seguir contándose en Leioa. La que
+ * vale un día es la última que empieza antes o ese mismo día.
+ */
+export interface FichaLaboral {
+  id: Id;
+  userId: Id;
+  /** AAAA-MM-DD, en hora de España. */
+  desde: string;
+  jornadaMinutos: number;
+  reparto: RepartoSede[];
+}
+
+export type TipoAusencia = 'vacaciones' | 'baja' | 'permiso' | 'otro';
+
+export const TIPO_AUSENCIA_LABEL: Record<TipoAusencia, string> = {
+  vacaciones: 'Vacaciones',
+  baja: 'Baja',
+  permiso: 'Permiso',
+  otro: 'Otro',
+};
+
+/**
+ * Días que un preparador no está. Sin motivo a propósito: de una baja basta
+ * con saber que existe, el porqué es un dato de salud que no tiene que estar
+ * aquí.
+ */
+export interface Ausencia {
+  id: Id;
+  userId: Id;
+  /** AAAA-MM-DD, los dos incluidos. */
+  desde: string;
+  hasta: string;
+  tipo: TipoAusencia;
+}
+
+/** Festivo de una sede, o de todas (`siteId` null). Los locales no coinciden. */
+export interface Festivo {
+  id: Id;
+  /** AAAA-MM-DD. */
+  fecha: string;
+  siteId: Id | null;
+  nombre: string;
 }
 
 /* ------------------------------------------------------------- recuento */
@@ -453,7 +602,8 @@ export type NotifyCondition =
   | 'traslado_sin_recoger'
   | 'incidencia_abierta'
   | 'traslado_completado'
-  | 'preparacion_bloqueada';
+  | 'preparacion_bloqueada'
+  | 'ocupacion_alta';
 
 export const NOTIFY_CONDITION_LABEL: Record<NotifyCondition, string> = {
   llegada_sede: 'Cuando llegue a la sede',
@@ -464,17 +614,8 @@ export const NOTIFY_CONDITION_LABEL: Record<NotifyCondition, string> = {
   incidencia_abierta: 'Cuando se abra una incidencia',
   traslado_completado: 'Cuando se complete el traslado',
   preparacion_bloqueada: 'Cuando una preparación se bloquee',
+  ocupacion_alta: 'Si una sede pasa del 80 % de ocupación dos meses seguidos',
 };
-
-/**
- * Las condiciones que no las dispara nadie al hacer algo, sino el paso del
- * tiempo. Las revisa `alerts.sweep` (ver `commands.ts`).
- *
- * Antes `sin_comprobar_72h` estaba en la lista y en la configuración de
- * ejemplo, pero **no la disparaba nada**: la regla se podía crear y no
- * avisaba nunca. Es el motivo de que exista este apartado.
- */
-export const CONDICIONES_POR_TIEMPO: NotifyCondition[] = ['sin_comprobar_72h', 'traslado_sin_recoger'];
 
 /**
  * A quién va el aviso.
@@ -577,17 +718,6 @@ export interface Carrier {
  */
 export type Role = string;
 
-export const BUILTIN_ROLES = [
-  'admin',
-  'logistica',
-  'preparador',
-  'transportista',
-  'recepcion',
-  'comercial',
-  'director_comercial',
-  'responsable_vo',
-] as const;
-
 /** Todo lo que se puede permitir o denegar a un rol. */
 export type Permission =
   | 'panel.ver'
@@ -686,6 +816,13 @@ export interface Requirement {
   timed: boolean;
   /** Se marca "no requerido" por defecto salvo que aplique. */
   optional: boolean;
+  /**
+   * Es un accesorio que se pide en la orden de trabajo de Quiter
+   * (matrículas, alfombrillas, baliza, kit…). No todos los coches lo
+   * necesitan: quien pide la preparación marca cuáles, y los que no marca le
+   * salen al preparador como «no requerido».
+   */
+  accesorio?: boolean;
   order: number;
 }
 
@@ -750,16 +887,21 @@ export const FASE_DIAS_LABEL: Record<FaseDias, string> = {
 };
 
 export interface AdminConfig {
-  /** Objetivo de preparación en minutos. */
-  prepTargetMinutes: Record<VehicleType, number>;
   /**
-   * Objetivo del repaso de entrega, en minutos.
-   *
-   * Va aparte del de la preparación porque no es el mismo trabajo: media
-   * hora de limpieza no se mide contra las dos horas de una preparación
-   * entera.
+   * Objetivos antiguos (VN/VO y repaso). Ya no se usan: los sustituye
+   * `tiemposEstandar`. Se conservan en el tipo porque los estados guardados
+   * los traen.
    */
-  repasoTargetMinutes: number;
+  prepTargetMinutes?: Record<VehicleType, number>;
+  repasoTargetMinutes?: number;
+  /**
+   * Tiempo estándar de cada tarea por sede. Es el objetivo del cronómetro y
+   * lo que se cuenta cuando el preparador no lo usó. Sin valor (estados de
+   * antes), los de serie: `TIEMPOS_ESTANDAR` en `seed.ts`.
+   */
+  tiemposEstandar?: TiempoEstandar[];
+  /** Festivos por sede, para las horas de presencia de los preparadores. */
+  festivos?: Festivo[];
   /** Horas sin comprobación física a partir de las que se avisa. */
   staleCheckHours: number;
   /**
@@ -830,4 +972,13 @@ export interface AppState {
   receptions: Reception[];
   events: TraceEvent[];
   config: AdminConfig;
+  /** Trabajos sobre coches que no están en la flota (carrocería). */
+  trabajosSueltos?: TrabajoSuelto[];
+  /**
+   * Calendario de los preparadores. Opcionales porque los estados guardados
+   * antes no los traen. Solo los recibe quien ve la ocupación: son datos de
+   * personas, y las ausencias, además, sensibles.
+   */
+  fichasLaborales?: FichaLaboral[];
+  ausencias?: Ausencia[];
 }

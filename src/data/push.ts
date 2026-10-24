@@ -27,7 +27,7 @@ export async function registerForPush(): Promise<string | null> {
         name: 'Operativa',
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#2fb899',
+        lightColor: '#007AC0',
       });
     }
 
@@ -35,19 +35,5 @@ export async function registerForPush(): Promise<string | null> {
     return token.data;
   } catch {
     return null;
-  }
-}
-
-/** Aviso local inmediato (se usa en modo demo para ver el flujo completo). */
-export async function notifyLocal(title: string, body: string): Promise<void> {
-  if (Platform.OS === 'web') return;
-  try {
-    const Notifications = await import('expo-notifications');
-    await Notifications.scheduleNotificationAsync({
-      content: { title, body },
-      trigger: null,
-    });
-  } catch {
-    /* sin módulo nativo disponible: se ignora */
   }
 }

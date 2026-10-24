@@ -1,0 +1,111 @@
+name: APK de prueba
+
+# Compila la app de Android como APK para instalarla a mano, fuera de
+# Google Play, apuntando al servidor que se le diga. Se lanza a mano desde
+# GitHub → Actions → «APK de prueba» → «Run workflow»; el APK queda para
+# descargar en la propia ejecución. Paso a paso en deploy/PRUEBA-GRATIS.md.
+#
+# No usa EAS ni ninguna cuenta de Expo: compila con Gradle en la máquina de
+# GitHub. Firma con la clave de depuración pública de React Native, así que
+# sirve para pruebas y nunca para Google Play; a cambio, cada APK nuevo se
+# instala encima del anterior sin perder la sesión.
+
+on:
+  workflow_dispatch:
+    inputs:
+      servidor:
+        description: 'Dirección del servidor, por ejemplo https://easo-logistics-prueba.onrender.com'
+        required: true
+
+permissions:
+  # Para dejar el APK en la publicación «apk-prueba» (ver el último paso).
+  contents: write
+
+concurrency:
+  group: apk-prueba
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    name: Compilar APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      # La dirección se incrusta al compilar (regla 8): un APK habla siempre
+      # con el servidor con el que se compiló.
+      EXPO_PUBLIC_API_URL: ${{ inputs.servidor }}
+      EXPO_NO_TELEMETRY: 1
+      NODE_ENV: production
+    steps:
+      - name: Comprobar la dirección del servidor
+        run: |
+          if ! printf '%s' "$EXPO_PUBLIC_API_URL" | grep -Eq '^https://[A-Za-z0-9.-]+(:[0-9]+)?/?$'; then
+            echo "La dirección tiene que ser https://algo, sin rutas detrás. Recibido: $EXPO_PUBLIC_API_URL"
+            exit 1
+          fi
+          echo "EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL%/}" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Instalar dependencias
+        run: npm ci --no-audit --no-fund
+      - name: Generar el proyecto Android
+        run: npx expo prebuild --platform android --no-install --clean
+      - name: Ajustar la compilación
+        working-directory: android
+        # Con la memoria de serie, Gradle se quedaba sin «Metaspace» a los
+        # 15 minutos y se colgaba hasta que GitHub lo cortaba a la hora.
+        # Y solo se compila para arm64, que es lo que llevan los móviles de
+        # los últimos años: compilar las cuatro arquitecturas cuadruplicaba
+        # el tiempo para teléfonos que no va a usar nadie en la campa.
+        run: |
+          sed -i '/^org.gradle.jvmargs=/d; /^reactNativeArchitectures=/d' gradle.properties
+          # El fichero no acaba en salto de línea: sin este echo, lo nuevo se
+          # pegaba a la última línea (la de los módulos de Expo) y la rompía.
+          {
+            echo
+            echo 'org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8'
+            echo 'reactNativeArchitectures=arm64-v8a'
+          } >> gradle.properties
+          tail -n 4 gradle.properties
+      - name: Compilar el APK
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon --stacktrace --console=plain
+      - name: Nombre con fecha y servidor
+        run: |
+          host=$(printf '%s' "$EXPO_PUBLIC_API_URL" | sed -E 's#https://##; s#[/:]#-#g')
+          mkdir -p salida
+          cp android/app/build/outputs/apk/release/app-release.apk "salida/easo-logistics-${host}-$(date +%Y%m%d-%H%M).apk"
+      - name: Dejar el APK para descargar
+        uses: actions/upload-artifact@v7
+        with:
+          name: easo-logistics-apk
+          path: salida/*.apk
+          if-no-files-found: error
+          retention-days: 30
+          # El APK tal cual, no dentro de un zip: se descarga y se instala.
+          archive: false
+      - name: Publicar en una dirección fija para el móvil
+        # Los «Artifacts» de una ejecución piden entrar en GitHub y se
+        # descargan mal desde el móvil. La publicación «apk-prueba» se
+        # sustituye en cada compilación y deja siempre el último en
+        # …/releases/download/apk-prueba/easo-logistics.apk, que se abre
+        # desde el navegador del teléfono y se instala. El APK solo lleva la
+        # dirección del servidor; ninguna contraseña.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          cp salida/*.apk salida/easo-logistics.apk
+          notas="APK de prueba para $EXPO_PUBLIC_API_URL, compilado el $(date -u +'%d/%m/%Y %H:%M') UTC desde ${GITHUB_SHA::7}. Solo para pruebas con datos de ejemplo; no es la versión de Google Play."
+          gh release delete apk-prueba --yes --cleanup-tag 2>/dev/null || true
+          gh release create apk-prueba salida/easo-logistics.apk \
+            --title 'APK de prueba' --notes "$notas" --prerelease --target "$GITHUB_SHA"
