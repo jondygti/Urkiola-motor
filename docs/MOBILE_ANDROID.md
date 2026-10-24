@@ -1,6 +1,6 @@
 # Android y Google Play
 
-Actualizado: **20/09/2026**.
+Actualizado: **24/10/2026**.
 
 Requisito obligatorio del PDF v2 de Jon: aplicación Android publicable en
 Google Play. Conservar Expo / React Native y el backend compartido con web.
@@ -40,5 +40,7 @@ La demo HTML no acredita funcionamiento nativo ni preparación para la tienda.
 Uso operativo: localización, movimientos, traslados, preparación, repaso,
 incidencias, fotos, albaranes, inventarios, estados, consultas y notificaciones.
 Los permisos del servidor se aplican igualmente a la app móvil.
+
+Para pruebas existe un **APK** que compila GitHub Actions (`apk-prueba.yml`) apuntando al servidor que se le indique, firmado con la clave de depuración: sirve para instalar a mano, nunca para Google Play. Ver `deploy/PRUEBA-GRATIS.md`.
 
 `DISTRIBUCION.md` contiene el procedimiento vigente sin congelar precios/plazos de tienda. No se ha generado un AAB, registrado una cuenta de Play ni publicado una versión con este cambio.

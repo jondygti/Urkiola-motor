@@ -22,6 +22,10 @@ El workflow `.github/workflows/comprobaciones.yml` es la comprobación automáti
 
 No fijar números de asserts en documentación. El total válido es el que muestre el log del commit ejecutado.
 
+## APK de prueba
+
+`.github/workflows/apk-prueba.yml` se lanza a mano (Actions → «APK de prueba» → Run workflow) con la dirección del servidor. Compila el APK con Gradle, sin cuenta de Expo, y lo deja en la publicación `apk-prueba`, siempre en el mismo enlace. Firmado con la clave de depuración: solo para pruebas.
+
 ## Demo automática
 
 En un `push` a `main`, el job **Generar demo navegable** espera a que navegador, servidor e imagen Docker terminen correctamente. Si algo falla, no publica demo.

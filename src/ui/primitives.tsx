@@ -56,23 +56,6 @@ export function H3({ children }: { children: React.ReactNode }) {
   return <Text style={{ fontSize: tipografia.body, fontWeight: '800', color: c.text }}>{children}</Text>;
 }
 
-export function Txt({
-  children,
-  style,
-  numberOfLines,
-}: {
-  children: React.ReactNode;
-  style?: StyleProp<TextStyle>;
-  numberOfLines?: number;
-}) {
-  const { c } = useTheme();
-  return (
-    <Text numberOfLines={numberOfLines} style={[{ fontSize: tipografia.body, color: c.text }, style]}>
-      {children}
-    </Text>
-  );
-}
-
 export function Muted({ children, style }: { children: React.ReactNode; style?: StyleProp<TextStyle> }) {
   const { c } = useTheme();
   return <Text style={[{ fontSize: tipografia.small, color: c.textMuted, lineHeight: 17 }, style]}>{children}</Text>;
@@ -208,31 +191,6 @@ export function Toolbar({ children }: { children: React.ReactNode }) {
     >
       {children}
     </ScrollView>
-  );
-}
-
-export function Row({
-  children,
-  gap = space.sm,
-  style,
-  wrap = true,
-  align = 'center',
-}: {
-  children: React.ReactNode;
-  gap?: number;
-  style?: StyleProp<ViewStyle>;
-  wrap?: boolean;
-  align?: ViewStyle['alignItems'];
-}) {
-  return (
-    <View
-      style={[
-        { flexDirection: 'row', flexWrap: wrap ? 'wrap' : 'nowrap', gap, alignItems: align },
-        style,
-      ]}
-    >
-      {children}
-    </View>
   );
 }
 

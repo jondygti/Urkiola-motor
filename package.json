@@ -16,7 +16,6 @@
     "server": "npm --prefix server run dev",
     "server:test": "npm --prefix server test",
     "lint": "expo lint",
-    "icons": "node scripts/generate-icons.mjs",
     "build:demo": "node scripts/build-demo.mjs",
     "fuente": "node scripts/generar-fuente.mjs"
   },

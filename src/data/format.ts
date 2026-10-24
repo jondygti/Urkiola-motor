@@ -31,12 +31,6 @@ export function formatDateTime(isoDate: string | null | undefined): string {
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)} · ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function formatTime(isoDate: string | null | undefined): string {
-  if (!isoDate) return '—';
-  const d = new Date(isoDate);
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
 export function formatDate(isoDate: string | null | undefined): string {
   if (!isoDate) return '—';
   const d = new Date(isoDate);

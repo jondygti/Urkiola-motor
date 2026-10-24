@@ -1,6 +1,6 @@
 # Easo Logistics · guía para Claude
 
-> Actualización de cierre (20/09/2026): `docs/ESTADO-ACTUAL.md`, `docs/ARCHITECTURE.md`,
+> Actualizado el 24/10/2026: `docs/ESTADO-ACTUAL.md`, `docs/ARCHITECTURE.md`,
 > `docs/ROADMAP.md`, `docs/SEGURIDAD.md` y `docs/STAGING-CHECKLIST.md` describen el estado vigente.
 > Objetivo: Render + Supabase PostgreSQL/Storage, autenticación propia temporal y migración posterior a Supabase Auth.
 > Cualquier proveedor, precio, rama o siguiente paso histórico de esta guía queda subordinado a esos documentos.
@@ -271,7 +271,7 @@ La demostración navegable se genera con `npm run build:demo` (un único fichero
 app/(shell)/        Una pantalla por fichero (expo-router)
 src/data/           types · commands (reglas) · selectors (cálculos) · store · seed
 src/features/       admin · shell (menú) · actions · prep · scan · common
-src/ui/             Sistema de diseño (colores del mockup + modo oscuro)
+src/ui/             Sistema de diseño (azul Easo + modo oscuro)
 server/             El backend. Reutiliza src/data/commands.ts tal cual
 scripts/verify/     Comprobación automática
 docs/               Documentación, toda en castellano
@@ -437,7 +437,11 @@ en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
 
 ## Estado y siguientes pasos
 
-**Hecho:** base funcional, permisos/ámbitos comerciales, offline/idempotencia, backend, evidencias con autorización por ámbito, recuperación de contraseña, demo determinista y CI oficial.
+**Hecho:** base funcional, permisos/ámbitos comerciales, offline/idempotencia, backend, evidencias con autorización por ámbito, recuperación de contraseña, demo determinista y CI oficial. En octubre: servidor de prueba gratuito (Render + Supabase) con APK de prueba, ocupación de preparadores, orden de trabajo de Quiter, lectura de matrícula y bastidor con la cámara, cambios en vivo y la nueva imagen. El detalle, en `docs/ESTADO-ACTUAL.md`.
+
+**El servidor de prueba se vació el 24/10/2026** para que Jon cargue a mano la estructura real (usuarios, coches, zonas y plazas). Sigue siendo una cuenta personal: nada de datos de clientes. Cómo se vació, en `deploy/PRUEBA-GRATIS.md`.
+
+**Parado:** pedidos de dotación a recambios, hasta que Jon hable con Quiter sobre crear órdenes desde fuera.
 
 **Siguiente, por orden:**
 

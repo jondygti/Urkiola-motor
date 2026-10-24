@@ -2,7 +2,7 @@ import { usePathname, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { radius, space, tipografia, useTheme } from '@/ui/theme';
+import { radius, tipografia, useTheme } from '@/ui/theme';
 import { Icon } from '@/ui/Icon';
 import { Marca } from '@/ui/Marca';
 import { useStore } from '@/data/store';
@@ -407,5 +407,3 @@ function Drawer({ open, onClose, unread }: { open: boolean; onClose: () => void;
     </View>
   );
 }
-
-export const SHELL_SPACING = space;

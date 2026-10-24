@@ -618,16 +618,6 @@ export const NOTIFY_CONDITION_LABEL: Record<NotifyCondition, string> = {
 };
 
 /**
- * Las condiciones que no las dispara nadie al hacer algo, sino el paso del
- * tiempo. Las revisa `alerts.sweep` (ver `commands.ts`).
- *
- * Antes `sin_comprobar_72h` estaba en la lista y en la configuración de
- * ejemplo, pero **no la disparaba nada**: la regla se podía crear y no
- * avisaba nunca. Es el motivo de que exista este apartado.
- */
-export const CONDICIONES_POR_TIEMPO: NotifyCondition[] = ['sin_comprobar_72h', 'traslado_sin_recoger', 'ocupacion_alta'];
-
-/**
  * A quién va el aviso.
  *
  * Hasta ahora `recipient` era solo un nombre escrito y la bandeja la veía
@@ -727,17 +717,6 @@ export interface Carrier {
  * borrar, pero sí renombrar y cambiarles los permisos.
  */
 export type Role = string;
-
-export const BUILTIN_ROLES = [
-  'admin',
-  'logistica',
-  'preparador',
-  'transportista',
-  'recepcion',
-  'comercial',
-  'director_comercial',
-  'responsable_vo',
-] as const;
 
 /** Todo lo que se puede permitir o denegar a un rol. */
 export type Permission =

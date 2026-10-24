@@ -22,7 +22,7 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-/** Menú lateral de la web, con los mismos grupos y orden que el mockup V18. */
+/** Menú lateral de la web, agrupado por oficio. */
 export const NAV: NavGroup[] = [
   {
     title: 'CONTROL',
@@ -186,7 +186,7 @@ export function mobileTabs(state: AppState, user: User | null): NavItem[] {
 
 /** Título de cabecera a partir de la ruta actual. */
 export function titleForPath(path: string): string {
-  if (path === '/' || path === '/index') return 'Centro de control';
+  if (path === '/' || path === '/index') return 'Panel de control';
   if (path.startsWith('/vehiculo')) return 'Ficha de vehículo';
   return ALL_ITEMS.find((i) => i.href === path)?.label ?? 'Easo Logistics';
 }
