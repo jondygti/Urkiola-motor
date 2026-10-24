@@ -147,6 +147,7 @@ function sedeAfectada(s: AppState, cmd: Command): Id | null | undefined {
   }
   if ('siteId' in cmd && cmd.siteId) return cmd.siteId;
   if ('prepId' in cmd) return s.preparations.find((p) => p.id === cmd.prepId)?.siteId ?? null;
+  if ('sueltoId' in cmd) return (s.trabajosSueltos ?? []).find((t) => t.id === cmd.sueltoId)?.siteId ?? null;
   if ('countId' in cmd) return s.counts.find((c) => c.id === cmd.countId)?.siteId ?? null;
   if ('receptionId' in cmd) return s.receptions.find((r) => r.id === cmd.receptionId)?.siteId ?? null;
   if ('requestId' in cmd) return s.requests.find((r) => r.id === cmd.requestId)?.siteId ?? null;
@@ -339,6 +340,40 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
       if (cmd.to && !tiene(s, u, 'movimientos.registrar')) return 'No puedes registrar movimientos.';
       return null;
     }
+
+    case 'request.setAccesorios':
+    case 'request.setOrden':
+      // La orden de Quiter la lleva la oficina, que es quien la abre.
+      return tiene(s, u, 'solicitudes.gestionar') ? null : 'No puedes gestionar las órdenes de trabajo.';
+
+    case 'prep.setTarea':
+      // Qué tarea es decide contra qué tiempo se mide el trabajo de alguien:
+      // es de quien reparte, no de quien la hace.
+      return tiene(s, u, 'preparacion.gestionar') ? null : 'No puedes cambiar la tarea de una preparación.';
+
+    case 'suelto.empezar':
+    case 'suelto.apuntar':
+      return tiene(s, u, 'preparacion.ejecutar') ? null : 'No puedes apuntar trabajos de preparación.';
+
+    case 'suelto.pausar':
+    case 'suelto.reanudar':
+    case 'suelto.terminar':
+    case 'suelto.cancelar': {
+      const t = (s.trabajosSueltos ?? []).find((x) => x.id === cmd.sueltoId);
+      if (!t) return 'Ese trabajo no existe.';
+      // Cada uno el suyo; la oficina, cualquiera (para corregir errores).
+      if (t.preparerId === u.id && tiene(s, u, 'preparacion.ejecutar')) return null;
+      return tiene(s, u, 'preparacion.gestionar') ? null : 'Ese trabajo es de otro preparador.';
+    }
+
+    case 'tiempo.set':
+    case 'calendario.ficha':
+    case 'calendario.fichaBorrar':
+    case 'calendario.ausencia':
+    case 'calendario.ausenciaBorrar':
+    case 'calendario.festivo':
+    case 'calendario.festivoBorrar':
+      return tiene(s, u, 'admin.configurar') ? null : 'No tienes permiso de administración.';
 
     case 'count.create':
     case 'count.finding':

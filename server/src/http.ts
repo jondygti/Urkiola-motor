@@ -122,6 +122,8 @@ function responder(res: http.ServerResponse, codigo: number, cuerpo: unknown) {
   res.end(texto);
 }
 
+const ESPERA_CAMBIOS_MS = 25_000;
+
 /** Las rutas que son API. Todo lo demás, si hay web compilada, es la web. */
 const API = [
   '/health',
@@ -130,6 +132,7 @@ const API = [
   '/auth/olvidada',
   '/auth/restablecer',
   '/state',
+  '/cambios',
   '/commands',
   '/push/token',
 ];
@@ -164,9 +167,17 @@ export function crearServidor(servicio: Servicio, config: Config): http.Server {
       }
 
       const salida = await enrutar(servicio, config, req, ruta, res);
-      if (!salida) return; // ya ha respondido por su cuenta (una foto)
+      if (!salida) {
+        // Ya ha respondido por su cuenta (una foto). Se apunta igual: sin
+        // esto no había forma de saber si una foto se llegó a ver. La ruta
+        // va sin la parte de después del «?», que lleva el permiso de acceso.
+        registrar(req, ruta, 200, inicio);
+        return;
+      }
       responder(res, salida.codigo, salida.cuerpo);
-      registrar(req, ruta, salida.codigo, inicio);
+      // Cada pantalla abierta pregunta por cambios dos veces por minuto:
+      // apuntarlo llenaría el log y taparía lo que sí interesa.
+      if (!(ruta === '/cambios' && salida.codigo === 200)) registrar(req, ruta, salida.codigo, inicio);
     } catch (e) {
       if (e instanceof ErrorHttp) {
         // Un intento fallido de entrar o de restablecer sí cuenta contra la
@@ -328,6 +339,20 @@ async function enrutar(
   if (ruta === '/state' && metodo === 'GET') {
     const user = servicio.usuarioDeToken(req.headers.authorization);
     return { codigo: 200, cuerpo: servicio.estadoDe(user) };
+  }
+
+  // Espera larga: se queda abierta hasta que haya un cambio o pasen 25 s,
+  // por debajo de lo que aguantan los proxys (Render, operadoras) sin cortar.
+  if (ruta === '/cambios' && metodo === 'GET') {
+    servicio.usuarioDeToken(req.headers.authorization);
+    const texto = new URL(req.url ?? '/', 'http://interno').searchParams.get('version');
+    const conocida = texto && /^\d+$/.test(texto) ? Number(texto) : null;
+    const cortada = new AbortController();
+    res.on('close', () => cortada.abort());
+    const version = await servicio.esperarCambio(conocida, ESPERA_CAMBIOS_MS, cortada.signal);
+    // Si el usuario se ha desactivado mientras esperaba, que no siga aquí.
+    servicio.usuarioDeToken(req.headers.authorization);
+    return { codigo: 200, cuerpo: { version } };
   }
 
   const historial = ruta.match(/^\/historial\/([^/]+)$/);

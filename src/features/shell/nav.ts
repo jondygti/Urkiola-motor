@@ -30,7 +30,7 @@ export const NAV: NavGroup[] = [
       // El panel de control es de dirección: se ve solo con permiso, y de
       // serie solo lo tiene el administrador. Quien no lo tenga entra
       // directamente a su trabajo.
-      { href: '/', label: 'Dashboard', icon: 'panel', short: 'Panel', anyOf: ['panel.ver'] },
+      { href: '/', label: 'Panel', icon: 'panel', short: 'Panel', anyOf: ['panel.ver'] },
       { href: '/flota', label: 'Flota', icon: 'flota', short: 'Flota', anyOf: ['flota.ver'] },
       {
         href: '/entregas',

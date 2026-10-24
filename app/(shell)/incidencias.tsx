@@ -125,7 +125,6 @@ export default function IncidentsScreen() {
     <ScreenGuard href="/incidencias" title="Incidencias">
     <Screen>
       <H1>Incidencias</H1>
-      <Muted>Daños, faltas y bloqueos detectados en recepción, transporte, campa o preparación.</Muted>
 
       {toast ? <Notice>{toast}</Notice> : null}
 

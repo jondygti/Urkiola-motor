@@ -40,9 +40,17 @@ import type {
   Situation,
   CommercialArea,
   CommercialCategory,
+  TareaPreparacion,
+  RepartoSede,
+  TipoAusencia,
+  TrabajoSuelto,
+  FichaLaboral,
+  Festivo,
 } from './types';
-import { REQUEST_STATUS_LABEL } from './types';
-import { CONFIG } from './seed';
+import { REQUEST_STATUS_LABEL, TAREA_LABEL, TIPO_AUSENCIA_LABEL } from './types';
+import { mesAnterior, nombreDelMes, sedesConOcupacionAlta } from './ocupacion';
+import { accesoriosPara, aplicarAccesorios, llevaOrden } from './ordenTrabajo';
+import { minutosEstandar, tablaDeTiempos, tareaCompatible, tareaPorDefecto } from './tiempos';
 import { avisoPara, rolUsadoEnReglas, can } from './selectors';
 import { locationLabel, siteName, userName, vehicleTitle } from './format';
 import { diaEnEspana } from './delivery-date';
@@ -81,6 +89,10 @@ export type Command =
       carrierId?: Id | null;
       /** Qué trabajo se pide, solo para preparaciones. */
       prepTipo?: TipoPreparacion;
+      /** Qué tarea (VN, flota, VO a fondo…). Sin ella, la que toca al coche. */
+      tarea?: TareaPreparacion;
+      /** Accesorios que necesita el coche, para la orden de Quiter. */
+      accesorios?: Id[];
     }
   | {
       type: 'request.update';
@@ -105,6 +117,7 @@ export type Command =
       preparerId?: Id | null;
       /** Preparación de entrada (por defecto) o repaso de entrega. */
       tipo?: TipoPreparacion;
+      tarea?: TareaPreparacion;
     }
   | { type: 'prep.start'; id: Id; at: string; userId: Id; prepId: Id }
   | { type: 'prep.pause'; id: Id; at: string; userId: Id; prepId: Id; reason: string; blocked?: boolean }
@@ -123,6 +136,62 @@ export type Command =
       damageDescription?: string | null;
     }
   | { type: 'prep.item'; id: Id; at: string; userId: Id; prepId: Id; requirementId: Id; state: CheckState }
+  /**
+   * Corrige la tarea de una preparación (es un VO a fondo, no un VN). Copia
+   * el estándar nuevo: si no, se mediría contra el de la tarea equivocada.
+   */
+  | { type: 'prep.setTarea'; id: Id; at: string; userId: Id; prepId: Id; tarea: TareaPreparacion }
+  /** Cambia los accesorios pedidos. Lleva la lista que tiene que quedar. */
+  | { type: 'request.setAccesorios'; id: Id; at: string; userId: Id; requestId: Id; accesorios: Id[] }
+  /** Apunta (o quita, con null) el número de la orden de trabajo de Quiter. */
+  | { type: 'request.setOrden'; id: Id; at: string; userId: Id; requestId: Id; numero: string | null }
+  /** Empieza un trabajo de carrocería sobre un coche que no está en la flota. */
+  | { type: 'suelto.empezar'; id: Id; at: string; userId: Id; siteId: Id; matricula: string; tarea: 'carroceria' }
+  /** Lo apunta ya hecho, sin cronómetro: cuenta su tiempo estándar. */
+  | { type: 'suelto.apuntar'; id: Id; at: string; userId: Id; siteId: Id; matricula: string; tarea: 'carroceria' }
+  | { type: 'suelto.pausar'; id: Id; at: string; userId: Id; sueltoId: Id }
+  | { type: 'suelto.reanudar'; id: Id; at: string; userId: Id; sueltoId: Id }
+  | { type: 'suelto.terminar'; id: Id; at: string; userId: Id; sueltoId: Id }
+  | { type: 'suelto.cancelar'; id: Id; at: string; userId: Id; sueltoId: Id }
+  /**
+   * Fija el tiempo estándar de una tarea en una sede (`siteId` null: en
+   * todas). `minutos` null quita el de la sede y deja que valga el general;
+   * el general no se puede quitar.
+   */
+  | {
+      type: 'tiempo.set';
+      id: Id;
+      at: string;
+      userId: Id;
+      tarea: TareaPreparacion;
+      siteId: Id | null;
+      minutos: number | null;
+    }
+  /** Jornada y reparto de un preparador desde una fecha. Una por persona y fecha. */
+  | {
+      type: 'calendario.ficha';
+      id: Id;
+      at: string;
+      userId: Id;
+      preparadorId: Id;
+      desde: string;
+      jornadaMinutos: number;
+      reparto: RepartoSede[];
+    }
+  | { type: 'calendario.fichaBorrar'; id: Id; at: string; userId: Id; fichaId: Id }
+  | {
+      type: 'calendario.ausencia';
+      id: Id;
+      at: string;
+      userId: Id;
+      preparadorId: Id;
+      desde: string;
+      hasta: string;
+      tipo: TipoAusencia;
+    }
+  | { type: 'calendario.ausenciaBorrar'; id: Id; at: string; userId: Id; ausenciaId: Id }
+  | { type: 'calendario.festivo'; id: Id; at: string; userId: Id; fecha: string; siteId: Id | null; nombre: string }
+  | { type: 'calendario.festivoBorrar'; id: Id; at: string; userId: Id; festivoId: Id }
   | { type: 'count.create'; id: Id; at: string; userId: Id; siteId: Id; zoneId: Id | null; code: string }
   | { type: 'count.finding'; id: Id; at: string; userId: Id; countId: Id; vehicleId: Id; positionId?: Id | null }
   | { type: 'count.close'; id: Id; at: string; userId: Id; countId: Id }
@@ -326,14 +395,14 @@ function derivado(prefix: string): Id {
  * acaba de crear sin esperar respuesta del servidor.
  */
 export function idCreadoPor(
-  prefix: 'mov' | 'req' | 'prep' | 'count' | 'inc' | 'rec' | 'rule',
+  prefix: 'mov' | 'req' | 'prep' | 'count' | 'inc' | 'rec' | 'rule' | 'suelto' | 'aus',
   cmd: { id: Id }
 ): Id {
   return `${prefix}-${cmd.id}`;
 }
 
 /** Id derivado fijo, para lo que un comando crea una sola vez. */
-function unico(prefix: 'mov' | 'req' | 'prep' | 'count' | 'inc' | 'rec' | 'rule', cmd: Command): Id {
+function unico(prefix: 'mov' | 'req' | 'prep' | 'count' | 'inc' | 'rec' | 'rule' | 'suelto' | 'aus', cmd: Command): Id {
   return idCreadoPor(prefix, cmd);
 }
 
@@ -426,6 +495,25 @@ function addInbox(
 const AVISOS_DIAS = 60;
 const AVISOS_MAX = 5000;
 
+/** Solo los ids que son accesorio para ese tipo de coche, sin repetir. */
+function accesoriosValidos(state: AppState, tipo: VehicleType, ids: Id[]): Id[] {
+  const posibles = new Set(accesoriosPara(state, tipo).map((r) => r.id));
+  return [...new Set(ids.filter((id) => typeof id === 'string' && posibles.has(id)))];
+}
+
+/** AAAA-MM-DD válido. */
+function esDia(x: unknown): x is string {
+  return typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x) && !Number.isNaN(Date.parse(`${x}T12:00:00Z`));
+}
+
+/**
+ * Matrícula tal y como se guarda: en mayúsculas y sin espacios ni guiones,
+ * que es como se busca. «1234 abc» y «1234-ABC» son el mismo coche.
+ */
+export function normalizarMatricula(x: string | null | undefined): string {
+  return (x ?? '').toUpperCase().replace(/[\s-]+/g, '').slice(0, 15);
+}
+
 /** Milisegundos transcurridos entre `desde` y la fecha del comando. */
 function transcurrido(desde: string | null, cmd: Command): number {
   if (!desde) return 0;
@@ -507,7 +595,18 @@ function fireRules(
   state: AppState,
   condition: NotifyCondition,
   vehicle: Vehicle | null,
-  ctx: { siteId?: Id | null; body: string; tone?: NotificationEvent['tone']; sufijo?: string }
+  ctx: {
+    siteId?: Id | null;
+    body: string;
+    tone?: NotificationEvent['tone'];
+    sufijo?: string;
+    /**
+     * Un id por regla y no uno para todas. Con un id compartido, cuando dos
+     * reglas avisan de lo mismo (a dirección y a logística) la segunda se
+     * tomaba por repetida y no llegaba nunca.
+     */
+    porRegla?: boolean;
+  }
 ): AppState {
   let next = state;
   for (const rule of state.rules) {
@@ -532,7 +631,7 @@ function fireRules(
       // que tenían y no con la del reinicio.
       at: enCurso?.at ?? new Date().toISOString(),
       tone: ctx.tone ?? 'info',
-    }, ctx.sufijo);
+    }, ctx.porRegla && ctx.sufijo ? `${ctx.sufijo}-${rule.id}` : ctx.sufijo);
   }
   return next;
 }
@@ -983,6 +1082,16 @@ function aplicar(state: AppState, cmd: Command): AppState {
         deliveredBy: null,
         carrierId: cmd.requestType === 'traslado' ? (cmd.carrierId ?? null) : null,
         prepTipo: cmd.requestType === 'preparacion' ? (cmd.prepTipo ?? 'entrada') : undefined,
+        // Solo si cabe en lo que se pide: un «VO a fondo» en un repaso de
+        // media hora mediría el repaso contra cuatro horas.
+        ...(cmd.requestType === 'preparacion' && cmd.tarea && tareaCompatible(cmd.prepTipo ?? 'entrada', cmd.tarea)
+          ? { tarea: cmd.tarea }
+          : {}),
+        // Solo los que existen como accesorio para este coche, y solo en una
+        // preparación: un repaso no lleva orden de trabajo.
+        ...(cmd.requestType === 'preparacion' && (cmd.prepTipo ?? 'entrada') === 'entrada' && Array.isArray(cmd.accesorios)
+          ? { accesorios: accesoriosValidos(state, vehicle.type, cmd.accesorios) }
+          : {}),
       };
       const vehiclePatch: Partial<Vehicle> =
         cmd.requestType === 'traslado'
@@ -1231,10 +1340,11 @@ function aplicar(state: AppState, cmd: Command): AppState {
       const tipo: TipoPreparacion = cmd.tipo ?? pedidoAbierto?.prepTipo ?? 'entrada';
       const actor = state.users.find(u => u.id === cmd.userId);
       const preparerId = actor && !can(state, actor, 'preparacion.gestionar') ? actor.id : (cmd.preparerId ?? null);
-      const target =
-        tipo === 'repaso'
-          ? (state.config.repasoTargetMinutes ?? 30) * 60_000
-          : (state.config.prepTargetMinutes[vehicle.type] ?? 120) * 60_000;
+      // La tarea: la que diga el comando, si no la de lo que se pidió, y si
+      // no la que le toca al coche. Siempre una que quepa en el tipo.
+      const pedida = [cmd.tarea, pedidoAbierto?.tarea].find((t) => !!t && tareaCompatible(tipo, t));
+      const tarea: TareaPreparacion = pedida ?? tareaPorDefecto(vehicle, tipo);
+      const target = minutosEstandar(tablaDeTiempos(state.config), tarea, cmd.siteId) * 60_000;
       const prep: Preparation = {
         id: unico('prep', cmd),
         requestId: pedidoAbierto?.id ?? null,
@@ -1242,9 +1352,12 @@ function aplicar(state: AppState, cmd: Command): AppState {
         siteId: cmd.siteId,
         preparerId,
         tipo,
+        tarea,
         phase: 'pendiente',
         runState: 'pendiente',
-        items: checklistFor(state, vehicle, tipo),
+        // Los accesorios que no se han pedido le salen como «no requerido»:
+        // si no, el preparador va a por una baliza que nadie quiere.
+        items: aplicarAccesorios(checklistFor(state, vehicle, tipo), state.config.requirements, pedidoAbierto?.accesorios),
         effectiveMs: 0,
         waitingMs: 0,
         targetMs: target,
@@ -1633,6 +1746,205 @@ function aplicar(state: AppState, cmd: Command): AppState {
     case 'rule.delete':
       return { ...state, rules: state.rules.filter((r) => r.id !== cmd.ruleId) };
 
+    case 'prep.setTarea': {
+      const p = state.preparations.find((x) => x.id === cmd.prepId);
+      if (!p || p.runState === 'cancelado' || p.tarea === cmd.tarea) return state;
+      if (!tareaCompatible(p.tipo ?? 'entrada', cmd.tarea)) return state;
+      const targetMs = minutosEstandar(tablaDeTiempos(state.config), cmd.tarea, p.siteId) * 60_000;
+      const next: AppState = {
+        ...state,
+        preparations: replace(state.preparations, p.id, { tarea: cmd.tarea, targetMs }),
+      };
+      return addEvent(next, {
+        vehicleId: p.vehicleId,
+        kind: 'preparacion',
+        title: `Tarea: ${TAREA_LABEL[cmd.tarea]}`,
+        detail: userName(state, cmd.userId),
+        at: cmd.at,
+        userId: cmd.userId,
+      });
+    }
+
+    /* --------------------------------------- orden de trabajo de Quiter */
+    case 'request.setAccesorios': {
+      const r = state.requests.find((x) => x.id === cmd.requestId);
+      const v = r ? state.vehicles.find((x) => x.id === r.vehicleId) : undefined;
+      if (!r || !v || !llevaOrden(r) || r.status === 'cancelada' || !Array.isArray(cmd.accesorios)) return state;
+      const accesorios = accesoriosValidos(state, v.type, cmd.accesorios);
+      // La preparación abierta de esa solicitud cambia con ella.
+      const preparations = state.preparations.map((p) =>
+        p.requestId === r.id && p.runState !== 'terminado' && p.runState !== 'cancelado'
+          ? { ...p, items: aplicarAccesorios(p.items, state.config.requirements, accesorios) }
+          : p
+      );
+      const next: AppState = { ...state, requests: replace(state.requests, r.id, { accesorios }), preparations };
+      return addEvent(next, {
+        vehicleId: r.vehicleId,
+        kind: 'solicitud',
+        title: 'Accesorios de la preparación',
+        detail: `${state.config.requirements.filter((x) => accesorios.includes(x.id)).map((x) => x.label).join(', ') || 'ninguno'} · ${userName(state, cmd.userId)}`,
+        at: cmd.at,
+        userId: cmd.userId,
+      });
+    }
+
+    case 'request.setOrden': {
+      const r = state.requests.find((x) => x.id === cmd.requestId);
+      if (!r || !llevaOrden(r)) return state;
+      const numero = typeof cmd.numero === 'string' ? cmd.numero.trim().slice(0, 30) : null;
+      if ((r.ordenTrabajo?.numero ?? null) === (numero || null)) return state;
+      const next: AppState = {
+        ...state,
+        requests: replace(state.requests, r.id, {
+          ordenTrabajo: numero ? { numero, at: cmd.at, by: cmd.userId } : null,
+        }),
+      };
+      return addEvent(next, {
+        vehicleId: r.vehicleId,
+        kind: 'solicitud',
+        title: numero ? `Orden de trabajo ${numero}` : 'Orden de trabajo quitada',
+        detail: userName(state, cmd.userId),
+        at: cmd.at,
+        userId: cmd.userId,
+      });
+    }
+
+    /* ------------------------------------------- trabajo sin coche (carrocería) */
+    case 'suelto.empezar':
+    case 'suelto.apuntar': {
+      const id = unico('suelto', cmd);
+      const sueltos = state.trabajosSueltos ?? [];
+      if (yaCreado(sueltos, id)) return state;
+      const matricula = normalizarMatricula(cmd.matricula);
+      if (!matricula || cmd.tarea !== 'carroceria') return state;
+      if (!state.sites.find((x) => x.id === cmd.siteId)?.prepares) return state;
+      const empezado = cmd.type === 'suelto.empezar';
+      const trabajo: TrabajoSuelto = {
+        id,
+        tarea: 'carroceria',
+        siteId: cmd.siteId,
+        preparerId: cmd.userId,
+        matricula,
+        runState: empezado ? 'en_curso' : 'terminado',
+        effectiveMs: 0,
+        runningSince: empezado ? cmd.at : null,
+        targetMs: minutosEstandar(tablaDeTiempos(state.config), 'carroceria', cmd.siteId) * 60_000,
+        createdAt: cmd.at,
+        startedAt: empezado ? cmd.at : null,
+        // Apuntado ya hecho: sin cronómetro, cuenta su tiempo estándar.
+        finishedAt: empezado ? null : cmd.at,
+      };
+      return { ...state, trabajosSueltos: [trabajo, ...sueltos] };
+    }
+
+    case 'suelto.pausar':
+    case 'suelto.reanudar':
+    case 'suelto.terminar':
+    case 'suelto.cancelar': {
+      const sueltos = state.trabajosSueltos ?? [];
+      const t = sueltos.find((x) => x.id === cmd.sueltoId);
+      if (!t || t.runState === 'cancelado') return state;
+      // Un comando que llega tarde no deshace lo que ya pasó (regla 23):
+      // una pausa subida después de terminar no reabre el trabajo.
+      if (t.runState === 'terminado' && cmd.type !== 'suelto.cancelar') return state;
+      if (t.runningSince && cmd.at < t.runningSince) return state;
+      const corrido = t.runState === 'en_curso' ? transcurrido(t.runningSince, cmd) : 0;
+      let patch: Partial<TrabajoSuelto>;
+      if (cmd.type === 'suelto.pausar') {
+        if (t.runState !== 'en_curso') return state;
+        patch = { runState: 'en_espera', effectiveMs: t.effectiveMs + corrido, runningSince: null };
+      } else if (cmd.type === 'suelto.reanudar') {
+        if (t.runState !== 'en_espera') return state;
+        patch = { runState: 'en_curso', runningSince: cmd.at };
+      } else if (cmd.type === 'suelto.terminar') {
+        patch = { runState: 'terminado', effectiveMs: t.effectiveMs + corrido, runningSince: null, finishedAt: cmd.at };
+      } else {
+        // Para lo apuntado por error: deja de contar, pero no desaparece.
+        patch = { runState: 'cancelado', effectiveMs: t.effectiveMs + corrido, runningSince: null };
+      }
+      return { ...state, trabajosSueltos: replace(sueltos, t.id, patch) };
+    }
+
+    /* --------------------------------------------------- tiempos estándar */
+    case 'tiempo.set': {
+      if (!TAREA_LABEL[cmd.tarea]) return state;
+      if (cmd.siteId && !state.sites.some((x) => x.id === cmd.siteId)) return state;
+      // El general no se quita: sin él, una sede sin tiempo propio no
+      // tendría con qué medir.
+      if (cmd.minutos === null && cmd.siteId === null) return state;
+      if (cmd.minutos !== null && !(Number.isInteger(cmd.minutos) && cmd.minutos > 0 && cmd.minutos <= 24 * 60)) {
+        return state;
+      }
+      const resto = tablaDeTiempos(state.config).filter((t) => !(t.tarea === cmd.tarea && t.siteId === cmd.siteId));
+      const tiemposEstandar = cmd.minutos === null
+        ? resto
+        : [...resto, { tarea: cmd.tarea, siteId: cmd.siteId, minutos: cmd.minutos }];
+      return { ...state, config: { ...state.config, tiemposEstandar } };
+    }
+
+    /* ------------------------------------------- calendario de preparadores */
+    case 'calendario.ficha': {
+      if (!state.users.some((u) => u.id === cmd.preparadorId) || !esDia(cmd.desde)) return state;
+      if (!(Number.isInteger(cmd.jornadaMinutos) && cmd.jornadaMinutos > 0 && cmd.jornadaMinutos <= 12 * 60)) return state;
+      const sedes = new Set<Id>();
+      for (const r of cmd.reparto ?? []) {
+        if (!state.sites.find((x) => x.id === r.siteId)?.prepares || sedes.has(r.siteId)) return state;
+        if (!(typeof r.pct === 'number' && r.pct > 0 && r.pct <= 100)) return state;
+        sedes.add(r.siteId);
+      }
+      // Que sume 100: si no, la presencia de esa persona no sería su jornada.
+      const total = (cmd.reparto ?? []).reduce((x, r) => x + r.pct, 0);
+      if (Math.abs(total - 100) > 0.5) return state;
+      const ficha: FichaLaboral = {
+        // Una por persona y fecha: volver a guardarla la corrige, no la duplica.
+        id: `ficha-${cmd.preparadorId}-${cmd.desde}`,
+        userId: cmd.preparadorId,
+        desde: cmd.desde,
+        jornadaMinutos: cmd.jornadaMinutos,
+        reparto: cmd.reparto.map((r) => ({ siteId: r.siteId, pct: r.pct })),
+      };
+      const fichas = (state.fichasLaborales ?? []).filter((f) => f.id !== ficha.id);
+      return { ...state, fichasLaborales: [...fichas, ficha] };
+    }
+
+    case 'calendario.fichaBorrar':
+      return { ...state, fichasLaborales: (state.fichasLaborales ?? []).filter((f) => f.id !== cmd.fichaId) };
+
+    case 'calendario.ausencia': {
+      const id = unico('aus', cmd);
+      const ausencias = state.ausencias ?? [];
+      if (yaCreado(ausencias, id)) return state;
+      if (!state.users.some((u) => u.id === cmd.preparadorId)) return state;
+      if (!esDia(cmd.desde) || !esDia(cmd.hasta) || cmd.hasta < cmd.desde || !TIPO_AUSENCIA_LABEL[cmd.tipo]) return state;
+      return {
+        ...state,
+        ausencias: [...ausencias, { id, userId: cmd.preparadorId, desde: cmd.desde, hasta: cmd.hasta, tipo: cmd.tipo }],
+      };
+    }
+
+    case 'calendario.ausenciaBorrar':
+      return { ...state, ausencias: (state.ausencias ?? []).filter((a) => a.id !== cmd.ausenciaId) };
+
+    case 'calendario.festivo': {
+      const nombre = (cmd.nombre ?? '').trim().slice(0, 80);
+      if (!esDia(cmd.fecha) || !nombre) return state;
+      if (cmd.siteId && !state.sites.some((x) => x.id === cmd.siteId)) return state;
+      const festivo: Festivo = {
+        id: `fest-${cmd.fecha}-${cmd.siteId ?? 'todas'}`,
+        fecha: cmd.fecha,
+        siteId: cmd.siteId ?? null,
+        nombre,
+      };
+      const festivos = (state.config.festivos ?? []).filter((f) => f.id !== festivo.id);
+      return { ...state, config: { ...state.config, festivos: [...festivos, festivo] } };
+    }
+
+    case 'calendario.festivoBorrar':
+      return {
+        ...state,
+        config: { ...state.config, festivos: (state.config.festivos ?? []).filter((f) => f.id !== cmd.festivoId) },
+      };
+
     case 'alerts.sweep': {
       const ahora = new Date(cmd.at).getTime();
       const dia = diaEnEspana(cmd.at);
@@ -1730,6 +2042,26 @@ function aplicar(state: AppState, cmd: Command): AppState {
           tone: 'warn',
           sufijo: `nev-recogida-${r.id}-${dia}`,
         });
+      }
+
+      // Sedes que llevan dos meses cerrados por encima del 80 % de ocupación.
+      // Se mira al empezar cada mes y una vez por sede y mes: el aviso dice
+      // que hace falta gente, y repetirlo cada día no lo hace más cierto.
+      // Solo se calcula si alguien quiere el aviso: recorre todo el trabajo
+      // de dos meses.
+      if (next.rules.some((r) => r.active && r.condition === 'ocupacion_alta')) {
+        const mes = dia.slice(0, 7);
+        const uno = mesAnterior(mes);
+        const dos = mesAnterior(uno);
+        for (const { site, pcts } of sedesConOcupacionAlta(next, mes)) {
+          next = fireRules(next, 'ocupacion_alta', null, {
+            siteId: site.id,
+            body: `${site.name}: ${pcts[0]} % de ocupación en ${nombreDelMes(dos)} y ${pcts[1]} % en ${nombreDelMes(uno)}. Lleva dos meses por encima del 80 %.`,
+            tone: 'warn',
+            sufijo: `nev-ocupacion-${site.id}-${uno}`,
+            porRegla: true,
+          });
+        }
       }
 
       return next;
@@ -1884,7 +2216,11 @@ function aplicar(state: AppState, cmd: Command): AppState {
         state.preparations.some((p) => p.siteId === cmd.siteId) ||
         state.counts.some((x) => x.siteId === cmd.siteId) ||
         state.receptions.some((x) => x.siteId === cmd.siteId) ||
-        state.movements.some((m) => m.to?.siteId === cmd.siteId || m.from?.siteId === cmd.siteId);
+        state.movements.some((m) => m.to?.siteId === cmd.siteId || m.from?.siteId === cmd.siteId) ||
+        // La carrocería y el calendario también: la ocupación de meses pasados
+        // dejaría de tener sede.
+        (state.trabajosSueltos ?? []).some((t) => t.siteId === cmd.siteId) ||
+        (state.fichasLaborales ?? []).some((f) => f.reparto.some((r) => r.siteId === cmd.siteId));
       if (inUse) return state;
       return {
         ...state,
@@ -2335,10 +2671,6 @@ export function applyAll(state: AppState, commands: Command[]): AppState {
   return commands.reduce(applyCommand, clone(state));
 }
 
-/** Objetivo por defecto en ms para un tipo de vehículo. */
-export function defaultTargetMs(type: 'VN' | 'VO'): number {
-  return (CONFIG.prepTargetMinutes[type] ?? 120) * 60_000;
-}
 
 
 export function preparacionesDeSolicitud(s: AppState, r: ServiceRequest) {

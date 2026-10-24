@@ -1,7 +1,13 @@
 import { ALL_PERMISSIONS, BASE_COLUMNS } from './types';
 import { diaEnEspana } from './delivery-date';
+import { SEDE_FORD_MAZDA, TIEMPOS_ESTANDAR, minutosEstandar, tareaPorDefecto } from './tiempos';
 import type {
   AdminConfig,
+  Ausencia,
+  FichaLaboral,
+  Festivo,
+  TareaPreparacion,
+  TrabajoSuelto,
   LimitesDias,
   AppState,
   Carrier,
@@ -75,9 +81,15 @@ export const SITES: Site[] = [
   { id: 'galdakao', name: 'Galdakao', kind: 'concesion', prepares: true },
   { id: 'anoeta', name: 'Anoeta', kind: 'concesion', prepares: true },
   { id: 'irun', name: 'Irun', kind: 'concesion', prepares: true },
+  // La concesión Ford/Mazda de Galdakao, del grupo Easo. Prepara y se
+  // gestiona como Bizkaia. Va al final y no entra en el reparto al azar del
+  // parque de ejemplo (`PREP_SITES`): así el resto de la demo sigue siendo
+  // la misma de siempre.
+  { id: SEDE_FORD_MAZDA, name: 'Ford/Mazda Galdakao', kind: 'concesion', prepares: true },
 ];
 
-export const PREP_SITES = SITES.filter((s) => s.prepares);
+/** Las sedes que preparan entre las que se reparte el parque de ejemplo. */
+export const PREP_SITES = SITES.filter((s) => s.prepares && s.id !== SEDE_FORD_MAZDA);
 
 function buildZonesAndPositions(): { zones: Zone[]; positions: Position[] } {
   const zones: Zone[] = [];
@@ -107,6 +119,15 @@ function buildZonesAndPositions(): { zones: Zone[]; positions: Position[] } {
       for (let p = 1; p <= 30; p++) {
         positions.push({ id: `${zoneId}-p${String(p).padStart(2, '0')}`, zoneId, code: `P${String(p).padStart(2, '0')}` });
       }
+    }
+  }
+
+  // Ford/Mazda Galdakao: un parking y el taller donde se preparan.
+  for (const [n, kind, capacity] of [['park-01', 'parking', 30], ['taller', 'taller', 6]] as const) {
+    const zoneId = `${SEDE_FORD_MAZDA}-${n}`;
+    zones.push({ id: zoneId, siteId: SEDE_FORD_MAZDA, name: kind === 'taller' ? 'Taller' : 'Parking 01', kind, capacity });
+    for (let p = 1; p <= capacity; p++) {
+      positions.push({ id: `${zoneId}-p${String(p).padStart(2, '0')}`, zoneId, code: `${kind === 'taller' ? 'T' : 'P'}${String(p).padStart(2, '0')}` });
     }
   }
 
@@ -319,7 +340,7 @@ export const CARRIERS: Carrier[] = [
   {
     id: 'gruas-francis',
     name: 'Grúas Francis',
-    siteIds: ['sondika', 'leioa', 'galdakao'],
+    siteIds: ['sondika', 'leioa', 'galdakao', SEDE_FORD_MAZDA],
     phone: '',
     active: true,
     note: 'Traslados dentro de Bizkaia.',
@@ -388,10 +409,10 @@ const REQUIREMENTS: Requirement[] = [
   { id: 'req-pdi', label: 'PDI', vehicleTypes: ['VN'], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 2 },
   { id: 'req-combustible', label: 'Combustible', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 3 },
   { id: 'req-fotos', label: 'Reportaje final (4 fotos)', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: false, optional: false, order: 4 },
-  { id: 'req-alfombrillas', label: 'Alfombrillas', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 5 },
-  { id: 'req-matriculas', label: 'Matrículas', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 6 },
-  { id: 'req-baliza', label: 'Baliza', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 7 },
-  { id: 'req-kit', label: 'Kit reparapinchazos', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, order: 8 },
+  { id: 'req-alfombrillas', label: 'Alfombrillas', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, accesorio: true, order: 5 },
+  { id: 'req-matriculas', label: 'Matrículas', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, accesorio: true, order: 6 },
+  { id: 'req-baliza', label: 'Baliza', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, accesorio: true, order: 7 },
+  { id: 'req-kit', label: 'Kit reparapinchazos', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: false, accesorio: true, order: 8 },
   { id: 'req-preentrega', label: 'Preentrega cliente', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: false, optional: false, order: 9 },
   { id: 'req-campana', label: 'Campaña de marca', vehicleTypes: [], siteIds: [], tipos: ['entrada'], timed: true, optional: true, order: 10 },
   { id: 'req-repaso-ext', label: 'Limpieza exterior', vehicleTypes: [], siteIds: [], tipos: ['repaso'], timed: true, optional: false, order: 11 },
@@ -410,11 +431,39 @@ const REQUIREMENTS: Requirement[] = [
  */
 export const LIMITES_DIAS: LimitesDias = { campa: 30, preparacion: 3, traslado: 3 };
 
+/**
+ * Festivos de ejemplo de 2026 y principios de 2027: los nacionales y de
+ * Euskadi para todas las sedes, y alguno local. Son de ejemplo: los de
+ * verdad se cargan en Administración → Calendario, sede por sede.
+ */
+export const FESTIVOS: Festivo[] = [
+  ['2026-01-01', null, 'Año Nuevo'],
+  ['2026-01-06', null, 'Reyes'],
+  ['2026-03-19', null, 'San José'],
+  ['2026-04-02', null, 'Jueves Santo'],
+  ['2026-04-03', null, 'Viernes Santo'],
+  ['2026-04-06', null, 'Lunes de Pascua'],
+  ['2026-05-01', null, 'Fiesta del Trabajo'],
+  ['2026-06-30', 'irun', 'San Marcial'],
+  ['2026-07-31', null, 'San Ignacio'],
+  ['2026-10-12', null, 'Fiesta Nacional'],
+  ['2026-12-08', null, 'Inmaculada'],
+  ['2026-12-25', null, 'Navidad'],
+  ['2027-01-01', null, 'Año Nuevo'],
+  ['2027-01-06', null, 'Reyes'],
+].map(([fecha, siteId, nombre]) => ({
+  id: `fest-${fecha}-${siteId ?? 'todas'}`,
+  fecha: fecha as string,
+  siteId: siteId as Id | null,
+  nombre: nombre as string,
+}));
+
 export const CONFIG: AdminConfig = {
-  prepTargetMinutes: { VN: 120, VO: 150 },
-  // Media hora: es limpiar por dentro y por fuera un coche que ya está
-  // preparado, no prepararlo.
-  repasoTargetMinutes: 30,
+  // Los objetivos de preparación y del repaso salen de aquí: VN 2 h, flota
+  // 1 h 30 en Leioa y 2 h en Ford/Mazda, VO a fondo 4 h, repasos media hora
+  // y carrocería 45 min.
+  tiemposEstandar: TIEMPOS_ESTANDAR,
+  festivos: FESTIVOS,
   staleCheckHours: 72,
   limitesDias: LIMITES_DIAS,
   pickupAlertHours: 24,
@@ -1122,13 +1171,16 @@ export function buildSeedState(): AppState {
   );
   for (let i = 0; i < 6 && i < prepPool.length; i++) {
     const v = prepPool[i];
-    const target = (CONFIG.prepTargetMinutes[v.type] ?? 120) * MIN;
+    const tarea = tareaPorDefecto(v, 'entrada');
+    const site = v.targetSiteId ?? pick(PREP_SITES).id;
+    const target = minutosEstandar(TIEMPOS_ESTANDAR, tarea, site) * MIN;
     const over = i < 2;
     const state: Preparation['runState'] = i === 5 ? 'bloqueado' : i === 4 ? 'en_espera' : 'en_curso';
     preparations.push({
       id: nextId('prep'),
       vehicleId: v.id,
-      siteId: v.targetSiteId ?? pick(PREP_SITES).id,
+      siteId: site,
+      tarea,
       preparerId: pick(USERS.filter((u) => u.role === 'preparador')).id,
       phase: pick(['pendiente', 'base', 'pendiente_elementos'] as const),
       runState: state,
@@ -1149,12 +1201,15 @@ export function buildSeedState(): AppState {
   );
   for (let i = 0; i < 27 && i < donePool.length; i++) {
     const v = donePool[i];
-    const target = (CONFIG.prepTargetMinutes[v.type] ?? 120) * MIN;
+    const tarea = tareaPorDefecto(v, 'entrada');
     const items = checklistFor(v.type, 99);
+    const site = v.targetSiteId ?? pick(PREP_SITES).id;
+    const target = minutosEstandar(TIEMPOS_ESTANDAR, tarea, site) * MIN;
     preparations.push({
       id: nextId('prep'),
       vehicleId: v.id,
-      siteId: v.targetSiteId ?? pick(PREP_SITES).id,
+      siteId: site,
+      tarea,
       preparerId: pick(USERS.filter((u) => u.role === 'preparador')).id,
       phase: 'apto_entrega',
       runState: 'terminado',
@@ -1319,6 +1374,30 @@ export function buildSeedState(): AppState {
       scopeKind: 'fleet',
       scopeRef: null,
       condition: 'traslado_sin_recoger',
+      audience: { kind: 'rol', roleId: 'logistica' },
+      recipient: 'Logística',
+      channels: ['push', 'web'],
+      active: true,
+      createdAt: iso(200 * HOUR),
+    },
+    // Dos meses seguidos por encima del 80 % es que falta gente en esa sede:
+    // a dirección, que decide, y a logística, que reparte el trabajo.
+    {
+      id: 'rule-ocupacion-direccion',
+      scopeKind: 'fleet',
+      scopeRef: null,
+      condition: 'ocupacion_alta',
+      audience: { kind: 'rol', roleId: 'admin' },
+      recipient: 'Dirección',
+      channels: ['push', 'web'],
+      active: true,
+      createdAt: iso(200 * HOUR),
+    },
+    {
+      id: 'rule-ocupacion-logistica',
+      scopeKind: 'fleet',
+      scopeRef: null,
+      condition: 'ocupacion_alta',
       audience: { kind: 'rol', roleId: 'logistica' },
       recipient: 'Logística',
       channels: ['push', 'web'],
@@ -1504,6 +1583,8 @@ export function buildSeedState(): AppState {
   // traslado de un coche que decía estar esperándolo) y hace dudar del resto.
   cuadrarEstados(vehicles, requests, preparations);
 
+  const historia = historiaDePreparacion(vehicles, preparations);
+
   return {
     users: USERS,
     carriers: CARRIERS,
@@ -1521,7 +1602,175 @@ export function buildSeedState(): AppState {
     receptions,
     events,
     config: CONFIG,
+    trabajosSueltos: historia.sueltos,
+    fichasLaborales: historia.fichas,
+    ausencias: historia.ausencias,
   };
+}
+
+/** AAAA-MM del mes anterior (sin depender de `ocupacion.ts`, que lee la semilla). */
+const mesAntes = (mes: string) => {
+  const [y, m] = mes.split('-').map(Number);
+  return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
+};
+
+/**
+ * Los dos últimos meses y lo que va del actual de trabajo terminado, para
+ * que la ocupación de la demo diga algo.
+ *
+ * Sin esto el indicador saldría en gris en todas las sedes: los 27 coches
+ * terminados del parque de ejemplo son unas horas, y un mes de un preparador
+ * son 160. Se genera con su propia serie aleatoria y al final de todo, así
+ * que el resto de la demo sigue siendo exactamente la misma de siempre.
+ *
+ * Los coches de estas preparaciones son coches ya entregados, que es lo que
+ * pasa con lo que se preparó hace dos meses. Se cargan las sedes a propósito
+ * para enseñar los tres colores: Leioa por encima del 80 % los dos meses
+ * cerrados (y por eso salta el aviso), Galdakao e Irun en verde y Anoeta en
+ * gris. Ford/Mazda no tiene preparadores en la demo.
+ */
+function historiaDePreparacion(vehicles: Vehicle[], preparations: Preparation[]) {
+  const fichas: FichaLaboral[] = [
+    { id: 'ficha-u-pedro-2026-01-01', userId: 'u-pedro', desde: '2026-01-01', jornadaMinutos: 460, reparto: [{ siteId: 'leioa', pct: 100 }] },
+    {
+      id: 'ficha-u-ane-2026-01-01', userId: 'u-ane', desde: '2026-01-01', jornadaMinutos: 460,
+      reparto: [{ siteId: 'leioa', pct: 60 }, { siteId: 'galdakao', pct: 40 }],
+    },
+    {
+      id: 'ficha-u-jon-2026-01-01', userId: 'u-jon', desde: '2026-01-01', jornadaMinutos: 460,
+      reparto: [{ siteId: 'anoeta', pct: 50 }, { siteId: 'irun', pct: 50 }],
+    },
+  ];
+
+  const hoy = diaEnEspana(new Date(NOW).toISOString());
+  const mes = hoy.slice(0, 7);
+  const meses = [mesAntes(mesAntes(mes)), mesAntes(mes), mes];
+
+  // Una semana de vacaciones de Jon el mes pasado: la ausencia baja la
+  // presencia y se ve en su ocupación.
+  const pasado = meses[1];
+  const ausencias: Ausencia[] = [
+    { id: 'aus-demo-jon', userId: 'u-jon', desde: `${pasado}-10`, hasta: `${pasado}-14`, tipo: 'vacaciones' },
+  ];
+
+  // Ocupación que se busca por sede en cada uno de los tres meses.
+  const objetivo: Record<string, [number, number, number]> = {
+    leioa: [0.85, 0.87, 0.78],
+    galdakao: [0.75, 0.73, 0.76],
+    anoeta: [0.6, 0.64, 0.62],
+    irun: [0.76, 0.78, 0.72],
+  };
+  // Quién trabaja en cada sede y cuánto de su jornada.
+  const gente: Record<string, [Id, number][]> = {
+    leioa: [['u-pedro', 1], ['u-ane', 0.6]],
+    galdakao: [['u-ane', 0.4]],
+    anoeta: [['u-jon', 0.5]],
+    irun: [['u-jon', 0.5]],
+  };
+
+  const guardado = rnd;
+  rnd = mulberry32(SEMILLA + 7);
+  const sueltos: TrabajoSuelto[] = [];
+  try {
+    let n = 0;
+    meses.forEach((m, i) => {
+      const [y, mm] = m.split('-').map(Number);
+      const ultimo = new Date(Date.UTC(y, mm, 0)).getUTCDate();
+      const laborables: string[] = [];
+      for (let d = 1; d <= ultimo; d++) {
+        const dia = `${m}-${String(d).padStart(2, '0')}`;
+        if (dia > hoy) break;
+        const semana = new Date(`${dia}T12:00:00Z`).getUTCDay();
+        if (semana >= 1 && semana <= 5 && !FESTIVOS.some((f) => f.fecha === dia)) laborables.push(dia);
+      }
+      // Hasta ayer en el mes en curso: hoy todavía se está trabajando.
+      const dias = i === 2 ? laborables.filter((d) => d < hoy) : laborables;
+      if (dias.length === 0) return;
+
+      for (const [sede, personas] of Object.entries(gente)) {
+        // Sin los días que cada uno no está: las vacaciones de Jon suben su
+        // ocupación, igual que en el cálculo de verdad.
+        const presentes = (id: Id) =>
+          dias.filter((d) => !ausencias.some((a) => a.userId === id && a.desde <= d && d <= a.hasta)).length;
+        const presenciaMin = personas.reduce((t, [id, pct]) => t + pct * presentes(id), 0) * 460;
+        // Lo que ya trae terminado el resto de la demo este mes también cuenta.
+        const yaHecho = preparations
+          .filter((p) => p.runState === 'terminado' && p.siteId === sede && !!p.finishedAt && diaEnEspana(p.finishedAt).slice(0, 7) === m)
+          .reduce((t, p) => t + (p.effectiveMs || p.targetMs), 0) / MIN;
+        let pendiente = presenciaMin * objetivo[sede][i] - yaHecho;
+        while (pendiente > 0) {
+          n += 1;
+          const tarea = pick<TareaPreparacion>(['vn', 'vn', 'vn', 'vn', 'vo_fondo', 'vo_fondo', 'flota', 'vo_repaso', 'carroceria', 'carroceria']);
+          const estandar = minutosEstandar(TIEMPOS_ESTANDAR, tarea, sede) * MIN;
+          // Uno de cada veinte se cierra sin haber usado el cronómetro.
+          const sinCronometro = chance(0.05);
+          const efectivo = sinCronometro ? 0 : Math.round(estandar * (0.8 + rnd() * 0.45));
+          pendiente -= (sinCronometro ? estandar : efectivo) / MIN;
+          // Quién: a suertes, según cuánto está cada uno en la sede.
+          const total = personas.reduce((t, [, pct]) => t + pct, 0);
+          let r = rnd() * total;
+          const quien = personas.find(([, pct]) => (r -= pct) < 0)?.[0] ?? personas[0][0];
+          const dia = pick(dias);
+          // Hora de España: entre las 9 y las 17, más o menos (UTC+1/+2).
+          const fin = new Date(`${dia}T${String(7 + Math.floor(rnd() * 8)).padStart(2, '0')}:${String(Math.floor(rnd() * 60)).padStart(2, '0')}:00Z`);
+          const espera = Math.floor(rnd() * 20) * MIN;
+          const finIso = fin.toISOString();
+          const inicioIso = new Date(fin.getTime() - efectivo - espera).toISOString();
+
+          if (tarea === 'carroceria') {
+            sueltos.push({
+              id: `suelto-demo-${n}`, tarea: 'carroceria', siteId: sede, preparerId: quien, matricula: randomPlate().replace(' ', ''),
+              runState: 'terminado', effectiveMs: efectivo, runningSince: null, targetMs: estandar,
+              createdAt: inicioIso, startedAt: sinCronometro ? null : inicioIso, finishedAt: finIso,
+            });
+            continue;
+          }
+
+          const tipo = tarea === 'vo_repaso' ? 'repaso' : 'entrada';
+          const coche = makeVehicle({
+            type: tarea === 'vo_fondo' || tarea === 'vo_repaso' ? 'VO' : 'VN',
+            logisticActive: false,
+            location: null,
+            status: 'entregado',
+            salesRep: null,
+            salesRepId: null,
+            lastCheckAt: null,
+            lastCheckBy: null,
+            lastMovementAt: null,
+            origin: tarea === 'flota' ? 'Flota renting' : 'Parque Quiter',
+            receivedAt: new Date(fin.getTime() - efectivo - espera - 3 * DAY).toISOString(),
+          });
+          if (vehicles.some((v) => v.id === coche.id)) continue;
+          // Se lo llevaron unos días después de prepararlo, nunca en el futuro.
+          coche.deliveredAt = new Date(Math.min(NOW - HOUR, fin.getTime() + (1 + Math.floor(rnd() * 5)) * DAY)).toISOString();
+          vehicles.push(coche);
+          preparations.push({
+            id: `prep-demo-${n}`,
+            vehicleId: coche.id,
+            siteId: sede,
+            preparerId: quien,
+            tipo,
+            tarea,
+            phase: 'apto_entrega',
+            runState: 'terminado',
+            // Sin checklist: es historia de hace meses y solo cuenta el tiempo.
+            items: [],
+            effectiveMs: efectivo,
+            waitingMs: espera,
+            targetMs: estandar,
+            runningSince: null,
+            waitingSince: null,
+            waitReason: null,
+            startedAt: sinCronometro ? null : inicioIso,
+            finishedAt: finIso,
+          });
+        }
+      }
+    });
+  } finally {
+    rnd = guardado;
+  }
+  return { fichas, ausencias, sueltos };
 }
 
 /**

@@ -84,9 +84,11 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm --prefix server ci --no-audit --no-fund
       - name: Auditar dependencias de producción
+        # Falla con cualquier aviso alto o crítico salvo las excepciones
+        # documentadas en el script, que caducan solas.
         run: |
-          npm audit --omit=dev --audit-level=high
-          npm --prefix server audit --omit=dev --audit-level=high
+          node scripts/ci/auditar.mjs
+          node scripts/ci/auditar.mjs server
       - run: npm run typecheck
       - run: npm run server:test
       - run: npm run test:sync

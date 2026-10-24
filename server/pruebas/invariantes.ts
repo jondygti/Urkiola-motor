@@ -155,6 +155,24 @@ export function revisar(s: AppState): Problema[] {
   unicos('eventos', s.events.map((x) => x.id));
   unicos('usuarios', s.users.map((x) => x.id));
 
+  /* 7b · La carrocería tampoco va hacia atrás, y el calendario cuadra. Una
+     ficha que no suma 100 % daría a esa persona más (o menos) presencia que
+     su jornada, y la ocupación de su sede saldría mal sin que nada avisara. */
+  unicos('trabajos sueltos', (s.trabajosSueltos ?? []).map((x) => x.id));
+  for (const t of s.trabajosSueltos ?? []) {
+    if (t.effectiveMs < 0) mal('tiempos coherentes', `${t.id}: efectivo negativo`);
+    if (t.runState !== 'en_curso' && t.runningSince) mal('tiempos coherentes', `${t.id}: parado con el reloj en marcha`);
+    if (t.runState === 'terminado' && !t.finishedAt) mal('tiempos coherentes', `${t.id}: terminado sin fecha`);
+    if (!sedes.has(t.siteId)) mal('sin referencias huérfanas', `trabajo ${t.id} → sede ${t.siteId}`);
+  }
+  for (const f of s.fichasLaborales ?? []) {
+    const total = f.reparto.reduce((x, r) => x + r.pct, 0);
+    if (Math.abs(total - 100) > 0.5) mal('el calendario cuadra', `${f.id}: el reparto suma ${total} %`);
+  }
+  for (const a of s.ausencias ?? []) {
+    if (a.hasta < a.desde) mal('el calendario cuadra', `${a.id}: acaba antes de empezar`);
+  }
+
   /* 8 · Un coche con actividad está activo: si no, desaparece de todas las
      pantallas y nadie vuelve a acordarse de él. */
   const conActividad = new Set<Id>([

@@ -70,21 +70,21 @@ ${cssDeLaFuente()}
   /* La aplicación pinta su propio fondo; estos tokens solo evitan un
      destello del color equivocado mientras carga el bundle. */
   :root {
-    --ground: #f3f6f7;
-    --ink: #6e8087;
-    --accent: #1e9d82;
+    --ground: #f4f6f9;
+    --ink: #5b6b7b;
+    --accent: #007ac0;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme='light']) {
-      --ground: #0b171b;
-      --ink: #93a9af;
-      --accent: #2fb899;
+      --ground: #0a1520;
+      --ink: #97aabb;
+      --accent: #2e9be0;
     }
   }
   :root[data-theme='dark'] {
-    --ground: #0b171b;
-    --ink: #93a9af;
-    --accent: #2fb899;
+    --ground: #0a1520;
+    --ink: #97aabb;
+    --accent: #2e9be0;
   }
 
   html,

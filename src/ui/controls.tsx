@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
+  KeyboardAvoidingView,
   Modal as RNModal,
   Platform,
   Pressable,
@@ -10,6 +11,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { radius, space, tipografia, useTheme } from './theme';
 import { Btn, H2, Label, Muted } from './primitives';
 import { Icon, type IconName } from './Icon';
@@ -33,59 +35,89 @@ export function Modal({
   icon?: IconName;
 }) {
   const { c, isDesktop } = useTheme();
+  const insets = useSafeAreaInsets();
   return (
-    <RNModal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable
-        onPress={onClose}
-        style={{
-          flex: 1,
-          backgroundColor: c.overlay,
-          justifyContent: isDesktop ? 'center' : 'flex-end',
-          alignItems: 'center',
-          padding: isDesktop ? space.xl : 0,
-        }}
-      >
-        <Pressable
-          onPress={(e) => e.stopPropagation()}
+    // Translúcida por arriba y por abajo: Android dibuja la app de borde a
+    // borde, y sin esto la ventana quedaba a medias bajo la barra de
+    // navegación. Los márgenes los ponen las «insets» de abajo.
+    <RNModal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+      statusBarTranslucent
+      navigationBarTranslucent
+    >
+      {/* Con el teclado abierto la ventana se encoge en vez de quedar debajo:
+          antes el teclado tapaba los campos de abajo y el botón de guardar. */}
+      <KeyboardAvoidingView behavior={Platform.OS === 'web' ? undefined : 'padding'} style={{ flex: 1 }}>
+        <View
           style={{
-            backgroundColor: c.surface,
-            borderRadius: isDesktop ? radius.lg : 0,
-            borderTopLeftRadius: radius.xl,
-            borderTopRightRadius: radius.xl,
-            width: '100%',
-            maxWidth: 640,
-            maxHeight: '90%',
-            padding: space.lg,
+            flex: 1,
+            justifyContent: isDesktop ? 'center' : 'flex-end',
+            alignItems: 'center',
+            padding: isDesktop ? space.xl : 0,
+            paddingTop: isDesktop ? space.xl : insets.top + space.sm,
           }}
         >
+          {/* El fondo, que cierra al tocarlo, va DETRÁS de la ventana y no
+              alrededor. Antes la ventana entera estaba dentro de un botón
+              que paraba los toques, y en Android eso se comía el desplazamiento
+              y el foco de los campos: no se podía bajar ni escribir bien. */}
+          <Pressable
+            onPress={onClose}
+            accessibilityLabel="Cerrar"
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: c.overlay }}
+          />
           <View
             style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: space.sm,
+              backgroundColor: c.surface,
+              borderRadius: isDesktop ? radius.lg : 0,
+              borderTopLeftRadius: radius.xl,
+              borderTopRightRadius: radius.xl,
+              width: '100%',
+              maxWidth: 640,
+              maxHeight: isDesktop ? '90%' : '100%',
+              padding: space.lg,
+              paddingBottom: space.lg + (isDesktop ? 0 : insets.bottom),
             }}
           >
-            <View style={{ flex: 1 }}>
-              <H2 icon={icon} style={{ marginBottom: 0 }}>
-                {title}
-              </H2>
-            </View>
-            <Pressable
-              onPress={onClose}
-              accessibilityLabel="Cerrar"
-              hitSlop={10}
-              style={{ paddingHorizontal: 8 }}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: space.sm,
+              }}
             >
-              <Icon name="cerrar" size={tipografia.title} color={c.textMuted} />
-            </Pressable>
+              <View style={{ flex: 1 }}>
+                <H2 icon={icon} style={{ marginBottom: 0 }}>
+                  {title}
+                </H2>
+              </View>
+              <Pressable
+                onPress={onClose}
+                accessibilityLabel="Cerrar"
+                hitSlop={10}
+                style={{ paddingHorizontal: 8 }}
+              >
+                <Icon name="cerrar" size={tipografia.title} color={c.textMuted} />
+              </Pressable>
+            </View>
+            {/* Encoge para dejar sitio al pie: con mucho contenido, los
+                botones de guardar se salían por abajo y no había forma de
+                llegar a ellos. */}
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              style={{ flexGrow: 0, flexShrink: 1 }}
+              contentContainerStyle={{ paddingBottom: space.xs }}
+            >
+              {children}
+            </ScrollView>
+            {footer ? <View style={{ marginTop: space.md, gap: space.sm }}>{footer}</View> : null}
           </View>
-          <ScrollView keyboardShouldPersistTaps="handled" style={{ flexGrow: 0 }}>
-            {children}
-          </ScrollView>
-          {footer ? <View style={{ marginTop: space.md, gap: space.sm }}>{footer}</View> : null}
-        </Pressable>
-      </Pressable>
+        </View>
+      </KeyboardAvoidingView>
     </RNModal>
   );
 }

@@ -109,7 +109,6 @@ export default function QuickMoveScreen() {
       <Screen>
         <View style={{ width: '100%', maxWidth: 720, alignSelf: 'center' }}>
           <H1>Mover coche</H1>
-          <Muted>Matrícula o bastidor, dónde lo dejas y listo. El destino se queda puesto.</Muted>
 
           {toast ? <Notice icon="hecho">{toast}</Notice> : null}
           <Spacer />

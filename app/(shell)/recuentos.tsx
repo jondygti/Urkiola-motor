@@ -100,11 +100,7 @@ export default function CountsScreen() {
   return (
     <ScreenGuard href="/recuentos" title="Recuentos de flota">
     <Screen>
-      <H1>Recuentos de flota</H1>
-      <Muted>
-        Comprobación física desde la app: cada confirmación actualiza la última ubicación comprobada, con
-        fecha, hora y usuario.
-      </Muted>
+      <H1>Recuentos</H1>
 
       {toast ? <Notice>{toast}</Notice> : null}
 
