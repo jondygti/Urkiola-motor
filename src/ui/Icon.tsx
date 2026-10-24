@@ -73,6 +73,7 @@ const ICONOS = {
   personas: 'account-group-outline',
   sede: 'domain',
   buscar: 'magnify',
+  filtro: 'filter-variant',
   nube: 'cloud-outline',
   seguridad: 'shield-check-outline',
   candado: 'lock-outline',

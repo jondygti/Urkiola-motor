@@ -40,7 +40,6 @@ export default function AdminScreen() {
   return (
     <Screen>
       <H1>Administración</H1>
-      <Muted>Todo configurable sin tocar el código: sedes, plazas, checklists, objetivos y avisos.</Muted>
 
       {toast ? <Notice>{toast}</Notice> : null}
 

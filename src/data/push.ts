@@ -27,7 +27,7 @@ export async function registerForPush(): Promise<string | null> {
         name: 'Operativa',
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#2fb899',
+        lightColor: '#007AC0',
       });
     }
 

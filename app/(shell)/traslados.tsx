@@ -75,10 +75,6 @@ export default function TransfersDoneScreen() {
     <ScreenGuard href="/traslados" title="Traslados hechos">
       <Screen>
         <H1>Traslados hechos</H1>
-        <Muted>
-          Lo que han hecho las empresas de transporte: qué coche, de dónde a dónde, cuándo se recogieron
-          las llaves y cuándo se entregó. Cada transportista ve lo suyo en su propia app.
-        </Muted>
 
         <Spacer />
 

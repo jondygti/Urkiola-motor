@@ -87,10 +87,10 @@ export default function VehicleScreen() {
   return (
     <ScreenGuard anyOf={['flota.ver']} title="Ficha de vehículo">
     <Screen>
-      <H1>
-        Ficha 360º · {vehicleName(vehicle)} · {vehicleRef(vehicle)}
-      </H1>
-      <Muted>Una única ficha con toda la trazabilidad del vehículo.</Muted>
+      {/* La matrícula es el título: es lo que se busca y lo que se lee en el
+          coche. Antes ponía «Ficha 360º», que no le dice nada a nadie. */}
+      <H1>{vehicleRef(vehicle)}</H1>
+      <Muted>{vehicleName(vehicle)}</Muted>
 
       {toast ? <Notice tone="info">{toast}</Notice> : null}
 
@@ -111,12 +111,40 @@ export default function VehicleScreen() {
 
       <VehicleActions vehicle={vehicle} onDone={setToast} />
 
+      <Spacer h={space.sm} />
       <StateFlow steps={VEHICLE_FLOW.map((s) => VEHICLE_STATUS_LABEL[s])} activeIndex={flowIndex} />
 
       <Spacer h={space.lg} />
 
       <Grid cols={2} minWidth={380}>
-        <Panel icon="flota" title="Identificación">
+        {/* Lo primero que se busca al abrir un coche es dónde está, así que va
+            delante y en grande, con quién lo vio allí por última vez. */}
+        <Panel icon="ubicacion" title="Dónde está">
+          <Text style={{ fontSize: tipografia.title, fontWeight: '800', color: c.text }}>
+            {locationLabel(state, vehicle.location)}
+          </Text>
+          <Muted>
+            {vehicle.lastCheckAt
+              ? `Comprobado ${timeAgo(vehicle.lastCheckAt)}${vehicle.lastCheckBy ? ` por ${vehicle.lastCheckBy}` : ''} · ${formatDateTime(vehicle.lastCheckAt)}`
+              : 'Nadie ha comprobado todavía dónde está.'}
+          </Muted>
+          {isStale ? (
+            <>
+              <Spacer h={space.sm} />
+              <Notice tone="danger" icon="aviso">
+                {`Sin comprobación física desde hace ${Math.floor(staleHours / 24)} días.`}
+              </Notice>
+            </>
+          ) : null}
+          <Spacer h={space.md} />
+          <Detail
+            label="Va a"
+            value={vehicle.targetSiteId ? `${siteName(state, vehicle.targetSiteId)} · equipo de preparación` : '—'}
+          />
+          <Detail label="Último movimiento" value={formatDateTime(vehicle.lastMovementAt)} />
+        </Panel>
+
+        <Panel icon="flota" title="Datos del coche">
           <Detail label="Tipo" value={<TypePill type={vehicle.type} />} />
           <Detail label="Situación" value={<SituationPill situation={vehicle.situation} />} />
           <ClasificacionComercial vehicle={vehicle} onDone={setToast} />
@@ -127,29 +155,6 @@ export default function VehicleScreen() {
           <Detail label="Bastidor" value={vehicle.vin} />
           <Detail label="Matrícula" value={vehicle.plate ?? '—'} />
           <Detail label="Origen" value={`${vehicle.origin} · ${formatDateTime(vehicle.receivedAt)}`} />
-        </Panel>
-
-        <Panel icon="ubicacion" title="Ubicación">
-          <Detail
-            label="Ubicación actual"
-            value={locationLabel(state, vehicle.location)}
-            hint="Dónde está el coche ahora mismo."
-          />
-          <Detail
-            label="Destino operativo"
-            value={vehicle.targetSiteId ? `${siteName(state, vehicle.targetSiteId)} · equipo de preparación` : '—'}
-          />
-          <Detail label="Último movimiento" value={formatDateTime(vehicle.lastMovementAt)} />
-          <Detail
-            label="Última comprobación física"
-            value={`${formatDateTime(vehicle.lastCheckAt)} · ${vehicle.lastCheckBy ?? '—'}`}
-          />
-          <Spacer h={space.sm} />
-          <Notice tone={isStale ? 'danger' : 'info'} icon={isStale ? 'aviso' : 'comprobado'}>
-            {isStale
-              ? `Sin comprobación física desde hace ${Math.floor(staleHours / 24)} días.`
-              : `Comprobado ${timeAgo(vehicle.lastCheckAt)}.`}
-          </Notice>
         </Panel>
       </Grid>
 
