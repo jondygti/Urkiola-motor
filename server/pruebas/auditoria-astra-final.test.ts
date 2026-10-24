@@ -79,7 +79,8 @@ test('no admite dos preparaciones equivalentes del mismo coche en sedes distinta
 
 test('las ubicaciones de llaves no salen al transportista externo', () => {
   const s = buildSeedState();
-  const req = s.requests.find(r => r.type === 'traslado' && r.carrierId === 'gruas-francis')!;
+  // Uno que ya le ha llegado: listo para enviar.
+  const req = s.requests.find(r => r.type === 'traslado' && r.carrierId === 'gruas-francis' && !!r.keysReadyAt)!;
   const v = s.vehicles.find(x => x.id === req.vehicleId)!;
   v.primaryKeyLocation = 'Caja fuerte de Leioa';
   v.secondaryKeyLocation = 'Despacho comercial';

@@ -1,5 +1,6 @@
 import { ALL_PERMISSIONS, BASE_COLUMNS } from './types';
 import { diaEnEspana } from './delivery-date';
+import { AVISOS_DE_SERIE } from './avisos';
 import { SEDE_FORD_MAZDA, TIEMPOS_ESTANDAR, minutosEstandar, tareaPorDefecto } from './tiempos';
 import type {
   AdminConfig,
@@ -1048,6 +1049,10 @@ export function buildSeedState(): AppState {
         ? new Date(new Date(pickedUpAt).getTime() + 48 * HOUR).toISOString()
         : null,
       pickedUpAt,
+      // Logística los da por listos para enviar al asignarlos; los recién
+      // pedidos esperan en su lista y el transportista todavía no los ve.
+      keysReadyAt: status === 'solicitada' ? null : iso(hoursAgo * HOUR),
+      keysReadyBy: status === 'solicitada' ? null : 'u-log',
       deliveredAt: null,
       deliveredBy: null,
       // Se reparte por zona, como en la realidad.
@@ -1102,6 +1107,8 @@ export function buildSeedState(): AppState {
       assignedTo: esTraslado ? (conductor?.id ?? null) : 'u-pedro',
       dueAt,
       pickedUpAt: esTraslado ? iso(recogidoHace * HOUR) : null,
+      keysReadyAt: esTraslado ? iso(pedidoHace * HOUR) : null,
+      keysReadyBy: esTraslado ? 'u-log' : null,
       deliveredAt,
       deliveredBy: esTraslado ? (conductor?.id ?? null) : 'u-pedro',
       // Los que llegaron tarde traen su motivo, que es lo que convierte
@@ -1318,6 +1325,7 @@ export function buildSeedState(): AppState {
 
   /* reglas de notificación e inbox */
   const rules: NotificationRule[] = [
+    ...AVISOS_DE_SERIE.map((a) => ({ ...a, createdAt: iso(200 * HOUR) })),
     {
       id: 'rule-0001',
       scopeKind: 'vehicle',
@@ -1601,7 +1609,7 @@ export function buildSeedState(): AppState {
     inbox,
     receptions,
     events,
-    config: CONFIG,
+    config: { ...CONFIG, avisosOfrecidos: AVISOS_DE_SERIE.map((a) => a.id) },
     trabajosSueltos: historia.sueltos,
     fichasLaborales: historia.fichas,
     ausencias: historia.ausencias,

@@ -90,7 +90,10 @@ const TOKEN_KEY = 'urkiola.token.v1';
 // antes no tendría nada de eso y la ocupación saldría en gris.
 // 30: los requisitos de accesorios llevan la marca `accesorio` y las
 // solicitudes de preparación, sus accesorios y la orden de Quiter.
-const STATE_SCHEMA_VERSION = 30;
+// 31: todos los traslados pasan por «listo para enviar» (los de la demo ya
+// asignados lo traen puesto), el traslado que se pide con la preparación y
+// tres avisos de serie nuevos.
+const STATE_SCHEMA_VERSION = 31;
 
 interface StoredState {
   v: number;

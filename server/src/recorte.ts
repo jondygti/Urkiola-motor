@@ -11,7 +11,7 @@
  * necesita para leer una ubicación, y su propio rol.
  */
 import type { AppState, Id, NotificationEvent, TraceEvent, User, Vehicle } from '../../src/data/types';
-import { avisoLeido, can, esDelComercial, esGestorComercial, vehiculoEnAmbitoComercial } from '../../src/data/selectors';
+import { avisoLeido, can, enviado, esDelComercial, esGestorComercial, vehiculoEnAmbitoComercial } from '../../src/data/selectors';
 
 /**
  * Qué campos del vehículo puede ver un proveedor externo y cuáles no.
@@ -86,10 +86,14 @@ function vehiculoRecortado(v: Vehicle): Vehicle {
 }
 
 export function estadoParaColaborador(s: AppState, u: User): AppState {
+  // Los terminados también: son su registro de «hechos». Los pendientes,
+  // solo cuando logística los ha dado por listos para enviar; antes no son
+  // trabajo suyo todavía y no tiene por qué saber que existen.
   const suyos = s.requests.filter(
     (r) =>
       r.type === 'traslado' &&
-      !!r.carrierId && (r.assignedTo === u.id || (!!u.carrierId && r.carrierId === u.carrierId))
+      !!r.carrierId && (r.assignedTo === u.id || (!!u.carrierId && r.carrierId === u.carrierId)) &&
+      (r.status === 'terminada' || enviado(r))
   );
 
   const idsVehiculos = new Set(suyos.map((r) => r.vehicleId));

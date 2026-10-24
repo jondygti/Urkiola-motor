@@ -51,7 +51,8 @@ import { REQUEST_STATUS_LABEL, TAREA_LABEL, TIPO_AUSENCIA_LABEL } from './types'
 import { mesAnterior, nombreDelMes, sedesConOcupacionAlta } from './ocupacion';
 import { accesoriosPara, aplicarAccesorios, llevaOrden } from './ordenTrabajo';
 import { minutosEstandar, tablaDeTiempos, tareaCompatible, tareaPorDefecto } from './tiempos';
-import { avisoPara, rolUsadoEnReglas, can } from './selectors';
+import { avisoPara, rolUsadoEnReglas, can, suggestCarrier } from './selectors';
+import { DIAS_AVISO_SIN_MARCAR, DIAS_AVISO_SIN_PREPARACION, HORAS_PREPARACION_EN_RIESGO, ofrecerAvisosDeSerie } from './avisos';
 import { locationLabel, siteName, userName, vehicleTitle } from './format';
 import { diaEnEspana } from './delivery-date';
 
@@ -572,14 +573,23 @@ function cambiarDePreparador(p: Preparation, nuevo: Id | null, cmd: Command): Pr
  * bandeja porque el comercial de un coche puede cambiar mañana, y el aviso
  * de hoy era para el de hoy.
  */
-function destinatarios(state: AppState, rule: NotificationRule, vehicle: Vehicle | null): Id[] | null {
+function destinatarios(state: AppState, rule: NotificationRule, vehicle: Vehicle | null, sede?: Id | null): Id[] | null {
   const audiencia = rule.audience ?? { kind: 'todos' as const };
   if (audiencia.kind === 'todos') return null;
   if (audiencia.kind === 'rol') {
-    return state.users.filter((u) => u.active && u.role === audiencia.roleId).map((u) => u.id);
+    // Con sede, solo quien trabaja en ella (o en todas): a un preparador de
+    // Irun no le sirve saber que en Leioa va justa una preparación.
+    return state.users
+      .filter((u) => u.active && u.role === audiencia.roleId)
+      .filter((u) => !sede || u.siteIds.length === 0 || u.siteIds.includes(sede))
+      .map((u) => u.id);
   }
-  // El comercial del coche: se busca por nombre, que es como viene de
-  // Quiter, con el mismo emparejamiento que usa el resto de la aplicación.
+  // El comercial del coche: por su usuario si está enlazado, que es la
+  // identidad buena; si no, por el nombre, que es como viene de Quiter.
+  if (vehicle?.salesRepId) {
+    const enlazado = state.users.find((u) => u.id === vehicle.salesRepId && u.active);
+    if (enlazado) return [enlazado.id];
+  }
   if (!vehicle?.salesRep) return [];
   const rep = vehicle.salesRep.trim().toLowerCase();
   return state.users
@@ -606,6 +616,8 @@ function fireRules(
      * tomaba por repetida y no llegaba nunca.
      */
     porRegla?: boolean;
+    /** Los avisos a un rol van solo a quien trabaja en `siteId`. */
+    soloSede?: boolean;
   }
 ): AppState {
   let next = state;
@@ -615,7 +627,7 @@ function fireRules(
     if (rule.scopeKind === 'site' && rule.scopeRef !== ctx.siteId) continue;
     if (condition === 'llegada_sede' && rule.targetSiteId && rule.targetSiteId !== ctx.siteId) continue;
 
-    const userIds = destinatarios(next, rule, vehicle);
+    const userIds = destinatarios(next, rule, vehicle, ctx.soloSede ? ctx.siteId : null);
     // Una regla dirigida a alguien que no existe no genera un aviso que no
     // va a leer nadie: un coche sin comercial no avisa a ningún comercial.
     if (userIds !== null && userIds.length === 0) continue;
@@ -1118,6 +1130,41 @@ function aplicar(state: AppState, cmd: Command): AppState {
         });
       }
 
+      // Si el coche está en otra sede, el traslado se pide solo. Antes el
+      // preparador veía «todavía no está en Leioa» y alguien tenía que
+      // acordarse de pedirlo aparte: ahí se perdían los días sin que nadie
+      // lo viera. Va a la lista de logística, que lo revisa y lo da por
+      // listo para enviar; hasta entonces el transportista no lo ve.
+      const otraSede = vehicle.location?.siteId && vehicle.location.siteId !== cmd.siteId;
+      if (cmd.requestType === 'preparacion' && (cmd.prepTipo ?? 'entrada') === 'entrada' && otraSede &&
+        !conflictoSolicitud(next, { requestType: 'traslado', vehicleId: cmd.vehicleId, siteId: cmd.siteId })) {
+        const traslado: Command = {
+          type: 'request.create',
+          // Derivado del comando (regla 11): el móvil y el servidor tienen
+          // que llamarlo igual.
+          id: `${cmd.id}-traslado`,
+          at: cmd.at,
+          userId: cmd.userId,
+          requestType: 'traslado',
+          vehicleId: cmd.vehicleId,
+          siteId: cmd.siteId,
+          to: { siteId: cmd.siteId },
+          urgent: cmd.urgent,
+          note: 'Pedido con la preparación',
+          carrierId: suggestCarrier(next, vehicle.location?.siteId, cmd.siteId)?.id ?? null,
+        };
+        next = applyCommand(next, traslado);
+        const idTraslado = unico('req', traslado);
+        const creado = next.requests.find((r) => r.id === idTraslado);
+        if (creado) {
+          // La preparación sigue siendo lo último pedido, que es lo que hizo
+          // la persona; el traslado va justo detrás.
+          const resto = next.requests.filter((r) => r.id !== idTraslado && r.id !== request.id);
+          const prep = next.requests.find((r) => r.id === request.id)!;
+          next = { ...next, requests: [prep, { ...creado, conPreparacion: request.id }, ...resto] };
+        }
+      }
+
       return addEvent(next, {
         vehicleId: cmd.vehicleId,
         kind: 'solicitud',
@@ -1226,22 +1273,23 @@ function aplicar(state: AppState, cmd: Command): AppState {
         return state;
       }
 
-      const origenSondika =
-        req.from?.siteId === 'sondika' ||
-        state.sites.find((site) => site.id === req.from?.siteId)?.name.trim().toLowerCase() === 'sondika';
-
       // Una asignación antigua no demuestra que las llaves estén listas. El
       // hecho queda fechado y firmado expresamente en la propia solicitud.
       // Tampoco se puede volver a la fase previa una vez recogidas.
       if (req.type === 'traslado' && req.pickedUpAt && cmd.status === 'asignada') return state;
 
+      // «Listo para enviar»: logística ha localizado las llaves y el coche.
+      // Empezó con los coches de Sondika, cuyas llaves están en Leioa, y
+      // ahora vale para todos los traslados: el transportista no ve un
+      // encargo hasta entonces, porque ir a por un coche que nadie sabe dónde
+      // está, o sin llaves, es un viaje perdido.
       const preparaLlaves =
-        req.type === 'traslado' && origenSondika && cmd.status === 'asignada' && !req.keysReadyAt && !req.pickedUpAt;
+        req.type === 'traslado' && cmd.status === 'asignada' && !req.keysReadyAt && !req.pickedUpAt;
 
       // Esta regla vive también en la lógica compartida, no solo en permisos:
       // un cliente offline no debe poder ponerse «en ruta» localmente antes
-      // de que Logística haya confirmado las llaves.
-      if (req.type === 'traslado' && origenSondika && cmd.status === 'en_ruta' && !req.keysReadyAt && !req.pickedUpAt) {
+      // de que Logística lo haya dado por listo.
+      if (req.type === 'traslado' && cmd.status === 'en_ruta' && !req.keysReadyAt && !req.pickedUpAt) {
         return state;
       }
 
@@ -1307,10 +1355,10 @@ function aplicar(state: AppState, cmd: Command): AppState {
         title: recoge
           ? `Llaves recogidas · empiezan ${state.config.transferDeadlineHours} h`
           : preparaLlaves
-            ? 'Llaves preparadas'
+            ? 'Listo para enviar'
             : `Solicitud ${REQUEST_STATUS_LABEL[cmd.status].toLowerCase()}`,
         detail: preparaLlaves
-          ? `Leioa · Logística · ${userName(state, cmd.userId)}`
+          ? `Llaves y coche localizados · ${userName(state, cmd.userId)}`
           : `${req.type === 'traslado' ? 'Traslado' : 'Preparación'} · ${userName(state, cmd.userId)}${req.type === 'preparacion' && cmd.assignedTo !== undefined && cmd.assignedTo !== req.assignedTo ? ` · Responsable: ${req.assignedTo ? userName(state, req.assignedTo) : 'Sin asignar'} → ${cmd.assignedTo ? userName(state, cmd.assignedTo) : 'Sin asignar'}` : ''}`,
         at: cmd.at,
         userId: cmd.userId,
@@ -1948,7 +1996,8 @@ function aplicar(state: AppState, cmd: Command): AppState {
     case 'alerts.sweep': {
       const ahora = new Date(cmd.at).getTime();
       const dia = diaEnEspana(cmd.at);
-      let next = state;
+      // Los avisos de serie que han llegado con la plataforma ya en marcha.
+      let next = ofrecerAvisosDeSerie(state, cmd.at);
 
       // Coches que llevan demasiado sin que nadie confirme dónde están.
       const limiteComprobacion = state.config.staleCheckHours ?? 72;
@@ -2029,18 +2078,25 @@ function aplicar(state: AppState, cmd: Command): AppState {
         });
       }
 
-      // Traslados encargados que nadie ha ido a recoger.
+      // Traslados encargados que nadie ha ido a recoger. Sin dar por listo,
+      // el retraso es de logística y se cuenta desde que se pidió; listo, es
+      // del transportista y se cuenta desde que pudo ir.
       const limiteRecogida = state.config.pickupAlertHours ?? 24;
       for (const r of state.requests) {
         if (r.type !== 'traslado' || r.status === 'terminada' || r.status === 'cancelada' || r.pickedUpAt) continue;
-        const horas = (ahora - new Date(r.createdAt).getTime()) / 3_600_000;
+        const desde = r.keysReadyAt ?? r.createdAt;
+        const horas = (ahora - new Date(desde).getTime()) / 3_600_000;
         if (horas < limiteRecogida) continue;
         const v = state.vehicles.find((x) => x.id === r.vehicleId) ?? null;
         next = fireRules(next, 'traslado_sin_recoger', v, {
           siteId: r.siteId,
-          body: `${v ? vehicleTitle(v) : r.vehicleId}: encargado hace ${Math.floor(horas)} h y todavía nadie ha recogido las llaves.`,
+          body: r.keysReadyAt
+            ? `${v ? vehicleTitle(v) : r.vehicleId}: listo para enviar hace ${Math.floor(horas)} h y todavía nadie ha recogido las llaves.`
+            : `${v ? vehicleTitle(v) : r.vehicleId}: encargado hace ${Math.floor(horas)} h y todavía no está listo para enviar.`,
           tone: 'warn',
-          sufijo: `nev-recogida-${r.id}-${dia}`,
+          // Distinto antes y después de darlo por listo: son dos retrasos de
+          // dos personas distintas.
+          sufijo: `nev-recogida-${r.id}-${r.keysReadyAt ? 'listo' : 'pedido'}-${dia}`,
         });
       }
 
@@ -2062,6 +2118,66 @@ function aplicar(state: AppState, cmd: Command): AppState {
             porRegla: true,
           });
         }
+      }
+
+      const DIA_MS = 86_400_000;
+      // «12/11», en hora de España: el servidor corre en UTC.
+      const diaYMes = (iso: string) => diaEnEspana(iso).slice(5).split('-').reverse().join('/');
+      const sinEntregar = (v: Vehicle) => v.status !== 'entregado' && !v.deliveredAt;
+
+      // Fecha de entrega cerca y nadie ha pedido la preparación. Antes se
+      // descubría el día anterior, cuando ya no da tiempo a traerlo y
+      // prepararlo. Un aviso por coche y fecha de entrega: si la cambian,
+      // vuelve a avisar.
+      for (const v of next.vehicles) {
+        if (!v.deliveryDate || !sinEntregar(v) || v.status === 'apto_entrega') continue;
+        const falta = new Date(v.deliveryDate).getTime() - ahora;
+        if (falta < 0 || falta > DIAS_AVISO_SIN_PREPARACION * DIA_MS) continue;
+        const pedida = next.requests.some((r) => r.vehicleId === v.id && r.type === 'preparacion' &&
+          (r.prepTipo ?? 'entrada') === 'entrada' && r.status !== 'cancelada');
+        const abierta = next.preparations.some((p) => p.vehicleId === v.id && (p.tipo ?? 'entrada') === 'entrada' && p.runState !== 'cancelado');
+        if (pedida || abierta) continue;
+        next = fireRules(next, 'entrega_sin_preparacion', v, {
+          siteId: v.targetSiteId ?? v.location?.siteId ?? null,
+          body: `${vehicleTitle(v)} se entrega el ${diaYMes(v.deliveryDate)} y no tiene pedida la preparación.`,
+          tone: 'warn',
+          sufijo: `nev-sinprep-${v.id}-${diaEnEspana(v.deliveryDate)}`,
+        });
+      }
+
+      // Preparaciones con el plazo encima que nadie ha empezado. Avisa una
+      // vez, cuando aún da tiempo a reorganizarse. Los repasos no: se piden
+      // el mismo día de la entrega y siempre irían «justos».
+      for (const r of next.requests) {
+        if (r.type !== 'preparacion' || (r.prepTipo ?? 'entrada') !== 'entrada') continue;
+        if (r.status === 'terminada' || r.status === 'cancelada' || !r.dueAt) continue;
+        const queda = new Date(r.dueAt).getTime() - ahora;
+        if (queda <= 0 || queda > HORAS_PREPARACION_EN_RIESGO * 3_600_000) continue;
+        const empezada = next.preparations.some((p) => p.vehicleId === r.vehicleId && (p.tipo ?? 'entrada') === 'entrada' &&
+          p.runState !== 'cancelado' && !!p.startedAt);
+        if (empezada) continue;
+        const v = next.vehicles.find((x) => x.id === r.vehicleId) ?? null;
+        next = fireRules(next, 'preparacion_en_riesgo', v, {
+          siteId: r.siteId,
+          body: `${v ? vehicleTitle(v) : r.vehicleId}: quedan ${Math.max(1, Math.floor(queda / 3_600_000))} h de plazo para prepararlo en ${siteName(next, r.siteId)} y todavía no se ha empezado.`,
+          tone: 'warn',
+          sufijo: `nev-riesgo-${r.id}`,
+          porRegla: true,
+          soloSede: true,
+        });
+      }
+
+      // Pasó la fecha de entrega y el coche sigue en la flota. Si se lo
+      // llevó el cliente y nadie lo marcó, sigue ocupando una plaza que en
+      // la campa está vacía.
+      for (const v of next.vehicles) {
+        if (!v.deliveryDate || !sinEntregar(v)) continue;
+        if (ahora - new Date(v.deliveryDate).getTime() < DIAS_AVISO_SIN_MARCAR * DIA_MS) continue;
+        next = fireRules(next, 'entrega_sin_marcar', v, {
+          siteId: v.location?.siteId ?? null,
+          body: `${vehicleTitle(v)}: la entrega era el ${diaYMes(v.deliveryDate)} y sigue sin marcarse como entregado. Si ya se lo llevó el cliente, márcalo para que su plaza quede libre.`,
+          sufijo: `nev-sinmarcar-${v.id}-${diaEnEspana(v.deliveryDate)}`,
+        });
       }
 
       return next;

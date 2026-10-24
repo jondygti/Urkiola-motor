@@ -259,6 +259,12 @@ export interface ServiceRequest {
    */
   ordenTrabajo?: { numero: string; at: ISODate; by: Id } | null;
   /**
+   * Traslado que se pidió solo, al pedir la preparación de un coche que
+   * estaba en otra sede: el id de esa preparación. Logística lo revisa antes
+   * de mandarlo, y en su lista sale marcado para que sepa de dónde viene.
+   */
+  conPreparacion?: Id | null;
+  /**
    * Por qué se entregó fuera de plazo.
    *
    * Queda registrado *que* se pasó de las 48 h, pero sin el motivo la
@@ -603,7 +609,10 @@ export type NotifyCondition =
   | 'incidencia_abierta'
   | 'traslado_completado'
   | 'preparacion_bloqueada'
-  | 'ocupacion_alta';
+  | 'ocupacion_alta'
+  | 'entrega_sin_preparacion'
+  | 'preparacion_en_riesgo'
+  | 'entrega_sin_marcar';
 
 export const NOTIFY_CONDITION_LABEL: Record<NotifyCondition, string> = {
   llegada_sede: 'Cuando llegue a la sede',
@@ -615,6 +624,9 @@ export const NOTIFY_CONDITION_LABEL: Record<NotifyCondition, string> = {
   traslado_completado: 'Cuando se complete el traslado',
   preparacion_bloqueada: 'Cuando una preparación se bloquee',
   ocupacion_alta: 'Si una sede pasa del 80 % de ocupación dos meses seguidos',
+  entrega_sin_preparacion: 'Si quedan 4 días para la entrega y no se ha pedido la preparación',
+  preparacion_en_riesgo: 'Si quedan menos de 12 h de plazo y la preparación no ha empezado',
+  entrega_sin_marcar: 'Si pasaron 2 días de la fecha de entrega y el coche sigue sin marcarse entregado',
 };
 
 /**
@@ -917,6 +929,12 @@ export interface AdminConfig {
    * olvidado no llega tarde nunca, simplemente no avanza.
    */
   pickupAlertHours: number;
+  /**
+   * Avisos de serie que el reloj ya ha puesto alguna vez. Los avisos nuevos
+   * llegan así a las instalaciones que ya estaban funcionando, y si alguien
+   * borra uno no vuelve a aparecer en el siguiente barrido.
+   */
+  avisosOfrecidos?: Id[];
   waitReasons: string[];
   requirements: Requirement[];
   /** Horas que tiene el transportista desde que recoge las llaves. */

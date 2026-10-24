@@ -59,7 +59,8 @@ test('Backend: dos preparadores intentan coger el mismo trabajo; solo uno gana, 
   const ane = s.estado.users.find(u => u.id === 'u-ane')!;
   const jon = s.estado.users.find(u => u.id === 'u-jon')!;
   const log = s.estado.users.find(u => u.id === 'u-log')!;
-  const v = s.estado.vehicles[0]; v.targetSiteId = 'leioa';
+  // Ya está en Leioa: si no, se pediría también su traslado.
+  const v = s.estado.vehicles[0]; v.targetSiteId = 'leioa'; v.location = { siteId: 'leioa' };
   await s.ejecutar(cmd('request.create', { requestType: 'preparacion', vehicleId: v.id, siteId: 'leioa' }), log);
   assert.equal(s.estadoDe(pedro).requests.length, 1);
   assert.equal(s.estadoDe(ane).requests.length, 1);

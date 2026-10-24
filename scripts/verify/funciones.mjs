@@ -273,31 +273,32 @@ export async function ejecutar(browser, BASE) {
         r.from?.siteId === 'sondika' && r.status !== 'terminada' && r.status !== 'cancelada' &&
         !r.keysReadyAt && !r.pickedUpAt)
       .sort((a, b) => Number(b.urgent) - Number(a.urgent) || a.createdAt.localeCompare(b.createdAt))[0];
-    ok('10 · hay un traslado de Sondika esperando llaves', !!target);
+    ok('10 · hay un traslado de Sondika esperando a logística', !!target);
 
     if (target) {
       const vehiculo = inicial.vehicles.find((v) => v.id === target.vehicleId);
       const ref = vehiculo?.plate ?? vehiculo?.vin8 ?? target.vehicleId;
-      const cardPendiente = page.getByTestId('transfer-card').filter({ hasText: ref }).first();
-      ok('10 · el transportista ve las llaves pendientes', (await cardPendiente.textContent() ?? '').includes('Llaves pendientes'));
-      ok('10 · no puede recogerlas antes de tiempo', (await cardPendiente.getByText('He recogido las llaves').count()) === 0);
+      // Hasta que logística lo da por listo para enviar, no es trabajo suyo:
+      // ni siquiera le sale.
+      ok('10 · el transportista todavía no lo ve',
+        (await page.getByTestId('transfer-card').filter({ hasText: ref }).count()) === 0);
 
       await cambiarDeUsuario(context, page, USUARIOS.logistica, `${BASE}/solicitudes`);
       await page.waitForTimeout(800);
       const antesLogistica = await estadoGuardado(page);
       const cola = antesLogistica.requests
-        .filter((r) => r.type === 'traslado' && r.from?.siteId === 'sondika' &&
+        .filter((r) => r.type === 'traslado' &&
           r.status !== 'terminada' && r.status !== 'cancelada' && !r.keysReadyAt && !r.pickedUpAt)
         .sort((a, b) => Number(b.urgent) - Number(a.urgent) || a.createdAt.localeCompare(b.createdAt));
       const indice = cola.findIndex((r) => r.id === target.id);
-      ok('10 · Logística lo tiene en «Llaves por preparar»', indice >= 0);
+      ok('10 · Logística lo tiene en «Traslados por enviar»', indice >= 0);
       if (indice >= 0) {
-        await page.getByText('Llaves preparadas', { exact: true }).nth(indice).click();
+        await page.getByTestId('traslado-por-enviar').nth(indice).getByText('Listo para enviar', { exact: true }).click();
         await page.waitForTimeout(700);
       }
       const trasPreparar = await estadoGuardado(page);
       const preparado = trasPreparar.requests.find((r) => r.id === target.id);
-      ok('10 · al prepararlas queda quién y cuándo', !!preparado?.keysReadyAt && preparado?.keysReadyBy === USUARIOS.logistica.id);
+      ok('10 · al darlo por listo queda quién y cuándo', !!preparado?.keysReadyAt && preparado?.keysReadyBy === USUARIOS.logistica.id);
 
       await cambiarDeUsuario(context, page, USUARIOS.transportista, `${BASE}/mis-traslados`);
       await page.waitForTimeout(800);

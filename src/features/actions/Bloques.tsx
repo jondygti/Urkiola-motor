@@ -147,7 +147,7 @@ export function AccionesSolicitudes({ requests, onHecho, limpiar }: { requests: 
   return (
     <>
       {can('solicitudes.gestionar') ? (
-        <Btn small icon="llaves" onPress={() => setAccion('llaves')}>Llaves preparadas</Btn>
+        <Btn small icon="llaves" onPress={() => setAccion('llaves')}>Listo para enviar</Btn>
       ) : null}
       {can('solicitudes.gestionar') || can('solicitudes.crear') ? (
         <Btn
@@ -164,9 +164,9 @@ export function AccionesSolicitudes({ requests, onHecho, limpiar }: { requests: 
 
       {accion === 'llaves' ? (
         <ConfirmarBloque
-          titulo="Llaves preparadas en bloque"
+          titulo="Listos para enviar en bloque"
           icono="llaves"
-          queHace="marcar las llaves como preparadas"
+          queHace="dar por listos para enviar"
           filas={filas}
           onClose={cerrar}
           onHecho={hecho}

@@ -12,6 +12,8 @@ function escenario() {
     locationObservedAt: fecha(8), lastMovementAt: null, lastCheckAt: null, deliveredAt: null }];
   s = applyCommand(s, cmd('request.create', { requestType: 'traslado', vehicleId: s.vehicles[0].id,
     siteId: 'galdakao', to: { siteId: 'galdakao' }, carrierId: 'gruas-francis' }, { at: fecha(10) }));
+  // Logística lo da por listo para enviar antes de que lo recojan.
+  s = applyCommand(s, cmd('request.update', { requestId: s.requests[0].id, status: 'asignada' }, { at: fecha(10) }));
   return s;
 }
 
@@ -31,7 +33,8 @@ test('un movimiento anterior a la solicitud tampoco cierra un traslado sin recog
   const s = escenario();
   const t = applyCommand(s, cmd('movement.register', { vehicleId: s.vehicles[0].id,
     to: { siteId: 'galdakao' } }, { at: fecha(9) }));
-  assert.equal(t.requests[0].status, 'solicitada');
+  // Sigue como estaba: listo para enviar, sin recoger y sin entregar.
+  assert.equal(t.requests[0].status, 'asignada');
   assert.ok(!t.requests[0].deliveredAt);
 });
 
@@ -49,6 +52,7 @@ test('Backend: llegada anterior a la recogida queda abierta y una llegada poster
     await s.ejecutar(cmd('request.create', { requestType: 'traslado', vehicleId: v.id,
       siteId: 'galdakao', to: { siteId: 'galdakao' }, carrierId: 'gruas-francis' }, { at: at(-40) }), log);
     const id = s.estado.requests[0].id;
+    await s.ejecutar(cmd('request.update', { requestId: id, status: 'asignada' }, { at: at(-35) }), log);
     await s.ejecutar(cmd('request.update', { requestId: id, status: 'en_ruta' }, { at: at(-20) }), log);
     await s.ejecutar(cmd('movement.register', { vehicleId: v.id, to: { siteId: 'galdakao' } }, { at: at(-30) }), log);
     assert.equal(s.estado.requests[0].status, 'en_ruta');

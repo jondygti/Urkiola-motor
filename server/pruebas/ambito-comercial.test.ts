@@ -152,6 +152,8 @@ test('el transportista sigue sin recibir datos comerciales', () => {
     carrierId: iker.carrierId ?? 'gruas-francis',
     assignedTo: iker.id,
     status: 'asignada' as const,
+    // Listo para enviar: si no, al transportista todavía no le llega.
+    keysReadyAt: '2026-09-20T08:00:00.000Z',
   };
   const conTraslado = { ...estado, requests: [...estado.requests, request] };
   const externo = estadoPara(conTraslado, iker, true);
