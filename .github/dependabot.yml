@@ -18,12 +18,11 @@ updates:
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "@expo/*"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # React va fijo a la versión exacta que pide Expo, parches incluidos:
+      # react y react-dom tienen que coincidir y se suben con el SDK.
       - dependency-name: "react"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "react-dom"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "react-test-renderer"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "react-native"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "react-native-*"
@@ -32,6 +31,9 @@ updates:
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "@react-native-community/*"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # Un TypeScript mayor (el 7 cambia de compilador) va en su propio cambio.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "npm"
     directory: "/server"
