@@ -138,9 +138,9 @@ export function filasCancelar(state: AppState, requests: ServiceRequest[], reaso
 }
 
 /**
- * Marcar como preparadas las llaves de varios traslados. Solo tiene
- * sentido en los que salen de Sondika y aún no las tienen: en los demás el
- * transportista no espera a nadie.
+ * Dar por listos para enviar varios traslados a la vez: llaves y coche
+ * localizados. Hasta entonces el transportista no los ve. Sin empresa de
+ * transporte no le llegaría a nadie, así que esos se quedan.
  */
 export function filasLlavesPreparadas(state: AppState, requests: ServiceRequest[]): FilaBloque[] {
   return requests.map((r) => {
@@ -148,19 +148,13 @@ export function filasLlavesPreparadas(state: AppState, requests: ServiceRequest[
     const motivo = cerrada(r);
     if (motivo) return { etiqueta, comando: null, motivo };
     if (r.type !== 'traslado') return { etiqueta, comando: null, motivo: 'Es una preparación, no un traslado.' };
-    if (!esDesdeSondika(state, r)) return { etiqueta, comando: null, motivo: 'No sale de Sondika: no espera llaves.' };
-    if (r.keysReadyAt || r.pickedUpAt) return { etiqueta, comando: null, motivo: 'Las llaves ya estaban preparadas.' };
+    if (r.keysReadyAt || r.pickedUpAt) return { etiqueta, comando: null, motivo: 'Ya estaba listo para enviar.' };
+    if (!r.carrierId) return { etiqueta, comando: null, motivo: 'No tiene empresa de transporte.' };
     return {
       etiqueta,
       comando: { type: 'request.update', requestId: r.id, status: 'asignada', assignedTo: r.assignedTo, carrierId: r.carrierId },
     };
   });
-}
-
-function esDesdeSondika(state: AppState, r: ServiceRequest): boolean {
-  const origen = r.from?.siteId;
-  if (!origen) return false;
-  return origen === 'sondika' || state.sites.find((s) => s.id === origen)?.name.trim().toLowerCase() === 'sondika';
 }
 
 /* -------------------------------------------------------- preparación */

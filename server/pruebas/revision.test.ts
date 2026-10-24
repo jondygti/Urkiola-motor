@@ -424,9 +424,19 @@ test('un traslado que nadie recoge acaba avisando a logística', () => {
     at: hace30h,
   } as Command);
 
-  const antes = s.inbox.length;
+  // Sin dar por listo para enviar, el que se ha quedado parado es logística.
+  let antes = s.inbox.length;
   s = aplicar(s, { type: 'alerts.sweep' });
-  const nuevos = s.inbox.slice(0, s.inbox.length - antes);
+  let nuevos = s.inbox.slice(0, s.inbox.length - antes);
+  assert.ok(nuevos.find((n) => n.vehicleId === v.id && n.body.includes('no está listo para enviar')),
+    'tenía que avisar de que lleva 30 h sin estar listo para enviar');
+
+  // Listo hace 30 h y nadie lo recoge: ahora el que no va es el transportista.
+  const pedido = s.requests.find((r) => r.type === 'traslado' && r.vehicleId === v.id)!;
+  s = applyCommand(s, { ...orden({ type: 'request.update', requestId: pedido.id, status: 'asignada' }), at: hace30h } as Command);
+  antes = s.inbox.length;
+  s = aplicar(s, { type: 'alerts.sweep' });
+  nuevos = s.inbox.slice(0, s.inbox.length - antes);
   const aviso = nuevos.find((n) => n.vehicleId === v.id && n.body.includes('recogido las llaves'));
   assert.ok(aviso, 'tenía que avisar de que lleva 30 h sin recoger');
   const logistica = s.users.filter((u) => u.active && u.role === 'logistica').map((u) => u.id);

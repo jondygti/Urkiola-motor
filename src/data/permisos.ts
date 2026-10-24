@@ -61,17 +61,15 @@ function vehiculoDeSuTraslado(s: AppState, u: User, vehicleId: Id): boolean {
 }
 
 /**
- * Los coches de Sondika tienen las llaves en Logística de Leioa. Para esos
- * traslados el hecho fiable es `keysReadyAt`: una asignación antigua o un
- * cambio de responsable no cuenta como preparación de llaves.
+ * Todo traslado pasa por logística antes de que lo vea el transportista: lo
+ * da por «listo para enviar» cuando tiene localizadas las llaves y el coche.
+ * El hecho fiable es `keysReadyAt`; una asignación antigua o un cambio de
+ * responsable no cuenta. Empezó solo con Sondika, cuyas llaves están en
+ * Leioa.
  */
 function necesitaLlavesPreparadas(s: AppState, requestId: Id): boolean {
   const r = s.requests.find((x) => x.id === requestId);
-  if (!r || r.type !== 'traslado') return false;
-  const origen = r.from?.siteId;
-  if (!origen) return false;
-  if (origen === 'sondika') return true;
-  return s.sites.find((site) => site.id === origen)?.name.trim().toLowerCase() === 'sondika';
+  return !!r && r.type === 'traslado';
 }
 
 /**
@@ -202,7 +200,7 @@ function permisoColaborador(s: AppState, u: User, cmd: Command): Rechazo {
         return 'No puedes reasignar un traslado.';
       }
       if (necesitaLlavesPreparadas(s, r.id) && !r.keysReadyAt && !r.pickedUpAt) {
-        return 'Logística todavía no ha marcado las llaves como preparadas.';
+        return 'Logística todavía no lo ha dado por listo para enviar.';
       }
       return null;
     }
@@ -304,7 +302,7 @@ export function comprobarPermiso(s: AppState, u: User, cmd: Command): Rechazo {
       // En Sondika no basta con que el traslado esté asignado: Logística
       // tiene que haber dejado constancia expresa de que las llaves están listas.
       if (cmd.status === 'en_ruta' && r && necesitaLlavesPreparadas(s, r.id) && !r.keysReadyAt && !r.pickedUpAt) {
-        return 'Marca primero las llaves como preparadas.';
+        return 'Márcalo primero como listo para enviar.';
       }
       if (tiene(s, u, 'solicitudes.gestionar')) return null;
       // Un rol interno con «traslados propios» puede registrar la recogida;

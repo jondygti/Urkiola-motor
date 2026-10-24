@@ -63,7 +63,7 @@ test('un traslado desde Sondika no puede recoger llaves hasta que Logística las
 
   assert.match(
     puede(state, transportista, { type: 'request.update', requestId, status: 'en_ruta' }) ?? '',
-    /todavía no ha marcado las llaves como preparadas/i
+    /todavía no lo ha dado por listo para enviar/i
   );
 
   const preparar = cmd({ type: 'request.update', requestId, status: 'asignada' }, logistica.id, 10);
@@ -101,13 +101,20 @@ test('un traslado antiguo asignado sin keysReadyAt sigue pendiente de llaves', (
     requests: state.requests.map((r) => r.id === requestId ? { ...r, status: 'asignada' as const, keysReadyAt: undefined, keysReadyBy: undefined } : r),
   };
   const rechazo = puede(antiguo, transportista, { type: 'request.update', requestId, status: 'en_ruta' });
-  assert.match(rechazo ?? '', /todavía no ha marcado las llaves como preparadas/i);
+  assert.match(rechazo ?? '', /todavía no lo ha dado por listo para enviar/i);
 });
 
-test('un traslado desde otra sede conserva el flujo anterior y puede recoger directamente', () => {
-  const { state, requestId, transportista } = escenario('leioa');
+test('un traslado desde otra sede también espera a que logística lo dé por listo para enviar', () => {
+  // Antes solo los de Sondika: ahora todos, porque ir a por un coche que
+  // nadie ha localizado, o sin llaves, es un viaje perdido.
+  let { state, requestId, logistica, transportista } = escenario('leioa');
+  assert.match(
+    puede(state, transportista, { type: 'request.update', requestId, status: 'en_ruta' }) ?? '',
+    /todavía no lo ha dado por listo para enviar/i
+  );
+  state = applyCommand(state, cmd({ type: 'request.update', requestId, status: 'asignada' }, logistica.id, 10));
   assert.equal(
-    puede(state, transportista, { type: 'request.update', requestId, status: 'en_ruta' }),
+    puede(state, transportista, { type: 'request.update', requestId, status: 'en_ruta' }, 11),
     null
   );
 });

@@ -100,16 +100,11 @@ function jornada(): { estado: AppState; guion: Command[] } {
     userId: 'u-juan',
   }, hace(270));
 
-  // 3 · Y un traslado de Sondika a Leioa, que el transportista recoge y entrega.
-  paso({
-    type: 'request.create',
-    requestType: 'traslado',
-    vehicleId: 'v-NUEVO001',
-    siteId: 'leioa',
-    to: { siteId: 'leioa' },
-    carrierId: 'gruas-francis',
-  }, hace(265));
+  // 3 · El coche está en Sondika, así que el traslado a Leioa se ha pedido
+  // solo con la preparación. Logística lo revisa, lo da por listo para
+  // enviar y el transportista lo recoge y lo entrega.
   const traslado = s.requests.find((r) => r.type === 'traslado' && r.vehicleId === 'v-NUEVO001')!;
+  paso({ type: 'request.update', requestId: traslado.id, status: 'asignada' }, hace(265));
   paso({ type: 'request.update', requestId: traslado.id, status: 'en_ruta' }, hace(260));
   paso({
     type: 'movement.register',

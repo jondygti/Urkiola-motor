@@ -148,6 +148,16 @@ Dos relojes distintos, que conviene no mezclar:
 | Objetivo de preparación (2 h / 2 h 30) | Cuánto debe durar el **trabajo** | Al empezar a preparar |
 | Plazo comprometido (48 h) | Cuándo tiene que **estar hecho** | Traslado: al recoger las llaves. Preparación: al pedirla |
 
+#### Antes de llegarle al transportista: «Listo para enviar»
+
+Ningún traslado le sale al transportista hasta que logística lo da por
+listo en Solicitudes → **Traslados por enviar**: llaves y coche
+localizados. Ahí caen también los que se piden solos al pedir la
+preparación de un coche que está en otra sede, marcados «Pedido con la
+preparación», con la empresa ya propuesta por la ruta; se cambia en
+«Gestionar» si hace falta. Sin empresa no se puede enviar: no le llegaría a
+nadie.
+
 #### Quién marca que se han recogido las llaves
 
 El reloj del traslado no corre hasta que alguien dice que las llaves ya

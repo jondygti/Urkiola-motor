@@ -700,6 +700,9 @@ export function misTrasladosPorFase(
   };
 }
 
+/** ¿Lo ha dado logística por listo para enviar (o ya está en marcha)? */
+export const enviado = (r: ServiceRequest): boolean => !!r.keysReadyAt || !!r.pickedUpAt;
+
 export function myTransfers(s: AppState, userId: Id): ServiceRequest[] {
   const user = s.users.find((u) => u.id === userId);
   const carrierId = user?.carrierId ?? null;
@@ -714,6 +717,10 @@ export function myTransfers(s: AppState, userId: Id): ServiceRequest[] {
   return s.requests
     .filter((r) => {
       if (r.type !== 'traslado' || r.status === 'terminada' || r.status === 'cancelada' || !r.carrierId) return false;
+      // Hasta que logística lo da por listo para enviar (llaves y coche
+      // localizados), al transportista no le sale: un encargo que todavía no
+      // se puede hacer solo sirve para ir a por un coche que no está.
+      if (!enviado(r)) return false;
       if (r.assignedTo === userId) return true;
       return carrierId !== null && r.carrierId === carrierId;
     })

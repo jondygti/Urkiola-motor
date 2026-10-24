@@ -330,6 +330,25 @@ en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
   recoja las llaves —que es donde se pierden los días, porque el plazo del
   transportista no empieza hasta la recogida y un traslado olvidado no
   llega tarde nunca.
+- **Todo traslado pasa por logística antes de llegarle al transportista.**
+  En Solicitudes → «Traslados por enviar», logística lo da por **«Listo
+  para enviar»** cuando tiene localizadas las llaves y el coche
+  (`keysReadyAt`); hasta entonces el transportista ni lo ve, ni en su
+  pantalla ni en lo que le manda el servidor (`enviado`, `recorte.ts`). Empezó
+  con los coches de Sondika, cuyas llaves están en Leioa: ir a por un coche
+  que nadie ha localizado, o sin llaves, es un viaje perdido.
+- **Pedir la preparación de un coche que está en otra sede pide también su
+  traslado** (`request.create`), con la empresa propuesta por la ruta y
+  marcado «Pedido con la preparación» (`conPreparacion`). Va a «Traslados por
+  enviar» para que logística lo revise. Antes el preparador veía «todavía no
+  está en Leioa» y alguien tenía que acordarse de pedirlo aparte.
+- **Tres avisos más que pone el reloj** (`src/data/avisos.ts`): al comercial
+  si quedan 4 días para la entrega y no hay preparación pedida; a los
+  preparadores de **esa sede** y a logística si una preparación tiene menos de
+  12 h de plazo y no ha empezado; y al comercial si pasaron 2 días de la
+  entrega y el coche sigue sin marcarse entregado (ocupa una plaza vacía).
+  Llegan a las instalaciones que ya funcionaban porque el barrido los añade
+  una vez (`config.avisosOfrecidos`); si alguien borra uno, no vuelve.
 - **Un traslado terminado deja registro**: cuándo se recogieron las llaves,
   cuándo se entregó y quién lo entregó (`deliveredAt`, `deliveredBy`). Antes
   un traslado terminado solo dejaba de estar pendiente, y sin fecha de

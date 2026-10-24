@@ -147,7 +147,9 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
   const vehicle = state.vehicles.find((v) => v.id === request.vehicleId);
   const enRuta = request.status === 'en_ruta';
   const requiereLlavesDeLeioa = request.from?.siteId === 'sondika';
-  const llavesListas = !requiereLlavesDeLeioa || !!request.keysReadyAt || !!request.pickedUpAt;
+  // Al transportista solo le llegan los que logística ya ha dado por listos;
+  // esto queda por si entra uno antiguo, de antes de esa regla.
+  const llavesListas = !!request.keysReadyAt || !!request.pickedUpAt;
   const plazo = deadlineOf(state, request);
 
   const recoger = () => {
@@ -257,13 +259,13 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
         <Muted>
           <Icon name="llaves" size={campo.small} color={c.textMuted} /> Llaves recogidas {request.pickedUpAt ? formatDateTime(request.pickedUpAt) : '—'}.
         </Muted>
-      ) : requiereLlavesDeLeioa && llavesListas ? (
+      ) : !llavesListas ? (
         <Muted>
-          <Icon name="llaves" size={campo.small} color={c.textMuted} /> Llaves listas en Leioa · Logística{request.keysReadyAt ? ` desde ${formatDateTime(request.keysReadyAt)}` : ''}. Recógelas antes de ir a por el coche a Sondika.
+          El plazo todavía no empieza: espera a que Logística lo deje listo para enviar.
         </Muted>
       ) : requiereLlavesDeLeioa ? (
         <Muted>
-          El plazo todavía no empieza: espera a que Logística deje las llaves listas.
+          <Icon name="llaves" size={campo.small} color={c.textMuted} /> Llaves listas en Leioa · Logística{request.keysReadyAt ? ` desde ${formatDateTime(request.keysReadyAt)}` : ''}. Recógelas antes de ir a por el coche a Sondika.
         </Muted>
       ) : (
         <Muted>
@@ -278,7 +280,8 @@ function TransferCard({ request, onDone }: { request: ServiceRequest; onDone: (m
 
       <Spacer h={space.sm} />
       <Text style={{ fontSize: campo.micro, color: c.textFaint }}>
-        Asignado {timeAgo(request.createdAt)} · {formatDateTime(request.createdAt)}
+        {/* Es suyo desde que logística lo dio por listo, no desde que se pidió. */}
+        Asignado {timeAgo(request.keysReadyAt ?? request.createdAt)} · {formatDateTime(request.keysReadyAt ?? request.createdAt)}
       </Text>
 
       {motivoOpen ? (
