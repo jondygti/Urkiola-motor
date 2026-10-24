@@ -785,6 +785,28 @@ export async function ejecutar(browser, BASE) {
     const pedido = tras.requests.find((r) => r.note === 'PRUEBA CAMBIO DE ROL');
     ok('23 · cerrar sesión no borra el traslado del comercial', !!pedido);
     ok('23 · Leioa a Galdakao se asigna a Grúas Francis', pedido?.carrierId === 'gruas-francis' && pedido?.from?.siteId === 'leioa' && pedido?.to?.siteId === 'galdakao');
+    // Hasta que logística lo da por listo para enviar, no le sale.
+    ok('23 · Francis todavía no lo ve: falta que logística lo dé por listo',
+      !(await page.locator('body').innerText()).includes('PRUEBA CAMBIO DE ROL'));
+    // El transportista no tiene menú lateral: sale por el botón de arriba.
+    await pulsar(page, 'Salir', { exact: true });
+    await page.waitForTimeout(900);
+    await pulsar(page, 'Marta Ibarra');
+    await page.waitForTimeout(1000);
+    await page.goto(`${BASE}/solicitudes`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(900);
+    const ref = v.plate ?? v.vin8;
+    await page.getByTestId('traslado-por-enviar').filter({ hasText: ref }).first()
+      .getByText('Listo para enviar', { exact: true }).click();
+    await page.waitForTimeout(700);
+    ok('23 · logística lo da por listo para enviar',
+      !!(await estadoGuardado(page)).requests.find((r) => r.note === 'PRUEBA CAMBIO DE ROL')?.keysReadyAt);
+    await pulsar(page, 'Cerrar sesión');
+    await page.waitForTimeout(900);
+    await pulsar(page, 'Iker Solano');
+    await page.waitForTimeout(1000);
+    await page.goto(`${BASE}/mis-traslados`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(900);
     ok('23 · Francis ve el encargo al entrar con su perfil', (await page.locator('body').innerText()).includes('PRUEBA CAMBIO DE ROL'));
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForTimeout(900);
