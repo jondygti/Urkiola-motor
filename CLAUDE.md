@@ -6,7 +6,7 @@
 > Cualquier proveedor, precio, rama o siguiente paso histórico de esta guía queda subordinado a esos documentos.
 
 Plataforma de gestión logística de flota de un grupo de concesionarios
-(Sondika, Leioa, Galdakao, Anoeta, Irun). Un solo código en Expo / React
+(Sondika, Leioa, Galdakao, Ford/Mazda Galdakao, Anoeta, Irun). Un solo código en Expo / React
 Native que sirve como panel web y como app de Android.
 
 **Quién manda:** Jon (Urkiola) dirige el producto y no programa. Decide qué
@@ -164,6 +164,13 @@ Cada una viene de un fallo real de este proyecto:
     gracia es ver muchas filas de un vistazo y se mira sentado.
     Lo vigila `scripts/verify/estilo.mjs`.
 
+36. **El color es el azul Easo y solo significa algo cuando no es azul**
+    (`src/ui/theme.tsx`): rojo, incidencia; ámbar, ojo con el plazo; verde,
+    está bien. El verde de marca del primer mockup no casaba con el
+    logotipo. Y **las pantallas no se explican a sí mismas**: nada de una
+    frase debajo del título contando para qué sirve. Si una pantalla
+    necesita explicación, lo que hay que arreglar es la pantalla.
+
 30. **Los iconos salen de `<Icon name>` (`src/ui/Icon.tsx`), nunca de
     emojis.** Cada teléfono dibuja un emoji a su manera y se habían repetido
     hasta que Flota y Mis coches, o Preparación y Mi preparación, llevaban el
@@ -182,6 +189,10 @@ Cada una viene de un fallo real de este proyecto:
     `app.config.ts`, los identificadores de paquete Android/iOS y las claves
     internas `urkiola.*` del almacenamiento. Urkiola sigue siendo la empresa:
     las frases que hablan de ella no se cambian sin preguntar.
+    Los iconos de la app (Android, tienda, arranque y pestaña del navegador)
+    llevan el mismo símbolo, en azul Easo `#007AC0`, y salen de
+    `scripts/marca/iconos.py`: el logotipo que tenemos mide 228 px y ampliado
+    se ve borroso, así que allí está dibujado como polígonos.
 
 32. **Las listas enseñan la miniatura del coche, nunca la foto original**
     (`<MiniaturaVehiculo>`, `src/features/common/Miniatura.tsx`). La
@@ -207,6 +218,19 @@ Cada una viene de un fallo real de este proyecto:
     `src/data/permisos.ts`— y se dice cuáles no la admiten y por qué; se
     aplica al resto. Solo en el ordenador (`accionesEnBloque` de `DataTable`):
     en el móvil se trabaja coche a coche. Lo vigila `server/pruebas/bloque.test.ts`.
+
+35. **La ocupación sale de `ocupacionDelMes`** (`src/data/ocupacion.ts`), la
+    misma función para el panel y para el aviso. Horas de preparación = tiempo
+    trabajado **sin pausas** de cada uno (`tiempoDePreparador`); el tiempo
+    estándar solo cuando el cronómetro marca 0, y más de tres veces el
+    estándar se cuenta pero se marca «revisar». Cada trabajo cuenta en el mes
+    en que se termina, en hora de España. Presencia = lunes a viernes, menos
+    festivos de la sede y ausencias, por la jornada y el % de esa sede, con la
+    ficha que valía **ese día** (las fichas llevan fecha y no se pisan). Los
+    tiempos estándar salen de `tiemposEstandar` (`src/data/tiempos.ts`) y se
+    **copian** a la preparación al abrirla: cambiar la tabla no reescribe meses
+    cerrados. El calendario es dato de personas: solo viaja a quien tiene
+    `panel.ver` o `admin.configurar`, y las ausencias no llevan motivo.
 
 ## Comprobar antes de dar algo por bueno
 
@@ -264,9 +288,23 @@ en marcha), `docs/APOYO-TECNICO.md` (qué apoyo externo hace falta),
 ## Reglas de negocio vigentes
 
 - Quiter aporta el parque maestro; Urkiola controla la logística.
-- Sondika almacena; Leioa, Galdakao, Anoeta e Irun preparan.
-- **Dos relojes distintos**: el objetivo de trabajo (VN 2 h, VO 2 h 30) y el
-  plazo comprometido (48 h). No mezclarlos.
+- Sondika almacena; Leioa, Galdakao, Ford/Mazda Galdakao, Anoeta e Irun
+  preparan. Ford/Mazda es del grupo Easo y se gestiona como Bizkaia.
+- **Dos relojes distintos**: el tiempo estándar de la tarea (VN 2 h, flota
+  1 h 30 en Leioa y 2 h en Ford/Mazda, VO a fondo 4 h, repasos 30 min,
+  carrocería 45 min; en Administración → Tiempos estándar) y el plazo
+  comprometido (48 h). No mezclarlos.
+- **La orden de trabajo de Quiter la abre Jon**, una por preparación, con
+  **limpieza y preentrega** siempre y los **accesorios que se pidieron**
+  (matrículas, alfombrillas, baliza, kit; requisitos con `accesorio`).
+  Quiter no deja escribir desde fuera, así que la app se la deja escrita en
+  Solicitudes → «Órdenes de trabajo por abrir en Quiter» para copiarla, y
+  guarda el número (`request.setOrden`). Los accesorios no pedidos le salen
+  al preparador como «no requerido». **Los repasos no llevan orden.**
+  `src/data/ordenTrabajo.ts`.
+- **La carrocería no es un coche de la flota**: el preparador apunta la
+  matrícula (`TrabajoSuelto`) y solo cuenta para su ocupación. Darlo de alta
+  como vehículo lo metería en la flota de todos.
 - El transportista tiene **48 h desde que recoge las llaves**; lo marca él
   o la oficina por él.
 - El comercial debe dar **48 h mínimo** para preparar; con menos, la app

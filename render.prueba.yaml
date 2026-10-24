@@ -1,0 +1,52 @@
+# Servidor de PRUEBA de Easo Logistics, con los datos de ejemplo.
+#
+# Sirve para enseñar la plataforma funcionando de verdad en internet
+# —varios móviles, fotos, avisos— en el plan gratuito de Render y Supabase,
+# sin datos de la empresa. NO es el staging de la empresa (`render.yaml`).
+# Paso a paso en deploy/PRUEBA-GRATIS.md.
+#
+# Los valores marcados `sync: false` se rellenan a mano en Render al crear
+# el servicio; nunca se escriben aquí.
+services:
+  - type: web
+    name: easo-logistics-prueba
+    runtime: docker
+    region: frankfurt
+    plan: free
+    branch: main
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    numInstances: 1
+    maxShutdownDelaySeconds: 30
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: URKIOLA_MODO
+        value: prueba
+      - key: URKIOLA_SEMILLA
+        value: demo
+      - key: EXPO_PUSH
+        value: "0"
+      - key: SUPABASE_BUCKET
+        value: urkiola-fotos
+      - key: JWT_SECRET
+        generateValue: true
+      # Contraseña que compartirán todos los usuarios de ejemplo. Una frase
+      # de 12 caracteres o más; con una débil el servidor no arranca.
+      - key: URKIOLA_CLAVE_PRUEBAS
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      # Las tres, la dirección que Render le dé al servicio
+      # (https://easo-logistics-prueba.onrender.com o parecida).
+      - key: PUBLIC_URL
+        sync: false
+      - key: CORS_ORIGEN
+        sync: false
+      - key: EXPO_PUBLIC_API_URL
+        sync: false

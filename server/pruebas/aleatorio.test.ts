@@ -324,6 +324,69 @@ const GENERADORES: { peso: number; gen: Generador }[] = [
   { peso: 1, gen: (s, r) => { const c = uno(r, s.carriers); return c ? { type: 'carrier.delete', carrierId: c.id } : null; } },
   { peso: 1, gen: (s, r) => ({ type: 'config.update', patch: { prepTargetMinutes: { VN: entre(r, 300), VO: entre(r, 300) } } }) },
 
+  /* ------------------------------------- tiempos, carrocería y calendario */
+  {
+    peso: 2,
+    gen: (s, r) => {
+      const p = uno(r, s.preparations);
+      const tarea = uno(r, ['vn', 'flota', 'vo_fondo', 'vo_repaso', 'repaso_entrega', 'carroceria'] as const);
+      return p && tarea ? { type: 'prep.setTarea', prepId: p.id, tarea } : null;
+    },
+  },
+  {
+    peso: 2,
+    gen: (s, r) => {
+      const tarea = uno(r, ['vn', 'flota', 'vo_fondo', 'vo_repaso', 'repaso_entrega', 'carroceria'] as const);
+      const sede = aVeces(r) ? null : uno(r, s.sites)?.id ?? null;
+      return tarea ? { type: 'tiempo.set', tarea, siteId: sede, minutos: aVeces(r, 0.2) ? null : entre(r, 400) - 50 } : null;
+    },
+  },
+  {
+    peso: 3,
+    gen: (s, r) => {
+      const sede = uno(r, s.sites);
+      return sede
+        ? { type: aVeces(r) ? 'suelto.empezar' : 'suelto.apuntar', siteId: sede.id, matricula: `${entre(r, 9999)}ABC`, tarea: 'carroceria' }
+        : null;
+    },
+  },
+  {
+    peso: 4,
+    gen: (s, r) => {
+      const t = uno(r, s.trabajosSueltos ?? []);
+      const type = uno(r, ['suelto.pausar', 'suelto.reanudar', 'suelto.terminar', 'suelto.cancelar'] as const);
+      return t && type ? { type, sueltoId: t.id } : null;
+    },
+  },
+  {
+    peso: 2,
+    gen: (s, r) => {
+      const u = uno(r, s.users);
+      const a = uno(r, s.sites);
+      const b = uno(r, s.sites);
+      if (!u || !a || !b) return null;
+      const pct = entre(r, 101);
+      return {
+        type: 'calendario.ficha', preparadorId: u.id, desde: `2026-${String(1 + entre(r, 12)).padStart(2, '0')}-01`,
+        jornadaMinutos: entre(r, 700), reparto: [{ siteId: a.id, pct }, { siteId: b.id, pct: 100 - pct }],
+      };
+    },
+  },
+  {
+    peso: 2,
+    gen: (s, r) => {
+      const u = uno(r, s.users);
+      const d = 1 + entre(r, 27);
+      return u ? {
+        type: 'calendario.ausencia', preparadorId: u.id, desde: `2026-03-${String(d).padStart(2, '0')}`,
+        hasta: `2026-03-${String(d + entre(r, 4) - 1).padStart(2, '0')}`, tipo: uno(r, ['vacaciones', 'baja', 'permiso', 'otro'] as const)!,
+      } : null;
+    },
+  },
+  { peso: 1, gen: (s, r) => ({ type: 'calendario.festivo', fecha: `2026-05-${String(1 + entre(r, 28)).padStart(2, '0')}`, siteId: aVeces(r) ? null : uno(r, s.sites)?.id ?? null, nombre: 'Festivo' }) },
+  { peso: 1, gen: (s, r) => { const a = uno(r, s.ausencias ?? []); return a ? { type: 'calendario.ausenciaBorrar', ausenciaId: a.id } : null; } },
+  { peso: 1, gen: (s, r) => { const f = uno(r, s.fichasLaborales ?? []); return f ? { type: 'calendario.fichaBorrar', fichaId: f.id } : null; } },
+
   /* ------------------------------------------------ avisos y bandeja */
   // El repaso del reloj, que crea avisos por su cuenta. Es lo más nuevo del
   // sistema y hasta ahora no lo disparaba nadie aquí.

@@ -15,6 +15,7 @@ El código actual está en `server/`. La especificación exacta de comandos vive
 | POST | `/auth/restablecer` | recuperación actual |
 | GET | `/state` | estado autorizado del usuario (con los 4.000 apuntes y 300 avisos más recientes) |
 | GET | `/historial/:vehicleId` | historial completo de un coche; 404 si el coche no está en su estado autorizado y siempre para transportistas |
+| GET | `/cambios?version=N` | espera larga (hasta 25 s): contesta `{ version }` en cuanto se aplica un comando nuevo, o al acabar la espera. No dice qué ha cambiado; la app pide `/state` y recibe su recorte de siempre |
 | POST | `/commands` | aplicar un comando |
 | POST | `/fotos` | subir imagen/PDF; exige rol operativo con evidencia |
 | GET | `/fotos/:id` | recuperar archivo solo si la referencia forma parte del estado autorizado |
@@ -70,6 +71,13 @@ Transportistas:
 - `vehicle.setCommercial` permite a quien tenga `flota.editar` corregir categoría y responsable del stock;
 - la autorización se comprueba en backend, independientemente de los botones que muestre el cliente.
 
+Calendario de preparadores y ocupación:
+
+- `fichasLaborales` y `ausencias` solo viajan a quien tiene `panel.ver` o `admin.configurar`; al resto, y siempre al colaborador externo, llegan vacías;
+- las ausencias no tienen campo de motivo (una baja es dato de salud);
+- `trabajosSueltos` (carrocería sin coche de la flota): el preparador recibe solo los suyos; el transportista y el ámbito comercial, ninguno;
+- `tiempo.set` y `calendario.*` exigen `admin.configurar`; `prep.setTarea`, `preparacion.gestionar`; `suelto.empezar`/`suelto.apuntar`, `preparacion.ejecutar` en su sede; pausar, reanudar, terminar o anular un trabajo suelto, ser quien lo hizo o tener `preparacion.gestionar`.
+
 ## Reglas funcionales especialmente protegidas
 
 - traslado solo termina al llegar al destino de esa solicitud;
@@ -79,6 +87,9 @@ Transportistas:
 - solicitudes canceladas no vuelven a activarse por reintentos/entrega;
 - preparaciones equivalentes no se duplican de forma incompatible;
 - preparación completa y repaso son tipos distintos;
+- cada preparación copia el tiempo estándar de su tarea al abrirse (`targetMs`); cambiar la tabla no reescribe lo ya abierto ni los meses cerrados;
+- la ocupación cuenta el tiempo trabajado sin pausas, y el estándar solo si el cronómetro marca 0; un trabajo cuenta en el mes (hora de España) en que se termina;
+- el aviso `ocupacion_alta` mira los dos últimos meses cerrados y sale una vez por sede, mes y regla;
 - Sondika no prepara;
 - zona sin plazas numeradas es válida;
 - primera/segunda llave son opcionales e independientes;

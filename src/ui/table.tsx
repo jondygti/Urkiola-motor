@@ -70,7 +70,14 @@ export function DataTable<T>({
   const [orden, setOrden] = useState<Orden>(null);
   const [marcadas, setMarcadas] = useState<Set<string>>(() => new Set());
 
-  const hasFilters = showFilters && columns.some((col) => col.filter);
+  // Los filtros por columna van plegados: abiertos siempre, la cabecera
+  // ocupaba el doble y repetía lo que ya hacen los filtros de arriba. Se
+  // abren con un toque, y si alguno tiene valor se quedan a la vista para
+  // que nadie se pregunte por qué faltan coches.
+  const [verFiltros, setVerFiltros] = useState(false);
+  const conFiltros = showFilters && columns.some((col) => col.filter);
+  const filtrosActivos = Object.values(filters).some((v) => v && v !== '__all__');
+  const hasFilters = conFiltros && (verFiltros || filtrosActivos);
 
   const filtered = useMemo(() => {
     const active = Object.entries(filters).filter(([, v]) => v && v !== '__all__');
@@ -225,6 +232,23 @@ export function DataTable<T>({
           </Pressable>
           <View style={{ flex: 1 }} />
           {accionesEnBloque!(seleccionadas, limpiar)}
+        </View>
+      ) : null}
+      {conFiltros ? (
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: space.xs }}>
+          <Pressable
+            onPress={() => {
+              if (hasFilters && filtrosActivos) setFilters({});
+              setVerFiltros(!hasFilters);
+            }}
+            accessibilityRole="button"
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 }}
+          >
+            <Icon name={hasFilters ? 'cerrar' : 'filtro'} size={tipografia.body} color={c.primary} />
+            <Text style={{ fontSize: tipografia.small, fontWeight: '700', color: c.primary }}>
+              {hasFilters ? (filtrosActivos ? 'Quitar filtros de columna' : 'Ocultar filtros') : 'Filtrar por columna'}
+            </Text>
+          </Pressable>
         </View>
       ) : null}
       <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={{ minWidth: '100%' }}>

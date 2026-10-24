@@ -15,6 +15,7 @@
 import { Client, Pool } from 'pg';
 import fs from 'node:fs';
 import path from 'node:path';
+import { sslPostgres } from './tls';
 import type { AppState, Id } from '../../../src/data/types';
 import type { Command } from '../../../src/data/commands';
 import type { Almacen, Credencial, EnlaceRestablecer, TokenPush } from './tipos';
@@ -35,7 +36,7 @@ export class AlmacenPostgres implements Almacen {
     this.pool = new Pool({
       connectionString: url,
       // Los PostgreSQL gestionados remotos usan TLS; local no lo necesita.
-      ssl: /localhost|127\.0\.0\.1/.test(url) ? undefined : { rejectUnauthorized: true },
+      ssl: sslPostgres(url),
       max: 5,
     });
   }
@@ -99,7 +100,7 @@ export class AlmacenPostgres implements Almacen {
   private async cogerCerrojo() {
     this.cerrojo = new Client({
       connectionString: this.url,
-      ssl: /localhost|127\.0\.0\.1/.test(this.url) ? undefined : { rejectUnauthorized: true },
+      ssl: sslPostgres(this.url),
     });
     await this.cerrojo.connect();
     await this.cerrojo.query('listen urkiola_relevo');

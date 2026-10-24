@@ -10,6 +10,8 @@ import { LocationsAdmin } from '@/features/admin/LocationsAdmin';
 import { UsersAdmin } from '@/features/admin/UsersAdmin';
 import { FleetAdmin } from '@/features/admin/FleetAdmin';
 import { CarriersAdmin } from '@/features/admin/CarriersAdmin';
+import { TiemposAdmin } from '@/features/admin/TiemposAdmin';
+import { CalendarioAdmin } from '@/features/admin/CalendarioAdmin';
 
 export default function AdminScreen() {
   const state = useAppState();
@@ -17,17 +19,11 @@ export default function AdminScreen() {
   const { c } = useTheme();
 
   const [tab, setTab] = useState<
-    'operativa' | 'repaso' | 'ubicaciones' | 'flota' | 'usuarios' | 'transporte' | 'sistema'
+    'operativa' | 'repaso' | 'tiempos' | 'calendario' | 'ubicaciones' | 'flota' | 'usuarios' | 'transporte' | 'sistema'
   >('operativa');
   const [editing, setEditing] = useState<Requirement | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const limites = limitesDias(state);
-
-  const setTarget = (type: VehicleType, minutes: number) =>
-    run({
-      type: 'config.update',
-      patch: { prepTargetMinutes: { ...state.config.prepTargetMinutes, [type]: minutes } },
-    });
 
   if (!can(state, user, 'admin.configurar')) {
     return (
@@ -44,7 +40,6 @@ export default function AdminScreen() {
   return (
     <Screen>
       <H1>Administración</H1>
-      <Muted>Todo configurable sin tocar el código: sedes, plazas, checklists, objetivos y avisos.</Muted>
 
       {toast ? <Notice>{toast}</Notice> : null}
 
@@ -55,6 +50,8 @@ export default function AdminScreen() {
           options={[
             { value: 'operativa', label: 'Preparación' },
             { value: 'repaso', label: 'Repaso de entrega' },
+            { value: 'tiempos', label: 'Tiempos estándar' },
+            { value: 'calendario', label: 'Calendario' },
             { value: 'ubicaciones', label: 'Ubicaciones' },
             { value: 'flota', label: 'Flota y columnas' },
             { value: 'usuarios', label: 'Usuarios y roles' },
@@ -71,37 +68,11 @@ export default function AdminScreen() {
               icon={tab === 'repaso' ? 'preparacion' : 'tiempo'}
               title={tab === 'repaso' ? 'Servicio de repaso de entrega' : 'Preparación completa'}
             >
-              {tab === 'operativa' ? <>
-              <Field label="Vehículo nuevo (VN) · minutos">
-                <Input
-                  value={String(state.config.prepTargetMinutes.VN)}
-                  onChangeText={(v) => setTarget('VN', Number(v.replace(/\D/g, '')) || 0)}
-                  keyboardType="numeric"
-                />
-              </Field>
-              <Field label="Vehículo de ocasión (VO) · minutos">
-                <Input
-                  value={String(state.config.prepTargetMinutes.VO)}
-                  onChangeText={(v) => setTarget('VO', Number(v.replace(/\D/g, '')) || 0)}
-                  keyboardType="numeric"
-                />
-              </Field>
-              </> : null}
-              {tab === 'repaso' ? <Field
-                label="Objetivo del servicio · minutos"
-                hint="La limpieza del día de la entrega. Va aparte porque no es el mismo trabajo."
-              >
-                <Input
-                  value={String(state.config.repasoTargetMinutes)}
-                  onChangeText={(v) =>
-                    run({
-                      type: 'config.update',
-                      patch: { repasoTargetMinutes: Number(v.replace(/\D/g, '')) || 30 },
-                    })
-                  }
-                  keyboardType="numeric"
-                />
-              </Field> : null}
+              {/* Los objetivos de tiempo están en «Tiempos estándar»: son
+                  los mismos números que cuentan para la ocupación. */}
+              <Notice icon="tiempo" onPress={() => setTab('tiempos')}>
+                Los objetivos de tiempo de cada trabajo están en «Tiempos estándar».
+              </Notice>
               {tab === 'operativa' ? <>
               <Field label="Horas de plazo del transportista" hint="Desde que recoge las llaves.">
                 <Input
@@ -160,7 +131,7 @@ export default function AdminScreen() {
                 </Field>
               ))}
               <Muted>
-                Ojo con la diferencia: el objetivo de 2 h es lo que debe durar el trabajo; las 48 h son el
+                Ojo con la diferencia: el tiempo estándar es lo que debe durar el trabajo; las 48 h son el
                 plazo comprometido para tenerlo listo. Los plazos se calculan al crear la solicitud, así que
                 cambiarlos aquí no mueve lo ya comprometido.
               </Muted>
@@ -254,6 +225,10 @@ export default function AdminScreen() {
           </Panel>
         </>
       ) : null}
+
+      {tab === 'tiempos' ? <TiemposAdmin /> : null}
+
+      {tab === 'calendario' ? <CalendarioAdmin onDone={setToast} /> : null}
 
       {tab === 'ubicaciones' ? <LocationsAdmin onDone={setToast} /> : null}
 

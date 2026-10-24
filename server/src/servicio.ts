@@ -96,6 +96,10 @@ export function estadoVacio(): AppState {
     inbox: [],
     receptions: [],
     events: [],
+    // El calendario y la carrocería de la demo son de personas de la demo.
+    trabajosSueltos: [],
+    fichasLaborales: [],
+    ausencias: [],
   };
 }
 
@@ -120,6 +124,16 @@ export class Servicio {
    */
   private drenando = false;
   private escriturasActivas = 0;
+
+  /**
+   * Un número que cambia con cada comando aplicado. Las pantallas abiertas
+   * esperan en `/cambios` a que deje de ser el que conocen y entonces piden
+   * su estado: así lo que hace uno le aparece al otro al momento, sin tener
+   * que refrescar. Empieza en la hora de arranque para que, tras un
+   * redeploy, cualquier pantalla vea un número distinto y se ponga al día.
+   */
+  private version = Date.now();
+  private esperandoCambio = new Set<() => void>();
   private resolverDrenaje: (() => void) | null = null;
 
   private constructor(
@@ -187,6 +201,8 @@ export class Servicio {
   /** Deja de aceptar escrituras y espera a que terminen las que ya entraron. */
   private async prepararRelevo(): Promise<void> {
     this.drenando = true;
+    // Las pantallas que esperan aquí tienen que irse a la instancia nueva.
+    this.despertarEsperas();
     if (this.escriturasActivas === 0) return;
     await new Promise<void>((resolver) => {
       this.resolverDrenaje = resolver;
@@ -236,7 +252,7 @@ export class Servicio {
 
     if (await this.almacen.hayCredenciales()) return;
 
-    if (config.produccion) {
+    if (config.produccion && !config.modoPrueba) {
       console.warn(
         'ATENCIÓN: no hay ninguna contraseña dada de alta y no se ha configurado ' +
           'URKIOLA_ADMIN_EMAIL / URKIOLA_ADMIN_PASSWORD. Nadie va a poder entrar.'
@@ -244,6 +260,9 @@ export class Servicio {
       return;
     }
 
+    // En un servidor de prueba en internet, la contraseña compartida tiene
+    // que cumplir lo mismo que cualquier otra (ya lo exige leerConfig).
+    if (config.modoPrueba) comprobarFortaleza(config.clavePruebas);
     for (const u of this.estadoActual.users) {
       await this.guardarCredencial(u.id, u.email, config.clavePruebas);
     }
@@ -505,6 +524,8 @@ export class Servicio {
     if (tocaFoto) this.desdeFoto = 0;
 
     this.estadoActual = despues;
+    this.version += 1;
+    this.despertarEsperas();
 
     if (this.config.push) {
       const nuevos = avisosNuevos(antes, despues);
@@ -513,6 +534,32 @@ export class Servicio {
     }
 
     return { repetido: false };
+  }
+
+  /**
+   * Espera a que el estado cambie respecto a `conocida`, como mucho `ms`, y
+   * devuelve la versión actual. Si ya es otra, contesta enseguida.
+   *
+   * No dice qué ha cambiado: eso lo sigue diciendo `/state`, con su recorte
+   * por usuario. Así esta ruta no puede enseñarle a nadie nada que no le toque.
+   */
+  esperarCambio(conocida: number | null, ms: number, cancelada?: AbortSignal): Promise<number> {
+    if (conocida === null || conocida !== this.version || this.drenando) return Promise.resolve(this.version);
+    return new Promise((resolver) => {
+      const terminar = () => {
+        clearTimeout(reloj);
+        this.esperandoCambio.delete(terminar);
+        cancelada?.removeEventListener('abort', terminar);
+        resolver(this.version);
+      };
+      const reloj = setTimeout(terminar, ms);
+      this.esperandoCambio.add(terminar);
+      cancelada?.addEventListener('abort', terminar);
+    });
+  }
+
+  private despertarEsperas() {
+    for (const terminar of [...this.esperandoCambio]) terminar();
   }
 
   /** Render usa esto para no enviar tráfico a una instancia sin base de datos. */
