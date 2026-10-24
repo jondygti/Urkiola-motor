@@ -19,6 +19,11 @@ const EXCEPCIONES = {
   // actualizaciones (expo-updates/cli, @expo/cli) en el ordenador que
   // compila. La app no lo lleva y el servidor no lo tiene.
   'GHSA-86w9-cpqp-85rv': { caduca: '2026-12-31', paquete: 'node-forge' },
+  // zod <4.6.6: solo lo usa @expo/cli para validar la configuración al
+  // compilar, y con los datos del propio proyecto, no con nada que llegue de
+  // fuera. Ni la app ni el servidor lo llevan. El arreglo está en zod 4, que
+  // @expo/cli todavía no admite: forzarlo rompería la compilación.
+  'GHSA-mrhx-c7xc-m3w5': { caduca: '2026-12-31', paquete: 'zod' },
 };
 
 const carpeta = process.argv[2] ?? '.';
