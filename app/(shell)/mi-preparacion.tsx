@@ -315,10 +315,10 @@ function DondeEsta({ vehicle, esperadoEn }: { vehicle: Vehicle | undefined; espe
   );
 }
 
-/** «Entrega 28/10 · 16:36 · Mikel Santos»: para cuándo y para quién, en una línea. */
+/** «Entrega 28/10 · 16:36 · comercial Mikel Santos»: para cuándo y para quién, en una línea. */
 function lineaDeEntrega(state: AppState, vehicle: Vehicle | undefined): string {
   const comercial = comercialLabel(state, vehicle);
-  const quien = comercial === 'Sin asignar' ? 'sin comercial asignado' : comercial;
+  const quien = comercial === 'Sin asignar' ? 'sin comercial asignado' : `comercial ${comercial}`;
   return vehicle?.deliveryDate ? `Entrega ${formatDateTime(vehicle.deliveryDate)} · ${quien}` : quien.charAt(0).toUpperCase() + quien.slice(1);
 }
 

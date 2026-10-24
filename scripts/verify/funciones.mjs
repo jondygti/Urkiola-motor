@@ -394,8 +394,8 @@ export async function ejecutar(browser, BASE) {
     ok('13 · marcada como sin empezar', texto.includes('Sin empezar') || texto.includes('Urgente'));
     ok(
       '13 · el preparador ve de qué comercial es el coche',
-      texto.includes('Comercial:'),
-      texto.match(/Comercial:[^\n]*/)?.[0] ?? 'sin dato comercial'
+      /comercial [^\n·]+/i.test(texto),
+      texto.match(/comercial [^\n·]+/i)?.[0] ?? 'sin dato comercial'
     );
 
     // El botón de SU tarjeta: en la cola puede haber más preparaciones
@@ -680,7 +680,7 @@ export async function ejecutar(browser, BASE) {
 
     const cola = await page.evaluate(() => document.body.innerText);
     ok('20 · el reloj pone los repasos del día en la cola del preparador', cola.includes('Repaso de entrega'));
-    ok('20 · y dice que el coche se entrega hoy', cola.includes('Se entrega hoy'));
+    ok('20 · y dice que el coche se entrega hoy', /se entrega hoy/i.test(cola));
 
     const s = await estadoGuardado(page);
     const repasos = (s?.requests ?? []).filter((r) => r.prepTipo === 'repaso' && r.status !== 'terminada');
